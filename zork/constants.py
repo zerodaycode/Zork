@@ -1,4 +1,5 @@
 """ Constant definitions """
+PROJECT_VERSION: str = '0.1.0'
 CONFIGURATION_FILE_NAME: str = 'zork.conf'
 
 # Available attributes for configuring the project

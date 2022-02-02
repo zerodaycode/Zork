@@ -10,25 +10,18 @@ config: dict = {
     'build' : BuildConfig('./build')
 }
 
-def get_project_config() -> dict:
+def get_project_config(root_path: str) -> dict:
     """Parses the file looking for a kind of AST token tokens"""
     
     # Open the configuration file in 'read-only' mode
-    read_config_file_lines()
+    read_config_file_lines(root_path)
     # Check mandatory tokens found
     check_mandatory_attributes()
 
     return config
 
-def read_config_file_lines():
-    import os
-    # path = os.getcwd()
-    # print('PPPATH: ' + path)
-    # os.chdir(path)
-    # print('P2: ' + os.getcwd())
-    # print('Files with listdir: ' + ' '.join(os.listdir()))
-    os.chdir('./Zork')
-    with open(CONFIGURATION_FILE_NAME, 'r') as config_file:
+def read_config_file_lines(root_path: str):
+    with open(root_path + '/' + CONFIGURATION_FILE_NAME, 'r') as config_file:
         # Get all the lines written in the conf file
         lines = config_file.readlines()
         # Tracks what attribute (or it's properties) are being parsed
@@ -36,7 +29,6 @@ def read_config_file_lines():
         current_attr: str = ''
         for line in lines:
             line = line.rstrip('\n')
-            print(f'Line: {line}')
             if line.startswith('[[#'):
                 # If starts with the '[[' symbols, 
                 # it's a line with a section attriute identifier

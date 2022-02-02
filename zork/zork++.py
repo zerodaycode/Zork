@@ -49,13 +49,20 @@ from exceptions import NoConfigurationFileFound
 
 if __name__ == '__main__':
 
-    if find_config_file():
+    for dire, folders, files in os.walk('.'):
+        if dire == '.':
+            print("\nos.walk DIR: " + dire)
+            print("os.walk folders: " + ' '.join(folders))
+            print("os.walk files: " + ' '.join(files))
+
+    if find_config_file(os.getcwd()):
         # TODO Color logs
         # TODO Enable clang color output
-        print("Starting a new C++ compilation job with Zork")
-        print(os.getcwd())
+        print(
+            "\n[INFO]: Starting a new C++ compilation job with Zork"
+        )
         # Gets the configuration parameters for building the project
-        config = get_project_config()
+        config = get_project_config(os.getcwd())
 
         print(f'Compiler: {config.get("compiler")}')
         print(f'Language: {config.get("language")}')
