@@ -3,6 +3,15 @@ from exceptions import DuplicatedAttribute, MissedMandatoryAttributes, \
 from structures import CompilerConfig, LanguageConfig, BuildConfig
 from constants import *
 
+"""
+    [summary] This file provides the necessary mechanisms to parse the Zork++
+        configuration file.
+        It's made of just basic functions that parses the two kind of tokens
+        that conforms the logic of the application data, which are:
+            - Attributes -> [[#Attribute]]
+            - Property -> <property_name>: <value>
+"""
+
 # Initializes the map with the config values and provide default values
 config: dict = {
     'compiler' : CompilerConfig('clang'),
@@ -11,8 +20,7 @@ config: dict = {
 }
 
 def get_project_config(root_path: str) -> dict:
-    """Parses the file looking for a kind of AST token tokens"""
-    
+    """ Parses the file looking for a kind of AST token tokens """
     # Open the configuration file in 'read-only' mode
     read_config_file_lines(root_path)
     # Check mandatory tokens found
@@ -21,6 +29,8 @@ def get_project_config(root_path: str) -> dict:
     return config
 
 def read_config_file_lines(root_path: str):
+    """ Reads line by line the configuration file, distinguishing between
+        attributes and properties """
     with open(root_path + '/' + CONFIGURATION_FILE_NAME, 'r') as config_file:
         # Get all the lines written in the conf file
         lines = config_file.readlines()
@@ -30,8 +40,8 @@ def read_config_file_lines(root_path: str):
         for line in lines:
             line = line.rstrip('\n')
             if line.startswith('[[#'):
-                # If starts with the '[[' symbols, 
-                # it's a line with a section attriute identifier
+                # If starts with the '[[' symbols,
+                # it's a line with a section attribute identifier
                 find_section_attribute(line)
                 current_attr = line
             elif line == '' or line.startswith("#"):
@@ -39,6 +49,8 @@ def read_config_file_lines(root_path: str):
             else:
                 # Then, it should be a property
                 property_parser(line, current_attr)
+
+        # ['[[#\nmypropiedad: a', '[[#...]]] 
 
 def check_mandatory_attributes():
     """ Checks if all the defined as 'mandatory attribute' elements
@@ -67,7 +79,7 @@ def find_section_attribute(line: str):
         attributes_found.append(LANGUAGE_ATTR)
         mandatory_attributes_found.append(LANGUAGE_ATTR)
     elif line == BUILD_ATTR: # Optional, it has a default
-        attributes_found.append(LANGUAGE_ATTR)
+        attributes_found.append(BUILD_ATTR)
     else:
         raise UnknownAttribute(line)
 
@@ -108,3 +120,4 @@ def parse_build_config_property(line: str):
         config.get('build').output_dir = line
     else:
         raise UnknownProperty(line)
+        
