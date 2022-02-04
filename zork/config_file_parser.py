@@ -2,84 +2,101 @@ from exceptions import DuplicatedAttribute, MissedMandatoryAttributes, \
     UnknownAttribute, UnknownProperty
 from structures import CompilerConfig, LanguageConfig, BuildConfig
 from constants import *
+import re
 
 # Initializes the map with the config values and provide default values
 config: dict = {
-    'compiler' : CompilerConfig('clang'),
-    'language' : LanguageConfig(20, 'libstdc++'),
-    'build' : BuildConfig('./build')
+    'compiler': CompilerConfig('clang'),
+    'language': LanguageConfig(20, 'libstdc++'),
+    'build': BuildConfig('./build')
 }
+
 
 def get_project_config(root_path: str) -> dict:
     """Parses the file looking for a kind of AST token tokens"""
-    
+
     # Open the configuration file in 'read-only' mode
-    read_config_file_lines(root_path)
+    config_file = read_config_file_lines(root_path)
+
     # Check mandatory tokens found
     check_mandatory_attributes()
 
     return config
 
-def read_config_file_lines(root_path: str):
+
+def read_config_file_lines(root_path: str) -> list:
     with open(root_path + '/' + CONFIGURATION_FILE_NAME, 'r') as config_file:
         # Get all the lines written in the conf file
-        lines = config_file.readlines()
-        # Tracks what attribute (or it's properties) are being parsed
-        # when an attribute is discovered
-        current_attr: str = ''
-        for line in lines:
-            line = line.rstrip('\n')
-            if line.startswith('[[#'):
-                # If starts with the '[[' symbols, 
-                # it's a line with a section attriute identifier
-                find_section_attribute(line)
-                current_attr = line
-            elif line == '' or line.startswith("#"):
-                pass
-            else:
-                # Then, it should be a property
-                property_parser(line, current_attr)
+        return config_file.readlines()
+
+
+def retrieve_attributes_identifier(file: str):
+    pattern_get_attributes = r"^\[\[#\w+]]"
+    attributes_found.append(re.findall(pattern_get_attributes, file, re.MULTILINE))
+
 
 def check_mandatory_attributes():
     """ Checks if all the defined as 'mandatory attribute' elements
         are present in the configuration file
     """
-    # Check if they are present. If not, append it to a tracknig list
-    for attr in MANDATORY_ATTRIBUTES:
-        if attr not in mandatory_attributes_found:
-            missed_mandatory_attributes.append(attr)
+    # Check if they are present. If not, append it to a tracking list
+    for mandatory_attr in MANDATORY_ATTRIBUTES:
+        if mandatory_attr in attributes_found:
+            mandatory_attributes_found.append(mandatory_attr)
+        else:
+            missed_mandatory_attributes.append(mandatory_attr)
     # Raise an exception containing all the missed mandatory attributes
     if len(missed_mandatory_attributes) != 0:
         raise MissedMandatoryAttributes(missed_mandatory_attributes)
 
 
-def find_section_attribute(line: str):
-    """ Discovers written attributes and reports the mandatory missing ones """
-    
-    # Check for duplicates
-    if line in attributes_found:
-        raise DuplicatedAttribute(line)
+def precheck_valid_config_file(file: list):
+    retrieve_attributes_identifier(file)
+    if not attributes_found:
+        pass
+        # TODO Implement new exception NoAttributesFound
+        # raise NoAttributesFound()
+    check_mandatory_attributes()
 
-    if line == COMPILER_ATTR: # Mandatory
-        attributes_found.append(COMPILER_ATTR)
-        mandatory_attributes_found.append(COMPILER_ATTR)
-    elif line == LANGUAGE_ATTR: # Mandatory
-        attributes_found.append(LANGUAGE_ATTR)
-        mandatory_attributes_found.append(LANGUAGE_ATTR)
-    elif line == BUILD_ATTR: # Optional, it has a default
-        attributes_found.append(LANGUAGE_ATTR)
-    else:
-        raise UnknownAttribute(line)
+    # Pattern to find if the file starts with an attribute or one or more comments before the attribute
+    start_pattern = r"^(?:(?:# ?\w+\n)+\n?)*\[\[#\w+]]"
 
-def property_parser(line: str, current_attribute: str) -> None:
-    """ Parses a given line from some buffer input of reading the config file
-        trying to retrieve a valid value to some property of some attribute"""
-    if current_attribute == COMPILER_ATTR:
-        parse_compiler_config_property(line)
-    elif current_attribute == LANGUAGE_ATTR:
-        parse_language_config_property(line)
-    elif current_attribute == BUILD_ATTR:
-        parse_build_config_property(line)
+    if not start_pattern.match(file):
+        pass
+        # TODO Implement new exception ErrorStartFileFormat
+        # raise ErrorStartFileFormat()
+
+
+def clean_file(file: str) -> str:
+    """Clean the file and retrieve only lines with attribute or property format"""
+    # Pattern to retrieve all lines who are attributes [[#attr]] or properties
+    valid_lines_pattern = r"^\[\[#\w+]]$|^\w+: ?.+"
+    return "\n".join(re.findall(valid_lines_pattern, file, re.MULTILINE))
+
+
+def parse_attr_properties_block(file: str) -> dict:
+    block_pattern = r"^\[\[#\w+]]\n(?:^\w+: ?.+\n?)+"
+    blocks = re.findall(block_pattern, file, re.MULTILINE)
+
+    for block in blocks:
+        block_dict = {
+            "attr_name": "",
+            "properties": []
+        }
+        attr_pattern = r"^\[\[#(\w+)]]"
+        property_pattern = r"^(.+): (.+)$"
+
+        block_dict["attr_name"] = re.search(attr_pattern, block).group(1)
+
+        extracted_properties_buffer = re.findall(property_pattern, block, re.MULTILINE)
+
+        for property_name, property_value in extracted_properties_buffer:
+            block_dict["properties"].append(
+                {"property_name": property_name,
+                 "property_value": property_value
+                 })
+    return block_dict
+
 
 def parse_compiler_config_property(line: str):
     """ Retrieves the value of a property from the 'compiler' attribute """
@@ -89,6 +106,7 @@ def parse_compiler_config_property(line: str):
             config.get('compiler').cpp_compiler = line
     else:
         raise UnknownProperty(line)
+
 
 def parse_language_config_property(line: str):
     """ Retrieves the value of a property from the 'language' attribute """
@@ -100,6 +118,7 @@ def parse_language_config_property(line: str):
         config.get('language').std_lib = line
     else:
         raise UnknownProperty(line)
+
 
 def parse_build_config_property(line: str):
     """ Retrieves the value of a property from the 'build' attribute """
