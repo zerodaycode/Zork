@@ -61,7 +61,7 @@ if __name__ == '__main__':
         # Gets the configuration parameters for building the project
         config = get_project_config(os.getcwd())
 
-        print(f'Compiler: {config.get("compiler")}')
+        print(f'\nCompiler: {config.get("compiler")}')
         print(f'Language: {config.get("language")}')
         print(f'Build: {config.get("build")}\n')
 

@@ -1,5 +1,6 @@
+from calendar import c
 from utils.exceptions import DuplicatedAttribute, MissedMandatoryAttributes, \
-    UnknownAttribute, UnknownProperty, ErrorFileFormat
+    UnknownProperties, ErrorFileFormat, MissedMandatoryProperties
 from data.structures import CompilerConfig, LanguageConfig, BuildConfig
 
 from utils.constants import *
@@ -97,29 +98,90 @@ def get_sections(config_file: str) -> dict:
         inside Zork.
     """
 
-    # For every attribute and property founded in the config file, now stored as a 
-    # dict with the attribute name as a key and the properties as an inner dict
-    for attribute, ppt_list in attr_ppt_collection.items():
-        for section in PROGRAM_SECTIONS: # For every section available on the program
-            if section.identifier == attribute:
-                # Then we found a valid whole section to serialize into the dataclasses.
-                # Remove the '[[#' and ']' from the name, to match it against the dict
-                # that holds the instances of the configuration classes
-                print('\nSection: ' +  attribute)
-                attr_identifier = attribute[3:-2]
-                # Now matches the available properties of the current attribute on the loop
-                # against the retrieved ones in the current 'attribute' instace
-                for property in ppt_list: # For every property discovered on the conf file
-                    # For every property available in the program for the current section
-                    for designed_ppt in section.properties: # Properties instance
-                        designed_ppt_identifier = designed_ppt.as_dict()['identifier']
+    # # For every attribute and property founded in the config file, now stored as a 
+    # # dict with the attribute name as a key and the properties as an inner dict
+    # for attribute, ppt_list in attr_ppt_collection.items():
+    #     for section in PROGRAM_SECTIONS: # For every section available on the program
+    #         if section.identifier == attribute:
+    #             # Then we found a valid whole section to serialize into the dataclasses.
+    #             # Remove the '[[#' and ']' from the name, to match it against the dict
+    #             # that holds the instances of the configuration classes
+    #             print('\nSection: ' +  attribute)
+    #             attr_identifier = attribute[3:-2]
+    #             # Now matches the available properties of the current attribute on the loop
+    #             # against the retrieved ones in the current 'attribute' instace
+    #             for property in ppt_list: # For every property discovered on the conf file
+    #                 # For every property available in the program for the current section
+    #                 for designed_ppt in section.properties: # Properties instance
+    #                     designed_ppt_identifier = designed_ppt.as_dict()['identifier']
 
-                        if designed_ppt_identifier == property["property_name"]:
-                            print(f'PROPERTIES in config file: {property}')
-                            print(f'MATCH. Value: {property["property_value"]}')
-                            # Kind of templating metaprogramming, taking advantage of
-                            # the Python's duck typing system, due to the lack of real 
-                            # generic programming tools
-                            config[attr_identifier].set_property(property["property_name"], property["property_value"])
+    #                     if designed_ppt_identifier == property["property_name"]:
+    #                         print(f'PROPERTIES in config file: {property}')
+    #                         print(f'MATCH. Value: {property["property_value"]}')
+    #                         # Kind of templating metaprogramming, taking advantage of
+    #                         # the Python's duck typing system, due to the lack of real 
+    #                         # generic programming tools
+    #                         config[attr_identifier].set_property(property["property_name"], property["property_value"])
+
+
+    # Tracks the mandatory attributes not written in the config file
+    missed_mandatory_attributes: list = []
+
     print('\n')
+    for section in PROGRAM_SECTIONS:
+        print(f'Program section: {section}')
+        # Try to get the same property (if exists in the config file)
+        # In this way, we can also check if all the mandatory attributes are
+        # configured, and are valid ones
+
+        # TODO Check for duplicates
+
+        config_file_section_properties = attr_ppt_collection.get(section.identifier)
+
+        # The logic for a valid founded property goes here
+        if not config_file_section_properties == None:
+            print(f'\tFinded properties: {config_file_section_properties}')
+
+            missed_mandatory_properties: list = []
+            invalid_properties_found: list = []
+
+            # List with the program defined property identifiers for the current attribute
+            program_defined_property_identifiers_for_current_attribute = [
+                property.identifier for property in section.properties
+            ]
+
+            detected_properties_for_current_attribute = [
+                ppt_identifier['property_name'] for ppt_identifier in config_file_section_properties
+            ]
+
+            # Check for mandatory properties for the current attribute
+            for program_property in section.properties:
+                if program_property.mandatory == True:
+                    if not program_property.identifier in detected_properties_for_current_attribute:
+                        missed_mandatory_properties.append(program_property.identifier)
+
+            # If we have all the mandatory ones, unpack the founded properties to validate them
+            for ppt_identifier in detected_properties_for_current_attribute:
+                if not ppt_identifier in program_defined_property_identifiers_for_current_attribute:
+                    invalid_properties_found.append(ppt_identifier)
+            
+            if len(missed_mandatory_properties) > 0:
+                raise MissedMandatoryProperties(missed_mandatory_properties, section.identifier)
+            if len(invalid_properties_found) > 0:
+                raise UnknownProperties(invalid_properties_found, section.identifier)
+
+            # If everything it's valid, we can fill our config dict with the data
+            for validated_property in config_file_section_properties:
+                config[section.identifier[3:-2]].set_property(
+                    validated_property['property_name'], validated_property['property_value'] 
+                )
+
+                        
+        else: 
+            if section.mandatory == True:
+                missed_mandatory_attributes.append(section.identifier)
+
+    if len(missed_mandatory_attributes) > 0:
+        raise MissedMandatoryAttributes(missed_mandatory_attributes)
+
     return config

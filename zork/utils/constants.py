@@ -9,7 +9,7 @@ CONFIGURATION_FILE_NAME: str = 'zork.conf'
 
 COMPILER_ATTR: CompilerAttribute = CompilerAttribute(
     identifier= '[[#compiler]]', 
-    mandatory=True,
+    mandatory= True,
     properties=[
         CompilerProperty('cpp_compiler', True)
     ]
@@ -18,16 +18,17 @@ COMPILER_ATTR: CompilerAttribute = CompilerAttribute(
 
 LANGUAGE_ATTR: LanguageAttribute = LanguageAttribute(
     identifier= '[[#language]]', 
-    mandatory=True,
+    mandatory= True,
     properties=[
-        LanguageStandardProperty('cpp_standard', True)
+        LanguageStandardProperty('cpp_standard', True),
+        LanguageStandardProperty('std_lib', False),
     ]
 )
 
 
 BUILD_ATTR: BuildAttribute = BuildAttribute(
     identifier= '[[#build]]', 
-    mandatory=True,
+    mandatory= False,
     properties=[
         BuildOutputPathProperty('output_dir', False)
     ]

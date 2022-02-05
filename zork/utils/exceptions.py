@@ -20,6 +20,18 @@ class MissedMandatoryAttributes(Exception):
             f'\n\t{attr_str + ", " .join(map(str, missed_attrs))}, which {is_are} mandatory, {isnt_arent} present in the config file'
         )
 
+class MissedMandatoryProperties(Exception):
+    """ A mandatory Property it's not defined in the configuration file """
+    def __init__(self, missed_ppts: list, section_identifier: str):
+        attr_str = 'Property: ' if len(missed_ppts) == 1 else 'Properties: '
+        is_are = "is" if len(missed_ppts) == 1 else "are"
+        isnt_arent = "isn't" if len(missed_ppts) == 1 else "aren't"
+        super().__init__(
+            f'''\n\t{attr_str + ", " .join(map(str, missed_ppts))}, 
+            which {is_are} mandatory for the {section_identifier} attribute, 
+            {isnt_arent} present in the config file'''
+        )
+
 class UnknownAttribute(Exception):
     """ Not defined or available attribute found """
     def __init__(self, attr_name: str):
@@ -27,8 +39,19 @@ class UnknownAttribute(Exception):
 
 class UnknownProperty(Exception):
     """ Not defined or available attribute found " """
-    def __init__(self, property_name: str):
-        super().__init__(f'{property_name} is an unknown or unsupported property')
+    def __init__(self, property_name: str, section_identifier: str):
+        super().__init__(f'{property_name} is an unknown or unsupported property for the {section_identifier} attribute')
+
+class UnknownProperties(Exception):
+    """ A bulk with all the detected invalid properties written on the config file """
+    def __init__(self, missed_ppts: list, section_identifier: str):
+        attr_str = 'property ' if len(missed_ppts) == 1 else 'properties: '
+        is_are = "is" if len(missed_ppts) == 1 else "are"
+        isnt_arent = "isn't" if len(missed_ppts) == 1 else "aren't"
+        super().__init__(
+            f'\n\tFound {attr_str + ", " .join(map(str, missed_ppts))} ' + 
+            f'which {is_are} unknown or invalid for the {section_identifier} attribute'
+        )
 
 class ErrorFileFormat(Exception):
     """ Not defined or available attribute found " """
