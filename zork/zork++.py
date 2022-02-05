@@ -1,10 +1,10 @@
 import subprocess
 import os
 
-from constants import CONFIGURATION_FILE_NAME
+from utils.constants import CONFIGURATION_FILE_NAME
 from workspace_scanner import find_config_file
 from config_file_parser import get_project_config
-from exceptions import NoConfigurationFileFound
+from utils.exceptions import NoConfigurationFileFound
 
 # TODO Complete with descriptive log information like OS, timestamp...
 # TODO Check for toolchains and compiler installations
@@ -15,13 +15,16 @@ from exceptions import NoConfigurationFileFound
     Section attributes -> [#section_attr]
     Section property   -> <lang>_<option_name>: <value>
 
+    A conjunction between an attribute and it's properties
+    it's called a section
+
     Here is an example:
 
     ///! zork.conf
-    [#compiler]
+    [[#compiler]]
     cpp_compiler: clang
 
-    [#language]
+    [[#language]]
     cpp_standard: 20
 
     ... and so on and so forth
@@ -49,12 +52,6 @@ from exceptions import NoConfigurationFileFound
 
 if __name__ == '__main__':
 
-    for dire, folders, files in os.walk('.'):
-        if dire == '.':
-            print("\nos.walk DIR: " + dire)
-            print("os.walk folders: " + ' '.join(folders))
-            print("os.walk files: " + ' '.join(files))
-
     if find_config_file(os.getcwd()):
         # TODO Color logs
         # TODO Enable clang color output
@@ -66,13 +63,12 @@ if __name__ == '__main__':
 
         print(f'Compiler: {config.get("compiler")}')
         print(f'Language: {config.get("language")}')
-        print(f'Build: {config.get("build")}')
+        print(f'Build: {config.get("build")}\n')
 
         # Generate compiler and linker calls
         subprocess.Popen(
             [
                 config.get("compiler").cpp_compiler, 
-                # TODO Complete.
             ]
         )
     else:
