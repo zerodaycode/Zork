@@ -7,66 +7,16 @@ from utils.regex_patterns import RE_ATTRIBUTES, RE_VALID_LINE_FORMAT
 
 import re
 
-<<<<<<< HEAD
-"""
-    [summary] This file provides the necessary mechanisms to parse the Zork++
-        configuration file.
-        It's made of just basic functions that parses the two kind of tokens
-        that conforms the logic of the application data, which are:
-            - Attributes -> [[#Attribute]]
-            - Property -> <property_name>: <value>
-"""
-
-# Initializes the map with the config values and provide default values
-config: dict = {
-    'compiler' : CompilerConfig('clang'),
-    'language' : LanguageConfig(20, 'libstdc++'),
-    'build' : BuildConfig('./build')
-}
-
-def get_project_config(root_path: str) -> dict:
-    """ Parses the file looking for a kind of AST token tokens """
-=======
 
 def get_project_config(root_path: str) -> dict:
     """Parses the file looking for a kind of AST token tokens"""
 
->>>>>>> dev-regex-parser
     # Open the configuration file in 'read-only' mode
     config_file = read_config_file_lines(root_path)
 
     # Check if the config file format it's valid
     check_valid_config_file(config_file)
 
-<<<<<<< HEAD
-def read_config_file_lines(root_path: str):
-    """ Reads line by line the configuration file, distinguishing between
-        attributes and properties """
-    with open(root_path + '/' + CONFIGURATION_FILE_NAME, 'r') as config_file:
-        # Get all the lines written in the conf file
-        lines = config_file.readlines()
-        # Tracks what attribute (or it's properties) are being parsed
-        # when an attribute is discovered
-        current_attr: str = ''
-        for line in lines:
-            line = line.rstrip('\n')
-            if line.startswith('[[#'):
-                # If starts with the '[[' symbols,
-                # it's a line with a section attribute identifier
-                find_section_attribute(line)
-                current_attr = line
-            elif line == '' or line.startswith("#"):
-                pass
-            else:
-                # Then, it should be a property
-                property_parser(line, current_attr)
-
-        # ['[[#\nmypropiedad: a', '[[#...]]] 
-
-def check_mandatory_attributes():
-    """ Checks if all the defined as 'mandatory attribute' elements
-        are present in the configuration file
-=======
     # If the config file it's OK, the we can retrieve all the config sections
     return get_sections(config_file)
 
@@ -145,7 +95,6 @@ def get_sections(config_file: str) -> dict:
         syntanctically correct acording the rules provided by the program. 
         Now we must discover if the retrived data it's also available and exists
         inside Zork.
->>>>>>> dev-regex-parser
     """
 
     # For every attribute and property founded in the config file, now stored as a 
@@ -165,64 +114,6 @@ def get_sections(config_file: str) -> dict:
                     for designed_ppt in section.properties: # Properties instance
                         designed_ppt_identifier = designed_ppt.as_dict()['identifier']
 
-<<<<<<< HEAD
-def find_section_attribute(line: str):
-    """ Discovers written attributes and reports the mandatory missing ones """
-    
-    # Check for duplicates
-    if line in attributes_found:
-        raise DuplicatedAttribute(line)
-
-    if line == COMPILER_ATTR: # Mandatory
-        attributes_found.append(COMPILER_ATTR)
-        mandatory_attributes_found.append(COMPILER_ATTR)
-    elif line == LANGUAGE_ATTR: # Mandatory
-        attributes_found.append(LANGUAGE_ATTR)
-        mandatory_attributes_found.append(LANGUAGE_ATTR)
-    elif line == BUILD_ATTR: # Optional, it has a default
-        attributes_found.append(BUILD_ATTR)
-    else:
-        raise UnknownAttribute(line)
-
-def property_parser(line: str, current_attribute: str) -> None:
-    """ Parses a given line from some buffer input of reading the config file
-        trying to retrieve a valid value to some property of some attribute"""
-    if current_attribute == COMPILER_ATTR:
-        parse_compiler_config_property(line)
-    elif current_attribute == LANGUAGE_ATTR:
-        parse_language_config_property(line)
-    elif current_attribute == BUILD_ATTR:
-        parse_build_config_property(line)
-
-def parse_compiler_config_property(line: str):
-    """ Retrieves the value of a property from the 'compiler' attribute """
-    if line.__contains__('cpp_compiler'):
-        line = line[14:].strip()
-        if line in SUPPORTED_COMPILERS:
-            config.get('compiler').cpp_compiler = line
-    else:
-        raise UnknownProperty(line)
-
-def parse_language_config_property(line: str):
-    """ Retrieves the value of a property from the 'language' attribute """
-    if line.__contains__('cpp_standard'):
-        line = line[14:].strip()
-        config.get('language').cpp_standard = int(line)
-    elif line.__contains__('std_lib'):
-        line = line[8:].strip()
-        config.get('language').std_lib = line
-    else:
-        raise UnknownProperty(line)
-
-def parse_build_config_property(line: str):
-    """ Retrieves the value of a property from the 'build' attribute """
-    if line.__contains__('output_dir'):
-        line = line[12:].strip()
-        config.get('build').output_dir = line
-    else:
-        raise UnknownProperty(line)
-        
-=======
                         if designed_ppt_identifier == property["property_name"]:
                             print(f'PROPERTIES in config file: {property}')
                             print(f'MATCH. Value: {property["property_value"]}')
@@ -232,4 +123,3 @@ def parse_build_config_property(line: str):
                             config[attr_identifier].set_property(property["property_name"], property["property_value"])
     print('\n')
     return config
->>>>>>> dev-regex-parser
