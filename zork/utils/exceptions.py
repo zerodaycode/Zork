@@ -29,3 +29,11 @@ class UnknownProperty(Exception):
     """ Not defined or available attribute found " """
     def __init__(self, property_name: str):
         super().__init__(f'{property_name} is an unknown or unsupported property')
+
+class ErrorFileFormat(Exception):
+    """ Not defined or available attribute found " """
+    def __init__(self, idx, error):
+        super().__init__(
+            f'ERROR in line: {idx}: \n\t{error}\n' + 
+            'Not valid sentence or format error'
+        )

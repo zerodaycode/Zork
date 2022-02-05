@@ -1,5 +1,5 @@
 import os
-from constants import CONFIGURATION_FILE_NAME
+from utils.constants import CONFIGURATION_FILE_NAME
 
 def find_config_file(root_path: str) -> bool:
     """
