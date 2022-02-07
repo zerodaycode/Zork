@@ -2,7 +2,7 @@ import subprocess
 import os
 
 from utils.constants import CONFIGURATION_FILE_NAME
-from workspace_scanner import find_config_file
+from utils.workspace_scanner import find_config_file
 from config_file_parser import get_project_config
 from utils.exceptions import NoConfigurationFileFound
 

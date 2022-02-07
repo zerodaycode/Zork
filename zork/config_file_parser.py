@@ -1,10 +1,9 @@
-from calendar import c
-from utils.exceptions import DuplicatedAttribute, MissedMandatoryAttributes, \
+from utils.exceptions import DuplicatedAttribute, MissedMandatoryAttributes, UnknownAttribute, \
     UnknownProperties, ErrorFileFormat, MissedMandatoryProperties
 from data.structures import CompilerConfig, LanguageConfig, BuildConfig
 
 from utils.constants import *
-from utils.regex_patterns import RE_ATTRIBUTES, RE_VALID_LINE_FORMAT
+from utils.regex_patterns import VALID_LINE_PATTERN, RE_VALID_LINE_FORMAT
 
 import re
 
@@ -30,8 +29,8 @@ def read_config_file_lines(root_path: str) -> list:
 
 
 def check_valid_config_file(config_file: list):
-    """ # TODO """
-    # Parses the file to check if it's valid
+    """ Ensures that the content written in the config file 
+        it's valid for the Zork config language """
     for idx, line in enumerate(config_file):
         line = line.strip()
 
@@ -41,14 +40,15 @@ def check_valid_config_file(config_file: list):
 
 def clean_file(file: str) -> list:
     """Clean the file and retrieve only lines with attribute or property format"""
-    # Pattern to retrieve all lines who are attributes [[#attr]] or properties
-    valid_lines_pattern = r"^\[\[#\w+]]$|^\w+: ?.+"
     return re.findall(
-            valid_lines_pattern, file, re.MULTILINE
+            VALID_LINE_PATTERN, file, re.MULTILINE
         )
 
 
 def parse_attr_properties_block(file: str) -> dict:
+    """ Gets every syntactically valid attribute with the founded properties,
+        discards the unknown attributes
+    """
     block_pattern = r"^\[\[#\w+]]\n(?:^\w+: ?.+\n?)+"
     blocks = re.findall(block_pattern, file, re.MULTILINE)
 
@@ -59,13 +59,18 @@ def parse_attr_properties_block(file: str) -> dict:
         property_pattern = r"^(.+): (.+)$"
 
         attribute_identifier = re.search(attr_pattern, block).group(0)
+        # Check for attributes that dont' belong to the program designed ones
+        if attribute_identifier not in PROGRAM_ATTRIBUTES_IDENTIFIERS:
+            raise UnknownAttribute(attribute_identifier)
+            
         extracted_properties = re.findall(property_pattern, block, re.MULTILINE)
 
         properties: list = []
         for property_name, property_value in extracted_properties:
             properties.append(
-                {"property_name": property_name,
-                 "property_value": property_value
+                {
+                    "property_name": property_name,
+                    "property_value": property_value
                 }
             )
 
@@ -98,85 +103,31 @@ def get_sections(config_file: str) -> dict:
         inside Zork.
     """
 
-    # # For every attribute and property founded in the config file, now stored as a 
-    # # dict with the attribute name as a key and the properties as an inner dict
-    # for attribute, ppt_list in attr_ppt_collection.items():
-    #     for section in PROGRAM_SECTIONS: # For every section available on the program
-    #         if section.identifier == attribute:
-    #             # Then we found a valid whole section to serialize into the dataclasses.
-    #             # Remove the '[[#' and ']' from the name, to match it against the dict
-    #             # that holds the instances of the configuration classes
-    #             print('\nSection: ' +  attribute)
-    #             attr_identifier = attribute[3:-2]
-    #             # Now matches the available properties of the current attribute on the loop
-    #             # against the retrieved ones in the current 'attribute' instace
-    #             for property in ppt_list: # For every property discovered on the conf file
-    #                 # For every property available in the program for the current section
-    #                 for designed_ppt in section.properties: # Properties instance
-    #                     designed_ppt_identifier = designed_ppt.as_dict()['identifier']
-
-    #                     if designed_ppt_identifier == property["property_name"]:
-    #                         print(f'PROPERTIES in config file: {property}')
-    #                         print(f'MATCH. Value: {property["property_value"]}')
-    #                         # Kind of templating metaprogramming, taking advantage of
-    #                         # the Python's duck typing system, due to the lack of real 
-    #                         # generic programming tools
-    #                         config[attr_identifier].set_property(property["property_name"], property["property_value"])
-
-
     # Tracks the mandatory attributes not written in the config file
+    founded_attributes: list = []
     missed_mandatory_attributes: list = []
 
-    print('\n')
+    # Check for duplicates
+    for attribute, _ in attr_ppt_collection.items():
+        if not attribute in founded_attributes:
+            founded_attributes.append(attribute)
+        else:
+            raise DuplicatedAttribute(attribute)
+    print(f'\nFounded attributes on the config file: {founded_attributes}')
+
     for section in PROGRAM_SECTIONS:
-        print(f'Program section: {section}')
-        # Try to get the same property (if exists in the config file)
+        # Try to get the same section (if exists in the config file)
         # In this way, we can also check if all the mandatory attributes are
         # configured, and are valid ones
-
-        # TODO Check for duplicates
-
         config_file_section_properties = attr_ppt_collection.get(section.identifier)
 
         # The logic for a valid founded property goes here
         if not config_file_section_properties == None:
-            print(f'\tFinded properties: {config_file_section_properties}')
-
-            missed_mandatory_properties: list = []
-            invalid_properties_found: list = []
-
-            # List with the program defined property identifiers for the current attribute
-            program_defined_property_identifiers_for_current_attribute = [
-                property.identifier for property in section.properties
-            ]
-
-            detected_properties_for_current_attribute = [
-                ppt_identifier['property_name'] for ppt_identifier in config_file_section_properties
-            ]
-
-            # Check for mandatory properties for the current attribute
-            for program_property in section.properties:
-                if program_property.mandatory == True:
-                    if not program_property.identifier in detected_properties_for_current_attribute:
-                        missed_mandatory_properties.append(program_property.identifier)
-
-            # If we have all the mandatory ones, unpack the founded properties to validate them
-            for ppt_identifier in detected_properties_for_current_attribute:
-                if not ppt_identifier in program_defined_property_identifiers_for_current_attribute:
-                    invalid_properties_found.append(ppt_identifier)
-            
-            if len(missed_mandatory_properties) > 0:
-                raise MissedMandatoryProperties(missed_mandatory_properties, section.identifier)
-            if len(invalid_properties_found) > 0:
-                raise UnknownProperties(invalid_properties_found, section.identifier)
-
-            # If everything it's valid, we can fill our config dict with the data
-            for validated_property in config_file_section_properties:
-                config[section.identifier[3:-2]].set_property(
-                    validated_property['property_name'], validated_property['property_value'] 
-                )
-
-                        
+            print(f'\tFinded attribute: {section.identifier}')
+            print(f'\tFinded properties: {config_file_section_properties}\n')
+            parse_properties_for_current_attribute(
+                section, config_file_section_properties, config
+            )           
         else: 
             if section.mandatory == True:
                 missed_mandatory_attributes.append(section.identifier)
@@ -185,3 +136,77 @@ def get_sections(config_file: str) -> dict:
         raise MissedMandatoryAttributes(missed_mandatory_attributes)
 
     return config
+
+
+def parse_properties_for_current_attribute(
+    section, config_file_section_properties, config
+):
+    """ Parses and validates the properties found for a given attribute """
+    detected_properties_for_current_attribute = [
+        ppt_identifier['property_name'] for ppt_identifier in config_file_section_properties
+    ]
+
+    # Check for mandatory properties for the current attribute
+    check_for_mandatory_properties(section, detected_properties_for_current_attribute)
+    
+    # If we have all the mandatory ones, unpack the founded properties to validate them
+    validate_founded_properties(section, detected_properties_for_current_attribute)
+    
+
+    # If everything it's valid, we can fill our config dict with the data
+    for validated_property in config_file_section_properties:
+        # CARE. We are modifying by reference the config dict
+        config[section.identifier[3:-2]].set_property(
+            validated_property['property_name'], 
+            validated_property['property_value'] 
+        )
+    """
+        This means that the keys of the config dict are strings with a pre-defined value
+        that represents the same value as the self.identifier property but without
+        the Zork syntantic elements to define an attribute, ie -> [[#...]]
+
+        EX:
+            config: dict = {
+                'compiler' : CompilerConfig('clang'),
+                'language' : LanguageConfig(20, 'libstdc++'),
+                'build' : BuildConfig('./build')
+            }
+
+        where the 'compiler' key matches the self.identifier = [[#compiler]] 
+        class attribute of the instance stored as a value of that key
+
+        config['compiler'] = class CompilerConfig 
+        config['compiler'].identifier = '[[#compiler]' 
+        config['compiler'][3:-2] = config[section.identifier[3:-2]] = 'compiler' 
+    """
+
+def check_for_mandatory_properties(
+    section, detected_properties_for_current_attribute
+):
+    """ Checks if all of the mandatory properties for the current attribute 
+        are written in the section """
+    missed_mandatory_properties: list = []
+
+    for program_property in section.properties:
+        if program_property.mandatory == True:
+            if not program_property.identifier in detected_properties_for_current_attribute:
+                missed_mandatory_properties.append(program_property.identifier)
+
+    if len(missed_mandatory_properties) > 0:
+        raise MissedMandatoryProperties(missed_mandatory_properties, section.identifier)
+
+def validate_founded_properties(section, detected_properties_for_current_attribute):
+    """ Validates the identifier of a given property """
+    invalid_properties_found: list = []
+
+    # List with the program defined property identifiers for the current attribute
+    program_defined_property_identifiers_for_current_attribute = [
+        property.identifier for property in section.properties
+    ]
+
+    for ppt_identifier in detected_properties_for_current_attribute:
+        if not ppt_identifier in program_defined_property_identifiers_for_current_attribute:
+            invalid_properties_found.append(ppt_identifier)
+
+    if len(invalid_properties_found) > 0:
+        raise UnknownProperties(invalid_properties_found, section.identifier)
