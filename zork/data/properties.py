@@ -7,9 +7,10 @@ from dataclasses import dataclass
 
 @dataclass
 class CompilerProperty:
-    """ Represents the structure of the compiler property """
+    """ Represents the compilers available by Zork """
     identifier: str
     mandatory: bool
+    values: list
 
     def as_dict(self) -> dict:
         return {
@@ -18,9 +19,10 @@ class CompilerProperty:
 
 @dataclass
 class LanguageStandardProperty:
-    """ Represents the structure of the compiler property """
+    """ Sets the C++ language standard passed to the compiler  """
     identifier: str
     mandatory: bool
+    values: list
 
     def as_dict(self) -> dict:
         return {
@@ -29,9 +31,10 @@ class LanguageStandardProperty:
 
 @dataclass
 class BuildOutputPathProperty:
-    """ Represents the structure of the compiler property """
+    """ The place where the compiler's output will be placed """
     identifier: str
     mandatory: bool
+    values: list
 
     def as_dict(self) -> dict:
         return {

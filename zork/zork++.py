@@ -6,8 +6,6 @@ from utils.workspace_scanner import find_config_file
 from config_file_parser import get_project_config
 from utils.exceptions import NoConfigurationFileFound
 
-# TODO Complete with descriptive log information like OS, timestamp...
-# TODO Check for toolchains and compiler installations
 
 """ A cppy project works reading it's own configuration file.
     The configuration file it's formed by two main type of tokens:
@@ -55,6 +53,9 @@ if __name__ == '__main__':
     if find_config_file(os.getcwd()):
         # TODO Color logs
         # TODO Enable clang color output
+        # TODO Complete with descriptive log information like OS, timestamp...
+        # TODO Check for toolchains and compiler installations
+
         print(
             "\n[INFO]: Starting a new C++ compilation job with Zork"
         )

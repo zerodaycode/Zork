@@ -40,7 +40,16 @@ class UnknownAttribute(Exception):
 class UnknownProperty(Exception):
     """ Not defined or available attribute found " """
     def __init__(self, property_name: str, section_identifier: str):
-        super().__init__(f'{property_name} is an unknown or unsupported property for the {section_identifier} attribute')
+        super().__init__(
+            f'{property_name} is an unknown or unsupported property for the {section_identifier} attribute'
+        )
+
+class InvalidPropertyValue(Exception):
+    """ Not defined or available attribute found " """
+    def __init__(self, property_value: str, property_name: str):
+        super().__init__(
+            f'<{property_value}> is an unknown or unsupported value for the <{property_name}> property'
+        )
 
 class UnknownProperties(Exception):
     """ A bulk with all the detected invalid properties written on the config file """

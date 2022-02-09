@@ -1,9 +1,12 @@
-from utils.exceptions import DuplicatedAttribute, MissedMandatoryAttributes, UnknownAttribute, \
-    UnknownProperties, ErrorFileFormat, MissedMandatoryProperties
-from data.structures import CompilerConfig, LanguageConfig, BuildConfig
+import typing
 
-from utils.constants import *
+from utils.exceptions import DuplicatedAttribute, MissedMandatoryAttributes, UnknownAttribute, \
+    UnknownProperties, ErrorFileFormat, MissedMandatoryProperties, InvalidPropertyValue
+from utils.constants import CONFIGURATION_FILE_NAME
 from utils.regex_patterns import VALID_LINE_PATTERN, RE_VALID_LINE_FORMAT
+
+from data.structures import CompilerConfig, LanguageConfig, BuildConfig
+from program_definitions import *
 
 import re
 
@@ -124,10 +127,11 @@ def get_sections(config_file: str) -> dict:
         # The logic for a valid founded property goes here
         if not config_file_section_properties == None:
             print(f'\tFinded attribute: {section.identifier}')
-            print(f'\tFinded properties: {config_file_section_properties}\n')
+            print(f'\tFinded properties: {config_file_section_properties}')
             parse_properties_for_current_attribute(
                 section, config_file_section_properties, config
-            )           
+            )  
+            print('')         
         else: 
             if section.mandatory == True:
                 missed_mandatory_attributes.append(section.identifier)
@@ -150,8 +154,20 @@ def parse_properties_for_current_attribute(
     check_for_mandatory_properties(section, detected_properties_for_current_attribute)
     
     # If we have all the mandatory ones, unpack the founded properties to validate them
-    validate_founded_properties(section, detected_properties_for_current_attribute)
+    validate_founded_properties(
+        section, 
+        detected_properties_for_current_attribute, 
+        config_file_section_properties
+    )
     
+    """
+        Validation it's made through several function calls that performs runtime checks
+        to the retrieved values, matching them against the valid defined ones on this program
+        using an exception-flow-control based style. So if there's no exceptions raised
+        until here, we can safetly retrieve the values founded on the config file.
+        By the way, if an exception it's raised in the process, the program will exit, 
+        logging the exception stack that triggered the exception event
+    """
 
     # If everything it's valid, we can fill our config dict with the data
     for validated_property in config_file_section_properties:
@@ -195,7 +211,11 @@ def check_for_mandatory_properties(
     if len(missed_mandatory_properties) > 0:
         raise MissedMandatoryProperties(missed_mandatory_properties, section.identifier)
 
-def validate_founded_properties(section, detected_properties_for_current_attribute):
+def validate_founded_properties(
+    section, 
+    detected_properties_for_current_attribute, # TODO Already present of the argument below this
+    config_file_section_properties 
+):
     """ Validates the identifier of a given property """
     invalid_properties_found: list = []
 
@@ -204,9 +224,29 @@ def validate_founded_properties(section, detected_properties_for_current_attribu
         property.identifier for property in section.properties
     ]
 
-    for ppt_identifier in detected_properties_for_current_attribute:
+    for elem_idx, ppt_identifier in enumerate(detected_properties_for_current_attribute):
+        print(f'\tLooking for: {ppt_identifier} property')
+        # Raises exception if the property isn't allowed on Zork
         if not ppt_identifier in program_defined_property_identifiers_for_current_attribute:
             invalid_properties_found.append(ppt_identifier)
+        else: # Check if the founded property also has a valid value
+            # Retrieve the property value from the config file
+            ppt_value = config_file_section_properties[elem_idx]['property_value']
+            print(f'\tGetting: {ppt_value} as value, with type: {type(ppt_value)}')
+            
+            # Retrieve the allowed values by Zork for a given property
+            allowed_property_values = [
+                property.values for property in section.properties 
+                    if property.identifier == ppt_identifier
+            ][0]
+
+            print(f'\tAllowed {allowed_property_values} value(s) with type: {type(allowed_property_values)} for property: {ppt_identifier}')
+
+            # typing._SpecialForm is the type associated with the values property of any Property
+            # that the values property type == typing.Any
+            if type(allowed_property_values) != typing._SpecialForm and \
+                ppt_value not in allowed_property_values:
+                    raise InvalidPropertyValue(ppt_value, ppt_identifier)
 
     if len(invalid_properties_found) > 0:
         raise UnknownProperties(invalid_properties_found, section.identifier)
