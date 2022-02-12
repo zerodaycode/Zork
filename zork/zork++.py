@@ -1,9 +1,11 @@
-import subprocess
 import os
+
+from config_file_parser import get_project_config
+
+from compiler_tasks import build_project
 
 from utils.constants import CONFIGURATION_FILE_NAME
 from utils.workspace_scanner import find_config_file
-from config_file_parser import get_project_config
 from utils.exceptions import NoConfigurationFileFound
 
 
@@ -64,13 +66,17 @@ if __name__ == '__main__':
 
         print(f'\nCompiler: {config.get("compiler")}')
         print(f'Language: {config.get("language")}')
-        print(f'Build: {config.get("build")}\n')
+        print(f'Build: {config.get("build")}')
+        print(f'Executable: {config.get("executable")}\n')
 
-        # Generate compiler and linker calls
-        subprocess.Popen(
-            [
-                config.get("compiler").cpp_compiler, 
-            ]
-        )
+        print(f'Calling <{config.get("compiler").cpp_compiler}> to perform the build job\n')
+        build_project(config)
+
+        # TODO Add total time spent in the process
+        print('\nCompilation job finished')
+        # TODO Await the subprocess.Popen result
+        # TODO Add the autoexecute feature
+        # Add a changelog file
+
     else:
         raise NoConfigurationFileFound

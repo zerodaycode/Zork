@@ -5,7 +5,8 @@ from utils.exceptions import DuplicatedAttribute, MissedMandatoryAttributes, Unk
 from utils.constants import CONFIGURATION_FILE_NAME
 from utils.regex_patterns import VALID_LINE_PATTERN, RE_VALID_LINE_FORMAT
 
-from data.structures import CompilerConfig, LanguageConfig, BuildConfig
+from program_definitions import PROGRAM_BASE_CONFIG
+
 from program_definitions import *
 
 import re
@@ -88,11 +89,7 @@ def get_sections(config_file: str) -> dict:
         to the compiler """
 
     # Initializes the map with the config values and provide default values
-    config: dict = {
-        'compiler' : CompilerConfig('clang'),
-        'language' : LanguageConfig(20, 'libstdc++'),
-        'build' : BuildConfig('./build')
-    }
+    config: dict = PROGRAM_BASE_CONFIG
 
     cleaned_config_file: list = clean_file("".join(config_file))
     attr_ppt_collection = parse_attr_properties_block('\n'.join(cleaned_config_file))

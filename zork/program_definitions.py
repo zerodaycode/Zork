@@ -7,9 +7,13 @@
 
 from typing import Any
 
-from data.attributes import CompilerAttribute, LanguageAttribute, BuildAttribute
+from data.attributes import CompilerAttribute, LanguageAttribute, \
+    BuildAttribute, ExecutableAttribute
 from data.properties import CompilerProperty, LanguageStandardProperty, \
     BuildOutputPathProperty
+
+from data.structures import CompilerConfig, ExecutableConfig, LanguageConfig, BuildConfig \
+    
 
 # Suported compilers
 CLANG: str = 'clang++'
@@ -49,12 +53,29 @@ BUILD_ATTR: BuildAttribute = BuildAttribute(
     ]
 )
 
+EXECUTABLE_ATTR: ExecutableAttribute = ExecutableAttribute(
+    identifier= '[[#executable]]', 
+    mandatory= False,
+    properties=[
+        BuildOutputPathProperty('executable_name', False, Any),
+        BuildOutputPathProperty('sources', False, Any)
+    ]
+)
+
 
 PROGRAM_SECTIONS: list = [
-    COMPILER_ATTR, LANGUAGE_ATTR, BUILD_ATTR
+    COMPILER_ATTR, LANGUAGE_ATTR, BUILD_ATTR, EXECUTABLE_ATTR
 ]
 
 # Shortcut to have all the attributes as identifiers
 PROGRAM_ATTRIBUTES_IDENTIFIERS = [
     attr.identifier for attr in PROGRAM_SECTIONS
 ]
+
+
+PROGRAM_BASE_CONFIG: dict = {
+    'compiler' : CompilerConfig('clang'),
+    'language' : LanguageConfig(20, 'libstdc++'),
+    'build' : BuildConfig('./build'),
+    'executable': ExecutableConfig('main', '')
+}

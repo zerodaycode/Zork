@@ -1,3 +1,13 @@
+# User defined ones
+main.cpp
+second.cpp
+second.hpp
+
+# Build
+*.spec
+build/
+dist/
+
 # Python specific
 __pycache__/
 

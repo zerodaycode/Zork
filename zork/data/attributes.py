@@ -25,3 +25,10 @@ class BuildAttribute:
     identifier: str
     mandatory: bool
     properties: list
+
+@dataclass
+class ExecutableAttribute:
+    """ Holds the configuration for generate an executable """
+    identifier: str
+    mandatory: bool
+    properties: list

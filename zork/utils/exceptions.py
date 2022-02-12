@@ -1,3 +1,11 @@
+"""[summary]
+
+    Provides custom exceptions for incorrect, unavailable or unsupported
+    configuration on a Zork project
+"""
+
+from utils.constants import PROJECT_VERSION
+
 class NoConfigurationFileFound(Exception):
     """ Triggered when the program it's launched and no 'CPY++' config file 
         is located """
@@ -68,4 +76,13 @@ class ErrorFileFormat(Exception):
         super().__init__(
             f'ERROR in line: {idx}: \n\t{error}\n' + 
             'Not valid sentence or format error'
+        )
+
+
+class UnsupportedCompiler(Exception):
+    """ Not defined or available attribute found " """
+    def __init__(self, compiler: str):
+        super().__init__(
+            f'<{compiler}> compiler it\'s unsupported at the actual \
+                version of Zork v<{PROJECT_VERSION}>'
         )

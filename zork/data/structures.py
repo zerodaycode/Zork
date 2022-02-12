@@ -32,3 +32,17 @@ class BuildConfig:
     def set_property(self, property_name: str, value: Any):
         if property_name == 'output_dir':
             self.output_dir = value
+
+
+@dataclass
+class ExecutableConfig:
+    executable_name: str
+    sources: list
+
+    def set_property(self, property_name: str, value: Any):
+        if property_name == 'executable_name':
+            self.executable_name = value
+        elif property_name == 'sources':
+            self.sources = [source.strip(' ') for source in value.split(',')]
+            # TODO Check if every source file it's comma separated
+            
