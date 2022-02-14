@@ -1,7 +1,8 @@
-# User defined ones
+# CPP files for testing the project in place
 main.cpp
 second.cpp
 second.hpp
+src/
 
 # Build
 *.spec

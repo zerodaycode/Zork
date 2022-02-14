@@ -1,3 +1,5 @@
+import glob
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -43,6 +45,22 @@ class ExecutableConfig:
         if property_name == 'executable_name':
             self.executable_name = value
         elif property_name == 'sources':
-            self.sources = [source.strip(' ') for source in value.split(',')]
-            # TODO Check if every source file it's comma separated
+            self.sources = self.get_source_files(value)
             
+    def get_source_files(self, value):
+        """ Retrives the user defined source files to compile """
+        sources = []
+        for source in value.split(','):
+            # Remove unnecesary whitespaces
+            source = source.strip(' ')
+            # Check if it's a path, add the relative ./ to the Zork config file
+            if source.__contains__('/') and not source.startswith('./'):
+                source = './' + source
+            # Check for wildcards, so every file in the provided directory
+            # should be included
+            if source.__contains__('*'):
+                for wildcarded_source in glob.glob(source):
+                    sources.append(wildcarded_source)
+            else:
+                sources.append(source)
+        return sources
