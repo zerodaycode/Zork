@@ -28,25 +28,35 @@ from utils.logs import initial_log
     [[#language]]
     cpp_standard: 20
 
+    [[#executable]]
+    executable_name: test1
+    sources: *.cpp, src/*.cpp
+
     ... and so on and so forth
 
     ///! ---- Available sections and it's properties ----- ///!
     
     Note: There is mandatory and optional sections and properties.
 
-    [#project] <optional_section>
+    [[#project]] <optional_section>  # Still non available
     auto_generate: true
     project_name: <project's_name>
 
-    [#compiler] <mandatory_section>
+    [[#compiler]] <mandatory_section>
     cpp_compiler: clang, g++, msbuild <mandatory_property>
 
-    [#language] <mandatory_section>
+    [[#language]] <mandatory_section>
     cpp_standard: 11, 14, 17, 20, 2x, 2a <mandatory_property>
-    cpp_modules_support: true, false
+    cpp_modules_support: true, false  # Still not available
 
-    [#build] <optional_section>
+    [[#build]] <optional_section>
     output_dir: default
+
+    [[#executable]] <optional_section>
+    executable_name: any str
+    sources: the source files target of the compilation process
+        Admits wildcard files, even mixed with path and file
+    execute_after_build: true
 
 """
 
@@ -56,9 +66,6 @@ if __name__ == '__main__':
     initial_log()
 
     if find_config_file(os.getcwd()):
-
-        exit()
-
         # TODO Color logs
         # TODO Complete with descriptive log information like OS, timestamp...
         # TODO Check for toolchains and compiler installations
@@ -77,10 +84,15 @@ if __name__ == '__main__':
 
         # TODO Add total time spent in the process
         print('\nCompilation job finished')
-        # TODO Await the subprocess.Popen result
+
         # TODO Add the autoexecute feature
+        
         # TODO Add genererate STATIC and DYNAMIC libraries
-        # Add a changelog file
+        
+        # TODOAdd a changelog file
+
+        # TODO Add the include path option to the (?compiler attribute)
+        # TODO NEW FEATURE Add wintoast10 (linux?) to notify the end of the build
 
     else:
         raise NoConfigurationFileFound
