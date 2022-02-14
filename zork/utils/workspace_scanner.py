@@ -9,6 +9,6 @@ def find_config_file(root_path: str) -> bool:
     """
     for file in os.listdir(root_path):
         if file == CONFIGURATION_FILE_NAME:
-            print('[INFO]: Success! Configuration file on: ' + os.getcwd())
+            print('[INFO]: Success! Configuration file founded on: ' + os.getcwd())
             return True
     return False

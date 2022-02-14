@@ -7,6 +7,7 @@ from compiler_tasks import build_project
 from utils.constants import CONFIGURATION_FILE_NAME
 from utils.workspace_scanner import find_config_file
 from utils.exceptions import NoConfigurationFileFound
+from utils.logs import initial_log
 
 
 """ A cppy project works reading it's own configuration file.
@@ -52,15 +53,17 @@ from utils.exceptions import NoConfigurationFileFound
 
 if __name__ == '__main__':
 
+    initial_log()
+
     if find_config_file(os.getcwd()):
+
+        exit()
+
         # TODO Color logs
-        # TODO Enable clang color output
         # TODO Complete with descriptive log information like OS, timestamp...
         # TODO Check for toolchains and compiler installations
 
-        print(
-            "\n[INFO]: Starting a new C++ compilation job with Zork"
-        )
+        # TODO CMD parser to retrieve program options (log level...)
         # Gets the configuration parameters for building the project
         config = get_project_config(os.getcwd())
 
@@ -76,6 +79,7 @@ if __name__ == '__main__':
         print('\nCompilation job finished')
         # TODO Await the subprocess.Popen result
         # TODO Add the autoexecute feature
+        # TODO Add genererate STATIC and DYNAMIC libraries
         # Add a changelog file
 
     else:
