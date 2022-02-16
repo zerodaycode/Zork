@@ -10,7 +10,7 @@ import subprocess
 from program_definitions import CLANG, GCC, MSVC
 from utils.exceptions import UnsupportedCompiler
 
-def build_project(config: dict):
+def build_project(config: dict) -> int:
     """ Calls the selected compiler to perform the build of the project """
     compiler = config['compiler'].cpp_compiler
     command_line: list = []
@@ -23,7 +23,8 @@ def build_project(config: dict):
         raise UnsupportedCompiler(MSVC)
 
     print(f'Command line executed: {" ".join(command_line)}\n')
-    subprocess.Popen(command_line).wait()
+    return subprocess.Popen(command_line).wait()
+
 
 def call_clang_to_compile(config: dict):
     """ Calls Clang++ to compile the provide files / project """

@@ -1,13 +1,14 @@
 import os
+import time
 
 from config_file_parser import get_project_config
 
 from compiler_tasks import build_project
 
-from utils.constants import CONFIGURATION_FILE_NAME
 from utils.workspace_scanner import find_config_file
 from utils.exceptions import NoConfigurationFileFound
-from utils.logs import initial_log
+from utils.logs import initial_log, log_process_result, \
+    show_final_config_values
 
 
 """ A cppy project works reading it's own configuration file.
@@ -62,37 +63,37 @@ from utils.logs import initial_log
 
 
 if __name__ == '__main__':
-
+    process_init_time = time.time_ns() // 1_000_000
     initial_log()
 
     if find_config_file(os.getcwd()):
-        # TODO Color logs
-        # TODO Complete with descriptive log information like OS, timestamp...
-        # TODO Check for toolchains and compiler installations
-
-        # TODO CMD parser to retrieve program options (log level...)
         # Gets the configuration parameters for building the project
         config = get_project_config(os.getcwd())
 
-        print(f'\nCompiler: {config.get("compiler")}')
-        print(f'Language: {config.get("language")}')
-        print(f'Build: {config.get("build")}')
-        print(f'Executable: {config.get("executable")}\n')
+        show_final_config_values(config)
 
-        print(f'Calling <{config.get("compiler").cpp_compiler}> to perform the build job\n')
-        build_project(config)
+        print(f'Calling <{config.get("compiler").cpp_compiler}> to perform the build job')
+        process_result = build_project(config)
 
-        # TODO Add total time spent in the process
-        print('\nCompilation job finished')
+        log_process_result(process_init_time, process_result)
 
         # TODO Add the autoexecute feature
+
+        # TODO Generate the output dir
         
         # TODO Add genererate STATIC and DYNAMIC libraries
         
-        # TODOAdd a changelog file
+        # TODO Add a changelog
+        
+        # TODO Color logs
+        # TODO Check for toolchains and compiler installations
+
+        # TODO Wrap the logs on get_project_config under a log level
+
+        # TODO CMD parser to retrieve program options (log level, 
+        # cpp folder structure autogenerator...)
 
         # TODO Add the include path option to the (?compiler attribute)
         # TODO NEW FEATURE Add wintoast10 (linux?) to notify the end of the build
-
     else:
         raise NoConfigurationFileFound
