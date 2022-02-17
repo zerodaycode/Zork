@@ -76,24 +76,5 @@ if __name__ == '__main__':
         process_result = build_project(config)
 
         log_process_result(process_init_time, process_result)
-
-        # TODO Add the autoexecute feature
-
-        # TODO Generate the output dir
-        
-        # TODO Add genererate STATIC and DYNAMIC libraries
-        
-        # TODO Add a changelog
-        
-        # TODO Color logs
-        # TODO Check for toolchains and compiler installations
-
-        # TODO Wrap the logs on get_project_config under a log level
-
-        # TODO CMD parser to retrieve program options (log level, 
-        # cpp folder structure autogenerator...)
-
-        # TODO Add the include path option to the (?compiler attribute)
-        # TODO NEW FEATURE Add wintoast10 (linux?) to notify the end of the build
     else:
         raise NoConfigurationFileFound

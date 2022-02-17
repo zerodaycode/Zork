@@ -3,6 +3,7 @@
     Contains several functions with pre-build code schemas for interfacing
     a logger system that acts as an informative process of the project
 """
+import subprocess
 import time
 from .constants import OS, OS_release, OS_architecture, OS_arch_linkage
 
@@ -15,13 +16,23 @@ def initial_log():
     )
 
 def log_process_result(start_time: int, process_result):
-    process_time = (time.time_ns() // 1_000_000) - start_time
     """ Logs the result and the total time spent on run the process and """
+    process_time = (time.time_ns() // 1_000_000) - start_time
     process_duration_log = f"Total time spent on the process: {process_time} ms"
+    
     if (process_result == 0):
-        print('[SUCCESS]: Compilation job finished. ' + process_duration_log)
+        success_log = '[SUCCESS]: Compilation job finished. ' + process_duration_log
+        print(success_log)
+        notify_process_result_on_system_popup(success_log)
     else:
-        print('\n[ERROR]: Compilation job FAILED. ' + process_duration_log)
+        fail_log = '\n[ERROR]: Compilation job FAILED. ' + process_duration_log
+        print(fail_log)
+        notify_process_result_on_system_popup(fail_log)
+        
+
+def notify_process_result_on_system_popup(message: str):
+    """ Shows a system popup in the desktop with the result of the process """
+    subprocess.Popen(['notify-send', message])
 
 def show_final_config_values(config: dict):
     """ Show the arguments that will be passed to the compiler """
