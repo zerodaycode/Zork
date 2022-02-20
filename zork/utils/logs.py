@@ -3,6 +3,7 @@
     Contains several functions with pre-build code schemas for interfacing
     a logger system that acts as an informative process of the project
 """
+from platform import platform
 import subprocess
 import time
 from .constants import OS, OS_release, OS_architecture, OS_arch_linkage
@@ -32,7 +33,11 @@ def log_process_result(start_time: int, process_result):
 
 def notify_process_result_on_system_popup(message: str):
     """ Shows a system popup in the desktop with the result of the process """
-    subprocess.Popen(['notify-send', message])
+    if OS == 'Linux': 
+        subprocess.Popen(['notify-send', message])
+    else:
+        # TODO Use ToastNotifier for Windows  
+        pass
 
 def show_final_config_values(config: dict):
     """ Show the arguments that will be passed to the compiler """
