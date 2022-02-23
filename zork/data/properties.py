@@ -43,3 +43,16 @@ class BuildOutputPathProperty:
         return {
             'identifier': self.identifier, 'mandatory': self.mandatory
         }
+
+
+@dataclass
+class ExecutableProperty:
+    """ Definitions for the available options for building an executable """
+    identifier: str
+    mandatory: bool
+    values: list
+
+    def as_dict(self) -> dict:
+        return {
+            'identifier': self.identifier, 'mandatory': self.mandatory
+        }

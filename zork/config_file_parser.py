@@ -151,7 +151,7 @@ def parse_properties_for_current_attribute(
     
     # If we have all the mandatory ones, unpack the founded properties to validate them
     validate_founded_properties(
-        section, 
+        section,
         detected_properties_for_current_attribute, 
         config_file_section_properties
     )
@@ -168,6 +168,7 @@ def parse_properties_for_current_attribute(
     # If everything it's valid, we can fill our config dict with the data
     for validated_property in config_file_section_properties:
         # CARE. We are modifying by reference the config dict
+        print(f"SETTING: {validated_property['property_name']} with {validated_property['property_value']}")
         config[section.identifier[3:-2]].set_property(
             validated_property['property_name'],
             validated_property['property_value']

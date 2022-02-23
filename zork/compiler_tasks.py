@@ -24,7 +24,7 @@ def build_project(config: dict) -> int:
         command_line = call_clang_to_compile(config)
     elif compiler == GCC:
         raise UnsupportedCompiler(GCC)
-    else: 
+    else:
         raise UnsupportedCompiler(MSVC)
 
     print(f'Command line executed: {" ".join(command_line)}\n')

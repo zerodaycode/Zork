@@ -10,10 +10,10 @@ from typing import Any
 from data.attributes import CompilerAttribute, LanguageAttribute, \
     BuildAttribute, ExecutableAttribute
 from data.properties import CompilerProperty, LanguageStandardProperty, \
-    BuildOutputPathProperty
+    BuildOutputPathProperty, ExecutableProperty
 
-from data.structures import CompilerConfig, ExecutableConfig, LanguageConfig, BuildConfig \
-    
+from data.structures import CompilerConfig, ExecutableConfig, LanguageConfig, \
+    BuildConfig
 
 # Suported compilers
 CLANG: str = 'clang++'
@@ -61,8 +61,9 @@ EXECUTABLE_ATTR: ExecutableAttribute = ExecutableAttribute(
     identifier='[[#executable]]',
     mandatory=False,
     properties=[
-        BuildOutputPathProperty('executable_name', False, Any),
-        BuildOutputPathProperty('sources', False, Any)
+        ExecutableProperty('executable_name', False, Any),
+        ExecutableProperty('sources', False, Any),
+        ExecutableProperty('auto_execute', False, ['true', 'false']),
     ]
 )
 
@@ -81,5 +82,5 @@ PROGRAM_BASE_CONFIG: dict = {
     'compiler': CompilerConfig('clang'),
     'language': LanguageConfig(20, 'libstdc++'),
     'output_dir': BuildConfig('./build'),
-    'executable': ExecutableConfig('main', '')
+    'executable': ExecutableConfig('main', '', 'false')
 }

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 """[summary]
-    Provides classes to store the options selected by the 
+    Provides classes to store the options selected by the
     user in the configuration file
 """
 
@@ -43,12 +43,17 @@ class BuildConfig:
 class ExecutableConfig:
     executable_name: str
     sources: list
+    auto_execute: str
 
     def set_property(self, property_name: str, value: Any):
         if property_name == 'executable_name':
             self.executable_name = value
         elif property_name == 'sources':
+            print(f'Setting auto-executable to: {value}')
             self.sources = self.get_source_files(value)
+        elif property_name == 'auto_execute':
+            print(f'Setting auto-executable to: {value}')
+            self.auto_execute == value
 
     def get_source_files(self, value):
         """ Retrives the user defined source files to compile """

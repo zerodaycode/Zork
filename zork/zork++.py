@@ -1,3 +1,4 @@
+import subprocess
 import os
 import time
 
@@ -79,5 +80,13 @@ if __name__ == '__main__':
         process_result = build_project(config)
 
         log_process_result(process_init_time, process_result)
+
+        # Runs the generated executable if configurated
+        print(f"DUDA: {config.get('executable').auto_execute }")
+        if config.get('executable').auto_execute == 'true':
+            subprocess.Popen([
+                f'./{config.get("output_dir").output_dir}' +
+                f'/{config.get("executable").executable_name}'
+            ])
     else:
         raise NoConfigurationFileFound
