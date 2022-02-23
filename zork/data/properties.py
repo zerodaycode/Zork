@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 
 """[summary]
-    Classes for store constant data about the internal configuration 
+    Classes for store constant data about the internal configuration
     (elected by design) of the program attributes and properties
-""" 
+"""
+
 
 @dataclass
 class CompilerProperty:
@@ -17,6 +18,7 @@ class CompilerProperty:
             'identifier': self.identifier, 'mandatory': self.mandatory
         }
 
+
 @dataclass
 class LanguageStandardProperty:
     """ Sets the C++ language standard passed to the compiler  """
@@ -28,6 +30,7 @@ class LanguageStandardProperty:
         return {
             'identifier': self.identifier, 'mandatory': self.mandatory
         }
+
 
 @dataclass
 class BuildOutputPathProperty:

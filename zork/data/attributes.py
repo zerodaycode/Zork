@@ -3,7 +3,8 @@ from dataclasses import dataclass
 """[summary]
     Classes for store constant data about the internal configuration 
     (elected by design) of the program attributes and properties
-""" 
+"""
+
 
 @dataclass
 class CompilerAttribute:
@@ -12,6 +13,7 @@ class CompilerAttribute:
     mandatory: bool
     properties: list
 
+
 @dataclass
 class LanguageAttribute:
     """ Represents the structure of the language property """
@@ -19,12 +21,14 @@ class LanguageAttribute:
     mandatory: bool
     properties: list
 
+
 @dataclass
 class BuildAttribute:
     """ Represents the structure of the build property """
     identifier: str
     mandatory: bool
     properties: list
+
 
 @dataclass
 class ExecutableAttribute:

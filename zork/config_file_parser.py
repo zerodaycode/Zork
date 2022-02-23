@@ -1,4 +1,5 @@
 import typing
+import re
 
 from utils.exceptions import DuplicatedAttribute, MissedMandatoryAttributes, UnknownAttribute, \
     UnknownProperties, ErrorFileFormat, MissedMandatoryProperties, InvalidPropertyValue
@@ -8,8 +9,6 @@ from utils.regex_patterns import VALID_LINE_PATTERN, RE_VALID_LINE_FORMAT
 from program_definitions import PROGRAM_BASE_CONFIG
 
 from program_definitions import *
-
-import re
 
 
 def get_project_config(root_path: str) -> dict:
@@ -107,7 +106,7 @@ def get_sections(config_file: str) -> dict:
     founded_attributes: list = []
     missed_mandatory_attributes: list = []
 
-    # Check for duplicates
+    # Check for duplicated attributes
     for attribute, _ in attr_ppt_collection.items():
         if not attribute in founded_attributes:
             founded_attributes.append(attribute)
@@ -122,7 +121,7 @@ def get_sections(config_file: str) -> dict:
         config_file_section_properties = attr_ppt_collection.get(section.identifier)
 
         # The logic for a valid founded property goes here
-        if not config_file_section_properties == None:
+        if not config_file_section_properties is None:
             print(f'\tFinded attribute: {section.identifier}')
             print(f'\tFinded properties: {config_file_section_properties}')
             parse_properties_for_current_attribute(
@@ -130,7 +129,7 @@ def get_sections(config_file: str) -> dict:
             )  
             print('')         
         else: 
-            if section.mandatory == True:
+            if section.mandatory is True:
                 missed_mandatory_attributes.append(section.identifier)
 
     if len(missed_mandatory_attributes) > 0:
@@ -170,8 +169,8 @@ def parse_properties_for_current_attribute(
     for validated_property in config_file_section_properties:
         # CARE. We are modifying by reference the config dict
         config[section.identifier[3:-2]].set_property(
-            validated_property['property_name'], 
-            validated_property['property_value'] 
+            validated_property['property_name'],
+            validated_property['property_value']
         )
     """
         This means that the keys of the config dict are strings with a pre-defined value
@@ -188,10 +187,11 @@ def parse_properties_for_current_attribute(
         where the 'compiler' key matches the self.identifier = [[#compiler]] 
         class attribute of the instance stored as a value of that key
 
-        config['compiler'] = class CompilerConfig 
-        config['compiler'].identifier = '[[#compiler]' 
-        config['compiler'][3:-2] = config[section.identifier[3:-2]] = 'compiler' 
+        config['compiler'] = class CompilerConfig
+        config['compiler'].identifier = '[[#compiler]'
+        config['compiler'][3:-2] = config[section.identifier[3:-2]] = 'compiler'
     """
+
 
 def check_for_mandatory_properties(
     section, detected_properties_for_current_attribute
@@ -201,17 +201,18 @@ def check_for_mandatory_properties(
     missed_mandatory_properties: list = []
 
     for program_property in section.properties:
-        if program_property.mandatory == True:
+        if program_property.mandatory is True:
             if not program_property.identifier in detected_properties_for_current_attribute:
                 missed_mandatory_properties.append(program_property.identifier)
 
     if len(missed_mandatory_properties) > 0:
         raise MissedMandatoryProperties(missed_mandatory_properties, section.identifier)
 
+
 def validate_founded_properties(
-    section, 
-    detected_properties_for_current_attribute, # TODO Already present of the argument below this
-    config_file_section_properties 
+    section,
+    detected_properties_for_current_attribute,  # TODO Already present of the argument below this
+    config_file_section_properties
 ):
     """ Validates the identifier of a given property """
     invalid_properties_found: list = []
@@ -226,15 +227,15 @@ def validate_founded_properties(
         # Raises exception if the property isn't allowed on Zork
         if not ppt_identifier in program_defined_property_identifiers_for_current_attribute:
             invalid_properties_found.append(ppt_identifier)
-        else: # Check if the founded property also has a valid value
+        else:  # Check if the founded property also has a valid value
             # Retrieve the property value from the config file
             ppt_value = config_file_section_properties[elem_idx]['property_value']
             print(f'\tGetting: {ppt_value} as value, with type: {type(ppt_value)}')
             
             # Retrieve the allowed values by Zork for a given property
             allowed_property_values = [
-                property.values for property in section.properties 
-                    if property.identifier == ppt_identifier
+                property.values for property in section.properties
+                if property.identifier == ppt_identifier
             ][0]
 
             print(f'\tAllowed {allowed_property_values} value(s) with type: {type(allowed_property_values)} for property: {ppt_identifier}')

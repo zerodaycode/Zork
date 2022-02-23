@@ -72,7 +72,10 @@ if __name__ == '__main__':
 
         show_final_config_values(config)
 
-        print(f'Calling <{config.get("compiler").cpp_compiler}> to perform the build job')
+        print(
+            f'Calling <{config.get("compiler").cpp_compiler}> ' +
+            ' to perform the build job'
+        )
         process_result = build_project(config)
 
         log_process_result(process_init_time, process_result)

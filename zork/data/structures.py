@@ -8,6 +8,7 @@ from typing import Any
     user in the configuration file
 """
 
+
 @dataclass
 class CompilerConfig:
     cpp_compiler: str
@@ -15,6 +16,7 @@ class CompilerConfig:
     def set_property(self, property_name: str, value: Any):
         if property_name == 'cpp_compiler':
             self.cpp_compiler = value
+
 
 @dataclass
 class LanguageConfig:
@@ -26,6 +28,7 @@ class LanguageConfig:
             self.cpp_standard = value
         elif property_name == 'std_lib':
             self.std_lib = value
+
 
 @dataclass
 class BuildConfig:
@@ -46,7 +49,7 @@ class ExecutableConfig:
             self.executable_name = value
         elif property_name == 'sources':
             self.sources = self.get_source_files(value)
-            
+
     def get_source_files(self, value):
         """ Retrives the user defined source files to compile """
         sources = []

@@ -29,33 +29,37 @@ SUPPORTED_CPP_STDLIBS: list = ['stdlibc++', 'libc++']
 
 """ Zork Sections """
 COMPILER_ATTR: CompilerAttribute = CompilerAttribute(
-    identifier = '[[#compiler]]', 
-    mandatory = True,
-    properties = [
+    identifier='[[#compiler]]',
+    mandatory=True,
+    properties=[
         CompilerProperty('cpp_compiler', True, SUPPORTED_COMPILERS)
     ]
 )
 
 LANGUAGE_ATTR: LanguageAttribute = LanguageAttribute(
-    identifier = '[[#language]]', 
-    mandatory = True,
-    properties = [
-        LanguageStandardProperty('cpp_standard', True, SUPPORTED_CPP_LANG_LEVELS),
-        LanguageStandardProperty('std_lib', False, SUPPORTED_CPP_STDLIBS),
+    identifier='[[#language]]',
+    mandatory=True,
+    properties=[
+        LanguageStandardProperty(
+            'cpp_standard', True, SUPPORTED_CPP_LANG_LEVELS
+        ),
+        LanguageStandardProperty(
+            'std_lib', False, SUPPORTED_CPP_STDLIBS
+        ),
     ]
 )
 
 BUILD_ATTR: BuildAttribute = BuildAttribute(
-    identifier= '[[#build]]', 
-    mandatory= False,
+    identifier='[[#build]]',
+    mandatory=False,
     properties=[
         BuildOutputPathProperty('output_dir', False, Any)
     ]
 )
 
 EXECUTABLE_ATTR: ExecutableAttribute = ExecutableAttribute(
-    identifier= '[[#executable]]', 
-    mandatory= False,
+    identifier='[[#executable]]',
+    mandatory=False,
     properties=[
         BuildOutputPathProperty('executable_name', False, Any),
         BuildOutputPathProperty('sources', False, Any)
@@ -74,8 +78,8 @@ PROGRAM_ATTRIBUTES_IDENTIFIERS = [
 
 
 PROGRAM_BASE_CONFIG: dict = {
-    'compiler' : CompilerConfig('clang'),
-    'language' : LanguageConfig(20, 'libstdc++'),
-    'build' : BuildConfig('./build'),
+    'compiler': CompilerConfig('clang'),
+    'language': LanguageConfig(20, 'libstdc++'),
+    'output_dir': BuildConfig('./build'),
     'executable': ExecutableConfig('main', '')
 }
