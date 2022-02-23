@@ -13,11 +13,6 @@ class CompilerProperty:
     mandatory: bool
     values: list
 
-    def as_dict(self) -> dict:
-        return {
-            'identifier': self.identifier, 'mandatory': self.mandatory
-        }
-
 
 @dataclass
 class LanguageStandardProperty:
@@ -25,11 +20,6 @@ class LanguageStandardProperty:
     identifier: str
     mandatory: bool
     values: list
-
-    def as_dict(self) -> dict:
-        return {
-            'identifier': self.identifier, 'mandatory': self.mandatory
-        }
 
 
 @dataclass
@@ -39,11 +29,6 @@ class BuildOutputPathProperty:
     mandatory: bool
     values: list
 
-    def as_dict(self) -> dict:
-        return {
-            'identifier': self.identifier, 'mandatory': self.mandatory
-        }
-
 
 @dataclass
 class ExecutableProperty:
@@ -51,8 +36,3 @@ class ExecutableProperty:
     identifier: str
     mandatory: bool
     values: list
-
-    def as_dict(self) -> dict:
-        return {
-            'identifier': self.identifier, 'mandatory': self.mandatory
-        }

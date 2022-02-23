@@ -80,7 +80,7 @@ PROGRAM_ATTRIBUTES_IDENTIFIERS = [
 
 PROGRAM_BASE_CONFIG: dict = {
     'compiler': CompilerConfig('clang'),
-    'language': LanguageConfig(20, 'libstdc++'),
-    'output_dir': BuildConfig('./build'),
+    'language': LanguageConfig(11, 'libstdc++'),
+    'build': BuildConfig('./build'),
     'executable': ExecutableConfig('main', '', 'false')
 }

@@ -38,7 +38,7 @@ def call_clang_to_compile(config: dict):
         config.get("compiler").cpp_compiler,
         '--std=c++' + config.get("language").cpp_standard,
         '-stdlib=' + config.get("language").std_lib,
-        '-o', config['output_dir'].output_dir + '/' +
+        '-o', config['build'].output_dir + '/' +
         config.get("executable").executable_name,
     ]
 
@@ -51,6 +51,6 @@ def call_clang_to_compile(config: dict):
 def generate_build_output_directory(config: dict):
     """ Creates the directory where the compiler will dump the
         generated files after the build process """
-    output_build_dir = config['output_dir'].output_dir
+    output_build_dir = config['build'].output_dir
     if not output_build_dir.strip('./') in os.listdir():
         subprocess.Popen(['mkdir', output_build_dir]).wait()

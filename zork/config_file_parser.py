@@ -152,7 +152,7 @@ def parse_properties_for_current_attribute(
     # If we have all the mandatory ones, unpack the founded properties to validate them
     validate_founded_properties(
         section,
-        detected_properties_for_current_attribute, 
+        detected_properties_for_current_attribute,
         config_file_section_properties
     )
     
@@ -168,7 +168,6 @@ def parse_properties_for_current_attribute(
     # If everything it's valid, we can fill our config dict with the data
     for validated_property in config_file_section_properties:
         # CARE. We are modifying by reference the config dict
-        print(f"SETTING: {validated_property['property_name']} with {validated_property['property_value']}")
         config[section.identifier[3:-2]].set_property(
             validated_property['property_name'],
             validated_property['property_value']
@@ -185,7 +184,7 @@ def parse_properties_for_current_attribute(
                 'build' : BuildConfig('./build')
             }
 
-        where the 'compiler' key matches the self.identifier = [[#compiler]] 
+        where the 'compiler' key matches the self.identifier = [[#compiler]]
         class attribute of the instance stored as a value of that key
 
         config['compiler'] = class CompilerConfig
@@ -197,7 +196,7 @@ def parse_properties_for_current_attribute(
 def check_for_mandatory_properties(
     section, detected_properties_for_current_attribute
 ):
-    """ Checks if all of the mandatory properties for the current attribute 
+    """ Checks if all of the mandatory properties for the current attribute
         are written in the section """
     missed_mandatory_properties: list = []
 
@@ -207,7 +206,9 @@ def check_for_mandatory_properties(
                 missed_mandatory_properties.append(program_property.identifier)
 
     if len(missed_mandatory_properties) > 0:
-        raise MissedMandatoryProperties(missed_mandatory_properties, section.identifier)
+        raise MissedMandatoryProperties(
+            missed_mandatory_properties, section.identifier
+        )
 
 
 def validate_founded_properties(
