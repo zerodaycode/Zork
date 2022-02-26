@@ -3,6 +3,7 @@ main.cpp
 second.cpp
 second.hpp
 src/
+out/
 
 # Build
 *.spec

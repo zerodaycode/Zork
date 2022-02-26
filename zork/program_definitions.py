@@ -46,6 +46,9 @@ LANGUAGE_ATTR: LanguageAttribute = LanguageAttribute(
         LanguageStandardProperty(
             'std_lib', False, SUPPORTED_CPP_STDLIBS
         ),
+        LanguageStandardProperty(
+            'modules', False, Any
+        ),
     ]
 )
 
@@ -80,7 +83,7 @@ PROGRAM_ATTRIBUTES_IDENTIFIERS = [
 
 PROGRAM_BASE_CONFIG: dict = {
     'compiler': CompilerConfig('clang'),
-    'language': LanguageConfig(11, 'libstdc++'),
+    'language': LanguageConfig(11, 'libstdc++', []),
     'build': BuildConfig('./build'),
     'executable': ExecutableConfig('main', '', 'false')
 }

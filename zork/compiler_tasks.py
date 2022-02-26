@@ -45,7 +45,60 @@ def call_clang_to_compile(config: dict):
     for source in config.get("executable").sources:
         command_line.append(source)
 
+    # Generates a compiler call to prebuild the module units
+    if config['language'].modules != []:
+        prebuild_modules_path = call_clang_to_prebuild_modules(config)
+        for module_src in config['language'].modules:
+            command_line.append(module_src)
+        command_line.append('-fmodules')
+        command_line.append('-fmodules-ts')
+        command_line.append(
+            f'-fprebuilt-module-path={prebuild_modules_path}'
+        )
+
     return command_line
+
+
+def call_clang_to_prebuild_modules(config: dict) -> list:
+    """ The responsable for generate de module units
+        for the C++20 modules feature.
+        Returns a list with the args that should be passed into them
+        main compiler call in order to enable the modules compilation
+        and linkage """
+    output_dir: str = config['build'].output_dir
+    modules_dir_path = config['build'].output_dir + '/modules'
+    print('Precompiling the module units...')
+    # Generate the precompiled modules directory if it doesn't exists
+    if 'modules' not in os.listdir(output_dir):
+        subprocess.Popen(['mkdir', modules_dir_path]).wait()
+
+    for module in config.get('language').modules:
+        # Strip the path part if the module name it's inside a path,
+        # (like 'src/inner/module_file_name.cppm') and not alone,
+        # as a *.cppm file, and strips the file extension
+        if module.__contains__('/'):
+            module_dir_parts_no_slashes: list = module.split('/')
+            module_name: str = \
+                module_dir_parts_no_slashes[
+                    len(module_dir_parts_no_slashes) - 1
+                ]
+            module_name_no_extensions = ''.join(module_name.split('.')[0])
+            module_name: str = module_name_no_extensions
+
+        subprocess.Popen(
+            [
+                config.get("compiler").cpp_compiler,
+                '--std=c++' + config.get("language").cpp_standard,
+                '-stdlib=' + config.get("language").std_lib,
+                '-fmodules',
+                '--precompile',
+                '-o', f'{modules_dir_path}/{module_name}.pcm',
+                module
+            ]
+        ).wait()
+    print('...\nPrecompilation finished!')
+
+    return modules_dir_path
 
 
 def generate_build_output_directory(config: dict):
