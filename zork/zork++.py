@@ -10,6 +10,7 @@ from utils.workspace_scanner import find_config_file
 from utils.exceptions import NoConfigurationFileFound
 from utils.logs import initial_log, log_process_result, \
     show_final_config_values
+from utils.zork_cli import command_line_interface
 
 
 """ A cppy project works reading it's own configuration file.
@@ -67,18 +68,21 @@ if __name__ == '__main__':
     process_init_time = time.time_ns() // 1_000_000
     initial_log()
 
-    if find_config_file(os.getcwd()):
+    cli_options = command_line_interface()
+    verbose: bool = cli_options.verbose
+
+    if find_config_file(os.getcwd(), verbose):
         # Gets the configuration parameters for building the project
-        config = get_project_config(os.getcwd())
+        config = get_project_config(os.getcwd(), verbose)
 
-        show_final_config_values(config)
+        if verbose:
+            show_final_config_values(config,)
+            print(
+                f'Calling <{config.get("compiler").cpp_compiler}> ' +
+                ' to perform the build job'
+            )
 
-        print(
-            f'Calling <{config.get("compiler").cpp_compiler}> ' +
-            ' to perform the build job'
-        )
-        process_result = build_project(config)
-
+        process_result = build_project(config, verbose)
         log_process_result(process_init_time, process_result)
 
         # Runs the generated executable if configurated

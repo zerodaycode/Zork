@@ -12,7 +12,7 @@ from program_definitions import CLANG, GCC, MSVC
 from utils.exceptions import UnsupportedCompiler
 
 
-def build_project(config: dict) -> int:
+def build_project(config: dict, verbose: bool) -> int:
     """ Calls the selected compiler to perform the build of the project """
 
     generate_build_output_directory(config)
@@ -21,17 +21,19 @@ def build_project(config: dict) -> int:
     command_line: list = []
 
     if compiler == CLANG:
-        command_line = call_clang_to_compile(config)
+        command_line = call_clang_to_compile(config, verbose)
     elif compiler == GCC:
         raise UnsupportedCompiler(GCC)
     else:
         raise UnsupportedCompiler(MSVC)
 
-    print(f'Command line executed: {" ".join(command_line)}\n')
+    if verbose:
+        print(f'Command line executed: {" ".join(command_line)}\n')
+
     return subprocess.Popen(command_line).wait()
 
 
-def call_clang_to_compile(config: dict):
+def call_clang_to_compile(config: dict, verbose: bool):
     """ Calls Clang++ to compile the provide files / project """
     # Generate compiler and linker calls
     command_line = [
@@ -47,7 +49,7 @@ def call_clang_to_compile(config: dict):
 
     # Generates a compiler call to prebuild the module units
     if config['language'].modules != []:
-        prebuild_modules_path = call_clang_to_prebuild_modules(config)
+        prebuild_modules_path = call_clang_to_prebuild_modules(config, verbose)
         for module_src in config['language'].modules:
             command_line.append(module_src)
         command_line.append('-fmodules')
@@ -59,7 +61,7 @@ def call_clang_to_compile(config: dict):
     return command_line
 
 
-def call_clang_to_prebuild_modules(config: dict) -> list:
+def call_clang_to_prebuild_modules(config: dict, verbose: bool) -> list:
     """ The responsable for generate de module units
         for the C++20 modules feature.
         Returns a list with the args that should be passed into them
@@ -67,7 +69,9 @@ def call_clang_to_prebuild_modules(config: dict) -> list:
         and linkage """
     output_dir: str = config['build'].output_dir
     modules_dir_path = config['build'].output_dir + '/modules'
-    print('Precompiling the module units...')
+    
+    if verbose:
+        print('Precompiling the module units...')
     # Generate the precompiled modules directory if it doesn't exists
     if 'modules' not in os.listdir(output_dir):
         subprocess.Popen(['mkdir', modules_dir_path]).wait()
@@ -96,7 +100,8 @@ def call_clang_to_prebuild_modules(config: dict) -> list:
                 module
             ]
         ).wait()
-    print('...\nPrecompilation finished!')
+    if verbose:
+        print('...\nPrecompilation finished!')
 
     return modules_dir_path
 

@@ -1,17 +1,17 @@
 import typing
 import re
 
-from utils.exceptions import DuplicatedAttribute, MissedMandatoryAttributes, UnknownAttribute, \
-    UnknownProperties, ErrorFileFormat, MissedMandatoryProperties, InvalidPropertyValue
+from utils.exceptions import DuplicatedAttribute, MissedMandatoryAttributes, \
+    UnknownAttribute, UnknownProperties, ErrorFileFormat, \
+    MissedMandatoryProperties, InvalidPropertyValue
 from utils.constants import CONFIGURATION_FILE_NAME
 from utils.regex_patterns import VALID_LINE_PATTERN, RE_VALID_LINE_FORMAT
 
-from program_definitions import PROGRAM_BASE_CONFIG
+from program_definitions import PROGRAM_BASE_CONFIG, \
+    PROGRAM_ATTRIBUTES_IDENTIFIERS, PROGRAM_SECTIONS
 
-from program_definitions import *
 
-
-def get_project_config(root_path: str) -> dict:
+def get_project_config(root_path: str, verbose) -> dict:
     """Parses the file looking for a kind of AST token tokens"""
 
     # Open the configuration file in 'read-only' mode
@@ -21,8 +21,7 @@ def get_project_config(root_path: str) -> dict:
     check_valid_config_file(config_file)
 
     # If the config file it's OK, the we can retrieve all the config sections
-    return get_sections(config_file)
-
+    return get_sections(config_file, verbose)
 
 
 def read_config_file_lines(root_path: str) -> list:
@@ -65,8 +64,10 @@ def parse_attr_properties_block(file: str) -> dict:
         # Check for attributes that dont' belong to the program designed ones
         if attribute_identifier not in PROGRAM_ATTRIBUTES_IDENTIFIERS:
             raise UnknownAttribute(attribute_identifier)
-            
-        extracted_properties = re.findall(property_pattern, block, re.MULTILINE)
+
+        extracted_properties = re.findall(
+            property_pattern, block, re.MULTILINE
+        )
 
         properties: list = []
         for property_name, property_value in extracted_properties:
@@ -82,7 +83,7 @@ def parse_attr_properties_block(file: str) -> dict:
     return retrieved_data
 
 
-def get_sections(config_file: str) -> dict:
+def get_sections(config_file: str, verbose: bool) -> dict:
     """ Recovers the sections described in the config file, returning a dict with 
         the instances of the dataclasses designed for carry the final data 
         to the compiler """
@@ -93,7 +94,7 @@ def get_sections(config_file: str) -> dict:
     cleaned_config_file: list = clean_file("".join(config_file))
     attr_ppt_collection = parse_attr_properties_block('\n'.join(cleaned_config_file))
 
-    """ 
+    """
         Once we have parsed and cleaned the sections founded on the config file, we can 
         start match them against the valid ones (the ones allowed by Zork).
         Until here, we only validated that the code written on the conf file it's
@@ -108,11 +109,12 @@ def get_sections(config_file: str) -> dict:
 
     # Check for duplicated attributes
     for attribute, _ in attr_ppt_collection.items():
-        if not attribute in founded_attributes:
+        if attribute not in founded_attributes:
             founded_attributes.append(attribute)
         else:
             raise DuplicatedAttribute(attribute)
-    print(f'\nFounded attributes on the config file: {founded_attributes}')
+    if verbose:
+        print(f'\nFounded attributes on the config file: {founded_attributes}')
 
     for section in PROGRAM_SECTIONS:
         # Try to get the same section (if exists in the config file)
@@ -121,14 +123,16 @@ def get_sections(config_file: str) -> dict:
         config_file_section_properties = attr_ppt_collection.get(section.identifier)
 
         # The logic for a valid founded property goes here
-        if not config_file_section_properties is None:
-            print(f'\tFinded attribute: {section.identifier}')
-            print(f'\tFinded properties: {config_file_section_properties}')
+        if config_file_section_properties is not None:
+            if verbose:
+                print(f'\tFinded attribute: {section.identifier}')
+                print(f'\tFinded properties: {config_file_section_properties}')
             parse_properties_for_current_attribute(
-                section, config_file_section_properties, config
-            )  
-            print('')         
-        else: 
+                section, config_file_section_properties, config, verbose
+            )
+            if verbose:
+                print('')
+        else:
             if section.mandatory is True:
                 missed_mandatory_attributes.append(section.identifier)
 
@@ -139,7 +143,7 @@ def get_sections(config_file: str) -> dict:
 
 
 def parse_properties_for_current_attribute(
-    section, config_file_section_properties, config
+    section, config_file_section_properties, config, verbose
 ):
     """ Parses and validates the properties found for a given attribute """
     detected_properties_for_current_attribute = [
@@ -148,14 +152,15 @@ def parse_properties_for_current_attribute(
 
     # Check for mandatory properties for the current attribute
     check_for_mandatory_properties(section, detected_properties_for_current_attribute)
-    
+
     # If we have all the mandatory ones, unpack the founded properties to validate them
     validate_founded_properties(
         section,
         detected_properties_for_current_attribute,
-        config_file_section_properties
+        config_file_section_properties,
+        verbose
     )
-    
+
     """
         Validation it's made through several function calls that performs runtime checks
         to the retrieved values, matching them against the valid defined ones on this program
@@ -202,7 +207,8 @@ def check_for_mandatory_properties(
 
     for program_property in section.properties:
         if program_property.mandatory is True:
-            if not program_property.identifier in detected_properties_for_current_attribute:
+            if program_property.identifier not in \
+                    detected_properties_for_current_attribute:
                 missed_mandatory_properties.append(program_property.identifier)
 
     if len(missed_mandatory_properties) > 0:
@@ -213,8 +219,9 @@ def check_for_mandatory_properties(
 
 def validate_founded_properties(
     section,
-    detected_properties_for_current_attribute,  # TODO Already present of the argument below this
-    config_file_section_properties
+    detected_properties_for_current_attribute,
+    config_file_section_properties,
+    verbose
 ):
     """ Validates the identifier of a given property """
     invalid_properties_found: list = []
@@ -225,28 +232,39 @@ def validate_founded_properties(
     ]
 
     for elem_idx, ppt_identifier in enumerate(detected_properties_for_current_attribute):
-        print(f'\tLooking for: {ppt_identifier} property')
+        if verbose:
+            print(f'\tLooking for: {ppt_identifier} property')
         # Raises exception if the property isn't allowed on Zork
-        if not ppt_identifier in program_defined_property_identifiers_for_current_attribute:
+        if ppt_identifier not in \
+                program_defined_property_identifiers_for_current_attribute:
             invalid_properties_found.append(ppt_identifier)
         else:  # Check if the founded property also has a valid value
             # Retrieve the property value from the config file
             ppt_value = config_file_section_properties[elem_idx]['property_value']
-            print(f'\tGetting: {ppt_value} as value, with type: {type(ppt_value)}')
-            
+            if verbose:
+                print(
+                    f'\tGetting: {ppt_value} as value, ' +
+                    f'with type: {type(ppt_value)}'
+                )
+
             # Retrieve the allowed values by Zork for a given property
             allowed_property_values = [
                 property.values for property in section.properties
                 if property.identifier == ppt_identifier
             ][0]
+            if verbose:
+                print(
+                    f'\tAllowed {allowed_property_values} value(s) with type:'
+                    + f'{ type(allowed_property_values)} for property: ' +
+                    f'{ppt_identifier}'
+                )
 
-            print(f'\tAllowed {allowed_property_values} value(s) with type: {type(allowed_property_values)} for property: {ppt_identifier}')
-
-            # typing._SpecialForm is the type associated with the values property of any Property
-            # that the values property type == typing.Any
+            # typing._SpecialForm is the type associated with the values
+            # property of any Property that the values property
+            # type == typing.Any
             if type(allowed_property_values) != typing._SpecialForm and \
-                ppt_value not in allowed_property_values:
-                    raise InvalidPropertyValue(ppt_value, ppt_identifier)
+                    ppt_value not in allowed_property_values:
+                raise InvalidPropertyValue(ppt_value, ppt_identifier)
 
     if len(invalid_properties_found) > 0:
         raise UnknownProperties(invalid_properties_found, section.identifier)
