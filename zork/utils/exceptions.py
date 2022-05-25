@@ -122,7 +122,7 @@ class LanguageLevelNotEnought(Exception):
         feature: str
     ):
         super().__init__(
-            f'C++ {feature} feature requires to set the language level to \
-            , at least, C++{lang_level_required}. Current lang_level_selected \
-            is C++{lang_level_selected}.'
+            f'C++ {feature} feature requires to set the language level to' +
+            f', at least, C++{lang_level_required}. ' +
+            f'Current is C++{lang_level_selected}.'
         )
