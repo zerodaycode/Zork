@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 
 """[summary]
-    Provides classes to store the options selected by the
-    user in the configuration file
+    Provides dataclasses to store the options selected by the
+    user in the configuration file after parse it
 """
 
 
@@ -58,7 +58,7 @@ class ExecutableConfig:
 
 
 def get_sources(value) -> list:
-    """ Convenient function designed to retrieve the user defined 
+    """ Convenient function designed to retrieve the user defined
         source files or module units file names """
     sources = []
     for source in value.split(','):

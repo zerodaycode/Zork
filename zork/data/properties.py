@@ -1,14 +1,33 @@
 from dataclasses import dataclass
 
-"""[summary]
-    Classes for store constant data about the internal configuration
-    (elected by design) of the program attributes and properties
+""" [summary]
+
+    Every dataclass below represents a property that it's being part
+    of an attribute.
+
+    An attribute can have one or more properties, but it's properties
+    are declared through this dataclasses.
+
+    This dataclasses are designed in a generic way, so for every
+    attribute in Zork, in this file exists a dataclass that generates
+    the property/properties that the attribute can hold. So, they
+    are property agnostic, because all the properties are defined in the 
+    same way, having:
+
+        - identifier: the property name
+        - mandatory: a boolean indicating if the property should be
+            a must a have (just if the attribute also exists)
+        - values: a list that contains the value(s) retrieved for the
+            property from the configuration file
 """
 
 
 @dataclass
 class CompilerProperty:
-    """ Represents the compilers available by Zork """
+    """
+        A property that it's part of the Compiler attribute.
+        Represents the compilers available by Zork.
+    """
     identifier: str
     mandatory: bool
     values: list
@@ -16,15 +35,26 @@ class CompilerProperty:
 
 @dataclass
 class LanguageStandardProperty:
-    """ Sets the C++ language standard passed to the compiler  """
+    """
+        A property that it's part of the Compiler attribute.
+
+        Represents a value over a C++ posible configuration,
+        like the language standard level, the std library to use,
+        if the modules feature (> C++20 language level) it's present,
+        and you are building a project with modules, instead the classical
+        headers...
+    """
     identifier: str
     mandatory: bool
     values: list
 
 
 @dataclass
-class BuildOutputPathProperty:
-    """ The place where the compiler's output will be placed """
+class BuildProperty:
+    """
+        A property that it's part of the Build attribute.
+        Properties for control where the compiler's output will be placed.
+    """
     identifier: str
     mandatory: bool
     values: list
@@ -32,7 +62,10 @@ class BuildOutputPathProperty:
 
 @dataclass
 class ExecutableProperty:
-    """ Definitions for the available options for building an executable """
+    """
+        A property that it's part of the Executable attribute.
+        Definitions for the available options for building an executable
+    """
     identifier: str
     mandatory: bool
     values: list

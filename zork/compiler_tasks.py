@@ -1,7 +1,7 @@
 """[summary]
 
-    This file provides several functions that creates the 
-    command line compiler calls, generated after parsing the 
+    This file provides several functions that creates the
+    command line compiler calls, generated after parsing the
     Zork config file and retrieve the data
 """
 
@@ -9,7 +9,7 @@ import os
 import subprocess
 
 from program_definitions import CLANG, GCC, MSVC
-from utils.exceptions import UnsupportedCompiler
+from utils.exceptions import LanguageLevelNotEnought, UnsupportedCompiler
 
 
 def build_project(config: dict, verbose: bool) -> int:
@@ -35,7 +35,7 @@ def build_project(config: dict, verbose: bool) -> int:
 
 def call_clang_to_compile(config: dict, verbose: bool):
     """ Calls Clang++ to compile the provide files / project """
-    # Generate compiler and linker calls
+    # Generates the compiler and linker calls
     command_line = [
         config.get("compiler").cpp_compiler,
         '--std=c++' + config.get("language").cpp_standard,
@@ -47,8 +47,17 @@ def call_clang_to_compile(config: dict, verbose: bool):
     for source in config.get("executable").sources:
         command_line.append(source)
 
-    # Generates a compiler call to prebuild the module units
+    # Generates a compiler call to prebuild the module units, in case that
+    # the attribute it's present, have a valid path to the .cppm module units
+    # and the language level it's at least, c++20.
     if config['language'].modules != []:
+        if int(config.get("language").cpp_standard) < 20:
+            raise LanguageLevelNotEnought(
+                20,
+                config.get("language").cpp_standard,
+                "Modules"
+            )
+        # TODO Modulos en Clang requieren de extensión .cppm
         prebuild_modules_path = call_clang_to_prebuild_modules(config, verbose)
         for module_src in config['language'].modules:
             command_line.append(module_src)
@@ -69,7 +78,7 @@ def call_clang_to_prebuild_modules(config: dict, verbose: bool) -> list:
         and linkage """
     output_dir: str = config['build'].output_dir
     modules_dir_path = config['build'].output_dir + '/modules'
-    
+
     if verbose:
         print('Precompiling the module units...')
     # Generate the precompiled modules directory if it doesn't exists

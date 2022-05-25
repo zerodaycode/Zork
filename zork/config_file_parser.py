@@ -1,8 +1,9 @@
 import typing
 import re
 
-from utils.exceptions import DuplicatedAttribute, MissedMandatoryAttributes, \
-    UnknownAttribute, UnknownProperties, ErrorFileFormat, \
+from utils.exceptions import DuplicatedAttribute,\
+    MissedMandatoryAttributes, UnknownAttribute,\
+    UnknownProperties, ErrorFileFormat,\
     MissedMandatoryProperties, InvalidPropertyValue
 from utils.constants import CONFIGURATION_FILE_NAME
 from utils.regex_patterns import VALID_LINE_PATTERN, RE_VALID_LINE_FORMAT
@@ -41,7 +42,10 @@ def check_valid_config_file(config_file: list):
 
 
 def clean_file(file: str) -> list:
-    """Clean the file and retrieve only lines with attribute or property format"""
+    """
+        Clean the file and retrieve only lines with attribute or property
+        format
+    """
     return re.findall(
             VALID_LINE_PATTERN, file, re.MULTILINE
         )
@@ -92,15 +96,19 @@ def get_sections(config_file: str, verbose: bool) -> dict:
     config: dict = PROGRAM_BASE_CONFIG
 
     cleaned_config_file: list = clean_file("".join(config_file))
-    attr_ppt_collection = parse_attr_properties_block('\n'.join(cleaned_config_file))
+    attr_ppt_collection = parse_attr_properties_block(
+        '\n'.join(cleaned_config_file)
+    )
 
     """
-        Once we have parsed and cleaned the sections founded on the config file, we can 
-        start match them against the valid ones (the ones allowed by Zork).
-        Until here, we only validated that the code written on the conf file it's
-        syntanctically correct acording the rules provided by the program. 
-        Now we must discover if the retrived data it's also available and exists
-        inside Zork.
+        Once we have parsed and cleaned the sections founded on the
+        config file, we can start match them against the valid ones
+        (the ones allowed by Zork).
+        Until here, we only validated that the code written on the
+        conf file it's syntanctically correct acording the rules
+        provided by the program.
+        Now we must discover if the retrived data it's also available
+        and exists inside Zork.
     """
 
     # Tracks the mandatory attributes not written in the config file
@@ -120,7 +128,9 @@ def get_sections(config_file: str, verbose: bool) -> dict:
         # Try to get the same section (if exists in the config file)
         # In this way, we can also check if all the mandatory attributes are
         # configured, and are valid ones
-        config_file_section_properties = attr_ppt_collection.get(section.identifier)
+        config_file_section_properties = attr_ppt_collection.get(
+            section.identifier
+        )
 
         # The logic for a valid founded property goes here
         if config_file_section_properties is not None:

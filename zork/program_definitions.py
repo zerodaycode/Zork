@@ -1,7 +1,7 @@
 """[summary]
 
     This file provides the instances of the dataclasses with the program
-    defined values for every section (attributes + properties) 
+    defined values for every section (attributes + properties)
     availables in Zork.
 """
 
@@ -10,10 +10,9 @@ from typing import Any
 from data.attributes import CompilerAttribute, LanguageAttribute, \
     BuildAttribute, ExecutableAttribute
 from data.properties import CompilerProperty, LanguageStandardProperty, \
-    BuildOutputPathProperty, ExecutableProperty
-
-from data.structures import CompilerConfig, ExecutableConfig, LanguageConfig, \
-    BuildConfig
+    BuildProperty, ExecutableProperty
+from data.user_config import CompilerConfig, ExecutableConfig, \
+    LanguageConfig, BuildConfig
 
 # Suported compilers
 CLANG: str = 'clang++'
@@ -56,7 +55,7 @@ BUILD_ATTR: BuildAttribute = BuildAttribute(
     identifier='[[#build]]',
     mandatory=False,
     properties=[
-        BuildOutputPathProperty('output_dir', False, Any)
+        BuildProperty('output_dir', False, Any)
     ]
 )
 
@@ -70,7 +69,7 @@ EXECUTABLE_ATTR: ExecutableAttribute = ExecutableAttribute(
     ]
 )
 
-
+# Shortcut to have all the sections available in Zork
 PROGRAM_SECTIONS: list = [
     COMPILER_ATTR, LANGUAGE_ATTR, BUILD_ATTR, EXECUTABLE_ATTR
 ]

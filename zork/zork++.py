@@ -13,7 +13,7 @@ from utils.logs import initial_log, log_process_result, \
 from utils.zork_cli import command_line_interface
 
 
-""" A cppy project works reading it's own configuration file.
+""" A Zorks project works reading it's own configuration file.
     The configuration file it's formed by two main type of tokens:
 
     Section attributes -> [#section_attr]

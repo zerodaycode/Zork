@@ -6,17 +6,22 @@
 
 from utils.constants import PROJECT_VERSION
 
+
 class NoConfigurationFileFound(Exception):
-    """ Triggered when the program it's launched and no 'CPY++' config file 
-        is located """
-    def __init__(self, message:str='No cpy++.conf file found'):
+    """
+        Triggered when the program it's launched and no Zork config file
+        is found
+    """
+    def __init__(self, message: str = 'No zork.conf file found'):
         self.message = message
         super().__init__(self.message)
+
 
 class DuplicatedAttribute(Exception):
     """ If an attribute it's found by duplicated on the config file """
     def __init__(self, attr_name: str):
         super().__init__(f'{attr_name} is already defined in the file')
+
 
 class MissedMandatoryAttributes(Exception):
     """ A mandatory attribute it's not defined in the configuration file """
@@ -25,8 +30,11 @@ class MissedMandatoryAttributes(Exception):
         is_are = "is" if len(missed_attrs) == 1 else "are"
         isnt_arent = "isn't" if len(missed_attrs) == 1 else "aren't"
         super().__init__(
-            f'\n\t{attr_str + ", " .join(map(str, missed_attrs))}, which {is_are} mandatory, {isnt_arent} present in the config file'
+            f'\n\t{attr_str + ", " .join(map(str, missed_attrs))}, \
+                which {is_are} mandatory, {isnt_arent} present \
+                    in the config file'
         )
+
 
 class MissedMandatoryProperties(Exception):
     """ A mandatory Property it's not defined in the configuration file """
@@ -35,46 +43,56 @@ class MissedMandatoryProperties(Exception):
         is_are = "is" if len(missed_ppts) == 1 else "are"
         isnt_arent = "isn't" if len(missed_ppts) == 1 else "aren't"
         super().__init__(
-            f'''\n\t{attr_str + ", " .join(map(str, missed_ppts))}, 
-            which {is_are} mandatory for the {section_identifier} attribute, 
+            f'''\n\t{attr_str + ", " .join(map(str, missed_ppts))},
+            which {is_are} mandatory for the {section_identifier} attribute,
             {isnt_arent} present in the config file'''
         )
+
 
 class UnknownAttribute(Exception):
     """ Not defined or available attribute found """
     def __init__(self, attr_name: str):
         super().__init__(f'{attr_name} is an unknown or unsupported attribute')
 
+
 class UnknownProperty(Exception):
     """ Not defined or available attribute found " """
     def __init__(self, property_name: str, section_identifier: str):
         super().__init__(
-            f'{property_name} is an unknown or unsupported property for the {section_identifier} attribute'
+            f'{property_name} is an unknown or unsupported property \
+                for the {section_identifier} attribute'
         )
+
 
 class InvalidPropertyValue(Exception):
     """ Not defined or available attribute found " """
     def __init__(self, property_value: str, property_name: str):
         super().__init__(
-            f'<{property_value}> is an unknown or unsupported value for the <{property_name}> property'
+            f'<{property_value}> is an unknown or unsupported value \
+                for the <{property_name}> property'
         )
 
+
 class UnknownProperties(Exception):
-    """ A bulk with all the detected invalid properties written on the config file """
+    """
+        A bulk with all the detected invalid properties written
+        on the config file
+    """
     def __init__(self, missed_ppts: list, section_identifier: str):
         attr_str = 'property ' if len(missed_ppts) == 1 else 'properties: '
         is_are = "is" if len(missed_ppts) == 1 else "are"
-        isnt_arent = "isn't" if len(missed_ppts) == 1 else "aren't"
         super().__init__(
-            f'\n\tFound {attr_str + ", " .join(map(str, missed_ppts))} ' + 
-            f'which {is_are} unknown or invalid for the {section_identifier} attribute'
+            f'\n\tFound {attr_str + ", " .join(map(str, missed_ppts))} ' +
+            f'which {is_are} unknown or invalid for the \
+                {section_identifier} attribute'
         )
+
 
 class ErrorFileFormat(Exception):
     """ Not defined or available attribute found " """
     def __init__(self, idx, error):
         super().__init__(
-            f'ERROR in line: {idx}: \n\t{error}\n' + 
+            f'ERROR in line: {idx}: \n\t{error}\n' +
             'Not valid sentence or format error'
         )
 
@@ -85,4 +103,26 @@ class UnsupportedCompiler(Exception):
         super().__init__(
             f'<{compiler}> compiler it\'s unsupported at the actual \
                 version of Zork v<{PROJECT_VERSION}>'
+        )
+
+
+class LanguageLevelNotEnought(Exception):
+    """ When a C++ feature it's requested, but the language level
+        isn't higher enought that the feature does not exists for that
+        standard.
+
+        Ex: C++ modules features, requires at least, C++20.
+        So, if C++17 it's selected as the language level by the
+        user in the config file, this error w'd be raised.
+    """
+    def __init__(
+        self,
+        lang_level_required: int,
+        lang_level_selected: int,
+        feature: str
+    ):
+        super().__init__(
+            f'C++ {feature} feature requires to set the language level to \
+            , at least, C++{lang_level_required}. Current lang_level_selected \
+            is C++{lang_level_selected}.'
         )
