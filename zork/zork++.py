@@ -10,7 +10,7 @@ from utils.workspace_scanner import find_config_file
 from utils.exceptions import NoConfigurationFileFound
 from utils.logs import initial_log, log_process_result, \
     show_final_config_values
-from utils.zork_cli import command_line_interface
+from utils.zork_cli import command_line_interface, new_project_autogenerator
 
 
 """ A Zorks project works reading it's own configuration file.
@@ -80,6 +80,14 @@ if __name__ == '__main__':
             print(
                 f'Calling <{config.get("compiler").cpp_compiler}> ' +
                 ' to perform the build job'
+            )
+
+        # The project autogenerator
+        if cli_options.__contains__('project_name'):
+            new_project_autogenerator(
+                cli_options.project_name[0],
+                cli_options.git,
+                config.get('compiler').cpp_compiler
             )
 
         process_result = build_project(config, verbose)
