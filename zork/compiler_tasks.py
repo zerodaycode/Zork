@@ -64,7 +64,7 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
             )
 
         # TODO Modulos en Clang requieren de extensión .cppm
-        prebuild_modules_path = _clang_prebuild_module_interfaces(
+        prebuild_modules_path, interfaces = _clang_prebuild_module_interfaces(
             config, verbose, project_name
         )
         _compile_module_implementations(config, verbose, project_name)
@@ -104,10 +104,17 @@ def _clang_prebuild_module_interfaces(
         subprocess.Popen(['mkdir', module_ifcs_dir_path]).wait()
 
     mods_from_config: list = config.get('modules').interfaces
-    module_ifcs: list = [] if 
+    module_ifcs: list = [] if len(mods_from_config) == 1 \
+        else mods_from_config
+
     ifcs_path = f'./{project_name}/include/{project_name}/*.cppm'
-    for wildcarded_source in glob.glob(ifcs_path):
-        module_ifcs.append(wildcarded_source)
+    if len(mods_from_config) == 1:
+        for wildcarded_source in glob.glob(ifcs_path):
+            module_ifcs.append(wildcarded_source)
+
+    print(f'MODULES: {module_ifcs}')
+    print(f'MODULES ORIGINAL LEN: {mods_from_config}')
+    print(f'MODULES LEN: {module_ifcs}')
 
     for module in module_ifcs:
         # Strips the path part if the module name it's inside a path,
@@ -167,15 +174,21 @@ def _compile_module_implementations(
         '-stdlib=' + config.get('language').std_lib,
     ]
 
-    for module_impl in config['modules'].implementations:
+    mods_from_config: list = config.get('modules').implementations
+    module_impls: list = [] if len(mods_from_config) == 1 \
+        else mods_from_config
+
+    ifcs_path = f'./{project_name}/include/{project_name}/*.cppm'
+    if len(mods_from_config) == 1:
+        for wildcarded_source in glob.glob(ifcs_path):
+            module_impls.append(wildcarded_source)
+
+    print(f'MODULES: {module_impls}')
+    print(f'MODULES ORIGINAL LEN: {mods_from_config}')
+    print(f'MODULES LEN: {module_impls}')
+
+    for module_impl in module_impls:
         # Generates the path for the special '**' Zork syntax
-        print(f'MOD: {module_impl}')
-        if module_impl.startswith('**'):
-            module_impl = module_impl.replace(
-                '**',
-                f'./{project_name}/src/{project_name}.{module_impl}'
-            )
-            print(f'MOD REPL: {module_impl}')
         commands.append(module_impl)
 
     subprocess.Popen(commands).wait()
