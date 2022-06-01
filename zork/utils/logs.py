@@ -46,7 +46,9 @@ def notify_process_result_on_system_popup(message: str):
 
 def show_final_config_values(config: dict):
     """ Show the arguments that will be passed to the compiler """
-    print(f'\nCompiler: {config.get("compiler")}')
-    print(f'Language: {config.get("language")}')
-    print(f'Build: {config.get("build")}')
-    print(f'Executable: {config.get("executable")}\n')
+    print('Final configuration:')
+    print(f'    Compiler: {config.get("compiler")}')
+    print(f'    Language: {config.get("language")}')
+    print(f'    Build: {config.get("build")}')
+    print(f'    Executable: {config.get("executable")}')
+    print(f'    Modules: {config.get("modules")}\n')

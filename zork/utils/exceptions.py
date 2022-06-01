@@ -30,9 +30,9 @@ class MissedMandatoryAttributes(Exception):
         is_are = "is" if len(missed_attrs) == 1 else "are"
         isnt_arent = "isn't" if len(missed_attrs) == 1 else "aren't"
         super().__init__(
-            f'\n\t{attr_str + ", " .join(map(str, missed_attrs))}, \
-                which {is_are} mandatory, {isnt_arent} present \
-                    in the config file'
+            f'\n\t{attr_str + ", " .join(map(str, missed_attrs))}, ' +
+            f'which {is_are} mandatory, {isnt_arent} present ' +
+            'in the config file'
         )
 
 
@@ -43,9 +43,9 @@ class MissedMandatoryProperties(Exception):
         is_are = "is" if len(missed_ppts) == 1 else "are"
         isnt_arent = "isn't" if len(missed_ppts) == 1 else "aren't"
         super().__init__(
-            f'''\n\t{attr_str + ", " .join(map(str, missed_ppts))},
-            which {is_are} mandatory for the {section_identifier} attribute,
-            {isnt_arent} present in the config file'''
+            f'\n\t{attr_str + ", " .join(map(str, missed_ppts))}, which '
+            f'{is_are} mandatory for the {section_identifier} attribute, ' +
+            f'{isnt_arent} present in the config file'
         )
 
 
@@ -59,8 +59,8 @@ class UnknownProperty(Exception):
     """ Not defined or available attribute found " """
     def __init__(self, property_name: str, section_identifier: str):
         super().__init__(
-            f'{property_name} is an unknown or unsupported property \
-                for the {section_identifier} attribute'
+            f'{property_name} is an unknown or unsupported property ' +
+            f'for the {section_identifier} attribute'
         )
 
 
@@ -68,8 +68,8 @@ class InvalidPropertyValue(Exception):
     """ Not defined or available attribute found " """
     def __init__(self, property_value: str, property_name: str):
         super().__init__(
-            f'<{property_value}> is an unknown or unsupported value \
-                for the <{property_name}> property'
+            f'<{property_value}> is an unknown or unsupported value ' +
+            f'for the <{property_name}> property'
         )
 
 
@@ -79,12 +79,12 @@ class UnknownProperties(Exception):
         on the config file
     """
     def __init__(self, missed_ppts: list, section_identifier: str):
-        attr_str = 'property ' if len(missed_ppts) == 1 else 'properties: '
+        attr_str = 'property' if len(missed_ppts) == 1 else 'properties:'
         is_are = "is" if len(missed_ppts) == 1 else "are"
         super().__init__(
-            f'\n\tFound {attr_str + ", " .join(map(str, missed_ppts))} ' +
-            f'which {is_are} unknown or invalid for the \
-                {section_identifier} attribute'
+            f'\n\tFound {attr_str} [{", " .join(map(str, missed_ppts))}] ' +
+            f'which {is_are} unknown or invalid for the ' +
+            f'{section_identifier} attribute'
         )
 
 
@@ -101,8 +101,8 @@ class UnsupportedCompiler(Exception):
     """ Not defined or available attribute found " """
     def __init__(self, compiler: str):
         super().__init__(
-            f'<{compiler}> compiler it\'s unsupported at the actual \
-                version of Zork v<{PROJECT_VERSION}>'
+            f'<{compiler}> compiler it\'s unsupported at the actual ' +
+            f'version of Zork v<{PROJECT_VERSION}>'
         )
 
 
@@ -125,4 +125,27 @@ class LanguageLevelNotEnought(Exception):
             f'C++ {feature} feature requires to set the language level to' +
             f', at least, C++{lang_level_required}. ' +
             f'Current is C++{lang_level_selected}.'
+        )
+
+
+class AttributeDependsOnProperty(Exception):
+    """
+       Raised when a certain Zork attribute it's found, but, for work,
+       need to be enabled by a property on another attribute.
+
+       Ex: The [[#modules]] attribute can only exists in the config
+       file if previously in the [[#language]] attribute the value of
+       the property 'modules' is equals to the string true.
+    """
+    def __init__(
+        self,
+        attribute: str,
+        dependant_attribute: str,
+        dependant_property: str,
+        equals_to: str
+    ):
+        super().__init__(
+            f'{attribute} needs that the property <{dependant_property}>' +
+            f', that belongs to the {dependant_attribute} attribute, ' +
+            f'to be equals to <{equals_to}>'
         )

@@ -1,7 +1,7 @@
 import typing
 import re
 
-from utils.exceptions import DuplicatedAttribute,\
+from utils.exceptions import AttributeDependsOnProperty, DuplicatedAttribute,\
     MissedMandatoryAttributes, UnknownAttribute,\
     UnknownProperties, ErrorFileFormat,\
     MissedMandatoryProperties, InvalidPropertyValue
@@ -32,7 +32,7 @@ def read_config_file_lines(root_path: str) -> list:
 
 
 def check_valid_config_file(config_file: list):
-    """ Ensures that the content written in the config file 
+    """ Ensures that the content written in the config file
         it's valid for the Zork config language """
     for idx, line in enumerate(config_file):
         line = line.strip()
@@ -43,8 +43,7 @@ def check_valid_config_file(config_file: list):
 
 def clean_file(file: str) -> list:
     """
-        Clean the file and retrieve only lines with attribute or property
-        format
+        Cleans the file and retrieves only lines with attributes or properties
     """
     return re.findall(
             VALID_LINE_PATTERN, file, re.MULTILINE
@@ -87,9 +86,31 @@ def parse_attr_properties_block(file: str) -> dict:
     return retrieved_data
 
 
+def validate_special_cases(config_file_sections: dict):
+    """_summary_
+
+        Validates special cases, like attributes that only must be present
+        if there's another attribute or another property attribute
+        that enables it
+    """
+    # Case that if the [[#modules]] attribute is present but in
+    # the [[#language]] attribute, the value of the property 'modules'
+    # is not equuals to 'true'
+    if config_file_sections.__contains__('[[#modules]]'):
+        for ppty in config_file_sections.get('[[#language]]'):
+            if ppty.get('property_name') == 'modules':
+                if ppty.get('property_value') != 'true':
+                    raise AttributeDependsOnProperty(
+                        '[[#modules]]',
+                        '[[#language]]',
+                        'modules',
+                        'true'
+                    )
+
+
 def get_sections(config_file: str, verbose: bool) -> dict:
-    """ Recovers the sections described in the config file, returning a dict with 
-        the instances of the dataclasses designed for carry the final data 
+    """ Recovers the sections described in the config file, returning a dict with
+        the instances of the dataclasses designed for carry the final data
         to the compiler """
 
     # Initializes the map with the config values and provide default values
@@ -99,6 +120,9 @@ def get_sections(config_file: str, verbose: bool) -> dict:
     attr_ppt_collection = parse_attr_properties_block(
         '\n'.join(cleaned_config_file)
     )
+
+    print(f'CLEANED CONFIG FILE DICT: {attr_ppt_collection}')
+    validate_special_cases(attr_ppt_collection)
 
     """
         Once we have parsed and cleaned the sections founded on the
@@ -157,13 +181,18 @@ def parse_properties_for_current_attribute(
 ):
     """ Parses and validates the properties found for a given attribute """
     detected_properties_for_current_attribute = [
-        ppt_identifier['property_name'] for ppt_identifier in config_file_section_properties
+        ppt_identifier['property_name'] for ppt_identifier in
+        config_file_section_properties
     ]
 
     # Check for mandatory properties for the current attribute
-    check_for_mandatory_properties(section, detected_properties_for_current_attribute)
+    check_for_mandatory_properties(
+        section,
+        detected_properties_for_current_attribute
+    )
 
-    # If we have all the mandatory ones, unpack the founded properties to validate them
+    # If we have all the mandatory ones, unpack the founded properties to
+    # validate them
     validate_founded_properties(
         section,
         detected_properties_for_current_attribute,
@@ -172,12 +201,16 @@ def parse_properties_for_current_attribute(
     )
 
     """
-        Validation it's made through several function calls that performs runtime checks
-        to the retrieved values, matching them against the valid defined ones on this program
-        using an exception-flow-control based style. So if there's no exceptions raised
-        until here, we can safetly retrieve the values founded on the config file.
-        By the way, if an exception it's raised in the process, the program will exit, 
-        logging the exception stack that triggered the exception event
+        Validation it's made through several function calls that performs
+        runtime checks to the retrieved values, matching them against
+        the valid defined ones on this program using an exception-flow-control
+        based style.
+        So if there's no exceptions raised until here, we can safetly
+        retrieve the values founded on the config file.
+
+        By the way, if an exception it's raised in the process,
+        the program will exit, logging the exception stack that
+        triggered the exception event
     """
 
     # If everything it's valid, we can fill our config dict with the data
@@ -188,9 +221,10 @@ def parse_properties_for_current_attribute(
             validated_property['property_value']
         )
     """
-        This means that the keys of the config dict are strings with a pre-defined value
-        that represents the same value as the self.identifier property but without
-        the Zork syntantic elements to define an attribute, ie -> [[#...]]
+        This means that the keys of the config dict are strings with a
+        pre-defined value that represents the same value as the
+        self.identifier property but without the Zork syntantic
+        elements to define an attribute, ie -> [[#...]]
 
         EX:
             config: dict = {
@@ -204,7 +238,8 @@ def parse_properties_for_current_attribute(
 
         config['compiler'] = class CompilerConfig
         config['compiler'].identifier = '[[#compiler]'
-        config['compiler'][3:-2] = config[section.identifier[3:-2]] = 'compiler'
+        config['compiler'][3:-2] =
+            config[section.identifier[3:-2]] = 'compiler'
     """
 
 
@@ -236,12 +271,15 @@ def validate_founded_properties(
     """ Validates the identifier of a given property """
     invalid_properties_found: list = []
 
-    # List with the program defined property identifiers for the current attribute
+    # List with the program defined property identifiers
+    # for the current attribute
     program_defined_property_identifiers_for_current_attribute = [
         property.identifier for property in section.properties
     ]
 
-    for elem_idx, ppt_identifier in enumerate(detected_properties_for_current_attribute):
+    for elem_idx, ppt_identifier in enumerate(
+        detected_properties_for_current_attribute
+    ):
         if verbose:
             print(f'\tLooking for: {ppt_identifier} property')
         # Raises exception if the property isn't allowed on Zork
@@ -250,7 +288,9 @@ def validate_founded_properties(
             invalid_properties_found.append(ppt_identifier)
         else:  # Check if the founded property also has a valid value
             # Retrieve the property value from the config file
-            ppt_value = config_file_section_properties[elem_idx]['property_value']
+            ppt_value = \
+                config_file_section_properties[elem_idx]['property_value']
+
             if verbose:
                 print(
                     f'\tGetting: {ppt_value} as value, ' +
@@ -264,7 +304,7 @@ def validate_founded_properties(
             ][0]
             if verbose:
                 print(
-                    f'\tAllowed {allowed_property_values} value(s) with type:'
+                    f'\tAllowed value(s) {allowed_property_values} with type:'
                     + f'{ type(allowed_property_values)} for property: ' +
                     f'{ppt_identifier}'
                 )

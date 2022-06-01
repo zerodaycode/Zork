@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 """[summary]
-    Classes for store constant data about the internal configuration 
+    Classes for store constant data about the internal configuration
     (elected by design) of the program attributes and properties
 """
 
@@ -24,6 +24,14 @@ class LanguageAttribute:
 
 @dataclass
 class BuildAttribute:
+    """ Represents the structure of the build property """
+    identifier: str
+    mandatory: bool
+    properties: list
+
+
+@dataclass
+class ModulesAttribute:
     """ Represents the structure of the build property """
     identifier: str
     mandatory: bool

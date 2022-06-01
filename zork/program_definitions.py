@@ -10,9 +10,9 @@ from typing import Any
 from data.attributes import CompilerAttribute, LanguageAttribute, \
     BuildAttribute, ExecutableAttribute
 from data.properties import CompilerProperty, LanguageStandardProperty, \
-    BuildProperty, ExecutableProperty
+    BuildProperty, ExecutableProperty, ModulesProperty
 from data.user_config import CompilerConfig, ExecutableConfig, \
-    LanguageConfig, BuildConfig
+    LanguageConfig, BuildConfig, ModulesConfig
 
 # Suported compilers
 CLANG: str = 'clang++'
@@ -46,7 +46,7 @@ LANGUAGE_ATTR: LanguageAttribute = LanguageAttribute(
             'std_lib', False, SUPPORTED_CPP_STDLIBS
         ),
         LanguageStandardProperty(
-            'modules', False, Any
+            'modules', False, 'true'
         ),
     ]
 )
@@ -56,6 +56,15 @@ BUILD_ATTR: BuildAttribute = BuildAttribute(
     mandatory=False,
     properties=[
         BuildProperty('output_dir', False, Any)
+    ]
+)
+
+MODULES_ATTR: BuildAttribute = BuildAttribute(
+    identifier='[[#modules]]',
+    mandatory=False,
+    properties=[
+        ModulesProperty('interfaces', False, Any),
+        ModulesProperty('implementations', False, Any)
     ]
 )
 
@@ -71,7 +80,8 @@ EXECUTABLE_ATTR: ExecutableAttribute = ExecutableAttribute(
 
 # Shortcut to have all the sections available in Zork
 PROGRAM_SECTIONS: list = [
-    COMPILER_ATTR, LANGUAGE_ATTR, BUILD_ATTR, EXECUTABLE_ATTR
+    COMPILER_ATTR, LANGUAGE_ATTR, BUILD_ATTR, MODULES_ATTR,
+    EXECUTABLE_ATTR
 ]
 
 # Shortcut to have all the attributes as identifiers
@@ -80,9 +90,12 @@ PROGRAM_ATTRIBUTES_IDENTIFIERS = [
 ]
 
 
+# Default base definitions for the project properfies
+# TODO refactor this into generate new instance in found, not defaults
 PROGRAM_BASE_CONFIG: dict = {
     'compiler': CompilerConfig('clang'),
-    'language': LanguageConfig(11, 'libstdc++', []),
+    'language': LanguageConfig(11, 'libstdc++', ''),
     'build': BuildConfig('./build'),
+    'modules': ModulesConfig([], []),
     'executable': ExecutableConfig('main', '', 'false')
 }

@@ -38,11 +38,11 @@ from utils.zork_cli import command_line_interface, new_project_autogenerator
     ... and so on and so forth
 
     ///! ---- Available sections and it's properties ----- ///!
-    
+
     Note: There is mandatory and optional sections and properties.
 
-    [[#project]] <optional_section>  # Still non available
-    auto_generate: true
+    [[#project]] <mandatory_section>  # Still non available
+    auto_generate: true # cmd parser
     project_name: <project's_name>
 
     [[#compiler]] <mandatory_section>
@@ -50,7 +50,8 @@ from utils.zork_cli import command_line_interface, new_project_autogenerator
 
     [[#language]] <mandatory_section>
     cpp_standard: 11, 14, 17, 20, 2x, 2a <mandatory_property>
-    cpp_modules_support: true, false  # Still not available
+    std_lib: libstdc++, libc++ <optional_property>
+    cpp_modules_support: true <optional_property>
 
     [[#build]] <optional_section>
     output_dir: default

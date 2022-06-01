@@ -11,7 +11,7 @@ from dataclasses import dataclass
     This dataclasses are designed in a generic way, so for every
     attribute in Zork, in this file exists a dataclass that generates
     the property/properties that the attribute can hold. So, they
-    are property agnostic, because all the properties are defined in the 
+    are property agnostic, because all the properties are defined in the
     same way, having:
 
         - identifier: the property name
@@ -54,6 +54,17 @@ class BuildProperty:
     """
         A property that it's part of the Build attribute.
         Properties for control where the compiler's output will be placed.
+    """
+    identifier: str
+    mandatory: bool
+    values: list
+
+
+@dataclass
+class ModulesProperty:
+    """
+        Properties for get the module interfaces and module implementation
+        units specified by the user in the config file.
     """
     identifier: str
     mandatory: bool
