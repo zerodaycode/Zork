@@ -110,11 +110,9 @@ def _clang_prebuild_module_interfaces(
     ifcs_path = f'./{project_name}/include/{project_name}/*.cppm'
     if len(mods_from_config) == 1:
         for wildcarded_source in glob.glob(ifcs_path):
-            module_ifcs.append(wildcarded_source)
+            module_ifcs.append(wildcarded_source.replace('\\', '/'))
 
-    print(f'MODULES: {module_ifcs}')
-    print(f'MODULES ORIGINAL LEN: {mods_from_config}')
-    print(f'MODULES LEN: {module_ifcs}')
+    print(f'MODULE INTERFACES: {module_ifcs}')
 
     for module in module_ifcs:
         # Strips the path part if the module name it's inside a path,
@@ -148,7 +146,7 @@ def _clang_prebuild_module_interfaces(
     if verbose:
         print('...\nPrecompilation finished!')
 
-    return module_ifcs_dir_path
+    return module_ifcs_dir_path, module_ifcs
 
 
 def _compile_module_implementations(
@@ -172,6 +170,8 @@ def _compile_module_implementations(
         config.get('compiler').cpp_compiler,
         '--std=c++' + config.get('language').cpp_standard,
         '-stdlib=' + config.get('language').std_lib,
+        '-Xclang',
+        '-emit-module-interface',
     ]
 
     mods_from_config: list = config.get('modules').implementations
@@ -183,18 +183,24 @@ def _compile_module_implementations(
         for wildcarded_source in glob.glob(ifcs_path):
             module_impls.append(wildcarded_source)
 
-    print(f'MODULES: {module_impls}')
-    print(f'MODULES ORIGINAL LEN: {mods_from_config}')
-    print(f'MODULES LEN: {module_impls}')
+    print(f'MODULES IMPL: {module_impls}')
 
     for module_impl in module_impls:
         # Generates the path for the special '**' Zork syntax
-        commands.append(module_impl)
+        commands.append(module_impl.replace('\\', '/'))
+        commands.append('-o')
+        mod = module_impl \
+                .replace('\\', '/') \
+                .split('/') \
 
+        mod2 = mod[(len(mod) - 1)][0]
+        commands.append(mod2 + '.pcm')
+
+    print(f'COMMANDS: ...\n {commands}')
     subprocess.Popen(commands).wait()
 
     if verbose:
-        print('...\nPrecompilation finished!')
+        print('...\nMIU Precompilation finished!')
 
 
 def generate_build_output_directory(config: dict):
