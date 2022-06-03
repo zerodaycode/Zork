@@ -121,7 +121,6 @@ def get_sections(config_file: str, verbose: bool) -> dict:
         '\n'.join(cleaned_config_file)
     )
 
-    print(f'CLEANED CONFIG FILE DICT: {attr_ppt_collection}')
     validate_special_cases(attr_ppt_collection)
 
     """
