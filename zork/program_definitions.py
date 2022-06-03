@@ -63,7 +63,9 @@ MODULES_ATTR: BuildAttribute = BuildAttribute(
     identifier='[[#modules]]',
     mandatory=False,
     properties=[
+        ModulesProperty('interfaces_dirs', False, Any),
         ModulesProperty('interfaces', False, Any),
+        ModulesProperty('implementations_dirs', False, Any),
         ModulesProperty('implementations', False, Any)
     ]
 )
@@ -96,6 +98,6 @@ PROGRAM_BASE_CONFIG: dict = {
     'compiler': CompilerConfig('clang'),
     'language': LanguageConfig(11, 'libstdc++', ''),
     'build': BuildConfig('./build'),
-    'modules': ModulesConfig([], []),
+    'modules': ModulesConfig('.', [], '.', []),
     'executable': ExecutableConfig('main', '', 'false')
 }

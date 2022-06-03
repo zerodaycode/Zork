@@ -104,7 +104,7 @@ def _clang_prebuild_module_interfaces(
         subprocess.Popen(['mkdir', modules_dir_path]).wait()
         subprocess.Popen(['mkdir', module_ifcs_dir_path]).wait()
 
-    module_ifcs: list = _get_sources(config, project_name, 'include')
+    module_ifcs: list = _get_ifcs(config, project_name)
     print(f'MODULE IFCS: {module_ifcs}')
 
     for module in module_ifcs:
@@ -112,9 +112,10 @@ def _clang_prebuild_module_interfaces(
         # (like 'src/inner/module_file_name.cppm') and not alone,
         # as a *.cppm file. Also, strips the file extension for
         # replace it the file name ext for the .pcm one
+        module_name: str = module
         if module.__contains__('/'):
             module_dir_parts_no_slashes: list = module.split('/')
-            module_name: str = \
+            module_name = \
                 module_dir_parts_no_slashes[
                     len(module_dir_parts_no_slashes) - 1
                 ]
@@ -176,7 +177,7 @@ def _compile_module_implementations(
         '-stdlib=' + config.get('language').std_lib,
     ]
 
-    module_impls: list = _get_sources(config, project_name, 'src')
+    module_impls: list = _get_impls(config, project_name)
 
     print(f'MODULES IMPL: {module_impls}')
 
@@ -211,19 +212,57 @@ def _compile_module_implementations(
     return precompiled_mod_ifcs
 
 
-def _get_sources(config: dict, project_name: str, type: str):
-    """ Gets the sources files for both declaration (interfaces)
-        and definition (implementations) files
+def _get_ifcs(config: dict, project_name: str):
+    """ Gets the sources files for both declaration
+    (interface) files
     """
     mods_from_config: list = config.get('modules').interfaces
-    mods: list = [] if len(mods_from_config) == 1 \
-        else mods_from_config
+    mods: list = []
 
-    ext: str = 'cppm' if type == 'include' else 'cpp'
-    ifcs_path = f'./{project_name}/{type}/{project_name}/*.{ext}'
+    print(f'mods_from_config_file: {mods_from_config}')
+
     if len(mods_from_config) == 1:
-        for wildcarded_source in glob.glob(ifcs_path):
+        # By default, the **.ext notation works with restrictions,
+        # only finding modules on the ./{project_name}/ifc/{file_name}.{ext}
+        _path = f'./{project_name}/ifc/*.' + \
+            mods_from_config[0].split('.')[1]  # file ext
+        print(f'_path: {_path}')
+        for wildcarded_source in glob.glob(_path):
             mods.append(wildcarded_source.replace('\\', '/'))
+    else:
+        print('ELSE')
+        mods_user_paths: list = config.get('modules').interfaces_dirs
+        print(f'PATHS: {mods_user_paths}')
+        if mods_user_paths != []:
+            for path in mods_user_paths:
+                for interface in glob.glob(path):
+                    mods.append(f'{path}/{interface}')
+
+    print(f'IFCS: {mods}')
+    return mods
+
+
+def _get_impls(config: dict, project_name: str):
+    """ Gets the sources files for both declaration
+    (interface) files
+    """
+    mods_from_config: list = config.get('modules').interfaces
+    mods: list = []
+
+    if len(mods_from_config) == 1:
+        # By default, the **.ext notation works with restrictions,
+        # only finding modules on the ./{project_name}/src/{file_name}.{ext}
+        _path = f'./{project_name}/src/*.' + \
+            mods_from_config[0].split('.')[1]  # file ext
+        for wildcarded_source in glob.glob(_path):
+            mods.append(wildcarded_source.replace('\\', '/'))
+    else:
+        mods_user_path: list = config.get('modules').interfaces_dirs
+
+        if mods_user_path != []:
+            for path in mods_user_path:
+                for implementation_file in glob.glob(path):
+                    mods.append(f'{path}/{implementation_file}')
 
     return mods
 

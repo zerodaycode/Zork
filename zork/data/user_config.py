@@ -35,12 +35,18 @@ class LanguageConfig:
 
 @dataclass
 class ModulesConfig:
+    interfaces_dirs: str
     interfaces: list
+    implementations_dirs: str
     implementations: list
 
     def set_property(self, property_name: str, value: Any):
-        if property_name == 'interfaces':
+        if property_name == 'interfaces_dirs':
+            self.interfaces_dirs = get_dirs(value)
+        elif property_name == 'interfaces':
             self.interfaces = get_sources(value)
+        elif property_name == 'implementations_dirs':
+            self.implementations_dirs = get_dirs(value)
         elif property_name == 'implementations':
             self.implementations = get_sources(value)
 
@@ -67,6 +73,21 @@ class ExecutableConfig:
             self.sources = get_sources(value)
         elif property_name == 'auto_execute':
             self.auto_execute = value
+
+
+def get_dirs(value) -> list:
+    """ Convenient function designed to retrieve the user defined
+        paths for modules as a list"""
+    sources = []
+    for source in value.split(','):
+        # Remove unnecesary whitespaces
+        source = source.strip(' ')
+        # Check if it's a path, add the relative ./ to the Zork config file
+        if source.__contains__('/') and not source.startswith('./'):
+            source = './' + source
+
+        sources.append(source)
+    return sources
 
 
 def get_sources(value) -> list:

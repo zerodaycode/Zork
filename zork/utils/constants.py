@@ -35,7 +35,9 @@ sources: *.cpp
 auto_execute: true
 
 [[#modules]]
+interfaces_dirs: <project_name>/ifc/
 interfaces: **.cppm
+implementations_dirs: <project_name>/src/
 implementations: **.cpp
     """
 

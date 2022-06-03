@@ -72,7 +72,7 @@ def new_project_autogenerator(
         user code in a modern fashion way.
 
         Base design for create the project files and folders:
-            - ./include/<project_name>
+            - ./ifc/<project_name>
                 - hello_zork.<mod_extension>
             - ./src/<project_name>
                 - hello_zork.cpp
@@ -88,9 +88,9 @@ def new_project_autogenerator(
     # Generates the zork.conf file
     with open('zork.conf', 'w') as zork_conf_file:
         zork_conf_file.write(
-            ZORK_CONF_AUTOG.replace(
-                '<autog_test>', project_name
-            )
+            ZORK_CONF_AUTOG
+            .replace('<autog_test>', project_name)
+            .replace('<project_name>', project_name)
         )
 
     subprocess.Popen([
@@ -101,13 +101,10 @@ def new_project_autogenerator(
         main_cpp_file.write(MAIN_CPP)
 
     subprocess.Popen([
-        'mkdir', f'{project_name}/include'
-    ]).wait()
-    subprocess.Popen([
-        'mkdir', f'{project_name}/include/{project_name}'
+        'mkdir', f'{project_name}/ifc'
     ]).wait()
     # Generates a module interface unit
-    file_path: str = f'{project_name}/include/{project_name}/math'
+    file_path: str = f'{project_name}/ifc/math'
     file_ext: str = "cppm" if cpp_compiler == "clang" else "ixx"
     with open(f'{file_path}.{file_ext}', 'w') as src_mod_file:
         src_mod_file.write(INTERFACE_MOD_FILE)
