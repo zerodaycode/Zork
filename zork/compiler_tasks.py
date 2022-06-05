@@ -28,8 +28,8 @@ def build_project(config: dict, verbose: bool, project_name: str) -> int:
     else:
         raise UnsupportedCompiler(MSVC)
 
-    # if verbose:
-    print(f'Command line to execute: {" ".join(command_line)}\n')
+    if verbose:
+        print(f'Command line to execute: {" ".join(command_line)}\n')
 
     return subprocess.Popen(command_line).wait()
 
@@ -51,7 +51,11 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
     ]
 
     for source in config.get("executable").sources:
-        command_line.append(source)
+        if source.startswith('*.'):
+            for wildcard_ifc in glob.glob(source):
+                command_line.append(wildcard_ifc)
+        else:
+            command_line.append(source)
 
     # Generates a compiler call to prebuild the module units, in case that
     # the attribute it's present, have a valid path to the .cppm module units
@@ -71,8 +75,10 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
             config, verbose, project_name, prebuild_modules_path
         )
 
+        print(f'INTERFACES: {interfaces}')
         for module_ifc in interfaces:
             command_line.append(module_ifc)
+        print(f'IMPLS: {implementations}')
         for module_src in implementations:
             command_line.append(module_src)
 
@@ -170,19 +176,21 @@ def _compile_module_implementations(
     if verbose:
         print('Compiling the module implementations...')
 
-    commands: list = [
-        config.get('compiler').cpp_compiler,
-        '-c',
-        '--std=c++' + config.get('language').cpp_standard,
-        '-stdlib=' + config.get('language').std_lib,
-    ]
+    module_impls_relations: list = _get_impls(config, project_name)
 
-    module_impls: list = _get_impls(config, project_name)
+    for module_impl_tuple in module_impls_relations:
+        base_commands: list = [
+            config.get('compiler').cpp_compiler,
+            '-c',
+            '--std=c++' + config.get('language').cpp_standard,
+            '-stdlib=' + config.get('language').std_lib,
+        ]
+        commands: list = []
 
-    print(f'MODULES IMPL: {module_impls}')
+        module_impl = module_impl_tuple[0]
 
-    for module_impl in module_impls:
         # Generates the path for the special '**' Zork syntax
+        print(f'commands for module impl: {module_impl}\n{commands}')
         commands.append(module_impl.replace('\\', '/'))
         mod = module_impl \
             .replace('\\', '/') \
@@ -194,13 +202,12 @@ def _compile_module_implementations(
         commands.append('-o')
         commands.append(f'{module_ifcs_dir_path}/{mod2}.o')
         commands.append(
-            f'-fmodule-file={module_ifcs_dir_path}/{mod2}.pcm'
+            f'-fmodule-file={module_ifcs_dir_path}/{module_impl_tuple[1]}'
         )
+        print(f'final commands for module impl: {module_impl}\n{commands}')
 
-    # print(f'COMMANDS: ...\n {commands}')
-    print(f'MImplU Command line to execute: {" ".join(commands)}\n')
-    subprocess.Popen(commands).wait()
-    # print('Success MImplU')
+        print(f'MImplU Command line to execute: {" ".join(commands)}\n')
+        subprocess.Popen(base_commands + commands).wait()
 
     if verbose:
         print('...\nModule implementation units compilation finished!')
@@ -218,53 +225,62 @@ def _get_ifcs(config: dict, project_name: str):
     """
     mods_from_config: list = config.get('modules').interfaces
     mods: list = []
-
     print(f'mods_from_config_file: {mods_from_config}')
 
-    if len(mods_from_config) == 1:
-        # By default, the **.ext notation works with restrictions,
-        # only finding modules on the ./{project_name}/ifc/{file_name}.{ext}
-        _path = f'./{project_name}/ifc/*.' + \
-            mods_from_config[0].split('.')[1]  # file ext
-        print(f'_path: {_path}')
-        for wildcarded_source in glob.glob(_path):
-            mods.append(wildcarded_source.replace('\\', '/'))
+    base_ifcs_path: list = config.get('modules').base_ifcs_dir
+    print(f'PATHS: {base_ifcs_path}')
+    if base_ifcs_path != '':
+        if base_ifcs_path.endswith('/'):
+            base_ifcs_path = base_ifcs_path[:-1]
+
+        for interface in mods_from_config:
+            if interface.startswith('*.'):
+                for wildcard_ifc in glob.glob(f'{base_ifcs_path}/{interface}'):
+                    mods.append(wildcard_ifc)
+            else:
+                mods.append(f'{base_ifcs_path}/{interface}')
     else:
-        print('ELSE')
-        mods_user_paths: list = config.get('modules').interfaces_dirs
-        print(f'PATHS: {mods_user_paths}')
-        if mods_user_paths != []:
-            for path in mods_user_paths:
-                for interface in glob.glob(path):
-                    mods.append(f'{path}/{interface}')
+        pass
+        # TODO Custom error or def value
 
     print(f'IFCS: {mods}')
     return mods
 
 
 def _get_impls(config: dict, project_name: str):
-    """ Gets the sources files for both declaration
-    (interface) files
+    """ Gets the sources files for the module
+        implementation files
     """
-    mods_from_config: list = config.get('modules').interfaces
-    mods: list = []
+    impls_from_config: list = config.get('modules').implementations
+    impls: list = []
+    print(f'Impls files: {impls_from_config}')
 
-    if len(mods_from_config) == 1:
-        # By default, the **.ext notation works with restrictions,
-        # only finding modules on the ./{project_name}/src/{file_name}.{ext}
-        _path = f'./{project_name}/src/*.' + \
-            mods_from_config[0].split('.')[1]  # file ext
-        for wildcarded_source in glob.glob(_path):
-            mods.append(wildcarded_source.replace('\\', '/'))
-    else:
-        mods_user_path: list = config.get('modules').interfaces_dirs
+    base_impls_path: list = config.get('modules').base_impls_dir
+    print(f'Mods path: {base_impls_path}')
 
-        if mods_user_path != []:
-            for path in mods_user_path:
-                for implementation_file in glob.glob(path):
-                    mods.append(f'{path}/{implementation_file}')
+    if base_impls_path != '':
+        if base_impls_path.endswith('/'):
+            base_impls_path = base_impls_path[:-1]
 
-    return mods
+        for impl_relation in impls_from_config:
+            impls_parts = impl_relation.split(']=')
+
+            impl_files = impls_parts[0].replace('[', '').split(',')
+            impl_ifc_file = impls_parts[1]
+
+            for implementation_file in impl_files:
+                impls.append(
+                    (
+                        f'{base_impls_path}/{implementation_file.strip(" ")}',
+                        f'{impl_ifc_file}.pcm'
+                    )
+                )
+        else:
+            pass
+            # TODO Raise error or generate base default path
+
+    print(f'IMPLS: {impls}')
+    return impls
 
 
 def generate_build_output_directory(config: dict):

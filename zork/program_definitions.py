@@ -63,9 +63,9 @@ MODULES_ATTR: BuildAttribute = BuildAttribute(
     identifier='[[#modules]]',
     mandatory=False,
     properties=[
-        ModulesProperty('interfaces_dirs', False, Any),
+        ModulesProperty('base_ifcs_dir', False, Any),
         ModulesProperty('interfaces', False, Any),
-        ModulesProperty('implementations_dirs', False, Any),
+        ModulesProperty('base_impls_dir', False, Any),
         ModulesProperty('implementations', False, Any)
     ]
 )

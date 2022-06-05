@@ -1,5 +1,3 @@
-import glob
-
 from dataclasses import dataclass
 from typing import Any
 
@@ -35,20 +33,20 @@ class LanguageConfig:
 
 @dataclass
 class ModulesConfig:
-    interfaces_dirs: str
+    base_ifcs_dir: str
     interfaces: list
-    implementations_dirs: str
+    base_impls_dir: str
     implementations: list
 
     def set_property(self, property_name: str, value: Any):
-        if property_name == 'interfaces_dirs':
-            self.interfaces_dirs = get_dirs(value)
+        if property_name == 'base_ifcs_dir':
+            self.base_ifcs_dir = value
         elif property_name == 'interfaces':
             self.interfaces = get_sources(value)
-        elif property_name == 'implementations_dirs':
-            self.implementations_dirs = get_dirs(value)
+        elif property_name == 'base_impls_dir':
+            self.base_impls_dir = value
         elif property_name == 'implementations':
-            self.implementations = get_sources(value)
+            self.implementations = generate_mod_impl_units(value)
 
 
 @dataclass
@@ -75,21 +73,6 @@ class ExecutableConfig:
             self.auto_execute = value
 
 
-def get_dirs(value) -> list:
-    """ Convenient function designed to retrieve the user defined
-        paths for modules as a list"""
-    sources = []
-    for source in value.split(','):
-        # Remove unnecesary whitespaces
-        source = source.strip(' ')
-        # Check if it's a path, add the relative ./ to the Zork config file
-        if source.__contains__('/') and not source.startswith('./'):
-            source = './' + source
-
-        sources.append(source)
-    return sources
-
-
 def get_sources(value) -> list:
     """ Convenient function designed to retrieve the user defined
         source files or module units file names """
@@ -100,13 +83,8 @@ def get_sources(value) -> list:
         # Check if it's a path, add the relative ./ to the Zork config file
         if source.__contains__('/') and not source.startswith('./'):
             source = './' + source
-        # Check for wildcards, so every file in the provided directory
-        # should be included
-        if source.__contains__('*') and not source.startswith('**'):
-            for wildcarded_source in glob.glob(source):
-                sources.append(wildcarded_source)
-        else:
-            sources.append(source)
+
+        sources.append(source)
     return sources
 
 
@@ -130,35 +108,22 @@ def generate_mod_impl_units(value) -> list:
             know to what module interface unit must link against. So, a special
             syntax it's created in the Zork config file for this case.
 
-            This is just by creating a tuple with the relative path
-            of the module implementation unit, and the file name of
-            the module interface unit, without extension (it's already)
-            precompiled, and Zork already knows where to find it.
-
             It will looks like:
                 ...
-                implementations: (*/math.cpp, math)
+                implementations: [math.cpp, math2.cpp]=math;
+                    [math2.cpp, math22.cpp]=math2
                 ...
 
             Code below could be read as: Take the math.cpp file and
             link it against the precompiled module math.
 
-            - WWhen the implementation file, has the same name of the
+            - When the implementation file, has the same name of the
             module interface unit, Zork will automatically link them
             by passing the same name to the .pcm module.
     """
     sources = []
-    for source in value.split(','):
+    for source in value.split(';'):
         # Remove unnecesary whitespaces
         source = source.strip(' ')
-        # Check if it's a path, add the relative ./ to the Zork config file
-        if source.__contains__('/') and not source.startswith('./'):
-            source = './' + source
-        # Check for wildcards, so every file in the provided directory
-        # should be included
-        if source.__contains__('*') and not source.startswith('**'):
-            for wildcarded_source in glob.glob(source):
-                sources.append(wildcarded_source)
-        else:
-            sources.append(source)
+        sources.append(source)
     return sources
