@@ -109,7 +109,6 @@ def _clang_prebuild_module_interfaces(
         subprocess.Popen(['mkdir', module_ifcs_dir_path]).wait()
 
     module_ifcs: list = _get_ifcs(config, project_name)
-    print(f'MODULE IFCS: {module_ifcs}')
 
     for module in module_ifcs:
         # Strips the path part if the module name it's inside a path,
@@ -221,7 +220,7 @@ def _get_ifcs(config: dict, project_name: str):
     ifcs: list = []
 
     base_ifcs_path: list = config.get('modules').base_ifcs_dir
-    print(f'PATHS: {base_ifcs_path}')
+
     if base_ifcs_path != '':
         if base_ifcs_path.endswith('/'):
             base_ifcs_path = base_ifcs_path[:-1]

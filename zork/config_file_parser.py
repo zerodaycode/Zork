@@ -122,7 +122,6 @@ def get_sections(config_file: str, verbose: bool) -> dict:
     )
 
     validate_special_cases(attr_ppt_collection)
-    print(f'SECTIONS: {attr_ppt_collection}')
 
     """
         Once we have parsed and cleaned the sections founded on the
