@@ -75,10 +75,8 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
             config, verbose, project_name, prebuild_modules_path
         )
 
-        print(f'INTERFACES: {interfaces}')
         for module_ifc in interfaces:
             command_line.append(module_ifc)
-        print(f'IMPLS: {implementations}')
         for module_src in implementations:
             command_line.append(module_src)
 
@@ -143,7 +141,6 @@ def _clang_prebuild_module_interfaces(
             commands.append('-Xclang')
             commands.append('-emit-module-interface')
 
-        print(f'MIU Command line to execute: {" ".join(commands)}\n')
         subprocess.Popen(commands).wait()
 
     if verbose:
@@ -190,7 +187,6 @@ def _compile_module_implementations(
         module_impl = module_impl_tuple[0]
 
         # Generates the path for the special '**' Zork syntax
-        print(f'commands for module impl: {module_impl}\n{commands}')
         commands.append(module_impl.replace('\\', '/'))
         mod = module_impl \
             .replace('\\', '/') \
@@ -204,9 +200,7 @@ def _compile_module_implementations(
         commands.append(
             f'-fmodule-file={module_ifcs_dir_path}/{module_impl_tuple[1]}'
         )
-        print(f'final commands for module impl: {module_impl}\n{commands}')
 
-        print(f'MImplU Command line to execute: {" ".join(commands)}\n')
         subprocess.Popen(base_commands + commands).wait()
 
     if verbose:
@@ -223,9 +217,8 @@ def _get_ifcs(config: dict, project_name: str):
     """ Gets the sources files for both declaration
     (interface) files
     """
-    mods_from_config: list = config.get('modules').interfaces
-    mods: list = []
-    print(f'mods_from_config_file: {mods_from_config}')
+    ifcs_from_config: list = config.get('modules').interfaces
+    ifcs: list = []
 
     base_ifcs_path: list = config.get('modules').base_ifcs_dir
     print(f'PATHS: {base_ifcs_path}')
@@ -233,18 +226,17 @@ def _get_ifcs(config: dict, project_name: str):
         if base_ifcs_path.endswith('/'):
             base_ifcs_path = base_ifcs_path[:-1]
 
-        for interface in mods_from_config:
+        for interface in ifcs_from_config:
             if interface.startswith('*.'):
                 for wildcard_ifc in glob.glob(f'{base_ifcs_path}/{interface}'):
-                    mods.append(wildcard_ifc)
+                    ifcs.append(wildcard_ifc)
             else:
-                mods.append(f'{base_ifcs_path}/{interface}')
+                ifcs.append(f'{base_ifcs_path}/{interface}')
     else:
         pass
         # TODO Custom error or def value
 
-    print(f'IFCS: {mods}')
-    return mods
+    return ifcs
 
 
 def _get_impls(config: dict, project_name: str):
@@ -253,10 +245,8 @@ def _get_impls(config: dict, project_name: str):
     """
     impls_from_config: list = config.get('modules').implementations
     impls: list = []
-    print(f'Impls files: {impls_from_config}')
 
     base_impls_path: list = config.get('modules').base_impls_dir
-    print(f'Mods path: {base_impls_path}')
 
     if base_impls_path != '':
         if base_impls_path.endswith('/'):
@@ -279,7 +269,6 @@ def _get_impls(config: dict, project_name: str):
             pass
             # TODO Raise error or generate base default path
 
-    print(f'IMPLS: {impls}')
     return impls
 
 
