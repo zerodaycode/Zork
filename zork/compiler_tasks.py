@@ -41,6 +41,8 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
         config.get('compiler').cpp_compiler,
         '--std=c++' + config.get('language').cpp_standard,
         '-stdlib=' + config.get('language').std_lib,
+        '-fimplicit-modules',
+        '-fimplicit-module-maps',
         '-o',
         f'{config.get("build").output_dir}/' +
         f'{config.get("executable").executable_name}'
