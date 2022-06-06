@@ -177,6 +177,8 @@ def _get_ifcs(config: dict):
         for interface_relation in ifcs_from_config:
             ifc_parts = interface_relation.split('=[')
             ifc_file = ifc_parts[0]
+            print(f'ifc parts: {ifc_parts}')
+            print(f'ifc file: {ifc_file}')
 
             # The interface file may have dependencies
             # or not. So, in Zork, you can declare an interface
@@ -203,11 +205,12 @@ def _get_ifcs(config: dict):
                         wildcard_ifc = wildcard_ifc.replace("\\", "/")
                         ifcs.append((f'{wildcard_ifc}', []))
                 else:
-                    ifcs.append(f'{base_ifcs_path}/{ifc_file}')
+                    print(f'ifc file: {ifc_file}')
+                    ifcs.append((f'{base_ifcs_path}/{ifc_file}', []))
     else:
         pass
         # TODO Custom error or default value
-
+    print(f'IFCS: {ifcs}')
     return ifcs
 
 
