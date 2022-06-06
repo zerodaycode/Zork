@@ -7,7 +7,8 @@ import argparse
 import subprocess
 
 from utils.constants import \
-    INTERFACE_MOD_FILE, SRC_MOD_FILE_2, ZORK_CONF_AUTOG, MAIN_CPP, SRC_MOD_FILE
+    INTERFACE_MOD_FILE, SRC_MOD_FILE_2, ZORK_CONF_AUTOG, \
+    MAIN_CPP, SRC_MOD_FILE, OS
 
 
 def command_line_interface():
@@ -86,7 +87,7 @@ def new_project_autogenerator(
         ]).wait()
 
     # Generates the zork.conf file
-    with open('zork.conf', 'w') as zork_conf_file:
+    with open('zork.conf', 'w', encoding='UTF-8') as zork_conf_file:
         zork_conf_file.write(
             ZORK_CONF_AUTOG
             .replace('<autog_test>', project_name)
@@ -97,8 +98,14 @@ def new_project_autogenerator(
         'mkdir', project_name
     ]).wait()
     # Generates the main.cpp file
-    with open('main.cpp', 'w') as main_cpp_file:
-        main_cpp_file.write(MAIN_CPP)
+    with open('main.cpp', 'w', encoding='UTF-8') as main_cpp_file:
+        if OS == 'Windows':
+            main_cpp_file.write(
+                MAIN_CPP.replace('import <iostream>;', '#include <iostream>')
+                # TODO Provisional replace for Windows builds
+            )
+        else:
+            main_cpp_file.write(MAIN_CPP.replace)
 
     subprocess.Popen([
         'mkdir', f'{project_name}/ifc'
@@ -106,7 +113,7 @@ def new_project_autogenerator(
     # Generates a module interface unit
     file_path: str = f'{project_name}/ifc/math'
     file_ext: str = "cppm" if cpp_compiler == "clang" else "ixx"
-    with open(f'{file_path}.{file_ext}', 'w') as src_mod_file:
+    with open(f'{file_path}.{file_ext}', 'w', encoding='UTF-8') as src_mod_file:
         src_mod_file.write(INTERFACE_MOD_FILE)
 
     subprocess.Popen([
@@ -115,9 +122,9 @@ def new_project_autogenerator(
     # Generates a module source file
     file_path: str = f'{project_name}/src/math'
     file_path_2: str = f'{project_name}/src/math2'
-    with open(f'{file_path}.cpp', 'w') as src_mod_file:
+    with open(f'{file_path}.cpp', 'w', encoding='UTF-8') as src_mod_file:
         src_mod_file.write(SRC_MOD_FILE)
-    with open(f'{file_path_2}.cpp', 'w') as src_mod_file:
+    with open(f'{file_path_2}.cpp', 'w', encoding='UTF-8') as src_mod_file:
         src_mod_file.write(SRC_MOD_FILE_2)
 
     subprocess.Popen([

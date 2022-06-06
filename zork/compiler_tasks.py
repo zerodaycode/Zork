@@ -42,6 +42,7 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
         '--std=c++' + config.get('language').cpp_standard,
         '-stdlib=' + config.get('language').std_lib,
         '-fimplicit-modules',
+        '-fbuiltin-module-map',
         '-fimplicit-module-maps',
         '-o',
         f'{config.get("build").output_dir}/' +
@@ -55,7 +56,7 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
     for source in config.get("executable").sources:
         if source.startswith('*.'):
             for wildcard_ifc in glob.glob(source):
-                command_line.append(wildcard_ifc)
+                command_line.append(wildcard_ifc.replace('\\', '/'))
         else:
             command_line.append(source)
 
@@ -71,10 +72,10 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
             )
 
         prebuild_modules_path, interfaces = _clang_prebuild_module_interfaces(
-            config, verbose, project_name
+            config, verbose
         )
         implementations = _compile_module_implementations(
-            config, verbose, project_name, prebuild_modules_path
+            config, verbose, prebuild_modules_path
         )
 
         for module_ifc in interfaces:
@@ -91,8 +92,7 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
 
 def _clang_prebuild_module_interfaces(
     config: dict,
-    verbose: bool,
-    project_name: str
+    verbose: bool
 ) -> list:
     """ The responsable for generate de module units
         for the C++20 modules feature.
@@ -110,7 +110,7 @@ def _clang_prebuild_module_interfaces(
         subprocess.Popen(['mkdir', modules_dir_path]).wait()
         subprocess.Popen(['mkdir', module_ifcs_dir_path]).wait()
 
-    module_ifcs: list = _get_ifcs(config, project_name)
+    module_ifcs: list = _get_ifcs(config)
 
     for module in module_ifcs:
         # Strips the path part if the module name it's inside a path,
@@ -159,7 +159,6 @@ def _clang_prebuild_module_interfaces(
 def _compile_module_implementations(
     config: dict,
     verbose: bool,
-    project_name: str,
     module_ifcs_dir_path: str
 ):
     """
@@ -181,7 +180,7 @@ def _compile_module_implementations(
     if verbose:
         print('Compiling the module implementations...')
 
-    module_impls_relations: list = _get_impls(config, project_name)
+    module_impls_relations: list = _get_impls(config)
 
     for module_impl_tuple in module_impls_relations:
         base_commands: list = [
@@ -219,7 +218,7 @@ def _compile_module_implementations(
     ]
 
 
-def _get_ifcs(config: dict, project_name: str):
+def _get_ifcs(config: dict):
     """ Gets the sources files for both declaration
     (interface) files
     """
@@ -235,7 +234,7 @@ def _get_ifcs(config: dict, project_name: str):
         for interface in ifcs_from_config:
             if interface.startswith('*.'):
                 for wildcard_ifc in glob.glob(f'{base_ifcs_path}/{interface}'):
-                    ifcs.append(wildcard_ifc)
+                    ifcs.append(wildcard_ifc.replace('\\', '/'))
             else:
                 ifcs.append(f'{base_ifcs_path}/{interface}')
     else:
@@ -245,7 +244,7 @@ def _get_ifcs(config: dict, project_name: str):
     return ifcs
 
 
-def _get_impls(config: dict, project_name: str):
+def _get_impls(config: dict):
     """ Gets the sources files for the module
         implementation files
     """
@@ -271,9 +270,9 @@ def _get_impls(config: dict, project_name: str):
                         f'{impl_ifc_file}.pcm'
                     )
                 )
-        else:
-            pass
-            # TODO Raise error or generate base default path
+    else:
+        pass
+        # TODO Raise error or generate base default path
 
     return impls
 

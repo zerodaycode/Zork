@@ -2,7 +2,7 @@ import platform
 
 
 """ Constant definitions across the whole program """
-PROJECT_VERSION: str = '1.0.0'
+PROJECT_VERSION: str = '0.3.0'
 CONFIGURATION_FILE_NAME: str = 'zork.conf'
 
 """ Retrieves the OS available info """
