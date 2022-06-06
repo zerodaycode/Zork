@@ -20,7 +20,7 @@ ZORK_CONF_AUTOG: str = \
 
 [[#project]]
 name: <project_name>
-authors: Zero Day Code
+authors: Zero Day Code  # Replace this for the real authors
 
 [[#compiler]]
 cpp_compiler: clang++
@@ -42,7 +42,7 @@ auto_execute: true
 base_ifcs_dir: <project_name>/ifc/
 interfaces: *.cppm
 base_impls_dir: <project_name>/src/
-implementations: [math.cpp, math2.cpp]=math
+implementations: math.cpp;math2.cpp=[math]
     """
 
 MAIN_CPP: str = \

@@ -54,7 +54,7 @@ class ModulesConfig:
         if property_name == 'base_ifcs_dir':
             self.base_ifcs_dir = value
         elif property_name == 'interfaces':
-            self.interfaces = get_sources(value)
+            self.interfaces = get_interfaces(value)
         elif property_name == 'base_impls_dir':
             self.base_impls_dir = value
         elif property_name == 'implementations':
@@ -99,16 +99,29 @@ def get_authors(value) -> list:
 
 def get_sources(value) -> list:
     """ Convenient function designed to retrieve the user defined
-        source files or module units file names """
+        source files"""
     sources = []
     for source in value.split(','):
         # Remove unnecesary whitespaces
         source = source.strip(' ')
-        # Check if it's a path, add the relative ./ to the Zork config file
-        if source.__contains__('/') and not source.startswith('./'):
-            source = './' + source
-
         sources.append(source)
+
+    return sources
+
+
+def get_interfaces(value) -> list:
+    """ Convenient function designed to retrieve the user defined
+        module interface units file names """
+    sources = []
+    if ';' in value:
+        for source in value.split(';'):
+            source = source.strip(' ')
+            sources.append(source)
+    else:
+        for source in value.split(','):
+            source = source.strip(' ')
+            sources.append(source)
+
     return sources
 
 

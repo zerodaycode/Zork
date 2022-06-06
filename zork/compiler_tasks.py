@@ -28,8 +28,8 @@ def build_project(config: dict, verbose: bool, project_name: str) -> int:
     else:
         raise UnsupportedCompiler(MSVC)
 
-    if verbose:
-        print(f'Command line to execute: {" ".join(command_line)}\n')
+    # if verbose:
+    print(f'Command line to execute: {" ".join(command_line)}\n')
 
     return subprocess.Popen(command_line).wait()
 
@@ -41,6 +41,7 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
         config.get('compiler').cpp_compiler,
         '--std=c++' + config.get('language').cpp_standard,
         '-stdlib=' + config.get('language').std_lib,
+        '-fmodules',
         '-fimplicit-modules',
         '-fbuiltin-module-map',
         '-fimplicit-module-maps',
@@ -54,7 +55,7 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
     ]
 
     for source in config.get("executable").sources:
-        if source.startswith('*.'):
+        if '*.' in source:
             for wildcard_ifc in glob.glob(source):
                 command_line.append(wildcard_ifc.replace('\\', '/'))
         else:
@@ -112,20 +113,19 @@ def _clang_prebuild_module_interfaces(
 
     module_ifcs: list = _get_ifcs(config)
 
-    for module in module_ifcs:
+    for ifcs_data in module_ifcs:
         # Strips the path part if the module name it's inside a path,
         # (like 'src/inner/module_file_name.cppm') and not alone,
         # as a *.cppm file. Also, strips the file extension for
         # replace it the file name ext for the .pcm one
-        module_name: str = module
-        if module.__contains__('/'):
-            module_dir_parts_no_slashes: list = module.split('/')
+        module_file: str = ifcs_data[0]
+        module_name: str = module_file.split('.')[0]
+        if '/' in module_name:
+            module_dir_parts_no_slashes: list = module_name.split('/')
             module_name = \
                 module_dir_parts_no_slashes[
                     len(module_dir_parts_no_slashes) - 1
                 ]
-            module_name_no_extensions = ''.join(module_name.split('.')[0])
-            module_name: str = module_name_no_extensions
 
         commands: list = [
                 config.get("compiler").cpp_compiler,
@@ -135,13 +135,20 @@ def _clang_prebuild_module_interfaces(
                 '-Xclang',
                 '-emit-module-interface',
                 '--precompile',
-                '-o', f'{module_ifcs_dir_path}/{module_name}.pcm',
-                module
+                '-o',
+                f'{module_ifcs_dir_path}/{module_name}.pcm',
+                f'./{module_file}'
             ]
-        if not module.__contains__(".cppm"):
+        if not ".cppm" in module_file:
             commands.append('-Xclang')
             commands.append('-emit-module-interface')
 
+        for ifc_dependency in ifcs_data[1]:
+            commands.append(
+                f'-fmodule-file={module_ifcs_dir_path}/{ifc_dependency}'
+            )
+
+        print(f'IFCS. Command line to execute: {" ".join(commands)}\n')
         subprocess.Popen(commands).wait()
 
     if verbose:
@@ -150,10 +157,58 @@ def _clang_prebuild_module_interfaces(
         )
 
     precompiled_mod_ifcs: list = [
-        pmiu for pmiu in glob.glob(f'{module_ifcs_dir_path}/*.pcm')
+        pmiu.replace("\\", '/') for pmiu in glob.glob(f'{module_ifcs_dir_path}/*.pcm')
     ]
 
     return module_ifcs_dir_path, precompiled_mod_ifcs
+
+
+def _get_ifcs(config: dict):
+    """ Gets the sources files for the interface files"""
+    ifcs_from_config: list = config.get('modules').interfaces
+    ifcs: list = []
+
+    base_ifcs_path: list = config.get('modules').base_ifcs_dir
+
+    if base_ifcs_path != '':
+        if base_ifcs_path.endswith('/'):
+            base_ifcs_path = base_ifcs_path[:-1]
+
+        for interface_relation in ifcs_from_config:
+            ifc_parts = interface_relation.split('=[')
+            ifc_file = ifc_parts[0]
+
+            # The interface file may have dependencies
+            # or not. So, in Zork, you can declare an interface
+            # just by it's file name, or declare some other
+            # interface(s) which this interface depends on
+            # with the equals to list notation
+            #
+            # Ex: base_mod.cppm=[mod, mod2, mod3]
+            if len(ifc_parts) > 1:
+                # The dependencies attached to the current
+                # module interface unit
+                dependencies = ifc_parts[1].replace(']', '').split(',')
+
+                parsed_deps: list = []
+                for interface_dep in dependencies:
+                    parsed_deps.append(f'{interface_dep.strip(" ")}.pcm')
+                ifcs.append((
+                    f'{base_ifcs_path}/{ifc_file}',
+                    parsed_deps
+                ))
+            else:
+                if'*.' in ifc_file:
+                    for wildcard_ifc in glob.glob(f'{base_ifcs_path}/{ifc_file}'):
+                        wildcard_ifc = wildcard_ifc.replace("\\", "/")
+                        ifcs.append((f'{wildcard_ifc}', []))
+                else:
+                    ifcs.append(f'{base_ifcs_path}/{ifc_file}')
+    else:
+        pass
+        # TODO Custom error or default value
+
+    return ifcs
 
 
 def _compile_module_implementations(
@@ -175,7 +230,8 @@ def _compile_module_implementations(
     module_impls_dir_path = modules_dir_path + '/implementations'
 
     # Generate the precompiled modules directory if it doesn't exists
-    if 'modules' in os.listdir(output_dir):
+    if 'modules' in os.listdir(output_dir) and not 'implementations' \
+        in os.listdir(modules_dir_path):
         subprocess.Popen(['mkdir', module_impls_dir_path]).wait()
     if verbose:
         print('Compiling the module implementations...')
@@ -204,49 +260,26 @@ def _compile_module_implementations(
 
         commands.append('-o')
         commands.append(f'{module_impls_dir_path}/{mod2}.o')
-        commands.append(
-            f'-fmodule-file={module_ifcs_dir_path}/{module_impl_tuple[1]}'
-        )
 
+        for ifc_dependency in module_impl_tuple[1]:
+            commands.append(
+                f'-fmodule-file={module_ifcs_dir_path}/{ifc_dependency}'
+            )
+
+        print(f'IMPLS. Command line to execute: {" ".join(base_commands + commands)}\n')
         subprocess.Popen(base_commands + commands).wait()
 
     if verbose:
-        print('...\nModule implementation units compilation finished!')
+        print('...\nModule implementation units compilation finished!\n')
 
     return [
-        pmiu for pmiu in glob.glob(f'{module_impls_dir_path}/*.o')
+        pmiu.replace("\\", '/') for pmiu in glob.glob(f'{module_impls_dir_path}/*.o')
     ]
 
 
-def _get_ifcs(config: dict):
-    """ Gets the sources files for both declaration
-    (interface) files
-    """
-    ifcs_from_config: list = config.get('modules').interfaces
-    ifcs: list = []
-
-    base_ifcs_path: list = config.get('modules').base_ifcs_dir
-
-    if base_ifcs_path != '':
-        if base_ifcs_path.endswith('/'):
-            base_ifcs_path = base_ifcs_path[:-1]
-
-        for interface in ifcs_from_config:
-            if interface.startswith('*.'):
-                for wildcard_ifc in glob.glob(f'{base_ifcs_path}/{interface}'):
-                    ifcs.append(wildcard_ifc.replace('\\', '/'))
-            else:
-                ifcs.append(f'{base_ifcs_path}/{interface}')
-    else:
-        pass
-        # TODO Custom error or def value
-
-    return ifcs
-
-
 def _get_impls(config: dict):
-    """ Gets the sources files for the module
-        implementation files
+    """ Gets the sources files for the module implementation files
+        and the interfaces that the implementation files depends on
     """
     impls_from_config: list = config.get('modules').implementations
     impls: list = []
@@ -258,21 +291,44 @@ def _get_impls(config: dict):
             base_impls_path = base_impls_path[:-1]
 
         for impl_relation in impls_from_config:
-            impls_parts = impl_relation.split(']=')
+            impls_parts = impl_relation.split('=[')
+            impl_file = impls_parts[0].split('.')
 
-            impl_files = impls_parts[0].replace('[', '').split(',')
-            impl_ifc_file = impls_parts[1]
+            # If the relation has no list with the dependencies,
+            # so only the file name of the module implementation
+            # is declared here,
+            # Zork will assume that the unique interface that the
+            # current module implementation depends has the same
+            # name of the implementation unit.
+            #
+            # If the user does not use the same file name for both
+            # the interface and the declaration, a compiler error
+            # will be throwed.
+            if len(impls_parts) > 1:
+                # The extension of the source file
+                impl_file_ext = impl_file[1]
+                # The dependencies attached to the current
+                # module implementation unit
+                dependencies = impls_parts[1].replace(']', '').split(',')
 
-            for implementation_file in impl_files:
-                impls.append(
-                    (
-                        f'{base_impls_path}/{implementation_file.strip(" ")}',
-                        f'{impl_ifc_file}.pcm'
-                    )
-                )
+                parsed_deps: list = []
+                for interface in dependencies:
+                    parsed_deps.append(f'{interface.strip(" ")}.pcm')
+                impls.append((
+                    f'{base_impls_path}/{impl_file[0]}' +
+                        f'.{impl_file_ext}',
+                    parsed_deps
+                ))
+            else:
+                impls.append((
+                    f'{base_impls_path}/{impl_file[0]}' +
+                        f'.{impl_file[1]}',
+                    [f'{impl_file[0]}.pcm']
+                ))
     else:
         pass
         # TODO Raise error or generate base default path
+    print(f'IMPLS: {impls}')
 
     return impls
 
