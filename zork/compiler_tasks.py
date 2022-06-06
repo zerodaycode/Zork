@@ -169,6 +169,13 @@ def _compile_module_implementations(
         units, and point the implementation unit to the correct
         module interface file.
     """
+    output_dir: str = config['build'].output_dir
+    modules_dir_path = output_dir + '/modules'
+    module_impls_dir_path = modules_dir_path + '/implementations'
+
+    # Generate the precompiled modules directory if it doesn't exists
+    if 'modules' in os.listdir(output_dir):
+        subprocess.Popen(['mkdir', module_impls_dir_path]).wait()
     if verbose:
         print('Compiling the module implementations...')
 
@@ -195,7 +202,7 @@ def _compile_module_implementations(
             .split('.')[0]
 
         commands.append('-o')
-        commands.append(f'{module_ifcs_dir_path}/{mod2}.o')
+        commands.append(f'{module_impls_dir_path}/{mod2}.o')
         commands.append(
             f'-fmodule-file={module_ifcs_dir_path}/{module_impl_tuple[1]}'
         )
@@ -205,11 +212,9 @@ def _compile_module_implementations(
     if verbose:
         print('...\nModule implementation units compilation finished!')
 
-    precompiled_mod_ifcs: list = [
-        pmiu for pmiu in glob.glob(f'{module_ifcs_dir_path}/*.o')
+    return [
+        pmiu for pmiu in glob.glob(f'{module_impls_dir_path}/*.o')
     ]
-
-    return precompiled_mod_ifcs
 
 
 def _get_ifcs(config: dict, project_name: str):

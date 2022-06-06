@@ -8,11 +8,10 @@
 from typing import Any
 
 from data.attributes import CompilerAttribute, LanguageAttribute, \
-    BuildAttribute, ExecutableAttribute
-from data.properties import CompilerProperty, LanguageStandardProperty, \
-    BuildProperty, ExecutableProperty, ModulesProperty
+    BuildAttribute, ExecutableAttribute, ProjectAttribute
+from data.properties import Property
 from data.user_config import CompilerConfig, ExecutableConfig, \
-    LanguageConfig, BuildConfig, ModulesConfig
+    LanguageConfig, BuildConfig, ModulesConfig, ProjectConfig
 
 # Suported compilers
 CLANG: str = 'clang++'
@@ -27,11 +26,20 @@ SUPPORTED_CPP_STDLIBS: list = ['stdlibc++', 'libc++']
 
 
 """ Zork Sections """
+PROJECT_ATTR: ProjectAttribute = ProjectAttribute(
+    identifier='[[#project]]',
+    mandatory=True,
+    properties=[
+        Property('name', True, Any),
+        Property('authors', False, Any)
+    ]
+)
+
 COMPILER_ATTR: CompilerAttribute = CompilerAttribute(
     identifier='[[#compiler]]',
     mandatory=True,
     properties=[
-        CompilerProperty('cpp_compiler', True, SUPPORTED_COMPILERS)
+        Property('cpp_compiler', True, SUPPORTED_COMPILERS)
     ]
 )
 
@@ -39,13 +47,13 @@ LANGUAGE_ATTR: LanguageAttribute = LanguageAttribute(
     identifier='[[#language]]',
     mandatory=True,
     properties=[
-        LanguageStandardProperty(
+        Property(
             'cpp_standard', True, SUPPORTED_CPP_LANG_LEVELS
         ),
-        LanguageStandardProperty(
+        Property(
             'std_lib', False, SUPPORTED_CPP_STDLIBS
         ),
-        LanguageStandardProperty(
+        Property(
             'modules', False, 'true'
         ),
     ]
@@ -55,18 +63,18 @@ BUILD_ATTR: BuildAttribute = BuildAttribute(
     identifier='[[#build]]',
     mandatory=False,
     properties=[
-        BuildProperty('output_dir', False, Any)
+        Property('output_dir', False, Any)
     ]
 )
 
-MODULES_ATTR: BuildAttribute = BuildAttribute(
+MODULES_ATTR: Property = BuildAttribute(
     identifier='[[#modules]]',
     mandatory=False,
     properties=[
-        ModulesProperty('base_ifcs_dir', False, Any),
-        ModulesProperty('interfaces', False, Any),
-        ModulesProperty('base_impls_dir', False, Any),
-        ModulesProperty('implementations', False, Any)
+        Property('base_ifcs_dir', False, Any),
+        Property('interfaces', False, Any),
+        Property('base_impls_dir', False, Any),
+        Property('implementations', False, Any)
     ]
 )
 
@@ -74,15 +82,19 @@ EXECUTABLE_ATTR: ExecutableAttribute = ExecutableAttribute(
     identifier='[[#executable]]',
     mandatory=False,
     properties=[
-        ExecutableProperty('executable_name', False, Any),
-        ExecutableProperty('sources', False, Any),
-        ExecutableProperty('auto_execute', False, ['true', 'false']),
+        Property('executable_name', False, Any),
+        Property('sources', False, Any),
+        Property('auto_execute', False, ['true', 'false']),
     ]
 )
 
 # Shortcut to have all the sections available in Zork
 PROGRAM_SECTIONS: list = [
-    COMPILER_ATTR, LANGUAGE_ATTR, BUILD_ATTR, MODULES_ATTR,
+    PROJECT_ATTR,
+    COMPILER_ATTR,
+    LANGUAGE_ATTR,
+    BUILD_ATTR,
+    MODULES_ATTR,
     EXECUTABLE_ATTR
 ]
 
@@ -95,6 +107,7 @@ PROGRAM_ATTRIBUTES_IDENTIFIERS = [
 # Default base definitions for the project properfies
 # TODO refactor this into generate new instance in found, not defaults
 PROGRAM_BASE_CONFIG: dict = {
+    'project': ProjectConfig('new_project', []),
     'compiler': CompilerConfig('clang'),
     'language': LanguageConfig(11, 'libstdc++', ''),
     'build': BuildConfig('./build'),

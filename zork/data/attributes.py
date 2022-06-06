@@ -7,6 +7,14 @@ from dataclasses import dataclass
 
 
 @dataclass
+class ProjectAttribute:
+    """ Holds information about the project itself """
+    identifier: str
+    mandatory: bool
+    properties: list
+
+
+@dataclass
 class CompilerAttribute:
     """ Represents the structure of the compiler attribute """
     identifier: str

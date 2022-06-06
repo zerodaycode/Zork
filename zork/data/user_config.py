@@ -8,6 +8,18 @@ from typing import Any
 
 
 @dataclass
+class ProjectConfig:
+    name: str
+    authors: list
+
+    def set_property(self, property_name: str, value: Any):
+        if property_name == 'name':
+            self.name = value
+        if property_name == 'authors':
+            self.authors = get_authors(value)
+
+
+@dataclass
 class CompilerConfig:
     cpp_compiler: str
 
@@ -73,6 +85,18 @@ class ExecutableConfig:
             self.auto_execute = value
 
 
+def get_authors(value) -> list:
+    """ CRetrieves the authors property for the project attribute
+        as a list of str
+    """
+    sources = []
+    for source in value.split(','):
+        # Remove unnecesary whitespaces
+        source = source.strip(' ')
+        sources.append(source)
+    return sources
+
+
 def get_sources(value) -> list:
     """ Convenient function designed to retrieve the user defined
         source files or module units file names """
@@ -126,4 +150,9 @@ def generate_mod_impl_units(value) -> list:
         # Remove unnecesary whitespaces
         source = source.strip(' ')
         sources.append(source)
+
+    # TODO Even the impl is the same than the 'get_authors()', this
+    # function possible changes in the future, so will stay as a
+    # separated functions
+
     return sources
