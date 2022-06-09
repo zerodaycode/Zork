@@ -12,6 +12,7 @@ import sys
 
 from program_definitions import CLANG, GCC, MSVC
 from utils.exceptions import LanguageLevelNotEnought, UnsupportedCompiler
+from utils.constants import OS
 
 
 def build_project(config: dict, verbose: bool, project_name: str) -> int:
@@ -37,14 +38,27 @@ def build_project(config: dict, verbose: bool, project_name: str) -> int:
 def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
     """ Calls Clang++ to compile the provide files / project """
     # Generates the compiler and linker calls
-    command_line = [
-        config.get('compiler').cpp_compiler,
-        '--std=c++' + config.get('language').cpp_standard,
-        '-stdlib=' + config.get('language').std_lib,
-        '-fmodules',
-        '-fimplicit-modules',
-        '-fbuiltin-module-map',
-        '-fimplicit-module-maps',
+    if OS == 'Windows':
+        base_command_line = [
+            config.get('compiler').cpp_compiler,
+            '--std=c++' + config.get('language').cpp_standard,
+            '-fmodules',
+            '-fimplicit-modules',
+            '-fbuiltin-module-map',
+            '-fimplicit-module-maps',
+        ]
+    else:
+        base_command_line = [
+            config.get('compiler').cpp_compiler,
+            '--std=c++' + config.get('language').cpp_standard,
+            '-stdlib=' + config.get('language').std_lib,
+            '-fmodules',
+            '-fimplicit-modules',
+            '-fbuiltin-module-map',
+            '-fimplicit-module-maps',
+        ]
+
+    command_line = base_command_line + [
         '-o',
         f'{config.get("build").output_dir}/' +
         f'{config.get("executable").executable_name}'
@@ -73,10 +87,10 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
             )
 
         prebuild_modules_path, interfaces = _clang_prebuild_module_interfaces(
-            config, verbose
+            config, verbose, base_command_line
         )
         implementations = _compile_module_implementations(
-            config, verbose, prebuild_modules_path
+            config, verbose, prebuild_modules_path, base_command_line
         )
 
         for module_ifc in interfaces:
@@ -95,7 +109,8 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
 
 def _clang_prebuild_module_interfaces(
     config: dict,
-    verbose: bool
+    verbose: bool,
+    base_command_line: list
 ) -> list:
     """ The responsable for generate de module units
         for the C++20 modules feature.
@@ -132,21 +147,13 @@ def _clang_prebuild_module_interfaces(
                 ]
 
         commands: list = [
-                config.get("compiler").cpp_compiler,
-                '-c',
-                '--std=c++' + config.get("language").cpp_standard,
-                '-stdlib=' + config.get("language").std_lib,
-                '-fmodules',
-                '-fimplicit-modules',
-                '-fbuiltin-module-map',
-                '-fimplicit-module-maps',
-                '-Xclang',
-                '-emit-module-interface',
-                '--precompile',
-                '-o',
-                f'{module_ifcs_dir_path}/{module_name}.pcm',
-                f'./{module_file}'
-            ]
+            '-Xclang',
+            '-emit-module-interface',
+            '--precompile',
+            '-o',
+            f'{module_ifcs_dir_path}/{module_name}.pcm',
+            f'./{module_file}'
+        ]
         if not ".cppm" in module_file:
             commands.append('-Xclang')
             commands.append('-emit-module-interface')
@@ -157,8 +164,9 @@ def _clang_prebuild_module_interfaces(
             )
 
         if verbose:
-            print(f'IFCS. Command line to execute: {" ".join(commands)}')
-        run_subprocess(subprocess.Popen(commands).wait())
+            print(f'IFCS. Command line to execute: {" ".join(base_command_line + commands)}')
+        base_command_line.insert(1, '-c')
+        run_subprocess(subprocess.Popen(base_command_line + commands).wait())
 
     if verbose:
         print(
@@ -224,7 +232,8 @@ def _get_ifcs(config: dict, verbose: bool):
 def _compile_module_implementations(
     config: dict,
     verbose: bool,
-    module_ifcs_dir_path: str
+    module_ifcs_dir_path: str,
+    base_command_line: list
 ):
     """
         Compiles the module implementation units, when the declaration
@@ -250,18 +259,7 @@ def _compile_module_implementations(
 
     module_impls_relations: list = _get_impls(config, verbose)
 
-
     for module_impl_tuple in module_impls_relations:
-        base_commands: list = [
-            config.get('compiler').cpp_compiler,
-            '-c',
-            '--std=c++' + config.get('language').cpp_standard,
-            '-stdlib=' + config.get('language').std_lib,
-            '-fmodules',
-            '-fimplicit-modules',
-            '-fbuiltin-module-map',
-            '-fimplicit-module-maps',
-        ]
         commands: list = []
 
         module_impl = module_impl_tuple[0]
@@ -285,9 +283,9 @@ def _compile_module_implementations(
         if verbose:
             print(
                 'IMPLS. Command line to execute: ' + 
-                f'{" ".join(base_commands + commands)}'
+                f'{" ".join(base_command_line + commands)}'
             )
-        run_subprocess(subprocess.Popen(base_commands + commands).wait())
+        run_subprocess(subprocess.Popen(base_command_line + commands).wait())
 
     if verbose:
         print('...\nModule implementation units compilation finished!\n')
