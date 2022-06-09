@@ -8,6 +8,7 @@
 import glob
 import os
 import subprocess
+import sys
 
 from program_definitions import CLANG, GCC, MSVC
 from utils.exceptions import LanguageLevelNotEnought, UnsupportedCompiler
@@ -28,10 +29,9 @@ def build_project(config: dict, verbose: bool, project_name: str) -> int:
     else:
         raise UnsupportedCompiler(MSVC)
 
-    # if verbose:
-    print(f'Command line to execute: {" ".join(command_line)}\n')
-
-    return subprocess.Popen(command_line).wait()
+    if verbose:
+        print(f'The executable command line: {" ".join(command_line)}')
+    return run_subprocess(subprocess.Popen(command_line).wait())
 
 
 def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
@@ -81,6 +81,8 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
 
         for module_ifc in interfaces:
             command_line.append(module_ifc)
+            # Explicitly adds the interface as module files
+            command_line.append(f'-fmodule-file={module_ifc}')
         for module_src in implementations:
             command_line.append(module_src)
 
@@ -105,13 +107,15 @@ def _clang_prebuild_module_interfaces(
     module_ifcs_dir_path = modules_dir_path + '/interfaces'
 
     if verbose:
-        print('Precompiling the module interfaces...')
+        print('\nPrecompiling the module interfaces...')
     # Generate the precompiled modules directory if it doesn't exists
     if 'modules' not in os.listdir(output_dir):
-        subprocess.Popen(['mkdir', modules_dir_path]).wait()
-        subprocess.Popen(['mkdir', module_ifcs_dir_path]).wait()
+        run_subprocess(subprocess.Popen(['mkdir', modules_dir_path]).wait())
+        run_subprocess(
+            subprocess.Popen(['mkdir', module_ifcs_dir_path]).wait()
+        )
 
-    module_ifcs: list = _get_ifcs(config)
+    module_ifcs: list = _get_ifcs(config, verbose)
 
     for ifcs_data in module_ifcs:
         # Strips the path part if the module name it's inside a path,
@@ -132,6 +136,10 @@ def _clang_prebuild_module_interfaces(
                 '-c',
                 '--std=c++' + config.get("language").cpp_standard,
                 '-stdlib=' + config.get("language").std_lib,
+                '-fmodules',
+                '-fimplicit-modules',
+                '-fbuiltin-module-map',
+                '-fimplicit-module-maps',
                 '-Xclang',
                 '-emit-module-interface',
                 '--precompile',
@@ -148,12 +156,13 @@ def _clang_prebuild_module_interfaces(
                 f'-fmodule-file={module_ifcs_dir_path}/{ifc_dependency}'
             )
 
-        print(f'IFCS. Command line to execute: {" ".join(commands)}\n')
-        subprocess.Popen(commands).wait()
+        if verbose:
+            print(f'IFCS. Command line to execute: {" ".join(commands)}')
+        run_subprocess(subprocess.Popen(commands).wait())
 
     if verbose:
         print(
-            '...\nPrecompilation of module interface units finished!'
+            '...Precompilation of module interface units finished!\n'
         )
 
     precompiled_mod_ifcs: list = [
@@ -163,10 +172,10 @@ def _clang_prebuild_module_interfaces(
     return module_ifcs_dir_path, precompiled_mod_ifcs
 
 
-def _get_ifcs(config: dict):
+def _get_ifcs(config: dict, verbose: bool):
     """ Gets the sources files for the interface files"""
     ifcs_from_config: list = config.get('modules').interfaces
-    ifcs: list = []
+    ifcs: list[tuple[str, list[str]]] = []
 
     base_ifcs_path: list = config.get('modules').base_ifcs_dir
 
@@ -177,8 +186,6 @@ def _get_ifcs(config: dict):
         for interface_relation in ifcs_from_config:
             ifc_parts = interface_relation.split('=[')
             ifc_file = ifc_parts[0]
-            print(f'ifc parts: {ifc_parts}')
-            print(f'ifc file: {ifc_file}')
 
             # The interface file may have dependencies
             # or not. So, in Zork, you can declare an interface
@@ -205,12 +212,12 @@ def _get_ifcs(config: dict):
                         wildcard_ifc = wildcard_ifc.replace("\\", "/")
                         ifcs.append((f'{wildcard_ifc}', []))
                 else:
-                    print(f'ifc file: {ifc_file}')
                     ifcs.append((f'{base_ifcs_path}/{ifc_file}', []))
     else:
         pass
         # TODO Custom error or default value
-    print(f'IFCS: {ifcs}')
+    if verbose:
+        print(f'IFCS: {ifcs}')
     return ifcs
 
 
@@ -235,11 +242,14 @@ def _compile_module_implementations(
     # Generate the precompiled modules directory if it doesn't exists
     if 'modules' in os.listdir(output_dir) and not 'implementations' \
         in os.listdir(modules_dir_path):
-        subprocess.Popen(['mkdir', module_impls_dir_path]).wait()
+        run_subprocess(
+            subprocess.Popen(['mkdir', module_impls_dir_path]).wait()
+        )
     if verbose:
         print('Compiling the module implementations...')
 
-    module_impls_relations: list = _get_impls(config)
+    module_impls_relations: list = _get_impls(config, verbose)
+
 
     for module_impl_tuple in module_impls_relations:
         base_commands: list = [
@@ -247,6 +257,10 @@ def _compile_module_implementations(
             '-c',
             '--std=c++' + config.get('language').cpp_standard,
             '-stdlib=' + config.get('language').std_lib,
+            '-fmodules',
+            '-fimplicit-modules',
+            '-fbuiltin-module-map',
+            '-fimplicit-module-maps',
         ]
         commands: list = []
 
@@ -268,9 +282,12 @@ def _compile_module_implementations(
             commands.append(
                 f'-fmodule-file={module_ifcs_dir_path}/{ifc_dependency}'
             )
-
-        print(f'IMPLS. Command line to execute: {" ".join(base_commands + commands)}\n')
-        subprocess.Popen(base_commands + commands).wait()
+        if verbose:
+            print(
+                'IMPLS. Command line to execute: ' + 
+                f'{" ".join(base_commands + commands)}'
+            )
+        run_subprocess(subprocess.Popen(base_commands + commands).wait())
 
     if verbose:
         print('...\nModule implementation units compilation finished!\n')
@@ -280,7 +297,7 @@ def _compile_module_implementations(
     ]
 
 
-def _get_impls(config: dict):
+def _get_impls(config: dict, verbose: bool):
     """ Gets the sources files for the module implementation files
         and the interfaces that the implementation files depends on
     """
@@ -331,7 +348,8 @@ def _get_impls(config: dict):
     else:
         pass
         # TODO Raise error or generate base default path
-    print(f'IMPLS: {impls}')
+    if verbose:
+        print(f'IMPLS: {impls}')
 
     return impls
 
@@ -341,4 +359,11 @@ def generate_build_output_directory(config: dict):
         generated files after the build process """
     output_build_dir = config['build'].output_dir
     if not output_build_dir.strip('./') in os.listdir():
-        subprocess.Popen(['mkdir', output_build_dir]).wait()
+        run_subprocess(subprocess.Popen(['mkdir', output_build_dir]).wait())
+
+
+def run_subprocess(res: int) -> int:
+    """ Parses the return code after calling a subprocess event """
+    if res != 0:
+        sys.exit()
+    return res

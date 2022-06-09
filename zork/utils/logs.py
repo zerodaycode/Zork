@@ -24,8 +24,8 @@ def log_process_result(start_time: int, process_result):
     process_duration_log = 'Total time spent on the process: ' + \
         f'{process_time} ms'
 
-    if (process_result == 0):
-        success_log = '[SUCCESS]: Compilation job finished. ' + \
+    if process_result == 0:
+        success_log = '\n[SUCCESS]: Compilation job finished. ' + \
             process_duration_log
         print(success_log + '\n')
         notify_process_result_on_system_popup(success_log)

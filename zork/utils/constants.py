@@ -78,7 +78,6 @@ export namespace math {
 SRC_MOD_FILE: str = \
     """module math;
 
-
 // Implementation of the definitions on the module unit interface
 // for the sum and multiply math operations
 
