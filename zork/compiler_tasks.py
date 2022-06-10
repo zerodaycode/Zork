@@ -41,16 +41,19 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
     if OS == 'Windows':
         base_command_line = [
             config.get('compiler').cpp_compiler,
-            '--std=c++' + config.get('language').cpp_standard,
+            '-std=c++' + config.get('language').cpp_standard,
             '-fmodules',
             '-fimplicit-modules',
             '-fbuiltin-module-map',
             '-fimplicit-module-maps',
+            '-fno-ms-compatibility',
+            '--target=x86_64-w64-windows-gnu',
+            '-isystem="C:\\msys64\\mingw64\\include\\c++\\12.1.0"'
         ]
     else:
         base_command_line = [
             config.get('compiler').cpp_compiler,
-            '--std=c++' + config.get('language').cpp_standard,
+            '-std=c++' + config.get('language').cpp_standard,
             '-stdlib=' + config.get('language').std_lib,
             '-fmodules',
             '-fimplicit-modules',
@@ -96,7 +99,7 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
         for module_ifc in interfaces:
             command_line.append(module_ifc)
             # Explicitly adds the interface as module files
-            command_line.append(f'-fmodule-file={module_ifc}')
+            # command_line.append(f'-fmodule-file={module_ifc}')
         for module_src in implementations:
             command_line.append(module_src)
 
