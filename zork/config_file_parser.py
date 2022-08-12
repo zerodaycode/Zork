@@ -6,7 +6,7 @@ from utils.exceptions import AttributeDependsOnProperty, DuplicatedAttribute,\
     UnknownProperties, ErrorFileFormat,\
     MissedMandatoryProperties, InvalidPropertyValue
 from utils.constants import CONFIGURATION_FILE_NAME
-from utils.regex_patterns import VALID_LINE_PATTERN, RE_VALID_LINE_FORMAT
+from utils.regex_patterns import BLOCK_PATTERN, RE_VALID_LINE_FORMAT
 
 from program_definitions import PROGRAM_BASE_CONFIG, \
     PROGRAM_ATTRIBUTES_IDENTIFIERS, PROGRAM_SECTIONS
@@ -35,51 +35,59 @@ def check_valid_config_file(config_file: list):
     """ Ensures that the content written in the config file
         it's valid for the Zork config language """
     for idx, line in enumerate(config_file):
-        line = line.strip()
-
-        if line and not re.match(RE_VALID_LINE_FORMAT, line):
+        print(f'Current line {line}')
+        if line.strip() and not re.match(RE_VALID_LINE_FORMAT, line):
             raise ErrorFileFormat(idx + 1, line)
 
 
-def clean_file(file: str) -> list:
+def get_section_blocks(file: str) -> list:
     """
-        Cleans the file and retrieves only lines with attributes or properties
+        Get all section blocks
     """
+    
     return re.findall(
-        VALID_LINE_PATTERN, file, re.MULTILINE
+        BLOCK_PATTERN, "".join(file), re.MULTILINE
     )
 
+    
 
-def parse_attr_properties_block(file: str) -> dict:
+def parse_attr_properties_block(blocks: list) -> dict:
     """ Gets every syntactically valid attribute with the founded properties,
         discards the unknown attributes
     """
-    block_pattern = r"^\[\[#\w+]]\n(?:^\w+: ?.+\n?)+"
-    blocks = re.findall(block_pattern, file, re.MULTILINE)
 
     retrieved_data = {}
+    
+    print(f'blooooocks: {blocks}')
 
     for block in blocks:
         attr_pattern = r"^\[\[#(\w+)]]"
-        property_pattern = r"^(.+): (.+)$"
+        property_pattern = r"^(?P<name>.+): ?(?P<value>.+|(\n(?:\t|\s{4}).+)+)"
+
+        print(f'CURRENT BLOCK:\n {block}')
 
         attribute_identifier = re.search(attr_pattern, block).group(0)
         # Check for attributes that dont' belong to the program designed ones
         if attribute_identifier not in PROGRAM_ATTRIBUTES_IDENTIFIERS:
             raise UnknownAttribute(attribute_identifier)
 
-        extracted_properties = re.findall(
+        extracted_properties = re.finditer(
             property_pattern, block, re.MULTILINE
         )
 
         properties: list = []
-        for property_name, property_value in extracted_properties:
+
+        for property in extracted_properties:
+
+            property_values = ";".join([p_value.strip('\t').strip(' ') for p_value in property.group("value").strip('\n').split('\n')])
+            print(f'                            OJOOOOO! Property_name {property.group("name")} , Property value: {property_values}')
             properties.append(
                 {
-                    "property_name": property_name,
-                    "property_value": property_value
+                    "property_name": property.group("name"),
+                    "property_value": property_values
                 }
             )
+
 
         retrieved_data[attribute_identifier] = properties
 
@@ -116,9 +124,9 @@ def get_sections(config_file: str, verbose: bool) -> dict:
     # Initializes the map with the config values and provide default values
     config: dict = PROGRAM_BASE_CONFIG
 
-    cleaned_config_file: list = clean_file("".join(config_file))
+    section_block_list: list = get_section_blocks("".join(config_file))
     attr_ppt_collection = parse_attr_properties_block(
-        '\n'.join(cleaned_config_file)
+        section_block_list
     )
 
     validate_special_cases(attr_ppt_collection)
