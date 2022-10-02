@@ -135,6 +135,7 @@ def _clang_prebuild_module_interfaces(
 
     module_ifcs: list = _get_ifcs(config, verbose)
 
+    base_command_line.insert(1, '-c')
     for ifcs_data in module_ifcs:
         # Strips the path part if the module name it's inside a path,
         # (like 'src/inner/module_file_name.cppm') and not alone,
@@ -168,7 +169,7 @@ def _clang_prebuild_module_interfaces(
 
         if verbose:
             print(f'IFCS. Command line to execute: {" ".join(base_command_line + commands)}')
-        base_command_line.insert(1, '-c')
+        
         run_subprocess(subprocess.Popen(base_command_line + commands).wait())
 
     if verbose:

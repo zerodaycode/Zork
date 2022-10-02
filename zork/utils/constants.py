@@ -40,15 +40,11 @@ auto_execute: true
 
 
 [[#modules]]
-base_ifcs_dir: zero/ifc/
-interfaces: 
-    testing/testing_core.cppm
-    testing/testing.cppm=[testing_core]
-    zero.cppm=[testing, testing_core]
-base_impls_dir: zero/src/
-implementations: testing_core.cpp=[testing_core]
-    
-    """
+base_ifcs_dir: <project_name>/ifc/
+interfaces: *.cppm
+base_impls_dir: <project_name>/src/
+implementations: math.cpp;math2.cpp=[math]
+"""
 
 MAIN_CPP: str = \
     """import <iostream>;

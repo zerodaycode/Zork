@@ -35,7 +35,6 @@ def check_valid_config_file(config_file: list):
     """ Ensures that the content written in the config file
         it's valid for the Zork config language """
     for idx, line in enumerate(config_file):
-        print(f'Current line {line}')
         if line.strip() and not re.match(RE_VALID_LINE_FORMAT, line):
             raise ErrorFileFormat(idx + 1, line)
 
@@ -57,14 +56,10 @@ def parse_attr_properties_block(blocks: list) -> dict:
     """
 
     retrieved_data = {}
-    
-    print(f'blooooocks: {blocks}')
 
     for block in blocks:
         attr_pattern = r"^\[\[#(\w+)]]"
         property_pattern = r"^(?P<name>.+): ?(?P<value>.+|(\n(?:\t|\s{4}).+)+)"
-
-        print(f'CURRENT BLOCK:\n {block}')
 
         attribute_identifier = re.search(attr_pattern, block).group(0)
         # Check for attributes that dont' belong to the program designed ones
@@ -80,7 +75,6 @@ def parse_attr_properties_block(blocks: list) -> dict:
         for property in extracted_properties:
 
             property_values = ";".join([p_value.strip('\t').strip(' ') for p_value in property.group("value").strip('\n').split('\n')])
-            print(f'                            OJOOOOO! Property_name {property.group("name")} , Property value: {property_values}')
             properties.append(
                 {
                     "property_name": property.group("name"),
