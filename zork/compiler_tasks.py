@@ -47,8 +47,7 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
             '-fbuiltin-module-map',
             '-fimplicit-module-maps',
             '-fno-ms-compatibility',
-            '--target=x86_64-w64-windows-gnu',
-            '-isystem="C:\\msys64\\mingw64\\include\\c++\\12.1.0"'
+            '--target=x86_64-w64-windows-gnu'
         ]
     else:
         base_command_line = [
