@@ -24,7 +24,7 @@ def build_project(config: dict, verbose: bool, project_name: str) -> int:
     command_line: list = []
 
     if compiler == CLANG:
-        command_line = call_clang_to_compile(config, verbose, project_name)
+        command_line = call_clang_to_work(config, verbose, project_name)
     elif compiler == GCC:
         raise UnsupportedCompiler(GCC)
     else:
@@ -35,7 +35,7 @@ def build_project(config: dict, verbose: bool, project_name: str) -> int:
     return run_subprocess(subprocess.Popen(command_line).wait())
 
 
-def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
+def call_clang_to_work(config: dict, verbose: bool, project_name: str):
     """ Calls Clang++ to compile the provide files / project """
     # Generates the compiler and linker calls
     if OS == 'Windows':
