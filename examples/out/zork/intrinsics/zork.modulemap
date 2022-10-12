@@ -2,11 +2,11 @@
 
 module "iostream" {
   export *
-  header "<mingw64_include>/iostream"
+  header "C:/msys64/mingw64/include/c++/12.2.0/iostream"
 }
 
 module "vector" {
   export *
-  header "<mingw64_include>/vector"
+  header "C:/msys64/mingw64/include/c++/12.2.0/vector"
 }
     

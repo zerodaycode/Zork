@@ -106,6 +106,19 @@ class UnsupportedCompiler(Exception):
         )
 
 
+class NoSystemHeadersFound(Exception):
+    """ Not defined or available attribute found " """
+    def __init__(self):
+        super().__init__(
+            "We could not found a include path for the system headers.\n" +
+            "Currently, Zork can only work under Windows in automatic mode with Clang if a " +
+            "mingw64 installation exists on the system.\n" +
+            "Please, go and install a valid toolchain with MSYS2 to work with Clang, or " +
+            "manually point to a Clang's installation in your system\n" +
+            "that contains the C++ expected system headers using the system_headers_path property " +
+            "under the [[#compiler]] attribute"
+        )
+
 class LanguageLevelNotEnought(Exception):
     """ When a C++ feature it's requested, but the language level
         isn't higher enought that the feature does not exists for that

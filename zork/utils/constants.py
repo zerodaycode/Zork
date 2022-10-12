@@ -18,12 +18,12 @@ ZORK_MODULEMAP_FILE: str = \
 
 module "iostream" {
   export *
-  header "<mingw64_include>/iostream"
+  header "<system_headers_path>/iostream"
 }
 
 module "vector" {
   export *
-  header "<mingw64_include>/vector"
+  header "<system_headers_path>/vector"
 }
     """
 

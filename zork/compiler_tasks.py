@@ -10,8 +10,9 @@ import os
 import subprocess
 import sys
 
-from program_definitions import CLANG, GCC, MSVC
-from utils.exceptions import LanguageLevelNotEnought, UnsupportedCompiler
+from program_definitions import CLANG, GCC, MSVC, SYSTEM_HEADERS_EXPECTED_PATHS
+from utils.exceptions import LanguageLevelNotEnought, UnsupportedCompiler, \
+    NoSystemHeadersFound
 from utils import constants
 
 
@@ -367,27 +368,56 @@ def generate_build_output_directory(config: dict):
 
     if not output_build_dir.strip('./') in os.listdir():
         run_subprocess(subprocess.Popen(['mkdir', output_build_dir]).wait())
-        print(output_build_dir)
-        print(os.listdir())
-        print("Out created successfully")
-        print(zork_intrinsics_dir)
         if constants.OS == 'Windows':
             run_subprocess(subprocess.Popen(['mkdir', '-p', zork_intrinsics_dir]).wait())
-            generate_modulemap_file(zork_intrinsics_dir)
+            generate_modulemap_file(config, zork_intrinsics_dir)
     else:
         if constants.OS == 'Windows':
             if not zork_intrinsics_dir.strip('./') in os.listdir():
                 run_subprocess(subprocess.Popen(['mkdir', '-p', zork_intrinsics_dir]).wait())
-                generate_modulemap_file(zork_intrinsics_dir)
+                generate_modulemap_file(config, zork_intrinsics_dir)
 
-def generate_modulemap_file(zork_intrinsics_dir_path: str):
+
+def find_system_headers_path() -> str:
+    """
+    Tries to find the system headers included with the Mingw installation.
+    Currently, using Zork with Clang under Windows depends of having a installation
+    of GCC Gnu's compiler through MinGW. 
+    """
+    SYSTEM_HEADERS_PATH: str = ''
+
+    for candidate in SYSTEM_HEADERS_EXPECTED_PATHS:
+        print(candidate)
+        print(os.listdir(candidate))
+        gcc_version_folder = sorted(os.listdir(candidate), reverse=True)
+        if len(gcc_version_folder) > 0:
+            SYSTEM_HEADERS_PATH = candidate + gcc_version_folder[0]
+            break
+
+    print(SYSTEM_HEADERS_PATH)
+    if SYSTEM_HEADERS_PATH == '':
+        raise NoSystemHeadersFound()
+    else:
+        return SYSTEM_HEADERS_PATH
+
+
+def generate_modulemap_file(config: dict, zork_intrinsics_dir_path: str):
     """ Generates a zork.modulemap file to be used under Windows,
         enabling Clang to import the system headers under the GCC MinGW
         installation into the client's code, instead of using #include
         directives.
     """
+    if config.get('compiler').system_headers_path == '':
+        config['compiler'].system_headers_path = find_system_headers_path()
+
     with open(f'{zork_intrinsics_dir_path}/zork.modulemap', 'w', encoding='UTF-8') as zork_modulemap_file:
-        zork_modulemap_file.write(constants.ZORK_MODULEMAP_FILE)
+        zork_modulemap_file.write(
+            constants.ZORK_MODULEMAP_FILE \
+                .replace(
+                    '<system_headers_path>', 
+                    config.get('compiler').system_headers_path
+                )
+        )
 
 def run_subprocess(res: int) -> int:
     """ Parses the return code after calling a subprocess event """
