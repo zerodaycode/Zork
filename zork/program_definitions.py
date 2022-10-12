@@ -25,6 +25,7 @@ SUPPORTED_CPP_LANG_LEVELS: list = [
 SUPPORTED_CPP_STDLIBS: list = ['stdlibc++', 'libc++']
 SYSTEM_HEADERS_EXPECTED_PATHS: list[str] = ['C:/msys64/mingw64/include/c++/']
 
+
 """ Zork Sections """
 PROJECT_ATTR: ProjectAttribute = ProjectAttribute(
     identifier='[[#project]]',
