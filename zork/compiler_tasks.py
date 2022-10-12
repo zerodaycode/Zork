@@ -387,8 +387,6 @@ def find_system_headers_path() -> str:
     SYSTEM_HEADERS_PATH: str = ''
 
     for candidate in SYSTEM_HEADERS_EXPECTED_PATHS:
-        print(candidate)
-        print(os.listdir(candidate))
         gcc_version_folder = sorted(os.listdir(candidate), reverse=True)
         if len(gcc_version_folder) > 0:
             SYSTEM_HEADERS_PATH = candidate + gcc_version_folder[0]
@@ -407,17 +405,52 @@ def generate_modulemap_file(config: dict, zork_intrinsics_dir_path: str):
         installation into the client's code, instead of using #include
         directives.
     """
+    # If there's no user manually setted path, we perform the autosearch
+    # for the system headers
     if config.get('compiler').system_headers_path == '':
         config['compiler'].system_headers_path = find_system_headers_path()
+    SYS_HEADERS_BASE_PATH: str = config.get('compiler').system_headers_path
+
+    # We are going to store a relation between the files inside of the root
+    # of the folder of the include files, and the ones stored in a subdirectory.
+    system_headers: dict = {}
+    discarded_headers: list[str] =  ['cstdlib', 'stdlib.h']
+
+    for root, _, sys_headers in os.walk(SYS_HEADERS_BASE_PATH):
+        if root == SYS_HEADERS_BASE_PATH:
+            system_headers.update({'root': sys_headers})
+        else:
+            pass
+            # system_headers.update({root.removeprefix(SYS_HEADERS_BASE_PATH): sys_headers})
+            # TODO study case, multiple headers causes redefinition problems when exported on the
+            # module map file. Most std important ones even tho are reexported on the module map
+
+    # The final string that will be write to a file
+    ZORK_MODULE_MAP: str = ''
+    for path, files in system_headers.items():
+        path = path.replace('\\', '/')
+        
+        for file in files:
+            if file.endswith('.tcc') or file in discarded_headers:
+                continue
+            if path != 'root':  # For now, this branch will never be reached
+                ZORK_MODULE_MAP += (
+                    f'module "{path[1:]}/{file}"' + ' {\n'
+                    f'  export *\n'
+                    f'  header "{SYS_HEADERS_BASE_PATH}{path}/{file}"\n'
+                    '}\n'
+                )
+            else:
+                ZORK_MODULE_MAP += (
+                    f'module "{file}"' + ' {\n'
+                    f'  export *\n'
+                    f'  header "{SYS_HEADERS_BASE_PATH}/{file}"\n'
+                    '}\n'
+                )
 
     with open(f'{zork_intrinsics_dir_path}/zork.modulemap', 'w', encoding='UTF-8') as zork_modulemap_file:
-        zork_modulemap_file.write(
-            constants.ZORK_MODULEMAP_FILE \
-                .replace(
-                    '<system_headers_path>', 
-                    config.get('compiler').system_headers_path
-                )
-        )
+        zork_modulemap_file.write(ZORK_MODULE_MAP)
+
 
 def run_subprocess(res: int) -> int:
     """ Parses the return code after calling a subprocess event """

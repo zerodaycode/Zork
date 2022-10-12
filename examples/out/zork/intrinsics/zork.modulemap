@@ -1,12 +1,436 @@
- // The Zork's modulemap file implementation for Clang's module.modulemap
-
+module "algorithm" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/algorithm"
+}
+module "any" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/any"
+}
+module "array" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/array"
+}
+module "atomic" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/atomic"
+}
+module "barrier" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/barrier"
+}
+module "bit" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/bit"
+}
+module "bitset" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/bitset"
+}
+module "cassert" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cassert"
+}
+module "ccomplex" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/ccomplex"
+}
+module "cctype" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cctype"
+}
+module "cerrno" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cerrno"
+}
+module "cfenv" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cfenv"
+}
+module "cfloat" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cfloat"
+}
+module "charconv" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/charconv"
+}
+module "chrono" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/chrono"
+}
+module "cinttypes" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cinttypes"
+}
+module "ciso646" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/ciso646"
+}
+module "climits" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/climits"
+}
+module "clocale" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/clocale"
+}
+module "cmath" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cmath"
+}
+module "codecvt" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/codecvt"
+}
+module "compare" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/compare"
+}
+module "complex" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/complex"
+}
+module "complex.h" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/complex.h"
+}
+module "concepts" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/concepts"
+}
+module "condition_variable" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/condition_variable"
+}
+module "coroutine" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/coroutine"
+}
+module "csetjmp" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/csetjmp"
+}
+module "csignal" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/csignal"
+}
+module "cstdalign" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cstdalign"
+}
+module "cstdarg" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cstdarg"
+}
+module "cstdbool" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cstdbool"
+}
+module "cstddef" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cstddef"
+}
+module "cstdint" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cstdint"
+}
+module "cstdio" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cstdio"
+}
+module "cstring" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cstring"
+}
+module "ctgmath" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/ctgmath"
+}
+module "ctime" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/ctime"
+}
+module "cuchar" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cuchar"
+}
+module "cwchar" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cwchar"
+}
+module "cwctype" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cwctype"
+}
+module "cxxabi.h" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/cxxabi.h"
+}
+module "deque" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/deque"
+}
+module "exception" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/exception"
+}
+module "execution" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/execution"
+}
+module "expected" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/expected"
+}
+module "fenv.h" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/fenv.h"
+}
+module "filesystem" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/filesystem"
+}
+module "forward_list" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/forward_list"
+}
+module "fstream" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/fstream"
+}
+module "functional" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/functional"
+}
+module "future" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/future"
+}
+module "initializer_list" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/initializer_list"
+}
+module "iomanip" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/iomanip"
+}
+module "ios" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/ios"
+}
+module "iosfwd" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/iosfwd"
+}
 module "iostream" {
   export *
   header "C:/msys64/mingw64/include/c++/12.2.0/iostream"
 }
-
+module "istream" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/istream"
+}
+module "iterator" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/iterator"
+}
+module "latch" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/latch"
+}
+module "limits" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/limits"
+}
+module "list" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/list"
+}
+module "locale" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/locale"
+}
+module "map" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/map"
+}
+module "math.h" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/math.h"
+}
+module "memory" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/memory"
+}
+module "memory_resource" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/memory_resource"
+}
+module "mutex" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/mutex"
+}
+module "new" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/new"
+}
+module "numbers" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/numbers"
+}
+module "numeric" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/numeric"
+}
+module "optional" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/optional"
+}
+module "ostream" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/ostream"
+}
+module "queue" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/queue"
+}
+module "random" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/random"
+}
+module "ranges" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/ranges"
+}
+module "ratio" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/ratio"
+}
+module "regex" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/regex"
+}
+module "scoped_allocator" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/scoped_allocator"
+}
+module "semaphore" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/semaphore"
+}
+module "set" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/set"
+}
+module "shared_mutex" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/shared_mutex"
+}
+module "source_location" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/source_location"
+}
+module "span" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/span"
+}
+module "spanstream" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/spanstream"
+}
+module "sstream" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/sstream"
+}
+module "stack" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/stack"
+}
+module "stacktrace" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/stacktrace"
+}
+module "stdatomic.h" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/stdatomic.h"
+}
+module "stdexcept" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/stdexcept"
+}
+module "stop_token" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/stop_token"
+}
+module "streambuf" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/streambuf"
+}
+module "string" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/string"
+}
+module "string_view" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/string_view"
+}
+module "syncstream" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/syncstream"
+}
+module "system_error" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/system_error"
+}
+module "tgmath.h" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/tgmath.h"
+}
+module "thread" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/thread"
+}
+module "tuple" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/tuple"
+}
+module "typeindex" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/typeindex"
+}
+module "typeinfo" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/typeinfo"
+}
+module "type_traits" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/type_traits"
+}
+module "unordered_map" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/unordered_map"
+}
+module "unordered_set" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/unordered_set"
+}
+module "utility" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/utility"
+}
+module "valarray" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/valarray"
+}
+module "variant" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/variant"
+}
 module "vector" {
   export *
   header "C:/msys64/mingw64/include/c++/12.2.0/vector"
 }
-    
+module "version" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/version"
+}
