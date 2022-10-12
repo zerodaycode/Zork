@@ -27,6 +27,7 @@ class ProjectConfig:
 class CompilerConfig:
     """ The user defined compiler configuration """
     cpp_compiler: str
+    system_headers_path: str
 
     def set_property(self, property_name: str, value: Any):
         """ Sets the value(s) for the members of the class,
@@ -34,6 +35,8 @@ class CompilerConfig:
             'property name' """
         if property_name == 'cpp_compiler':
             self.cpp_compiler = value
+        elif property_name == 'system_headers_path':
+            self.system_headers_path = value
 
 
 @dataclass

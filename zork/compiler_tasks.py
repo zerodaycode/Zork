@@ -10,9 +10,10 @@ import os
 import subprocess
 import sys
 
-from program_definitions import CLANG, GCC, MSVC
-from utils.exceptions import LanguageLevelNotEnought, UnsupportedCompiler
-from utils.constants import OS
+from program_definitions import CLANG, GCC, MSVC, SYSTEM_HEADERS_EXPECTED_PATHS
+from utils.exceptions import LanguageLevelNotEnought, UnsupportedCompiler, \
+    NoSystemHeadersFound
+from utils import constants
 
 
 def build_project(config: dict, verbose: bool, project_name: str) -> int:
@@ -24,7 +25,7 @@ def build_project(config: dict, verbose: bool, project_name: str) -> int:
     command_line: list = []
 
     if compiler == CLANG:
-        command_line = call_clang_to_compile(config, verbose, project_name)
+        command_line = call_clang_to_work(config, verbose, project_name)
     elif compiler == GCC:
         raise UnsupportedCompiler(GCC)
     else:
@@ -35,17 +36,15 @@ def build_project(config: dict, verbose: bool, project_name: str) -> int:
     return run_subprocess(subprocess.Popen(command_line).wait())
 
 
-def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
+def call_clang_to_work(config: dict, verbose: bool, project_name: str):
     """ Calls Clang++ to compile the provide files / project """
     # Generates the compiler and linker calls
-    if OS == 'Windows':
+    if constants.OS == 'Windows':
         base_command_line = [
             config.get('compiler').cpp_compiler,
-            '-std=c++' + config.get('language').cpp_standard,
-            '-fmodules',
+            f'-std=c++{config.get("language").cpp_standard}',
             '-fimplicit-modules',
-            '-fbuiltin-module-map',
-            '-fimplicit-module-maps',
+            f'-fmodule-map-file={config.get("build").output_dir}/zork/intrinsics/zork.modulemap',
             '-fno-ms-compatibility',
             '--target=x86_64-w64-windows-gnu'
         ]
@@ -70,6 +69,7 @@ def call_clang_to_compile(config: dict, verbose: bool, project_name: str):
         )
     ]
 
+    # Sources for compile and link into the executable
     for source in config.get("executable").sources:
         if '*.' in source:
             for wildcard_ifc in glob.glob(source):
@@ -172,9 +172,7 @@ def _clang_prebuild_module_interfaces(
         run_subprocess(subprocess.Popen(base_command_line + commands).wait())
 
     if verbose:
-        print(
-            '...Precompilation of module interface units finished!\n'
-        )
+        print('...Precompilation of module interface units finished!\n')
 
     precompiled_mod_ifcs: list = [
         pmiu.replace("\\", '/') for pmiu in glob.glob(f'{module_ifcs_dir_path}/*.pcm')
@@ -357,11 +355,69 @@ def _get_impls(config: dict, verbose: bool):
 
 def generate_build_output_directory(config: dict):
     """ Creates the directory where the compiler will dump the
-        generated files after the build process """
-    output_build_dir = config['build'].output_dir
+        generated files after the build process.
+        
+        Also, it will generate the [output_build_dir/zork/intrinsics],
+        which is the place where Zork dumps the things that needs to
+        work under different conditions. For example, currently under
+        Windows, modules needs to be mapped to it's custom modulemap
+        file in order to use import statements with the system headers.
+    """
+    output_build_dir: str = config['build'].output_dir
+    zork_intrinsics_dir: str = f'{output_build_dir}/zork/intrinsics'
+
     if not output_build_dir.strip('./') in os.listdir():
         run_subprocess(subprocess.Popen(['mkdir', output_build_dir]).wait())
+        if constants.OS == 'Windows':
+            run_subprocess(subprocess.Popen(['mkdir', '-p', zork_intrinsics_dir]).wait())
+            generate_modulemap_file(config, zork_intrinsics_dir)
+    else:
+        if constants.OS == 'Windows':
+            if not zork_intrinsics_dir.strip('./') in os.listdir():
+                run_subprocess(subprocess.Popen(['mkdir', '-p', zork_intrinsics_dir]).wait())
+                generate_modulemap_file(config, zork_intrinsics_dir)
 
+
+def find_system_headers_path() -> str:
+    """
+    Tries to find the system headers included with the Mingw installation.
+    Currently, using Zork with Clang under Windows depends of having a installation
+    of GCC Gnu's compiler through MinGW. 
+    """
+    SYSTEM_HEADERS_PATH: str = ''
+
+    for candidate in SYSTEM_HEADERS_EXPECTED_PATHS:
+        print(candidate)
+        print(os.listdir(candidate))
+        gcc_version_folder = sorted(os.listdir(candidate), reverse=True)
+        if len(gcc_version_folder) > 0:
+            SYSTEM_HEADERS_PATH = candidate + gcc_version_folder[0]
+            break
+
+    print(SYSTEM_HEADERS_PATH)
+    if SYSTEM_HEADERS_PATH == '':
+        raise NoSystemHeadersFound()
+    else:
+        return SYSTEM_HEADERS_PATH
+
+
+def generate_modulemap_file(config: dict, zork_intrinsics_dir_path: str):
+    """ Generates a zork.modulemap file to be used under Windows,
+        enabling Clang to import the system headers under the GCC MinGW
+        installation into the client's code, instead of using #include
+        directives.
+    """
+    if config.get('compiler').system_headers_path == '':
+        config['compiler'].system_headers_path = find_system_headers_path()
+
+    with open(f'{zork_intrinsics_dir_path}/zork.modulemap', 'w', encoding='UTF-8') as zork_modulemap_file:
+        zork_modulemap_file.write(
+            constants.ZORK_MODULEMAP_FILE \
+                .replace(
+                    '<system_headers_path>', 
+                    config.get('compiler').system_headers_path
+                )
+        )
 
 def run_subprocess(res: int) -> int:
     """ Parses the return code after calling a subprocess event """

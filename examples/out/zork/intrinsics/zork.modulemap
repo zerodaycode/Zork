@@ -1,0 +1,12 @@
+ // The Zork's modulemap file implementation for Clang's module.modulemap
+
+module "iostream" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/iostream"
+}
+
+module "vector" {
+  export *
+  header "C:/msys64/mingw64/include/c++/12.2.0/vector"
+}
+    

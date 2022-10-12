@@ -23,7 +23,7 @@ SUPPORTED_CPP_LANG_LEVELS: list = [
     '11', '14', '17', '20', '1a', '2a', '1x', '2x'
 ]
 SUPPORTED_CPP_STDLIBS: list = ['stdlibc++', 'libc++']
-
+SYSTEM_HEADERS_EXPECTED_PATHS: list[str] = ['C:/msys64/mingw64/include/c++/']
 
 """ Zork Sections """
 PROJECT_ATTR: ProjectAttribute = ProjectAttribute(
@@ -39,7 +39,8 @@ COMPILER_ATTR: CompilerAttribute = CompilerAttribute(
     identifier='[[#compiler]]',
     mandatory=True,
     properties=[
-        Property('cpp_compiler', True, SUPPORTED_COMPILERS)
+        Property('cpp_compiler', True, SUPPORTED_COMPILERS),
+        Property('system_headers_path', False, Any)
     ]
 )
 
@@ -108,7 +109,7 @@ PROGRAM_ATTRIBUTES_IDENTIFIERS = [
 # TODO refactor this into generate new instance in found, not defaults
 PROGRAM_BASE_CONFIG: dict = {
     'project': ProjectConfig('new_project', []),
-    'compiler': CompilerConfig('clang'),
+    'compiler': CompilerConfig('clang', ''),
     'language': LanguageConfig(11, 'libstdc++', ''),
     'build': BuildConfig('./build'),
     'modules': ModulesConfig('.', [], '.', []),
