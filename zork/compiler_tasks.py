@@ -43,21 +43,28 @@ def call_clang_to_work(config: dict, verbose: bool, project_name: str):
         base_command_line = [
             config.get('compiler').cpp_compiler,
             f'-std=c++{config.get("language").cpp_standard}',
-            '-fimplicit-modules',
-            f'-fmodule-map-file={config.get("build").output_dir}/zork/intrinsics/zork.modulemap',
-            '-fno-ms-compatibility',
-            '--target=x86_64-w64-windows-gnu'
         ]
+
+        if config.get('language').modules == True:
+            base_command_line.append('-fimplicit-modules')
+            base_command_line.append(f'-fmodule-map-file={config.get("build").output_dir}/zork/intrinsics/zork.modulemap')
+            # base_command_line.append('--target=x86_64-w64-windows-gnu') 
+            ## TODO --target should be a configuration option (optional, with base defaults by OS)
+
     else:
         base_command_line = [
             config.get('compiler').cpp_compiler,
             '-std=c++' + config.get('language').cpp_standard,
             '-stdlib=' + config.get('language').std_lib,
-            '-fmodules',
-            '-fimplicit-modules',
-            '-fbuiltin-module-map',
-            '-fimplicit-module-maps',
         ]
+
+        if config.get('language').modules == True:  ## Todo this check should be match against the 'import std;' Zork 
+            # mimic of C++23 feature?
+            base_command_line.append('-fmodules')
+            base_command_line.append('-fimplicit-modules')
+            base_command_line.append('-fbuiltin-module-map')
+            base_command_line.append('-fimplicit-module-maps')
+
 
     command_line = base_command_line + [
         '-o',
@@ -69,8 +76,10 @@ def call_clang_to_work(config: dict, verbose: bool, project_name: str):
         )
     ]
 
+    print('Sources')
     # Sources for compile and link into the executable
     for source in config.get("executable").sources:
+        print(f'source: {source}')
         if '*.' in source:
             for wildcard_ifc in glob.glob(source):
                 command_line.append(wildcard_ifc.replace('\\', '/'))
@@ -80,7 +89,7 @@ def call_clang_to_work(config: dict, verbose: bool, project_name: str):
     # Generates a compiler call to prebuild the module units, in case that
     # the attribute it's present, have a valid path to the .cppm module units
     # and the language level it's at least, c++20.
-    if config['language'].modules == 'true':
+    if config['language'].modules == True:
         if int(config.get('language').cpp_standard) < 20:
             raise LanguageLevelNotEnought(
                 20,
@@ -383,7 +392,7 @@ def find_system_headers_path() -> str:
     """
     SYSTEM_HEADERS_PATH: str = ''
 
-    for path in SYSTEM_HEADERS_EXPECTED_PATHS.items():
+    for path in SYSTEM_HEADERS_EXPECTED_PATHS:
         if constants.OS == constants.WINDOWS:
             gcc_version_folder = sorted(os.listdir(path), reverse=True)
             if len(gcc_version_folder) > 0:
