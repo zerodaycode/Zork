@@ -23,7 +23,10 @@ SUPPORTED_CPP_LANG_LEVELS: list = [
     '11', '14', '17', '20', '1a', '2a', '1x', '2x'
 ]
 SUPPORTED_CPP_STDLIBS: list = ['stdlibc++', 'libc++']
-SYSTEM_HEADERS_EXPECTED_PATHS: list[str] = ['C:/msys64/mingw64/include/c++/']
+SYSTEM_HEADERS_EXPECTED_PATHS: dict = [
+    'C:/msys64/mingw64/include/c++/' # Windows - GNU
+    # TODO Add include path for Unix systems
+]
 
 
 """ Zork Sections """

@@ -39,7 +39,7 @@ def build_project(config: dict, verbose: bool, project_name: str) -> int:
 def call_clang_to_work(config: dict, verbose: bool, project_name: str):
     """ Calls Clang++ to compile the provide files / project """
     # Generates the compiler and linker calls
-    if constants.OS == 'Windows':
+    if constants.OS == constants.WINDOWS:
         base_command_line = [
             config.get('compiler').cpp_compiler,
             f'-std=c++{config.get("language").cpp_standard}',
@@ -383,13 +383,14 @@ def find_system_headers_path() -> str:
     """
     SYSTEM_HEADERS_PATH: str = ''
 
-    for candidate in SYSTEM_HEADERS_EXPECTED_PATHS:
-        gcc_version_folder = sorted(os.listdir(candidate), reverse=True)
-        if len(gcc_version_folder) > 0:
-            SYSTEM_HEADERS_PATH = candidate + gcc_version_folder[0]
-            break
+    for path in SYSTEM_HEADERS_EXPECTED_PATHS.items():
+        if constants.OS == constants.WINDOWS:
+            gcc_version_folder = sorted(os.listdir(path), reverse=True)
+            if len(gcc_version_folder) > 0:
+                SYSTEM_HEADERS_PATH = path + gcc_version_folder[0]
+                break
+        # TODO Check if it's needed a logic change for the include path on Linux
 
-    print(SYSTEM_HEADERS_PATH)
     if SYSTEM_HEADERS_PATH == '':
         raise NoSystemHeadersFound()
     else:
