@@ -225,8 +225,7 @@ def _get_ifcs(config: dict, verbose: bool):
     else:
         pass
         # TODO Custom error or default value
-    if verbose:
-        print(f'IFCS: {ifcs}')
+
     return ifcs
 
 
@@ -283,7 +282,7 @@ def _compile_module_implementations(
             )
         if verbose:
             print(
-                'IMPLS. Command line to execute: ' + 
+                'Module implementation units, command line to execute: ' + 
                 f'{" ".join(base_command_line + commands)}'
             )
         run_subprocess(subprocess.Popen(base_command_line + commands).wait())
@@ -347,8 +346,7 @@ def _get_impls(config: dict, verbose: bool):
     else:
         pass
         # TODO Raise error or generate base default path
-    if verbose:
-        print(f'IMPLS: {impls}')
+        # base def path, eg. './<proj_name>/src/'
 
     return impls
 
@@ -367,15 +365,14 @@ def generate_build_output_directory(config: dict):
     zork_intrinsics_dir: str = f'{output_build_dir}/zork/intrinsics'
 
     if not output_build_dir.strip('./') in os.listdir():
+        """ Kind of cache feature. If the directory exists, we don't regenerate it on every compilation """
         run_subprocess(subprocess.Popen(['mkdir', output_build_dir]).wait())
-        if constants.OS == 'Windows':
-            run_subprocess(subprocess.Popen(['mkdir', '-p', zork_intrinsics_dir]).wait())
-            generate_modulemap_file(config, zork_intrinsics_dir)
+        run_subprocess(subprocess.Popen(['mkdir', '-p', zork_intrinsics_dir]).wait())
+        generate_import_std(config, zork_intrinsics_dir)
     else:
-        if constants.OS == 'Windows':
-            if not zork_intrinsics_dir.strip('./') in os.listdir():
-                run_subprocess(subprocess.Popen(['mkdir', '-p', zork_intrinsics_dir]).wait())
-                generate_modulemap_file(config, zork_intrinsics_dir)
+        if not zork_intrinsics_dir.strip('./') in os.listdir():
+            run_subprocess(subprocess.Popen(['mkdir', '-p', zork_intrinsics_dir]).wait())
+            generate_import_std(config, zork_intrinsics_dir)
 
 
 def find_system_headers_path() -> str:
@@ -399,11 +396,11 @@ def find_system_headers_path() -> str:
         return SYSTEM_HEADERS_PATH
 
 
-def generate_modulemap_file(config: dict, zork_intrinsics_dir_path: str):
-    """ Generates a zork.modulemap file to be used under Windows,
-        enabling Clang to import the system headers under the GCC MinGW
-        installation into the client's code, instead of using #include
-        directives.
+def generate_import_std(config: dict, zork_intrinsics_dir_path: str):
+    """ Generates a zork.modulemap file that will be used to map all the
+        system headers into just one module `std`, that also will acomplish
+        the C++23 proposal of unifiying the standard library into only one
+        module, bring it into scope as `import std;`
     """
     # If there's no user manually setted path, we perform the autosearch
     # for the system headers
@@ -425,9 +422,9 @@ def generate_modulemap_file(config: dict, zork_intrinsics_dir_path: str):
             # TODO study case, multiple headers causes redefinition problems when exported on the
             # module map file. Most std important ones even tho are reexported on the module map
 
-    # The final string that will be write to a file
+    # The files that will make possible the `import std;`
     ZORK_MODULE_MAP: str = ''
-    SYSTEM_HEADERS_HEADER: str = ''
+    SYSTEM_HEADERS_HEADER: str = ''  # All the #include <system_header> needed
 
     for path, sys_headers in system_headers.items():
         path = path.replace('\\', '/')
@@ -443,7 +440,7 @@ def generate_modulemap_file(config: dict, zork_intrinsics_dir_path: str):
     ZORK_MODULE_MAP += (
         'module "std"' + ' {\n'
         '  export *\n'
-        f'  header "C:/Users/Alex Vergara/Desktop/code/Zork/examples/out/zork/intrinsics/std.h"\n'
+        f'  header "std.h"\n'
         '}'
     )
 
