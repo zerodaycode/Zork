@@ -65,7 +65,7 @@ def call_clang_to_work(config: dict, verbose: bool, project_name: str):
             base_command_line.append('-fbuiltin-module-map')
             base_command_line.append('-fimplicit-module-maps')
 
-
+    # The command line with the args for the executable
     command_line = base_command_line + [
         '-o',
         f'{config.get("build").output_dir}/' +
@@ -76,10 +76,8 @@ def call_clang_to_work(config: dict, verbose: bool, project_name: str):
         )
     ]
 
-    print('Sources')
     # Sources for compile and link into the executable
     for source in config.get("executable").sources:
-        print(f'source: {source}')
         if '*.' in source:
             for wildcard_ifc in glob.glob(source):
                 command_line.append(wildcard_ifc.replace('\\', '/'))

@@ -1,4 +1,0 @@
-module "std" {
-  export *
-  header "C:/Users/Alex Vergara/Desktop/code/Zork/examples/out/zork/intrinsics/std.h"
-}
