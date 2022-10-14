@@ -61,7 +61,7 @@ implementations: math.cpp;math2.cpp=[math]
 """
 
 MAIN_CPP: str = \
-    """import <iostream>;
+    """import std;
 import math;
 
 int main() {

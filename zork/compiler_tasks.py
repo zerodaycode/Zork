@@ -427,27 +427,28 @@ def generate_modulemap_file(config: dict, zork_intrinsics_dir_path: str):
 
     # The final string that will be write to a file
     ZORK_MODULE_MAP: str = ''
-    for path, files in system_headers.items():
+    SYSTEM_HEADERS_HEADER: str = ''
+
+    for path, sys_headers in system_headers.items():
         path = path.replace('\\', '/')
-        
-        for file in files:
+        for file in sys_headers:
             if file.endswith('.tcc') or file in discarded_headers:
                 continue
-            if path != 'root':  # For now, this branch will never be reached
-                ZORK_MODULE_MAP += (
-                    f'module "{path[1:]}/{file}"' + ' {\n'
-                    f'  export *\n'
-                    f'  header "{SYS_HEADERS_BASE_PATH}{path}/{file}"\n'
-                    '}\n'
-                )
+            if path == 'root':
+                SYSTEM_HEADERS_HEADER += f'#include <{file}>\n'
             else:
-                ZORK_MODULE_MAP += (
-                    f'module "{file}"' + ' {\n'
-                    f'  export *\n'
-                    f'  header "{SYS_HEADERS_BASE_PATH}/{file}"\n'
-                    '}\n'
-                )
+                SYSTEM_HEADERS_HEADER += f'#include <{path}/{file}>\n'
 
+    
+    ZORK_MODULE_MAP += (
+        'module "std"' + ' {\n'
+        '  export *\n'
+        f'  header "C:/Users/Alex Vergara/Desktop/code/Zork/examples/out/zork/intrinsics/std.h"\n'
+        '}'
+    )
+
+    with open(f'{zork_intrinsics_dir_path}/std.h', 'w', encoding='UTF-8') as std_headers_file:
+        std_headers_file.write(SYSTEM_HEADERS_HEADER)
     with open(f'{zork_intrinsics_dir_path}/zork.modulemap', 'w', encoding='UTF-8') as zork_modulemap_file:
         zork_modulemap_file.write(ZORK_MODULE_MAP)
 
