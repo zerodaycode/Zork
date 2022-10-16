@@ -58,11 +58,8 @@ def call_clang_to_work(config: dict, verbose: bool, project_name: str):
             '-stdlib=' + config.get('language').std_lib,
         ]
 
-        if config.get('language').modules == True:  ## Todo this check should be match against the 'import std;' Zork 
-            # mimic of C++23 feature?
-            base_command_line.append('-fmodules')
+        if config.get('language').modules == True:
             base_command_line.append('-fimplicit-modules')
-            base_command_line.append('-fbuiltin-module-map')
             base_command_line.append('-fimplicit-module-maps')
 
     # The command line with the args for the executable
@@ -95,17 +92,13 @@ def call_clang_to_work(config: dict, verbose: bool, project_name: str):
                 "Modules"
             )
 
-        prebuild_modules_path, interfaces = _clang_prebuild_module_interfaces(
+        prebuild_modules_path, _ = _clang_prebuild_module_interfaces(
             config, verbose, base_command_line
         )
         implementations = _compile_module_implementations(
             config, verbose, prebuild_modules_path, base_command_line
         )
 
-        for module_ifc in interfaces:
-            command_line.append(module_ifc)
-            # Explicitly adds the interface as module files
-            command_line.append(f'-fmodule-file={module_ifc}')
         for module_src in implementations:
             command_line.append(module_src)
 
@@ -120,7 +113,7 @@ def _clang_prebuild_module_interfaces(
     config: dict,
     verbose: bool,
     base_command_line: list
-) -> list:
+) -> tuple:
     """ The responsable for generate de module units
         for the C++20 modules feature.
         Returns a list with the args that should be passed into them
@@ -157,14 +150,12 @@ def _clang_prebuild_module_interfaces(
                 ]
 
         commands: list = [
-            '-Xclang',
-            '-emit-module-interface',
             '--precompile',
             '-o',
             f'{module_ifcs_dir_path}/{module_name}.pcm',
             f'./{module_file}'
         ]
-        if not ".cppm" in module_file:
+        if ".cppm" not in module_file:
             commands.append('-Xclang')
             commands.append('-emit-module-interface')
 
@@ -174,7 +165,7 @@ def _clang_prebuild_module_interfaces(
             )
 
         if verbose:
-            print(f'IFCS. Command line to execute: {" ".join(base_command_line + commands)}')
+            print(f'Module interfaces, command line to execute: {" ".join(base_command_line + commands)}')
         
         run_subprocess(subprocess.Popen(base_command_line + commands).wait())
 
@@ -256,8 +247,7 @@ def _compile_module_implementations(
     module_impls_dir_path = modules_dir_path + '/implementations'
 
     # Generate the precompiled modules directory if it doesn't exists
-    if 'modules' in os.listdir(output_dir) and not 'implementations' \
-        in os.listdir(modules_dir_path):
+    if 'modules' in os.listdir(output_dir) and 'implementations' not in os.listdir(modules_dir_path):
         run_subprocess(
             subprocess.Popen(['mkdir', module_impls_dir_path]).wait()
         )
@@ -374,12 +364,14 @@ def generate_build_output_directory(config: dict):
     if not output_build_dir.strip('./') in os.listdir():
         """ Kind of cache feature. If the directory exists, we don't regenerate it on every compilation """
         run_subprocess(subprocess.Popen(['mkdir', output_build_dir]).wait())
-        run_subprocess(subprocess.Popen(['mkdir', '-p', zork_intrinsics_dir]).wait())
-        generate_import_std(config, zork_intrinsics_dir)
-    else:
-        if not zork_intrinsics_dir.strip('./') in os.listdir():
+        if constants.OS == constants.WINDOWS:
             run_subprocess(subprocess.Popen(['mkdir', '-p', zork_intrinsics_dir]).wait())
             generate_import_std(config, zork_intrinsics_dir)
+    else:
+        if constants.OS == constants.WINDOWS:
+            if not zork_intrinsics_dir.strip('./') in os.listdir():
+                run_subprocess(subprocess.Popen(['mkdir', '-p', zork_intrinsics_dir]).wait())
+                generate_import_std(config, zork_intrinsics_dir)
 
 
 def find_system_headers_path() -> str:
