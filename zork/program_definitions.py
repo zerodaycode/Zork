@@ -22,7 +22,7 @@ SUPPORTED_COMPILERS: list = [CLANG, GCC, MSVC]
 SUPPORTED_CPP_LANG_LEVELS: list = [
     '11', '14', '17', '20', '1a', '2a', '1x', '2x'
 ]
-SUPPORTED_CPP_STDLIBS: list = ['stdlibc++', 'libc++']
+SUPPORTED_CPP_STDLIBS: list[str] = ['stdlibc++', 'libc++']
 SYSTEM_HEADERS_EXPECTED_PATHS: list[str] = ['C:/msys64/mingw64/include/c++/']
 
 
@@ -56,7 +56,7 @@ LANGUAGE_ATTR: LanguageAttribute = LanguageAttribute(
             'std_lib', False, SUPPORTED_CPP_STDLIBS
         ),
         Property(
-            'modules', False, 'true'
+            'modules', False, ['True', 'true']
         ),
     ]
 )
@@ -111,7 +111,7 @@ PROGRAM_ATTRIBUTES_IDENTIFIERS = [
 PROGRAM_BASE_CONFIG: dict = {
     'project': ProjectConfig('new_project', []),
     'compiler': CompilerConfig('clang', ''),
-    'language': LanguageConfig(11, 'libstdc++', ''),
+    'language': LanguageConfig(11, 'libstdc++', True),
     'build': BuildConfig('./build'),
     'modules': ModulesConfig('.', [], '.', []),
     'executable': ExecutableConfig('main', '', 'false')

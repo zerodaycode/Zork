@@ -99,7 +99,7 @@ if __name__ == '__main__':
             output_dir = config.get("build").output_dir
             
             run_exec = ''
-            if constants.OS == 'Windows':
+            if constants.OS == constants.WINDOWS:
                 full_current_path = os.getcwd()
                 run_exec = f'{full_current_path}\\{output_dir}\\{exec_name}.exe'
                 
