@@ -92,13 +92,15 @@ def call_clang_to_work(config: dict, verbose: bool, project_name: str):
                 "Modules"
             )
 
-        prebuild_modules_path, _ = _clang_prebuild_module_interfaces(
+        prebuild_modules_path, interfaces = _clang_prebuild_module_interfaces(
             config, verbose, base_command_line
         )
         implementations = _compile_module_implementations(
             config, verbose, prebuild_modules_path, base_command_line
         )
 
+        for module_ifc in interfaces:
+            command_line.append(module_ifc)
         for module_src in implementations:
             command_line.append(module_src)
 
@@ -158,6 +160,7 @@ def _clang_prebuild_module_interfaces(
         if ".cppm" not in module_file:
             commands.append('-Xclang')
             commands.append('-emit-module-interface')
+            commands.append('-x c++-module')
 
         for ifc_dependency in ifcs_data[1]:
             commands.append(
