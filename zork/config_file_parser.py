@@ -48,12 +48,11 @@ def get_section_blocks(file: str) -> list:
     """
         Get all section blocks
     """
-    
+
     return re.findall(
         BLOCK_PATTERN, "".join(file), re.MULTILINE
     )
 
-    
 
 def parse_attr_properties_block(blocks: list) -> dict:
     """ Gets every syntactically valid attribute with the founded properties,
@@ -135,7 +134,7 @@ def get_sections(config_file: str, verbose: bool) -> dict:
 
     validate_special_cases(attr_ppt_collection)
 
-    """ 
+    """
         Once we have parsed and cleaned the sections founded on the
         config file, we can start match them against the valid ones
         (the ones allowed by Zork).
@@ -145,7 +144,7 @@ def get_sections(config_file: str, verbose: bool) -> dict:
         Now we must discover if the retrived data it's also available
         and exists inside Zork.
     """
-    
+
     # Tracks the mandatory attributes not written in the config file
     founded_attributes: list = []
     missed_mandatory_attributes: list = []
