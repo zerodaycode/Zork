@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 """ [summary]
 
     Represents a property that it's part of an attribute.
@@ -19,6 +17,8 @@ from dataclasses import dataclass
         - values: a list that contains the value(s) retrieved for the
             property from the configuration file
 """
+
+from dataclasses import dataclass
 
 
 @dataclass

@@ -1,3 +1,8 @@
+""" _summary_
+
+    Provides the configuration for build the project with `Pyinstaller` as an executable
+"""
+
 from setuptools import setup, find_packages
 
 setup(
@@ -9,8 +14,8 @@ setup(
     packages=find_packages('zork'),
     package_dir={'': 'zork'},
     url='https://github.com/zerodaycode/Zork',
-    keywords='C++ project manager build system',
+    keywords='C++ project manager and build system',
     install_requires=[
-      'pyinstaller'
-    ],
+		'pyinstaller'
+	],
 )

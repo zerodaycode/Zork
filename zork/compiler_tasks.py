@@ -1,4 +1,4 @@
-"""[summary]
+""" _summary_
 
     This file provides several functions that creates the
     command line compiler calls, generated after parsing the
@@ -45,10 +45,12 @@ def call_clang_to_work(config: dict, verbose: bool, project_name: str):
             f'-std=c++{config.get("language").cpp_standard}',
         ]
 
-        if config.get('language').modules == True:
+        if config.get('language').modules is True:
             base_command_line.append('-fimplicit-modules')
-            base_command_line.append(f'-fmodule-map-file={config.get("build").output_dir}/zork/intrinsics/zork.modulemap')
-            # base_command_line.append('--target=x86_64-w64-windows-gnu') 
+            base_command_line.append(
+                f'-fmodule-map-file={config.get("build").output_dir}/zork/intrinsics/zork.modulemap'
+            )
+            # base_command_line.append('--target=x86_64-w64-windows-gnu')
             ## TODO --target should be a configuration option (optional, with base defaults by OS)
 
     else:
@@ -58,7 +60,7 @@ def call_clang_to_work(config: dict, verbose: bool, project_name: str):
             '-stdlib=' + config.get('language').std_lib,
         ]
 
-        if config.get('language').modules == True:
+        if config.get('language').modules is True:
             base_command_line.append('-fimplicit-modules')
             base_command_line.append('-fimplicit-module-maps')
 
@@ -84,7 +86,7 @@ def call_clang_to_work(config: dict, verbose: bool, project_name: str):
     # Generates a compiler call to prebuild the module units, in case that
     # the attribute it's present, have a valid path to the .cppm module units
     # and the language level it's at least, c++20.
-    if config['language'].modules == True:
+    if config['language'].modules is True:
         if int(config.get('language').cpp_standard) < 20:
             raise LanguageLevelNotEnought(
                 20,
@@ -134,7 +136,7 @@ def _clang_prebuild_module_interfaces(
             subprocess.Popen(['mkdir', module_ifcs_dir_path]).wait()
         )
 
-    module_ifcs: list = _get_ifcs(config, verbose)
+    module_ifcs: list = _get_ifcs(config)
 
     base_command_line.insert(1, '-c')
     for ifcs_data in module_ifcs:
@@ -168,8 +170,11 @@ def _clang_prebuild_module_interfaces(
             )
 
         if verbose:
-            print(f'Module interfaces, command line to execute: {" ".join(base_command_line + commands)}')
-        
+            print(
+                f'Module interfaces, command line to execute:\
+                {" ".join(base_command_line + commands)}'
+            )
+
         run_subprocess(subprocess.Popen(base_command_line + commands).wait())
 
     if verbose:
@@ -182,7 +187,7 @@ def _clang_prebuild_module_interfaces(
     return module_ifcs_dir_path, precompiled_mod_ifcs
 
 
-def _get_ifcs(config: dict, verbose: bool):
+def _get_ifcs(config: dict):
     """ Gets the sources files for the interface files"""
     ifcs_from_config: list = config.get('modules').interfaces
     ifcs: list[tuple[str, list[str]]] = []
@@ -250,14 +255,15 @@ def _compile_module_implementations(
     module_impls_dir_path = modules_dir_path + '/implementations'
 
     # Generate the precompiled modules directory if it doesn't exists
-    if 'modules' in os.listdir(output_dir) and 'implementations' not in os.listdir(modules_dir_path):
+    if 'modules' in os.listdir(output_dir) and \
+        'implementations' not in os.listdir(modules_dir_path):
         run_subprocess(
             subprocess.Popen(['mkdir', module_impls_dir_path]).wait()
         )
     if verbose:
         print('Compiling the module implementations...')
 
-    module_impls_relations: list = _get_impls(config, verbose)
+    module_impls_relations: list = _get_impls(config)
 
     for module_impl_tuple in module_impls_relations:
         commands: list = []
@@ -282,7 +288,7 @@ def _compile_module_implementations(
             )
         if verbose:
             print(
-                'Module implementation units, command line to execute: ' + 
+                'Module implementation units, command line to execute: ' +
                 f'{" ".join(base_command_line + commands)}'
             )
         run_subprocess(subprocess.Popen(base_command_line + commands).wait())
@@ -295,7 +301,7 @@ def _compile_module_implementations(
     ]
 
 
-def _get_impls(config: dict, verbose: bool):
+def _get_impls(config: dict):
     """ Gets the sources files for the module implementation files
         and the interfaces that the implementation files depends on
     """
@@ -354,7 +360,7 @@ def _get_impls(config: dict, verbose: bool):
 def generate_build_output_directory(config: dict):
     """ Creates the directory where the compiler will dump the
         generated files after the build process.
-        
+
         Also, it will generate the [output_build_dir/zork/intrinsics],
         which is the place where Zork dumps the things that needs to
         work under different conditions. For example, currently under
@@ -365,7 +371,8 @@ def generate_build_output_directory(config: dict):
     zork_intrinsics_dir: str = f'{output_build_dir}/zork/intrinsics'
 
     if not output_build_dir.strip('./') in os.listdir():
-        """ Kind of cache feature. If the directory exists, we don't regenerate it on every compilation """
+        """ Kind of cache feature. If the directory exists,
+        we don't regenerate it on every compilation """
         run_subprocess(subprocess.Popen(['mkdir', output_build_dir]).wait())
         if constants.OS == constants.WINDOWS:
             run_subprocess(subprocess.Popen(['mkdir', '-p', zork_intrinsics_dir]).wait())
@@ -381,7 +388,7 @@ def find_system_headers_path() -> str:
     """
     Tries to find the system headers included with the Mingw installation.
     Currently, using Zork with Clang under Windows depends of having a installation
-    of GCC Gnu's compiler through MinGW. 
+    of GCC Gnu's compiler through MinGW.
     """
     SYSTEM_HEADERS_PATH: str = ''
 
@@ -393,10 +400,9 @@ def find_system_headers_path() -> str:
                 break
         # TODO Check if it's needed a logic change for the include path on Linux
 
-    if SYSTEM_HEADERS_PATH == '':
-        raise NoSystemHeadersFound()
-    else:
+    if SYSTEM_HEADERS_PATH != '':
         return SYSTEM_HEADERS_PATH
+    raise NoSystemHeadersFound()
 
 
 def generate_import_std(config: dict, zork_intrinsics_dir_path: str):
@@ -439,17 +445,18 @@ def generate_import_std(config: dict, zork_intrinsics_dir_path: str):
             else:
                 SYSTEM_HEADERS_HEADER += f'#include <{path}/{file}>\n'
 
-    
+
     ZORK_MODULE_MAP += (
         'module "std"' + ' {\n'
         '  export *\n'
-        f'  header "std.h"\n'
+        '  header "std.h"\n'
         '}'
     )
 
     with open(f'{zork_intrinsics_dir_path}/std.h', 'w', encoding='UTF-8') as std_headers_file:
         std_headers_file.write(SYSTEM_HEADERS_HEADER)
-    with open(f'{zork_intrinsics_dir_path}/zork.modulemap', 'w', encoding='UTF-8') as zork_modulemap_file:
+    with open(f'{zork_intrinsics_dir_path}/zork.modulemap', 'w', encoding='UTF-8') \
+        as zork_modulemap_file:
         zork_modulemap_file.write(ZORK_MODULE_MAP)
 
 

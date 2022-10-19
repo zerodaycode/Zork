@@ -1,10 +1,10 @@
-from dataclasses import dataclass
-from typing import Any
-
-"""[summary]
+""" [summary]
     Provides dataclasses to store the options selected by the
     user in the configuration file after parse it
 """
+
+from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -55,7 +55,7 @@ class LanguageConfig:
         elif property_name == 'std_lib':
             self.std_lib = value
         elif property_name == 'modules':
-            if value == 'true' or value == 'True' or value == '':
+            if value in ('true', 'True', ''):
                 self.modules = True
             else:
                 self.modules = False
