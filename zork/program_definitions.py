@@ -8,10 +8,10 @@
 from typing import Any
 
 from data.attributes import CompilerAttribute, LanguageAttribute, \
-    BuildAttribute, ExecutableAttribute, ProjectAttribute
+    BuildAttribute, ExecutableAttribute, TestsAttribute, ProjectAttribute
 from data.properties import Property
 from data.user_config import CompilerConfig, ExecutableConfig, \
-    LanguageConfig, BuildConfig, ModulesConfig, ProjectConfig
+    LanguageConfig, BuildConfig, ModulesConfig, ProjectConfig, TestsConfig
 
 # Suported compilers
 CLANG: str = 'clang++'
@@ -89,6 +89,16 @@ EXECUTABLE_ATTR: ExecutableAttribute = ExecutableAttribute(
         Property('auto_execute', False, ['true', 'false']),
     ]
 )
+TESTS_ATTR: TestsAttribute = TestsAttribute(
+    identifier='[[#tests]]',
+    mandatory=False,
+    properties=[
+        Property('tests_name', False, Any),
+        Property('sources', False, Any),
+        Property('auto_run_tests', False, ['true', 'false']),
+    ]
+)
+
 
 # Shortcut to have all the sections available in Zork
 PROGRAM_SECTIONS: list = [
@@ -97,7 +107,8 @@ PROGRAM_SECTIONS: list = [
     LANGUAGE_ATTR,
     BUILD_ATTR,
     MODULES_ATTR,
-    EXECUTABLE_ATTR
+    EXECUTABLE_ATTR,
+    TESTS_ATTR
 ]
 
 # Shortcut to have all the attributes as identifiers
@@ -114,5 +125,6 @@ PROGRAM_BASE_CONFIG: dict = {
     'language': LanguageConfig(11, 'libstdc++', True),
     'build': BuildConfig('./build'),
     'modules': ModulesConfig('.', [], '.', []),
-    'executable': ExecutableConfig('main', '', 'false')
+    'executable': ExecutableConfig('main', '', 'false'),
+    'tests': TestsConfig('proj_tests', '', 'false')
 }

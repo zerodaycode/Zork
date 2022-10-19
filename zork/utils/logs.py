@@ -51,4 +51,5 @@ def show_final_config_values(config: dict):
     print(f'    Language: {config.get("language")}')
     print(f'    Build: {config.get("build")}')
     print(f'    Executable: {config.get("executable")}')
+    print(f'    Executable: {config.get("tests")}')
     print(f'    Modules: {config.get("modules")}\n')

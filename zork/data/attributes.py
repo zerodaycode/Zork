@@ -52,3 +52,11 @@ class ExecutableAttribute:
     identifier: str
     mandatory: bool
     properties: list
+
+
+@dataclass
+class TestsAttribute:
+    """ Holds the configuration for tests execution """
+    identifier: str
+    mandatory: bool
+    properties: list

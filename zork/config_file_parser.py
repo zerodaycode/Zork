@@ -21,7 +21,7 @@ def get_project_config(root_path: str, verbose) -> dict:
     # Check if the config file format it's valid
     check_valid_config_file(config_file)
 
-    # If the config file it's OK, the we can retrieve all the config sections
+    # If the config file it's OK, then we can retrieve all the config sections
     return get_sections(config_file, verbose)
 
 

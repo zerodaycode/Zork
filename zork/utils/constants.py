@@ -42,6 +42,11 @@ executable_name: zork_proj_example
 sources: *.cpp
 auto_execute: true
 
+[[#tests]]
+tests_name: zork_proj_tests
+sources: *.cpp
+auto_run_tests: true
+
 
 [[#modules]]
 base_ifcs_dir: <project_name>/ifc/

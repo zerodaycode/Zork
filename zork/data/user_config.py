@@ -114,6 +114,23 @@ class ExecutableConfig:
         elif property_name == 'auto_execute':
             self.auto_execute = value
 
+class TestsConfig:
+    """ The user defined configuration to run tests"""
+    tests_name: str
+    sources: list
+    auto_run_tests: str
+
+    def set_property(self, property_name: str, value: Any):
+        """ Sets the value(s) for the members of the class,
+            given any value related by the method's parameter
+            'property name'"""
+        if property_name == 'tests_name':
+            self.tests_name = value
+        elif property_name == 'sources':
+            self.sources = get_sources(value)
+        elif property_name == 'auto_run_tests':
+            self.auto_run_tests = value
+
 
 def get_authors(value) -> list:
     """ Retrieves the authors property for the project attribute
