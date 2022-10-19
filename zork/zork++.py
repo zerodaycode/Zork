@@ -1,4 +1,4 @@
-""" A Zorks project works reading it's own configuration file.
+""" A Zork project works reading it's own configuration file.
     The configuration file it's formed by two main type of tokens:
 
     Section attributes -> [#section_attr]
@@ -99,10 +99,10 @@ if __name__ == '__main__':
             RUN_EXEC = ''
             if constants.OS == constants.WINDOWS:
                 full_current_path = os.getcwd()
-                run_exec = f'{full_current_path}\\{output_dir}\\{exec_name}.exe'
+                RUN_EXEC = f'{full_current_path}\\{output_dir}\\{exec_name}.exe'
 
                 QUOTED_PATHS = ''
-                sp = [p for p in run_exec.split('\\') if p != '']
+                sp = [p for p in RUN_EXEC.split('\\') if p != '']
 
                 for idx, el in enumerate(sp):
                     if " " in el:
@@ -117,7 +117,7 @@ if __name__ == '__main__':
                 RUN_EXEC = f'{config.get("build").output_dir}/{exec_name}'
 
             try:
-                os.system(run_exec)
+                os.system(RUN_EXEC)
             except Exception as ex:
                 print(f'Exception running the executable happened: {ex}')
     else:
