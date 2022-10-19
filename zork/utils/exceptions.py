@@ -115,7 +115,8 @@ class NoSystemHeadersFound(Exception):
             "mingw64 installation exists on the system.\n" +
             "Please, go and install a valid toolchain with MSYS2 to work with Clang, or " +
             "manually point to a Clang's installation in your system\n" +
-            "that contains the C++ expected system headers using the system_headers_path property " +
+            "that contains the C++ expected system headers using the " +
+            "system_headers_path property " +
             "under the [[#compiler]] attribute"
         )
 
