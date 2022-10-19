@@ -4,7 +4,6 @@ on: [push]
 
 jobs:
   code-linter:
-    - name: pylint-analysis
     runs-on: ubuntu-latest
     strategy:
       matrix:
