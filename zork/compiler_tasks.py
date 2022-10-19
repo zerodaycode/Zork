@@ -400,10 +400,9 @@ def find_system_headers_path() -> str:
                 break
         # TODO Check if it's needed a logic change for the include path on Linux
 
-    if SYSTEM_HEADERS_PATH == '':
-        raise NoSystemHeadersFound()
-    else:
+    if SYSTEM_HEADERS_PATH != '':
         return SYSTEM_HEADERS_PATH
+    raise NoSystemHeadersFound()
 
 
 def generate_import_std(config: dict, zork_intrinsics_dir_path: str):

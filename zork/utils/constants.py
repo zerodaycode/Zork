@@ -1,7 +1,8 @@
+""" Constant definitions across the whole program """
+
 import platform
 
 
-""" Constant definitions across the whole program """
 PROJECT_VERSION: str = '1.0.0'
 CONFIGURATION_FILE_NAME: str = 'zork.conf'
 
