@@ -171,8 +171,8 @@ def _clang_prebuild_module_interfaces(
 
         if verbose:
             print(
-                f'Module interfaces, command line to execute:\
-                {" ".join(base_command_line + commands)}'
+                'Module interfaces, command line to execute: ' + \
+                " ".join(base_command_line + commands)
             )
 
         run_subprocess(subprocess.Popen(base_command_line + commands).wait())
@@ -288,8 +288,8 @@ def _compile_module_implementations(
             )
         if verbose:
             print(
-                'Module implementation units, command line to execute: ' +
-                f'{" ".join(base_command_line + commands)}'
+                'Module implementation units, command line to execute: ' + \
+                " ".join(base_command_line + commands)
             )
         run_subprocess(subprocess.Popen(base_command_line + commands).wait())
 
