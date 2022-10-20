@@ -27,7 +27,7 @@
 - [Getting Started](#getting_started)
 - [The `zork.conf` quick start](#usage)
 - [The `zork.conf` reference guide](#zork_conf_reference)
-- [Windows special requeriments](#windows_special_requeriments)
+- [Windows special requirements](#windows_special_requeriments)
 - [C++23 `import std;`](#import_std)
 - [The developers and contributors guide](#devs_guide)
 - [Built Using](#built_using)
