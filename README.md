@@ -355,6 +355,16 @@ MODULES_ATTR: ProjectAttribute = ProjectAttribute(
         )
     ]
 )
+
+TESTS_ATTR: ProjectAttribute = ProjectAttribute(
+    identifier='[[#tests]]',
+    mandatory=False,
+    properties=[
+        Property('tests_name', False, Any),
+        Property('sources', False, Any),
+        Property('auto_run_tests', False, ['true', 'false']),
+    ]
+)
 ```
 where, the constant values declared for some *values* properties are:
 ```
