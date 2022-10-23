@@ -130,7 +130,7 @@ def new_project_autogenerator(
         src_mod_file.write(SRC_MOD_FILE_2)
 
     subprocess.Popen([
-        'mkdir', f'{project_name}/testing'
+        'mkdir', f'{project_name}/tests'
     ]).wait()
     subprocess.Popen([
         'mkdir', f'{project_name}/dependencies'

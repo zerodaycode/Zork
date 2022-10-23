@@ -1,19 +1,4 @@
-import os
-import time
-
-from config_file_parser import get_project_config
-
-from compiler_tasks import build_project
-
-from utils.workspace_scanner import find_config_file
-from utils.exceptions import NoConfigurationFileFound
-from utils.logs import initial_log, log_process_result, \
-    show_final_config_values
-from utils.zork_cli import command_line_interface, new_project_autogenerator
-from utils import constants
-
-
-""" A Zorks project works reading it's own configuration file.
+""" A Zork project works reading it's own configuration file.
     The configuration file it's formed by two main type of tokens:
 
     Section attributes -> [#section_attr]
@@ -41,6 +26,20 @@ from utils import constants
     ... and so on and so forth
 """
 
+import os
+import time
+
+from config_file_parser import get_project_config
+
+from compiler_tasks import build_project
+
+from utils.workspace_scanner import find_config_file
+from utils.exceptions import NoConfigurationFileFound
+from utils.logs import initial_log, log_process_result, \
+    show_final_config_values
+from utils.zork_cli import command_line_interface, new_project_autogenerator
+from utils import constants
+
 
 if __name__ == '__main__':
     process_init_time = time.time_ns() // 1_000_000
@@ -49,7 +48,7 @@ if __name__ == '__main__':
     cli_options = command_line_interface()
     verbose: bool = cli_options.verbose
 
-    if cli_options.__contains__('project_name'):
+    if 'project_name' in cli_options:
         proj_already_created: bool = \
             os.path.exists(cli_options.project_name[0])
 
@@ -72,7 +71,7 @@ if __name__ == '__main__':
 
         # Project name definition
         proj_name: str = cli_options.project_name[0] \
-            if cli_options.__contains__('project_name') \
+            if 'project_name' in cli_options \
             else config.get('project').name
 
         if verbose:
@@ -82,12 +81,11 @@ if __name__ == '__main__':
                 ' to perform the build job'
             )
 
-        process_result = build_project(
+        log_process_result(process_init_time, build_project(
             config,
             verbose,
             proj_name
-        )
-        log_process_result(process_init_time, process_result)
+        ))
 
         # Runs the generated executable if configurated
         if config.get('executable').auto_execute == 'true':
@@ -97,29 +95,29 @@ if __name__ == '__main__':
                     proj_name
                 )
             output_dir = config.get("build").output_dir
-            
-            run_exec = ''
+
+            RUN_EXEC = ''
             if constants.OS == constants.WINDOWS:
                 full_current_path = os.getcwd()
-                run_exec = f'{full_current_path}\\{output_dir}\\{exec_name}.exe'
-                
-                quoted_paths = ''
-                sp = [p for p in run_exec.split('\\') if p != '']
+                RUN_EXEC = f'{full_current_path}\\{output_dir}\\{exec_name}.exe'
+
+                QUOTED_PATHS = ''
+                sp = [p for p in RUN_EXEC.split('\\') if p != '']
 
                 for idx, el in enumerate(sp):
-                    if el.__contains__(" "):
+                    if " " in el:
                         intermediate =  '"' + el + '"'
-                        quoted_paths += intermediate
+                        QUOTED_PATHS += intermediate
                     else:
-                        quoted_paths += el
-                    quoted_paths += '\\'
-                        
-                run_exec = quoted_paths[:-1]
+                        QUOTED_PATHS += el
+                    QUOTED_PATHS += '\\'
+
+                RUN_EXEC = QUOTED_PATHS[:-1]
             else:
-                run_exec = f'{config.get("build").output_dir}/{exec_name}'
+                RUN_EXEC = f'{config.get("build").output_dir}/{exec_name}'
 
             try:
-                os.system(run_exec)
+                os.system(RUN_EXEC)
             except Exception as ex:
                 print(f'Exception running the executable happened: {ex}')
     else:

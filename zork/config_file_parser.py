@@ -1,3 +1,8 @@
+""" _summary_
+
+    This file contains the `zork.conf` file methods that do the parsing over it
+"""
+
 import typing
 import re
 
@@ -27,7 +32,7 @@ def get_project_config(root_path: str, verbose) -> dict:
 
 def read_config_file_lines(root_path: str) -> list:
     """ Get all the lines written in the conf file """
-    with open(root_path + '/' + CONFIGURATION_FILE_NAME, 'r') as config_file:
+    with open(root_path + '/' + CONFIGURATION_FILE_NAME, 'r', encoding='UTF-8') as config_file:
         return config_file.readlines()
 
 
@@ -43,12 +48,11 @@ def get_section_blocks(file: str) -> list:
     """
         Get all section blocks
     """
-    
+
     return re.findall(
         BLOCK_PATTERN, "".join(file), re.MULTILINE
     )
 
-    
 
 def parse_attr_properties_block(blocks: list) -> dict:
     """ Gets every syntactically valid attribute with the founded properties,
@@ -72,12 +76,17 @@ def parse_attr_properties_block(blocks: list) -> dict:
 
         properties: list = []
 
-        for property in extracted_properties:
+        for prop in extracted_properties:
 
-            property_values = ";".join([p_value.strip('\t').strip(' ') for p_value in property.group("value").strip('\n').split('\n')])
+            property_values = ";".join(
+                [
+                    p_value.strip('\t').strip(' ')
+                    for p_value in prop.group("value").strip('\n').split('\n')
+                ]
+            )
             properties.append(
                 {
-                    "property_name": property.group("name"),
+                    "property_name": prop.group("name"),
                     "property_value": property_values
                 }
             )
