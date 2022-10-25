@@ -208,7 +208,7 @@ For now, tests run independent from the executables or library generations. So, 
 $ zork++ --tests
 ```
 
-You manually must provide a tests suite for now (there are some plans to include one or two of the major ones shipped with `Zork++` directly, like `boost::ut` or `Catch2`), but for now, you must manually download the source files and pass them (if applies) to `Zork`.
+You manually must provide a tests suite for now. There are some plans to include one or two of the major ones shipped with `Zork++` directly, like `boost::ut` or `Catch2`, but for now, you must manually download the source files and pass them (if applies) to `Zork`.
 
 `base_path` property (optional) allows you to reduce the path needed to write
 every time for every source file.
