@@ -199,6 +199,20 @@ Let's briefly discuss every section, to get a general perspective of what we are
 
 - `[[#modules]]` => The core section to instruct the compiler to work with `C++20 modules`. The most important are the base path to the *interfaces* and *implementation* files (usually you don't want to spread your files elsewhere), so `Zork++` knows where it should look for them, and the `interfaces` and `implementation` files where you speficy exactly what modules are composing your project.
 
+- `[[#tests]]` => Tests attribute allows you to run the tests written for
+your application in a convenient way. You only have to provide the sources
+and... ready to go! `Zork++` will take care of all the rest.
+
+For now, tests run independent from the executables or library generations. So, if you want to check the health of your applications and run your tests, just invoke Zork's binary and pass to the command line the `--tests` flags.
+```
+$ zork++ --tests
+```
+
+You manually must provide a tests suite for now (there are some plans to include one or two of the major ones shipped with `Zork++` directly, like `boost::ut` or `Catch2`), but for now, you must manually download the source files and pass them (if applies) to `Zork`.
+
+`base_path` property (optional) allows you to reduce the path needed to write
+every time for every source file.
+
 ## Additional notes on the `[[#modules]]` properties syntax
 
 > Whenever you declare a module interface or a module implementation in the configuration file, you must take in consideration that sometimes modules (both interfaces or implementations) depend on other modules. Dependencies of one or more modules are declared as shown below:
