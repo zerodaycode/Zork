@@ -16,7 +16,12 @@ from utils.exceptions import LanguageLevelNotEnought, UnsupportedCompiler, \
 from utils import constants
 
 
-def build_project(config: dict, verbose: bool, project_name: str) -> int:
+def build_project(
+    config: dict,
+    verbose: bool,
+    project_name: str,
+    tests: bool
+) -> int:
     """ Calls the selected compiler to perform the build of the project """
 
     generate_build_output_directory(config)
@@ -25,7 +30,7 @@ def build_project(config: dict, verbose: bool, project_name: str) -> int:
     command_line: list = []
 
     if compiler == CLANG:
-        command_line = call_clang_to_work(config, verbose, project_name)
+        command_line = call_clang_to_work(config, verbose, project_name, tests)
     elif compiler == GCC:
         raise UnsupportedCompiler(GCC)
     else:
@@ -36,33 +41,15 @@ def build_project(config: dict, verbose: bool, project_name: str) -> int:
     return run_subprocess(subprocess.Popen(command_line).wait())
 
 
-def call_clang_to_work(config: dict, verbose: bool, project_name: str):
+def call_clang_to_work(
+    config: dict,
+    verbose: bool,
+    project_name: str,
+    tests: bool
+) -> str:
     """ Calls Clang++ to compile the provide files / project """
     # Generates the compiler and linker calls
-    if constants.OS == constants.WINDOWS:
-        base_command_line = [
-            config.get('compiler').cpp_compiler,
-            f'-std=c++{config.get("language").cpp_standard}',
-        ]
-
-        if config.get('language').modules is True:
-            base_command_line.append('-fimplicit-modules')
-            base_command_line.append(
-                f'-fmodule-map-file={config.get("build").output_dir}/zork/intrinsics/zork.modulemap'
-            )
-            # base_command_line.append('--target=x86_64-w64-windows-gnu')
-            ## TODO --target should be a configuration option (optional, with base defaults by OS)
-
-    else:
-        base_command_line = [
-            config.get('compiler').cpp_compiler,
-            '-std=c++' + config.get('language').cpp_standard,
-            '-stdlib=' + config.get('language').std_lib,
-        ]
-
-        if config.get('language').modules is True:
-            base_command_line.append('-fimplicit-modules')
-            base_command_line.append('-fimplicit-module-maps')
+    base_command_line = clang_base_command_line(config)
 
     # The command line with the args for the executable
     command_line = base_command_line + [
@@ -75,13 +62,8 @@ def call_clang_to_work(config: dict, verbose: bool, project_name: str):
         )
     ]
 
-    # Sources for compile and link into the executable
-    for source in config.get("executable").sources:
-        if '*.' in source:
-            for wildcard_ifc in glob.glob(source):
-                command_line.append(wildcard_ifc.replace('\\', '/'))
-        else:
-            command_line.append(source)
+    # Adds the source files to the command line
+    add_sources(config, tests, command_line)
 
     # Generates a compiler call to prebuild the module units, in case that
     # the attribute it's present, have a valid path to the .cppm module units
@@ -111,6 +93,59 @@ def call_clang_to_work(config: dict, verbose: bool, project_name: str):
         )
 
     return command_line
+
+
+def add_sources(config: dict, tests: bool, command_line: list[str]):
+    """ Adds to the command line the files found on the
+        executable and tests attributes under the sources
+        property.
+    """
+    tar = config.get('executable') if not tests else config.get('tests')
+    sources, base_path = (tar.sources, tar.sources_base_path)
+
+    if base_path != '':  # Adding a final slash to the base path
+        base_path = f'{base_path}/'
+
+    for source in sources:
+        if '*.' in source:
+            for wildcard_ifc in glob.glob(source):
+                command_line.append(
+                    base_path + wildcard_ifc.replace('\\', '/')
+                )
+        else:
+            command_line.append(base_path + source)
+
+
+def clang_base_command_line(config: dict) -> list[str]:
+    """ Builds a base command line with the common shared
+    arguments for every possbile action (build executable,
+    build tests, etc.)
+
+    Returns:
+        list[str]: _description_
+    """
+    base_command_line: list[str] = [
+        config.get('compiler').cpp_compiler,
+        f'-std=c++{config.get("language").cpp_standard}',
+    ]
+
+    if constants.OS == constants.WINDOWS:
+        if config.get('language').modules is True:
+            base_command_line.append('-fimplicit-modules')
+            base_command_line.append(
+                f'-fmodule-map-file={config.get("build").output_dir}' +
+                    '/zork/intrinsics/zork.modulemap'
+            )
+            # base_command_line.append('--target=x86_64-w64-windows-gnu')
+            ## TODO --target should be a configuration option (optional, with base defaults by OS)
+
+    else:
+        base_command_line.append('-stdlib=' + config.get('language').std_lib)
+        if config.get('language').modules is True:
+            base_command_line.append('-fimplicit-modules')
+            base_command_line.append('-fimplicit-module-maps')
+
+    return base_command_line
 
 
 def _clang_prebuild_module_interfaces(

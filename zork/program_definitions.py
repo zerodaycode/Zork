@@ -9,8 +9,9 @@ from typing import Any
 
 from data.attributes import ProjectAttribute
 from data.properties import Property
-from data.user_config import CompilerConfig, ExecutableConfig, \
-    LanguageConfig, BuildConfig, ModulesConfig, ProjectConfig
+
+from data.user_config import ProjectConfig, CompilerConfig, LanguageConfig, \
+    ModulesConfig, BuildConfig, ExecutableConfig, TestsConfig
 
 # Suported compilers
 CLANG: str = 'clang++'
@@ -21,7 +22,7 @@ SUPPORTED_COMPILERS: list = [CLANG, GCC, MSVC]
 SUPPORTED_CPP_LANG_LEVELS: list = [
     '11', '14', '17', '20', '23', '1a', '2a', '1x', '2x'
 ]
-SUPPORTED_CPP_STDLIBS: list[str] = ['stdlibc++', 'libc++']
+SUPPORTED_CPP_STDLIBS: list[str] = ['libstdc++', 'libc++']
 SYSTEM_HEADERS_EXPECTED_PATHS: list[str] = ['C:/msys64/mingw64/include/c++/']
 
 
@@ -104,6 +105,11 @@ EXECUTABLE_ATTR: ProjectAttribute = ProjectAttribute(
             values=Any
         ),
         Property(
+            identifier='sources_base_path',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
             identifier='sources',
             mandatory=False,
             values=Any
@@ -143,6 +149,34 @@ MODULES_ATTR: ProjectAttribute = ProjectAttribute(
     ]
 )
 
+TESTS_ATTR: ProjectAttribute = ProjectAttribute(
+    identifier='[[#tests]]',
+    mandatory=False,
+    properties=[
+        Property(
+            identifier='tests_name',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='sources_base_path',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='sources',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='auto_run_tests',
+            mandatory=False,
+            values=['true', 'false']
+        ),
+    ]
+)
+
+
 # Shortcut to have all the sections available in Zork
 PROGRAM_SECTIONS: list = [
     PROJECT_ATTR,
@@ -150,7 +184,8 @@ PROGRAM_SECTIONS: list = [
     LANGUAGE_ATTR,
     BUILD_ATTR,
     MODULES_ATTR,
-    EXECUTABLE_ATTR
+    EXECUTABLE_ATTR,
+    TESTS_ATTR
 ]
 
 # Shortcut to have all the attributes as identifiers
@@ -167,5 +202,6 @@ PROGRAM_BASE_CONFIG: dict = {
     'language': LanguageConfig(11, 'libstdc++', True),
     'build': BuildConfig('./build'),
     'modules': ModulesConfig('.', [], '.', []),
-    'executable': ExecutableConfig('main', '', 'false')
+    'executable': ExecutableConfig('main', '', '', 'false'),
+    'tests': TestsConfig('proj_tests', '', '', 'false')
 }

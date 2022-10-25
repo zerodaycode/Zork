@@ -30,8 +30,8 @@
 - [Windows special requirements](#windows_special_requeriments)
 - [C++23 `import std;`](#import_std)
 - [The developers and contributors guide](#devs_guide)
+- [TODO ZONE](#todo_zone)
 - [Built Using](#built_using)
-- [TODO](../TODO.md)
 - [Contributing](../CONTRIBUTING.md)
 - [License](./LICENSE)
 - [Authors](#authors)
@@ -199,6 +199,20 @@ Let's briefly discuss every section, to get a general perspective of what we are
 
 - `[[#modules]]` => The core section to instruct the compiler to work with `C++20 modules`. The most important are the base path to the *interfaces* and *implementation* files (usually you don't want to spread your files elsewhere), so `Zork++` knows where it should look for them, and the `interfaces` and `implementation` files where you speficy exactly what modules are composing your project.
 
+- `[[#tests]]` => Tests attribute allows you to run the tests written for
+your application in a convenient way. You only have to provide the sources
+and... ready to go! `Zork++` will take care of all the rest.
+
+For now, tests run independent from the executables or library generations. So, if you want to check the health of your applications and run your tests, just invoke Zork's binary and pass to the command line the `--tests` flags.
+```
+$ zork++ --tests
+```
+
+You manually must provide a tests suite for now (there are some plans to include one or two of the major ones shipped with `Zork++` directly, like `boost::ut` or `Catch2`), but for now, you must manually download the source files and pass them (if applies) to `Zork`.
+
+`base_path` property (optional) allows you to reduce the path needed to write
+every time for every source file.
+
 ## Additional notes on the `[[#modules]]` properties syntax
 
 > Whenever you declare a module interface or a module implementation in the configuration file, you must take in consideration that sometimes modules (both interfaces or implementations) depend on other modules. Dependencies of one or more modules are declared as shown below:
@@ -317,6 +331,11 @@ EXECUTABLE_ATTR: ProjectAttribute = ProjectAttribute(
             values=Any
         ),
         Property(
+            identifier='sources_base_path',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
             identifier='sources',
             mandatory=False,
             values=Any
@@ -353,6 +372,33 @@ MODULES_ATTR: ProjectAttribute = ProjectAttribute(
             mandatory=False,
             values=Any
         )
+    ]
+)
+
+TESTS_ATTR: ProjectAttribute = ProjectAttribute(
+    identifier='[[#tests]]',
+    mandatory=False,
+    properties=[
+        Property(
+            identifier='tests_name',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='sources_base_path',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='sources',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='auto_run_tests',
+            mandatory=False,
+            values=['true', 'false']
+        ),
     ]
 )
 ```
@@ -417,9 +463,18 @@ All tests are running in different workflows that you can [check out here](
     https://github.com/zerodaycode/Zork/actions
 ). But, also, you can always download the source code and run them in a local environment.
 
+# TODO ZONE <a name = "todo_zone"></a>
+
+### Things that we desire to implement or upgrade in Zork++ 
+
+- Recognize multiple *zork.conf* files by suffix. For ex: `zork_windows.conf` and
+`zork_linux.conf`. This will allow the user to have multiple conf file for different platforms when options are susceptible to change (use libc++ under Linux and libstdc++ under Windows witn Clang). Also, we can start to think in the same pattern for environments (PRE, PRO...) and allow things like (zork_linux_pro.conf)
+
 # ⛏️ Built Using <a name = "built_using"></a>
 
 - [Python](https://www.python.org/) - Language
+
+## TODO - Motivations for the style, etc
 
 # ✍️ Authors <a name = "authors"></a>
 
