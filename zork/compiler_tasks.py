@@ -62,22 +62,8 @@ def call_clang_to_work(
         )
     ]
 
-    # Sources for compile and link into the executable,
-    # or for generate the executable for the tests
-    tar = config.get('executable') if not tests else config.get('tests')
-    sources, base_path = (tar.sources, tar.sources_base_path)
-
-    if base_path != '':  # Adding a final slash to the base path
-        base_path = f'{base_path}/'
-
-    for source in sources:
-        if '*.' in source:
-            for wildcard_ifc in glob.glob(source):
-                command_line.append(
-                    base_path + wildcard_ifc.replace('\\', '/')
-                )
-        else:
-            command_line.append(base_path + source)
+    # Adds the source files to the command line
+    add_sources(config, tests, command_line)
 
     # Generates a compiler call to prebuild the module units, in case that
     # the attribute it's present, have a valid path to the .cppm module units
@@ -107,6 +93,27 @@ def call_clang_to_work(
         )
 
     return command_line
+
+
+def add_sources(config: dict, tests: bool, command_line: list[str]):
+    """ Adds to the command line the files found on the
+        executable and tests attributes under the sources
+        property.
+    """
+    tar = config.get('executable') if not tests else config.get('tests')
+    sources, base_path = (tar.sources, tar.sources_base_path)
+
+    if base_path != '':  # Adding a final slash to the base path
+        base_path = f'{base_path}/'
+
+    for source in sources:
+        if '*.' in source:
+            for wildcard_ifc in glob.glob(source):
+                command_line.append(
+                    base_path + wildcard_ifc.replace('\\', '/')
+                )
+        else:
+            command_line.append(base_path + source)
 
 
 def clang_base_command_line(config: dict) -> list[str]:
