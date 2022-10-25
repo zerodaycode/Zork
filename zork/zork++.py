@@ -88,7 +88,7 @@ if __name__ == '__main__':
                 config,
                 verbose,
                 proj_name,
-                True if 'tests' in cli_options else False
+                cli_options.tests
             )
         )
 
