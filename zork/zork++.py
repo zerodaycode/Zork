@@ -81,11 +81,16 @@ if __name__ == '__main__':
                 ' to perform the build job'
             )
 
-        log_process_result(process_init_time, build_project(
-            config,
-            verbose,
-            proj_name
-        ))
+        # inlined call to build the project and log the result
+        log_process_result(
+            process_init_time,
+            build_project(
+                config,
+                verbose,
+                proj_name,
+                True if 'tests' in cli_options else False
+            )
+        )
 
         # Runs the generated executable if configurated
         if config.get('executable').auto_execute == 'true':

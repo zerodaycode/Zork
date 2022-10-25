@@ -30,8 +30,8 @@
 - [Windows special requirements](#windows_special_requeriments)
 - [C++23 `import std;`](#import_std)
 - [The developers and contributors guide](#devs_guide)
+- [TODO ZONE](#todo_zone)
 - [Built Using](#built_using)
-- [TODO](../TODO.md)
 - [Contributing](../CONTRIBUTING.md)
 - [License](./LICENSE)
 - [Authors](#authors)
@@ -317,6 +317,11 @@ EXECUTABLE_ATTR: ProjectAttribute = ProjectAttribute(
             values=Any
         ),
         Property(
+            identifier='sources_base_path',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
             identifier='sources',
             mandatory=False,
             values=Any
@@ -360,9 +365,26 @@ TESTS_ATTR: ProjectAttribute = ProjectAttribute(
     identifier='[[#tests]]',
     mandatory=False,
     properties=[
-        Property('tests_name', False, Any),
-        Property('sources', False, Any),
-        Property('auto_run_tests', False, ['true', 'false']),
+        Property(
+            identifier='tests_name',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='sources_base_path',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='sources',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='auto_run_tests',
+            mandatory=False,
+            values=['true', 'false']
+        ),
     ]
 )
 ```
@@ -427,9 +449,18 @@ All tests are running in different workflows that you can [check out here](
     https://github.com/zerodaycode/Zork/actions
 ). But, also, you can always download the source code and run them in a local environment.
 
+# TODO ZONE <a name = "todo_zone"></a>
+
+### Things that we desire to implement or upgrade in Zork++ 
+
+- Recognize multiple *zork.conf* files by suffix. For ex: `zork_windows.conf` and
+`zork_linux.conf`. This will allow the user to have multiple conf file for different platforms when options are susceptible to change (use libc++ under Linux and libstdc++ under Windows witn Clang). Also, we can start to think in the same pattern for environments (PRE, PRO...) and allow things like (zork_linux_pro.conf)
+
 # ⛏️ Built Using <a name = "built_using"></a>
 
 - [Python](https://www.python.org/) - Language
+
+## TODO - Motivations for the style, etc
 
 # ✍️ Authors <a name = "authors"></a>
 

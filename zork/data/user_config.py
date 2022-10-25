@@ -100,6 +100,7 @@ class BuildConfig:
 class ExecutableConfig:
     """ The user defined configuration for produce an executable file """
     executable_name: str
+    sources_base_path: str
     sources: list
     auto_execute: str
 
@@ -109,6 +110,8 @@ class ExecutableConfig:
             'property name'"""
         if property_name == 'executable_name':
             self.executable_name = value
+        elif property_name == 'sources_base_path':
+            self.sources_base_path = value
         elif property_name == 'sources':
             self.sources = get_sources(value)
         elif property_name == 'auto_execute':
@@ -119,6 +122,7 @@ class ExecutableConfig:
 class TestsConfig:
     """ The user defined configuration to run tests"""
     tests_name: str
+    sources_base_path: str
     sources: list
     auto_run_tests: str
 
@@ -128,6 +132,8 @@ class TestsConfig:
             'property name'"""
         if property_name == 'tests_name':
             self.tests_name = value
+        elif property_name == 'sources_base_path':
+            self.sources_base_path = value
         elif property_name == 'sources':
             self.sources = get_sources(value)
         elif property_name == 'auto_run_tests':

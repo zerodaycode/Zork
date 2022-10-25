@@ -22,7 +22,7 @@ SUPPORTED_COMPILERS: list = [CLANG, GCC, MSVC]
 SUPPORTED_CPP_LANG_LEVELS: list = [
     '11', '14', '17', '20', '23', '1a', '2a', '1x', '2x'
 ]
-SUPPORTED_CPP_STDLIBS: list[str] = ['stdlibc++', 'libc++']
+SUPPORTED_CPP_STDLIBS: list[str] = ['libstdc++', 'libc++']
 SYSTEM_HEADERS_EXPECTED_PATHS: list[str] = ['C:/msys64/mingw64/include/c++/']
 
 
@@ -105,6 +105,11 @@ EXECUTABLE_ATTR: ProjectAttribute = ProjectAttribute(
             values=Any
         ),
         Property(
+            identifier='sources_base_path',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
             identifier='sources',
             mandatory=False,
             values=Any
@@ -148,9 +153,26 @@ TESTS_ATTR: ProjectAttribute = ProjectAttribute(
     identifier='[[#tests]]',
     mandatory=False,
     properties=[
-        Property('tests_name', False, Any),
-        Property('sources', False, Any),
-        Property('auto_run_tests', False, ['true', 'false']),
+        Property(
+            identifier='tests_name',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='sources_base_path',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='sources',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='auto_run_tests',
+            mandatory=False,
+            values=['true', 'false']
+        ),
     ]
 )
 
@@ -180,6 +202,6 @@ PROGRAM_BASE_CONFIG: dict = {
     'language': LanguageConfig(11, 'libstdc++', True),
     'build': BuildConfig('./build'),
     'modules': ModulesConfig('.', [], '.', []),
-    'executable': ExecutableConfig('main', '', 'false'),
-    'tests': TestsConfig('proj_tests', '', 'false')
+    'executable': ExecutableConfig('main', '', '', 'false'),
+    'tests': TestsConfig('proj_tests', '', '', 'false')
 }
