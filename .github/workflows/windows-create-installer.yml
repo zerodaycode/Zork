@@ -18,9 +18,9 @@ jobs:
       - name: Install PyInstaller
         run: python -m pip install pyinstaller
 
-      - name: Building exe
+      - name: Building exe with PyInstaller
         run: | 
-          echo "bad run"
+          pyinstaller setup.py
 
       - name: Building the installer
         run: |
