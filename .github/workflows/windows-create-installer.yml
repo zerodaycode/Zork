@@ -1,0 +1,44 @@
+name: windows-make-installer
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Checkout fred
+      uses: actions/checkout@v2
+      with:
+        repository: 'freenet/fred'
+        fetch-depth: 0
+        path: 'fred'
+
+    - name: Download fred from the Github Release
+      uses: i3h/download-release-asset@v1.2.0
+      with:
+        owner: "freenet"
+        repo: "fred"
+        tag: "latest"
+        file: "freenet.jar"
+
+    - uses: eskatos/gradle-command-action@v1
+      with:
+        arguments: unzip
+
+
+    - uses: eskatos/gradle-command-action@v1
+      with:
+        arguments: updateSetupFile
+
+    - name: Building the installer
+      run: |
+        "%programfiles(x86)%\Inno Setup 6\iscc.exe" "FreenetInstall_InnoSetup.iss"
+      shell: cmd
