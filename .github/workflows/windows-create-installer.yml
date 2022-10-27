@@ -8,7 +8,6 @@ jobs:
   Building-Installer:
     runs-on: windows-latest
     steps: 
-      - uses: actions/checkout@v3
 
       - name: Make enviromment Python
         uses: actions/setup-python@v4
@@ -26,4 +25,11 @@ jobs:
         run: |
           "%programfiles(x86)%\Inno Setup 6\iscc.exe" "installer-zork.iss"
         shell: cmd
-        
+
+      - uses: EndBug/add-and-commit@v9
+        with:
+          add: 'zork++.exe'
+          author_name: Action Installer Windows
+          author_email: actionInstallerWindows@dontContactPlease.com
+          commit: --signoff
+          message: 'Save windows installer Zork++'
