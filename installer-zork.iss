@@ -26,8 +26,8 @@ ChangesAssociations=yes
 DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
-OutputDir=C:\Users\Dani\Downloads
-OutputBaseFilename=mysetup
+OutputDir=.
+OutputBaseFilename=zork++
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
