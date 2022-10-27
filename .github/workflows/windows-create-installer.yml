@@ -5,14 +5,15 @@ on:
   pull_request:
 
 jobs:
-  runs-on: windows-latest
-  steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+  Explore-GitHub-Actions:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: Building the installer
-      run: |
-        "%programfiles(x86)%\Inno Setup 6\iscc.exe" "FreenetInstall_InnoSetup.iss"
-      shell: cmd
+      - name: Building the installer
+        run: |
+          "%programfiles(x86)%\Inno Setup 6\iscc.exe" "FreenetInstall_InnoSetup.iss"
+        shell: cmd
