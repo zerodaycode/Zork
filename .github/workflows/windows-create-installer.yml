@@ -20,10 +20,10 @@ jobs:
 
       - name: Building exe with PyInstaller
         run: | 
-          pyinstaller setup.py
+          python -m PyInstaller setup.py
 
       - name: Building the installer
         run: |
-          "%programfiles(x86)%\Inno Setup 6\iscc.exe" "FreenetInstall_InnoSetup.iss"
+          "%programfiles(x86)%\Inno Setup 6\iscc.exe" "installer-zork.iss"
         shell: cmd
         
