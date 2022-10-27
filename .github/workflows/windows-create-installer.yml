@@ -5,15 +5,22 @@ on:
   pull_request:
 
 jobs:
-  Explore-GitHub-Actions:
+  Building-Installer:
     runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - name: Make enviromment Python and PyInstaller
+        uses: actions/setup-python@v4
         with:
-          fetch-depth: 0
+          python-version: '3.10'
+          cache: 'pip'
+        run: python -m pip install pyinstaller
+
+      - name: Building exe
+        run: | 
+          echo "bad run"
 
       - name: Building the installer
         run: |
           "%programfiles(x86)%\Inno Setup 6\iscc.exe" "FreenetInstall_InnoSetup.iss"
         shell: cmd
+        
