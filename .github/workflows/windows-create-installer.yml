@@ -6,13 +6,11 @@ on:
 
 jobs:
   Building-Installer:
+    permissions:
+      contents: write
+
     runs-on: windows-latest
     steps: 
-
-      - uses: actions/checkout@v3
-        with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Make enviromment Python
         uses: actions/setup-python@v4
