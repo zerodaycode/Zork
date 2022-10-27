@@ -8,6 +8,8 @@ jobs:
   Building-Installer:
     runs-on: windows-latest
     steps:
+      - uses: actions/checout@v3
+
       - name: Make enviromment Python
         uses: actions/setup-python@v4
         with:
