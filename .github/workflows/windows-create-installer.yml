@@ -30,7 +30,7 @@ jobs:
         run: |
           "%programfiles(x86)%\Inno Setup 6\iscc.exe" "installer-zork.iss"
         shell: cmd
-
+      - run : ls
       - uses: EndBug/add-and-commit@v9
         with:
           add: 'zork++.exe'
