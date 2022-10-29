@@ -24,7 +24,7 @@ jobs:
 
       - name: Building exe with PyInstaller
         run: | 
-          python -m PyInstaller setup.py
+          python -m PyInstaller setup.py --name zork++
 
       - name: Building the installer
         run: |
