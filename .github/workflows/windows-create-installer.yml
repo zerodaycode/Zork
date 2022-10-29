@@ -33,7 +33,7 @@ jobs:
       
       - uses: EndBug/add-and-commit@v9
         with:
-          add: 'zork++.exe'
+          add: 'zork-installer.exe'
           author_name: Action Installer Windows
           author_email: actionInstallerWindows@dontContactPlease.com
           commit: --signoff
