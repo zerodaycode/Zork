@@ -2,13 +2,12 @@ name: Pylint
 
 on: 
   push:
-    branches:
-      - main
+    branches: [ "*" ]
+    tags:
+      - "v*"
   pull_request:
-    branches:
-      - main
-  tags:
-    - "v*"
+    branches: [ "main" ]
+  
   
 
 jobs:
