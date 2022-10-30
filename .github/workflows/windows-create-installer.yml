@@ -6,8 +6,7 @@ on:
     types:
       - completed
   push:
-    tags:
-      - "v*"
+    
 
 jobs:
   Windows-Installer:
@@ -54,7 +53,7 @@ jobs:
           ls
       - name: Make Zip
         run: |
-          7z a windows-installer.zip windows-installer.exe
+          7z a windows-installer.zip zork-installer.exe
 
       - name: upload windows artifact
         uses: actions/upload-release-asset@v1
