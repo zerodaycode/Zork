@@ -1,3 +1,8 @@
+"""_summary_
+
+    Free standing function to check the presence of the Zork config file
+"""
+
 import os
 from utils.constants import CONFIGURATION_FILE_NAME
 

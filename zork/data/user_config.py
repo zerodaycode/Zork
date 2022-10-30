@@ -1,10 +1,10 @@
-from dataclasses import dataclass
-from typing import Any
-
-"""[summary]
+""" [summary]
     Provides dataclasses to store the options selected by the
     user in the configuration file after parse it
 """
+
+from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -55,7 +55,7 @@ class LanguageConfig:
         elif property_name == 'std_lib':
             self.std_lib = value
         elif property_name == 'modules':
-            if value == 'true' or value == 'True' or value == '':
+            if value in ('true', 'True', ''):
                 self.modules = True
             else:
                 self.modules = False
@@ -100,6 +100,7 @@ class BuildConfig:
 class ExecutableConfig:
     """ The user defined configuration for produce an executable file """
     executable_name: str
+    sources_base_path: str
     sources: list
     auto_execute: str
 
@@ -109,10 +110,34 @@ class ExecutableConfig:
             'property name'"""
         if property_name == 'executable_name':
             self.executable_name = value
+        elif property_name == 'sources_base_path':
+            self.sources_base_path = value
         elif property_name == 'sources':
             self.sources = get_sources(value)
         elif property_name == 'auto_execute':
             self.auto_execute = value
+
+
+@dataclass
+class TestsConfig:
+    """ The user defined configuration to run tests"""
+    tests_name: str
+    sources_base_path: str
+    sources: list
+    auto_run_tests: str
+
+    def set_property(self, property_name: str, value: Any):
+        """ Sets the value(s) for the members of the class,
+            given any value related by the method's parameter
+            'property name'"""
+        if property_name == 'tests_name':
+            self.tests_name = value
+        elif property_name == 'sources_base_path':
+            self.sources_base_path = value
+        elif property_name == 'sources':
+            self.sources = get_sources(value)
+        elif property_name == 'auto_run_tests':
+            self.auto_run_tests = value
 
 
 def get_authors(value) -> list:
