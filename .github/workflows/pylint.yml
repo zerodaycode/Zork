@@ -1,6 +1,14 @@
 name: Pylint
 
-on: [push, pull_request]
+on: 
+  push:
+    branches: [ "*" ]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [ "main" ]
+  
+  
 
 jobs:
   code-linter:
