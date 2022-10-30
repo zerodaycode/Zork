@@ -52,7 +52,7 @@ jobs:
 
       - name: Make Zip
         run: |
-          tar -cf windows-installer.exe windows-installer.zip
+          tar -cf windows-installer.zip windows-installer.exe
 
       - name: upload windows artifact
         uses: actions/upload-release-asset@v1
@@ -61,6 +61,6 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./windows-installer.zip
-          asset_name: windows-installer
-          asset_content_type: application/exe
+          asset_name: windows-installer.zip
+          asset_content_type: application/zip
         
