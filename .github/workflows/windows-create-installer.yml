@@ -10,7 +10,10 @@ on:
       - "v*"
 
 jobs:
-  Building-Installer:
+  Windows-Installer:
+    permissions:
+      contents: write
+      
     runs-on: windows-latest
     steps: 
 
@@ -41,4 +44,12 @@ jobs:
         with:
           name: Zork++ Windows Installer
           path: .\zork-installer.exe
+          
+      - name: "Generating Windows Release"
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          files: |
+            .\zork-installer.exe
       
