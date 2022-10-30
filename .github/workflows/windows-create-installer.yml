@@ -50,6 +50,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      - run: |
+          ls
       - name: Make Zip
         run: |
           7z a windows-installer.zip windows-installer.exe
