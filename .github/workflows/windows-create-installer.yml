@@ -39,17 +39,25 @@ jobs:
           "%programfiles(x86)%\Inno Setup 6\iscc.exe" "windows-installer-zork.iss"
         shell: cmd
 
-      - name: Upload results as an artifact
-        uses: actions/upload-artifact@v3
+      - name: release
+        uses: actions/create-release@v1
+        id: create_release
         with:
-          name: Zork++ Windows Installer
-          path: .\zork-installer.exe
-          
-      - name: "Generating Windows Release"
-        uses: "marvinpinto/action-automatic-releases@latest"
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          draft: false
           prerelease: false
-          files: |
-            .\zork-installer.exe
-      
+          release_name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref }}
+          body_path: CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: upload windows artifact
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./zork-installer.exe
+          asset_name: windows-installer.zip
+          asset_content_type: application/zip
+        
