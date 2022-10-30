@@ -35,7 +35,7 @@ jobs:
 
       - name: Building the installer
         run: |
-          "%programfiles(x86)%\Inno Setup 6\iscc.exe" "windows-installer-zork.iss"
+          "%programfiles(x86)%\Inno Setup 6\iscc.exe" ".\release-config\windows-installer-zork.iss"
         shell: cmd
 
       - name: release
