@@ -7,4 +7,4 @@
 
 # In order to run the script, simply type `$. ./alias.sh` from the root of the project.
 # Then, the CompileZork alias will be ready to use (refreshing the term session could be required)
-alias CompileZork='rm -rf build && rm -rf dist && rm -rf examples && mkdir examples/ && pyinstaller ./zork/zork++.py --onefile && cp ./dist/zork++ ./examples && cd examples && ./zork++ -v new zork_proj_example --compiler clang && cd ..'
+alias CompileZork='rm -rf build && rm -rf dist && rm -rf examples && mkdir examples/ && pyinstaller ./zork/zork++.py --onefile && cp ./dist/zork++ ./examples && cd examples && ./zork++ -v new calculator --compiler clang && cd ..'

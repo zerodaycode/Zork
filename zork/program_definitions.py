@@ -7,11 +7,11 @@
 
 from typing import Any
 
-from data.attributes import CompilerAttribute, LanguageAttribute, \
-    BuildAttribute, ExecutableAttribute, ProjectAttribute
+from data.attributes import ProjectAttribute
 from data.properties import Property
-from data.user_config import CompilerConfig, ExecutableConfig, \
-    LanguageConfig, BuildConfig, ModulesConfig, ProjectConfig
+
+from data.user_config import ProjectConfig, CompilerConfig, LanguageConfig, \
+    ModulesConfig, BuildConfig, ExecutableConfig, TestsConfig
 
 # Suported compilers
 CLANG: str = 'clang++'
@@ -20,9 +20,9 @@ MSVC: str = 'msbuild'
 SUPPORTED_COMPILERS: list = [CLANG, GCC, MSVC]
 
 SUPPORTED_CPP_LANG_LEVELS: list = [
-    '11', '14', '17', '20', '1a', '2a', '1x', '2x'
+    '11', '14', '17', '20', '23', '1a', '2a', '1x', '2x'
 ]
-SUPPORTED_CPP_STDLIBS: list[str] = ['stdlibc++', 'libc++']
+SUPPORTED_CPP_STDLIBS: list[str] = ['libstdc++', 'libc++']
 SYSTEM_HEADERS_EXPECTED_PATHS: list[str] = ['C:/msys64/mingw64/include/c++/']
 
 
@@ -31,64 +31,151 @@ PROJECT_ATTR: ProjectAttribute = ProjectAttribute(
     identifier='[[#project]]',
     mandatory=True,
     properties=[
-        Property('name', True, Any),
-        Property('authors', False, Any)
+        Property(
+            identifier='name',
+            mandatory=True,
+            values=Any
+        ),
+        Property(
+            identifier='authors',
+            mandatory=False,
+            values=Any
+        )
     ]
 )
 
-COMPILER_ATTR: CompilerAttribute = CompilerAttribute(
+COMPILER_ATTR: ProjectAttribute = ProjectAttribute(
     identifier='[[#compiler]]',
     mandatory=True,
     properties=[
-        Property('cpp_compiler', True, SUPPORTED_COMPILERS),
-        Property('system_headers_path', False, Any)
+        Property(
+            identifier='cpp_compiler',
+            mandatory=True,
+            values=SUPPORTED_COMPILERS
+        ),
+        Property(
+            identifier='system_headers_path',
+            mandatory=False,
+            values=Any
+        )
     ]
 )
 
-LANGUAGE_ATTR: LanguageAttribute = LanguageAttribute(
+LANGUAGE_ATTR: ProjectAttribute = ProjectAttribute(
     identifier='[[#language]]',
     mandatory=True,
     properties=[
         Property(
-            'cpp_standard', True, SUPPORTED_CPP_LANG_LEVELS
+            identifier='cpp_standard',
+            mandatory=True,
+            values=SUPPORTED_CPP_LANG_LEVELS
         ),
         Property(
-            'std_lib', False, SUPPORTED_CPP_STDLIBS
+            identifier='std_lib',
+            mandatory=False,
+            values=SUPPORTED_CPP_STDLIBS
         ),
         Property(
-            'modules', False, ['True', 'true']
+            identifier='modules',
+            mandatory=False,
+            values=['True', 'true']
         ),
     ]
 )
 
-BUILD_ATTR: BuildAttribute = BuildAttribute(
+BUILD_ATTR: ProjectAttribute = ProjectAttribute(
     identifier='[[#build]]',
     mandatory=False,
     properties=[
-        Property('output_dir', False, Any)
+        Property(
+            identifier='output_dir',
+            mandatory=False,
+            values=Any
+        )
     ]
 )
 
-MODULES_ATTR: Property = BuildAttribute(
-    identifier='[[#modules]]',
-    mandatory=False,
-    properties=[
-        Property('base_ifcs_dir', False, Any),
-        Property('interfaces', False, Any),
-        Property('base_impls_dir', False, Any),
-        Property('implementations', False, Any)
-    ]
-)
-
-EXECUTABLE_ATTR: ExecutableAttribute = ExecutableAttribute(
+EXECUTABLE_ATTR: ProjectAttribute = ProjectAttribute(
     identifier='[[#executable]]',
     mandatory=False,
     properties=[
-        Property('executable_name', False, Any),
-        Property('sources', False, Any),
-        Property('auto_execute', False, ['true', 'false']),
+        Property(
+            identifier='executable_name',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='sources_base_path',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='sources',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='auto_execute',
+            mandatory=False,
+            values=['true', 'false']
+        )
     ]
 )
+
+MODULES_ATTR: ProjectAttribute = ProjectAttribute(
+    identifier='[[#modules]]',
+    mandatory=False,
+    properties=[
+        Property(
+            identifier='base_ifcs_dir',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='interfaces',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='base_impls_dir',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='implementations',
+            mandatory=False,
+            values=Any
+        )
+    ]
+)
+
+TESTS_ATTR: ProjectAttribute = ProjectAttribute(
+    identifier='[[#tests]]',
+    mandatory=False,
+    properties=[
+        Property(
+            identifier='tests_name',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='sources_base_path',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='sources',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
+            identifier='auto_run_tests',
+            mandatory=False,
+            values=['true', 'false']
+        ),
+    ]
+)
+
 
 # Shortcut to have all the sections available in Zork
 PROGRAM_SECTIONS: list = [
@@ -97,7 +184,8 @@ PROGRAM_SECTIONS: list = [
     LANGUAGE_ATTR,
     BUILD_ATTR,
     MODULES_ATTR,
-    EXECUTABLE_ATTR
+    EXECUTABLE_ATTR,
+    TESTS_ATTR
 ]
 
 # Shortcut to have all the attributes as identifiers
@@ -114,5 +202,6 @@ PROGRAM_BASE_CONFIG: dict = {
     'language': LanguageConfig(11, 'libstdc++', True),
     'build': BuildConfig('./build'),
     'modules': ModulesConfig('.', [], '.', []),
-    'executable': ExecutableConfig('main', '', 'false')
+    'executable': ExecutableConfig('main', '', '', 'false'),
+    'tests': TestsConfig('proj_tests', '', '', 'false')
 }
