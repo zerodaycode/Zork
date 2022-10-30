@@ -51,7 +51,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Make Zip
-        uses: |
+        run: |
           tar -cf windows-installer.exe windows-installer.zip
 
       - name: upload windows artifact
