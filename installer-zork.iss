@@ -38,8 +38,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Files]
-Source: "build\zork++\zork++.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "build\zork++\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\zork++.exe\zork++.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\zork++.exe\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
