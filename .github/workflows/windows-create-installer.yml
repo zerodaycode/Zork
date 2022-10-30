@@ -15,13 +15,16 @@ jobs:
   Windows-Installer:
     permissions:
       contents: write
-      
     runs-on: windows-latest
-    steps: 
+    steps:
       - uses: actions/checkout@v3
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Set output
+        id: vars
+        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
 
       - name: Make enviromment Python
         uses: actions/setup-python@v4
@@ -47,7 +50,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           prerelease: false
           draft: false
-          automatic_release_tag: ${{ github.ref##*/ }}
+          automatic_release_tag: ${{ steps.vars.outputs.tag }}
 
       - name: Make Zip
         run: |
