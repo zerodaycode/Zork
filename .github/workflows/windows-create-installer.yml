@@ -1,16 +1,11 @@
-name: windows-make-installer
+name: Generate Windows Installer
 
 on:
-  workflow_run:
-    workflows: ["Pylint"]
-    types:
-      - completed
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
-      - '[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
     
-
 jobs:
   Windows-Installer:
     permissions:
@@ -21,10 +16,6 @@ jobs:
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.ref }}
-
-      - name: Set output
-        id: vars
-        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
 
       - name: Make enviromment Python
         uses: actions/setup-python@v4
@@ -43,14 +34,16 @@ jobs:
           "%programfiles(x86)%\Inno Setup 6\iscc.exe" ".\release-config\windows-installer-zork.iss"
         shell: cmd
 
-      - name: Generate a new Windows Zork release
-        uses: marvinpinto/action-automatic-releases@latest
+      - name: release
+        uses: actions/create-release@v1
         id: create-release
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          prerelease: false
           draft: false
-          automatic_release_tag: ${{ steps.vars.outputs.tag }}
+          prerelease: false
+          release_name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Make Zip
         run: |
