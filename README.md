@@ -479,7 +479,8 @@ All tests are running in different workflows that you can [check out here](
 # ✍️ Authors <a name = "authors"></a>
 
 - [@pyzyryab](https://github.com/pyzyryab) - Idea and core work
-- [@gbm25](https://github.com/gbm25) - Parsers and testing integration
+- [@gbm25](https://github.com/gbm25) - Parsers and testing attribute integration
+- [@TheHiddenOnSystem](https://github.com/TheHiddenOnSystem) - Actions for autopublish the releases of the project
 
 See also the list of [contributors](https://github.com/zerodaycode/Zork/contributors) who participated in this project.
 
