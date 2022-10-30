@@ -31,7 +31,7 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 ChangesEnvironment=true
-SetupIconFile=assets\instalador_logo.ico
+SetupIconFile=..\assets\instalador_logo.ico
 
 
 [Languages]
