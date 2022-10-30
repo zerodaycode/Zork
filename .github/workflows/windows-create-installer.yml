@@ -18,7 +18,6 @@ jobs:
       
     runs-on: windows-latest
     steps: 
-
       - uses: actions/checkout@v3
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
@@ -34,7 +33,7 @@ jobs:
 
       - name: Building exe with PyInstaller
         run: | 
-          python -m PyInstaller setup.py --name zork++
+          python -m PyInstaller ./zork/zork++.py --name zork++
 
       - name: Building the installer
         run: |
@@ -48,12 +47,10 @@ jobs:
           draft: false
           prerelease: false
           release_name: ${{ steps.version.outputs.version }}
-          tag_name: ${{ github.ref }}
+          tag_name: ${{ github.ref.name }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
-      - run: |
-          ls
       - name: Make Zip
         run: |
           7z a windows-installer.zip zork-installer.exe
