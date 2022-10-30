@@ -16,6 +16,7 @@
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/zerodaycode/Zork.svg)](https://github.com/zerodaycode/Zork/pulls)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
 <!-- [![Contact us](https://img.shields.io/badge/Tutanota-840010?style=for-the-badge&logo=Tutanota&logoColor=white)](zerodaycode@tutanota.com) -->
+[![Windows Installer](https://github.com/zerodaycode/Zork/actions/workflows/windows-create-installer.yml/badge.svg?branch=main)](https://github.com/zerodaycode/Zork/actions/workflows/windows-create-installer.yml)
 </div>
 
 ---
