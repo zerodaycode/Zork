@@ -1,4 +1,4 @@
-name: Generate Windows Installer
+name: Windows Installer
 
 on:
   push:
