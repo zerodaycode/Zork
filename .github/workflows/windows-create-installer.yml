@@ -1,23 +1,17 @@
-name: windows-make-installer
+name: Windows Installer
 
 on:
-  workflow_run:
-    workflows: ["Pylint"]
-    types:
-      - completed
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
-      - '[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
     
-
 jobs:
   Windows-Installer:
     permissions:
       contents: write
-      
     runs-on: windows-latest
-    steps: 
+    steps:
       - uses: actions/checkout@v3
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
@@ -31,17 +25,18 @@ jobs:
       - name: Install PyInstaller
         run: python -m pip install pyinstaller
 
-      - name: Building exe with PyInstaller
+      - name: Building Zork's exe with PyInstaller
         run: | 
           python -m PyInstaller ./zork/zork++.py --onefile --name zork++
 
-      - name: Building the installer
+      - name: Building the installer with Inno Setup
         run: |
           "%programfiles(x86)%\Inno Setup 6\iscc.exe" ".\release-config\windows-installer-zork.iss"
         shell: cmd
-      
-      - name:
-        uses: "marvinpinto/action-automatic-releases@latest"
+
+      - name: release
+        uses: actions/create-release@v1
+        id: create-release
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           prerelease: false
@@ -52,13 +47,12 @@ jobs:
         run: |
           7z a windows-installer.zip zork-installer.exe
 
-      - name: upload windows artifact
+      - name: Upload windows artifact
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
           asset_path: windows-installer.zip
           asset_name: windows-installer.zip
           asset_content_type: application/zip
-        
