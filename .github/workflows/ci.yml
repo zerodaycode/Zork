@@ -28,11 +28,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requeriments.txt
       
-      - uses: pavelzw/pytest-action@v2
-        with:
-          emoji: true
-          verbose: true
-          job-summary: true
-          custom-arguments: '-vv --cov branch --cov-report term-missing'
-          click-to-expand: true
-          report-title: 'Test Report'
+      - name: Running test suite and generate code coverage report
+        run: |
+          python -m pytest --emoji -vv --cov zork --cov-branch --cov-report html --cov-report term-missing --md=cov-report.md
+
+      - name: Show tests execution results in action
+        run: |
+          sed -i 's/# Test Report/# Test Report/' report.md
+          cat report.md >> $GITHUB_STEP_SUMMARY
