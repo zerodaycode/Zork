@@ -34,14 +34,16 @@ jobs:
           "%programfiles(x86)%\Inno Setup 6\iscc.exe" ".\release-config\windows-installer-zork.iss"
         shell: cmd
 
-      - name: release
+      - name: Generate release ${{ steps.version.outputs.version }}
         uses: actions/create-release@v1
         id: create-release
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
           draft: false
-          automatic_release_tag: latest
+          prerelease: false
+          release_name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Make Zip
         run: |
