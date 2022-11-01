@@ -38,3 +38,7 @@ jobs:
       - name: Show tests execution results in action
         run: |
           cat cov-report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Update code coverage badge
+        run: |
+          coverage-badge -o ./assets/coverage-status.svg

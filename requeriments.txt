@@ -3,6 +3,7 @@ astroid==2.12.12
 attrs==22.1.0
 colorama==0.4.6
 coverage==6.5.0
+coverage-badge==1.1.0
 dill==0.3.6
 exceptiongroup==1.0.0
 future==0.18.2
