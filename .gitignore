@@ -5,6 +5,7 @@ src/
 .pytest_cache/
 .zork_venv/
 .coverage
+htmlcov/
 *.xml
 
 # Editors
