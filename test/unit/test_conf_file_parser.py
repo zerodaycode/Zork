@@ -3,6 +3,4 @@
     Unit tests for the Zork++ configuration file parser
 """
 
-from zork import config_file_parser
-
-# def test_
+# from zork import config_file_parser

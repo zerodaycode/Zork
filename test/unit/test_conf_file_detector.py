@@ -4,12 +4,9 @@
     in the cwd for start to work with `Zork++`
 """
 
-import shutil
-import subprocess
-
 from conftest import CONF_FILE_MOCK_PATH
-
 from zork.utils.workspace_scanner import find_config_file
+
 
 def test_config_file_not_in_path():
     """ _summary_
