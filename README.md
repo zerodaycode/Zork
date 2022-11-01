@@ -491,6 +491,4 @@ See also the list of [contributors](https://github.com/zerodaycode/Zork/contribu
 
 # 🎉 Acknowledgements <a name = "acknowledgement"></a>
 
-- This project it's largely inspired in the best `C++` build system
-ever created, obviously, the great [CMake](https://cmake.org/). We are users
-of `CMake`, and we will be in the future. Zork just aims to provide a more user-friendly ecosystem of playing
+- This project it's largely inspired in [CMake](https://cmake.org/)

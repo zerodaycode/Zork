@@ -8,6 +8,8 @@ on:
 
 jobs:
   testing:
+    permissions:
+      contents: write
     name: Run tests
     strategy:
       matrix:
@@ -42,3 +44,31 @@ jobs:
       - name: Update code coverage badge
         run: |
           coverage-badge -o ./assets/coverage-status.svg
+
+      - name: Upload tests results
+        id: upload-artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Tests results
+          path: ./htmlcov
+
+  publish-tests-results:
+    runs-on: ubuntu-latest
+    if: ${{ always() && contains(join(needs.*.result, ','), 'success') }}
+    needs: [testing]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download artifact with tests results
+        id: download-artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: Tests results
+          path: ./htmlcov
+
+      - name: Publish coverage report to GitHub Pages
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: ./htmlcov
+          token: ${{ secrets.GITHUB_TOKEN }}
