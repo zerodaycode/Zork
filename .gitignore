@@ -2,6 +2,7 @@
 notes.txt
 src/
 # out/
+.zork_venv/
 
 # Editors
 .vscode
