@@ -35,4 +35,4 @@ jobs:
       - name: Show tests execution results in action
         run: |
           sed -i 's/# Test Report/# Test Report/' cov-report.md
-          cat report.md >> $GITHUB_STEP_SUMMARY
+          cat cov-report.md >> $GITHUB_STEP_SUMMARY
