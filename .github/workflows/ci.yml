@@ -1,0 +1,75 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ '*' ]
+  pull_request:
+      branches: [ 'main' ]
+
+jobs:
+  testing:
+    permissions:
+      contents: write
+    name: Run tests
+    strategy:
+      matrix:
+        os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
+        python-version: ['3.9', '3.10']
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: szenius/set-timezone@v1.0
+
+      - uses: actions/checkout@v3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install -r requeriments.txt
+      
+      - name: Running test suite and generate code coverage report
+        run: |
+          python -m pytest --emoji -vv --cov zork --cov-branch --cov-report html --cov-report term-missing --md=cov-report.md
+
+      - name: Show tests execution results in action
+        run: |
+          cat cov-report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Update code coverage badge
+        run: |
+          coverage-badge -o ./htmlcov/coverage-status.svg
+
+      - name: Upload tests results
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10' }}
+        id: upload-artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Tests results
+          path: ./htmlcov
+
+  publish-tests-results:
+    runs-on: ubuntu-latest
+    if: ${{ always() && contains(join(needs.*.result, ','), 'success') }}
+    needs: [testing]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download artifact with tests results
+        id: download-artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: Tests results
+          path: ./htmlcov
+
+      - name: Publish coverage report to GitHub Pages
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: ./htmlcov
+          token: ${{ secrets.GITHUB_TOKEN }}

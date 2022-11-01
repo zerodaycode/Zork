@@ -100,6 +100,8 @@ unsafe-load-any-extension=no
 # In verbose mode, extra non-checker-related info will be displayed.
 #verbose=
 
+# Sets PYTHONPATH
+init-hook='import sys; sys.path.append("."); sys.path.append("zork"); sys.path.append("test")'
 
 [REPORTS]
 

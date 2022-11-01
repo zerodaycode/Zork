@@ -22,6 +22,7 @@ def get_project_config(root_path: str, verbose) -> dict:
 
     # Open the configuration file in 'read-only' mode
     config_file = read_config_file_lines(root_path)
+    print(f'CONFIG FILE: {config_file}')
 
     # Check if the config file format it's valid
     check_valid_config_file(config_file)
@@ -48,7 +49,6 @@ def get_section_blocks(file: str) -> list:
     """
         Get all section blocks
     """
-
     return re.findall(
         BLOCK_PATTERN, "".join(file), re.MULTILINE
     )
@@ -77,7 +77,6 @@ def parse_attr_properties_block(blocks: list) -> dict:
         properties: list = []
 
         for prop in extracted_properties:
-
             property_values = ";".join(
                 [
                     p_value.strip('\t').strip(' ')
@@ -90,7 +89,6 @@ def parse_attr_properties_block(blocks: list) -> dict:
                     "property_value": property_values
                 }
             )
-
 
         retrieved_data[attribute_identifier] = properties
 

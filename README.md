@@ -15,8 +15,8 @@
 [![GitHub Issues](https://img.shields.io/github/issues/zerodaycode/Zork.svg)](https://github.com/zerodaycode/Zork/issues) </br>
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/zerodaycode/Zork.svg)](https://github.com/zerodaycode/Zork/pulls)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
-<!-- [![Contact us](https://img.shields.io/badge/Tutanota-840010?style=for-the-badge&logo=Tutanota&logoColor=white)](zerodaycode@tutanota.com) -->
 [![Windows Installer](https://github.com/zerodaycode/Zork/actions/workflows/windows-create-installer.yml/badge.svg?branch=main)](https://github.com/zerodaycode/Zork/actions/workflows/windows-create-installer.yml)
+![Coverage](./assets/coverage-status.svg)
 </div>
 
 ---
@@ -205,8 +205,9 @@ your application in a convenient way. You only have to provide the sources
 and... ready to go! `Zork++` will take care of all the rest.
 
 For now, tests run independent from the executables or library generations. So, if you want to check the health of your applications and run your tests, just invoke Zork's binary and pass to the command line the `--tests` flags.
+
 ```
-$ zork++ --tests
+zork++ --tests
 ```
 
 You manually must provide a tests suite for now. There are some plans to include one or two of the major ones shipped with `Zork++` directly, like `boost::ut` or `Catch2`, but for now, you must manually download the source files and pass them (if applies) to `Zork`.
@@ -240,6 +241,7 @@ the interface and the declaration, and not direct dependency is declared, a comp
 specified dependencies.
 
 An alternative syntax exists to declare module and module dependencies (both for interfaces and implementation units)
+
 ```
 implementations: math.cpp; math2.cpp=[math]
 ```
@@ -251,7 +253,7 @@ right of removing them from the application without previous warning or notifica
 
 # 📑 The `zork.conf` reference guide <a name="zork_conf_reference"></a>
 
-### Here we will list all the sections, with the attributes and its properties available on Zork, indicating when an attribute or a property is optional or mandatory, and for the properties, if they have default values.
+### Here we will list all the sections, with the attributes and its properties available on Zork, indicating when an attribute or a property is optional or mandatory, and for the properties, if they have default values
 
 ```
 PROJECT_ATTR: ProjectAttribute = ProjectAttribute(
@@ -381,7 +383,7 @@ TESTS_ATTR: ProjectAttribute = ProjectAttribute(
     mandatory=False,
     properties=[
         Property(
-            identifier='tests_name',
+            identifier='tests_executable_name',
             mandatory=False,
             values=Any
         ),
@@ -403,7 +405,9 @@ TESTS_ATTR: ProjectAttribute = ProjectAttribute(
     ]
 )
 ```
+
 where, the constant values declared for some *values* properties are:
+
 ```
 SUPPORTED_CPP_LANG_LEVELS: list = [
     '11', '14', '17', '20', '23', '1a', '2a', '1x', '2x'
@@ -466,7 +470,7 @@ All tests are running in different workflows that you can [check out here](
 
 # TODO ZONE <a name = "todo_zone"></a>
 
-### Things that we desire to implement or upgrade in Zork++ 
+### Things that we desire to implement or upgrade in Zork++
 
 - Recognize multiple *zork.conf* files by suffix. For ex: `zork_windows.conf` and
 `zork_linux.conf`. This will allow the user to have multiple conf file for different platforms when options are susceptible to change (use libc++ under Linux and libstdc++ under Windows witn Clang). Also, we can start to think in the same pattern for environments (PRE, PRO...) and allow things like (zork_linux_pro.conf)
@@ -487,6 +491,4 @@ See also the list of [contributors](https://github.com/zerodaycode/Zork/contribu
 
 # 🎉 Acknowledgements <a name = "acknowledgement"></a>
 
-- This project it's largely inspired in the best `C++` build system
-ever created, obviously, the great [CMake](https://cmake.org/). We are users
-of `CMake`, and we will be in the future. Zork just aims to provide a more user-friendly ecosystem of playing
+- This project it's largely inspired in [CMake](https://cmake.org/)
