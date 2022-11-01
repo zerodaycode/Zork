@@ -9,8 +9,6 @@ from zork.data.user_config import ProjectConfig, CompilerConfig, \
     LanguageConfig, BuildConfig, ModulesConfig, ExecutableConfig, \
     TestsConfig
 
-import time
-
 def test_get_project_config():
     """ _summary_
 
