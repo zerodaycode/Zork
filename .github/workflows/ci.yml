@@ -46,6 +46,7 @@ jobs:
           coverage-badge -o ./assets/coverage-status.svg
 
       - name: Upload tests results
+        if: ${{ runner.os == ubuntu-latest && python-version == 3.10 }}
         id: upload-artifact
         uses: actions/upload-artifact@v3
         with:
