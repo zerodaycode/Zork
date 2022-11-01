@@ -154,7 +154,7 @@ TESTS_ATTR: ProjectAttribute = ProjectAttribute(
     mandatory=False,
     properties=[
         Property(
-            identifier='tests_name',
+            identifier='tests_executable_name',
             mandatory=False,
             values=Any
         ),

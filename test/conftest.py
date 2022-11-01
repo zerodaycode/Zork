@@ -39,14 +39,14 @@ def create_sample_zork_conf_file():
     Creates physically in the current working directory whenever the
     suite starts to run a mocked `zork.conf` file, to make it available
     to the functions on the source code that needs one to run, like,
-    for example, the read_config_file_files(root_path: str) -> list
-    function on the config_file_parser module
+    for example, the ones on the config_file_module
     """
     subprocess.Popen(['mkdir', CONF_FILE_MOCK_PATH]).wait()
 
     with open(f'{CONF_FILE_MOCK_PATH}/zork.conf', 'w', encoding='UTF-8') as zork_conf_file:
-        yield zork_conf_file.write('')
+        zork_conf_file.write(ZORK_CONF_AUTOG)
 
     # After the tests that uses this fixture are processed, we must clean
     # the resources placed physically on the logical devices
+    yield
     shutil.rmtree(CONF_FILE_MOCK_PATH)
