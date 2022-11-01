@@ -6,9 +6,9 @@
 
 from zork.utils.workspace_scanner import find_config_file
 
-def config_file_retriever_test():
+def test_config_file_retriever():
     """ _summary_
-        Testing the behaviour of the function that searches the `zork.conf` file
-        in the cwd for start to work with `Zork++`
+        Raw test. No mocks. No `zork.conf` present on the tests dir.
+        So the function should return a boolean False
     """
-    assert find_config_file('.', True) is True
+    assert find_config_file('.', True) is False

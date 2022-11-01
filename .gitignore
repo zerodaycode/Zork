@@ -2,6 +2,7 @@
 notes.txt
 src/
 # out/
+.pytest_cache/
 .zork_venv/
 
 # Editors
