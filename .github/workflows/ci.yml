@@ -1,0 +1,36 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ '*' ]
+  pull_request:
+      branches: [ 'main' ]
+
+jobs:
+  testing:
+    name: Run tests
+    strategy:
+      matrix:
+        os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
+        python-version: ["3.9", "3.10"]
+
+    steps:
+      - uses: szenius/set-timezone@v1.0
+
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install -r requeriments.txt
+      
+      - uses: pavelzw/pytest-action@v2
+        with:
+          emoji: true
+          verbose: true
+          job-summary: true
+          custom-arguments: '-vv --cov branch --cov-report term-missing'
+          click-to-expand: true
+          report-title: 'Test Report'

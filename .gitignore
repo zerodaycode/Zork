@@ -4,6 +4,8 @@ src/
 # out/
 .pytest_cache/
 .zork_venv/
+.coverage
+*.xml
 
 # Editors
 .vscode
