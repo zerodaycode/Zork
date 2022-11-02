@@ -22,7 +22,6 @@ def get_project_config(root_path: str, verbose) -> dict:
 
     # Open the configuration file in 'read-only' mode
     config_file = read_config_file_lines(root_path)
-    print(f'CONFIG FILE: {config_file}')
 
     # Check if the config file format it's valid
     check_valid_config_file(config_file)
