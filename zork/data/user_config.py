@@ -27,6 +27,7 @@ class ProjectConfig:
 class CompilerConfig:
     """ The user defined compiler configuration """
     cpp_compiler: str
+    extra_args: list[str]
     system_headers_path: str
 
     def set_property(self, property_name: str, value: Any):
@@ -35,6 +36,8 @@ class CompilerConfig:
             'property name' """
         if property_name == 'cpp_compiler':
             self.cpp_compiler = value
+        elif property_name == 'extra_args':
+            self.extra_args = get_extra_args(value)
         elif property_name == 'system_headers_path':
             self.system_headers_path = value
 
@@ -103,6 +106,7 @@ class ExecutableConfig:
     sources_base_path: str
     sources: list
     auto_execute: str
+    extra_args: list[str]
 
     def set_property(self, property_name: str, value: Any):
         """ Sets the value(s) for the members of the class,
@@ -116,6 +120,8 @@ class ExecutableConfig:
             self.sources = get_sources(value)
         elif property_name == 'auto_execute':
             self.auto_execute = value
+        elif property_name == 'extra_args':
+            self.extra_args = get_extra_args(value)
 
 
 @dataclass
@@ -125,6 +131,7 @@ class TestsConfig:
     sources_base_path: str
     sources: list
     auto_run_tests: str
+    extra_args: list[str]
 
     def set_property(self, property_name: str, value: Any):
         """ Sets the value(s) for the members of the class,
@@ -138,7 +145,8 @@ class TestsConfig:
             self.sources = get_sources(value)
         elif property_name == 'auto_run_tests':
             self.auto_run_tests = value
-
+        elif property_name == 'extra_args':
+            self.extra_args = get_extra_args(value)
 
 def get_authors(value) -> list:
     """ Retrieves the authors property for the project attribute
@@ -230,3 +238,14 @@ def generate_mod_impl_units(value) -> list:
     # separated functions
 
     return sources
+
+
+def get_extra_args(extra_args: str) -> list:
+    """ Retrieves the extra arguments that the user wants to
+        pass to the command line
+    """
+    parsed_extra_args = []
+    for arg in extra_args.split(','):
+        arg = arg.strip(' ')
+        parsed_extra_args.append(arg)
+    return parsed_extra_args

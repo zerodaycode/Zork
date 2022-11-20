@@ -89,7 +89,6 @@ if __name__ == '__main__':
             build_project(
                 config,
                 verbose,
-                proj_name,
                 tests
             )
         )

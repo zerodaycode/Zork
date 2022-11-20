@@ -54,6 +54,11 @@ COMPILER_ATTR: ProjectAttribute = ProjectAttribute(
             values=SUPPORTED_COMPILERS
         ),
         Property(
+            identifier='extra_args',
+            mandatory=False,
+            values=Any
+        ),
+        Property(
             identifier='system_headers_path',
             mandatory=False,
             values=Any
@@ -118,7 +123,12 @@ EXECUTABLE_ATTR: ProjectAttribute = ProjectAttribute(
             identifier='auto_execute',
             mandatory=False,
             values=['true', 'false']
-        )
+        ),
+        Property(
+            identifier='extra_args',
+            mandatory=False,
+            values=Any
+        ),
     ]
 )
 
@@ -173,6 +183,11 @@ TESTS_ATTR: ProjectAttribute = ProjectAttribute(
             mandatory=False,
             values=['true', 'false']
         ),
+        Property(
+            identifier='extra_args',
+            mandatory=False,
+            values=Any
+        ),
     ]
 )
 
@@ -198,10 +213,10 @@ PROGRAM_ATTRIBUTES_IDENTIFIERS = [
 # TODO refactor this into generate new instance in found, not defaults
 PROGRAM_BASE_CONFIG: dict = {
     'project': ProjectConfig('new_project', []),
-    'compiler': CompilerConfig('clang', ''),
+    'compiler': CompilerConfig('clang', [], ''),
     'language': LanguageConfig(11, 'libstdc++', True),
     'build': BuildConfig('./build'),
     'modules': ModulesConfig('.', [], '.', []),
-    'executable': ExecutableConfig('main', '', '', 'false'),
-    'tests': TestsConfig('proj_tests', '', '', 'false')
+    'executable': ExecutableConfig('main', '', '', 'false', []),
+    'tests': TestsConfig('proj_tests', '', '', 'false', [])
 }
