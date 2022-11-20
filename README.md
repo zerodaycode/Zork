@@ -253,9 +253,9 @@ right of removing them from the application without previous warning or notifica
 
 # 📑 The `zork.conf` reference guide <a name="zork_conf_reference"></a>
 
-### Here we will list all the sections, with the attributes and its properties available on Zork, indicating when an attribute or a property is optional or mandatory, and for the properties, if they have default values
+## Here we will list all the sections, with the attributes and its properties available on Zork, indicating when an attribute or a property is optional or mandatory, and for the properties, if they have default values
 
-```
+```Python
 PROJECT_ATTR: ProjectAttribute = ProjectAttribute(
     identifier='[[#project]]',
     mandatory=True,
@@ -281,6 +281,11 @@ COMPILER_ATTR: ProjectAttribute = ProjectAttribute(
             identifier='cpp_compiler',
             mandatory=True,
             values=SUPPORTED_COMPILERS
+        ),
+        Property(
+            identifier='extra_args',
+            mandatory=False,
+            values=Any
         ),
         Property(
             identifier='system_headers_path',
@@ -347,7 +352,12 @@ EXECUTABLE_ATTR: ProjectAttribute = ProjectAttribute(
             identifier='auto_execute',
             mandatory=False,
             values=['true', 'false']
-        )
+        ),
+        Property(
+            identifier='extra_args',
+            mandatory=False,
+            values=Any
+        ),
     ]
 )
 
@@ -402,6 +412,11 @@ TESTS_ATTR: ProjectAttribute = ProjectAttribute(
             mandatory=False,
             values=['true', 'false']
         ),
+        Property(
+            identifier='extra_args',
+            mandatory=False,
+            values=Any
+        ),
     ]
 )
 ```
@@ -420,6 +435,8 @@ SYSTEM_HEADERS_EXPECTED_PATHS: list[str] = ['C:/msys64/mingw64/include/c++']
 
 > Note that in the *values* properties that are declared as a Python's array, we're not expecting you to declare an array. We are expecting
 one of the `allowed properties` declared within that array.
+Also, take in consideration under Windows that Zork's parser doesn't admit `C:`,
+so you will need to use this notation ``
 
 # 💻 Windows special requeriments <a name="windows_special_requeriments"></a>
 

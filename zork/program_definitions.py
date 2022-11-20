@@ -23,7 +23,9 @@ SUPPORTED_CPP_LANG_LEVELS: list = [
     '11', '14', '17', '20', '23', '1a', '2a', '1x', '2x'
 ]
 SUPPORTED_CPP_STDLIBS: list[str] = ['libstdc++', 'libc++']
-SYSTEM_HEADERS_EXPECTED_PATHS: list[str] = ['C:/msys64/mingw64/include/c++/']
+SYSTEM_HEADERS_EXPECTED_PATHS: list[str] = [
+    'C:/msys64/mingw64/include/c++/',
+]
 
 
 """ Zork Sections """
@@ -52,6 +54,11 @@ COMPILER_ATTR: ProjectAttribute = ProjectAttribute(
             identifier='cpp_compiler',
             mandatory=True,
             values=SUPPORTED_COMPILERS
+        ),
+        Property(
+            identifier='extra_args',
+            mandatory=False,
+            values=Any
         ),
         Property(
             identifier='system_headers_path',
@@ -118,7 +125,12 @@ EXECUTABLE_ATTR: ProjectAttribute = ProjectAttribute(
             identifier='auto_execute',
             mandatory=False,
             values=['true', 'false']
-        )
+        ),
+        Property(
+            identifier='extra_args',
+            mandatory=False,
+            values=Any
+        ),
     ]
 )
 
@@ -173,6 +185,11 @@ TESTS_ATTR: ProjectAttribute = ProjectAttribute(
             mandatory=False,
             values=['true', 'false']
         ),
+        Property(
+            identifier='extra_args',
+            mandatory=False,
+            values=Any
+        ),
     ]
 )
 
@@ -198,10 +215,10 @@ PROGRAM_ATTRIBUTES_IDENTIFIERS = [
 # TODO refactor this into generate new instance in found, not defaults
 PROGRAM_BASE_CONFIG: dict = {
     'project': ProjectConfig('new_project', []),
-    'compiler': CompilerConfig('clang', ''),
+    'compiler': CompilerConfig('clang', [], ''),
     'language': LanguageConfig(11, 'libstdc++', True),
     'build': BuildConfig('./build'),
     'modules': ModulesConfig('.', [], '.', []),
-    'executable': ExecutableConfig('main', '', '', 'false'),
-    'tests': TestsConfig('proj_tests', '', '', 'false')
+    'executable': ExecutableConfig('main', '', '', 'false', []),
+    'tests': TestsConfig('proj_tests', '', '', 'false', [])
 }

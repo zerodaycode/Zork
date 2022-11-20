@@ -105,7 +105,7 @@ def new_project_autogenerator(
             # implementation in the examples, because we only generate the
             # custom modulemap implementation for Windows
             conf_file.replace('libstdc++', 'libc++')
-        
+
         zork_conf_file.write(conf_file)
 
     subprocess.Popen(['mkdir', project_name]).wait()

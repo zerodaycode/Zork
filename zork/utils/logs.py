@@ -9,13 +9,19 @@ import time
 from .constants import OS, OS_release, OS_architecture, OS_arch_linkage
 
 
-def initial_log():
+def initial_log(tests: bool):
     """ Greets the users when the build task is started, an log
         some useful info about the OS where the program it's running """
-    print(
-        "\n[INFO]: Starting a new C++ compilation job with Zork on " +
-        f"[{OS} {OS_release}, {OS_architecture}, {OS_arch_linkage}]"
-    )
+    if tests:
+        print(
+            "\n[INFO]: Starting a new C++ compilation job with Zork on " +
+            f"[{OS} {OS_release}, {OS_architecture}, {OS_arch_linkage}]"
+        )
+    else:
+        print(
+            "\n[INFO]: Running the tests for the project with Zork on " +
+            f"[{OS} {OS_release}, {OS_architecture}, {OS_arch_linkage}]"
+        )
 
 
 def log_process_result(start_time: int, process_result):

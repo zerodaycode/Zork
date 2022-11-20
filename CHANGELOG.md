@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2022 - 11 - 20
+
+### Added
+
+- `extra_args` property has been included for the `compiler`,
+`executable` and `tests`.
+
 ## [0.1.0] - 2022 - 10 - 30
 
 ### Added
