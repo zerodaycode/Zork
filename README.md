@@ -435,6 +435,8 @@ SYSTEM_HEADERS_EXPECTED_PATHS: list[str] = ['C:/msys64/mingw64/include/c++']
 
 > Note that in the *values* properties that are declared as a Python's array, we're not expecting you to declare an array. We are expecting
 one of the `allowed properties` declared within that array.
+Also, take in consideration under Windows that Zork's parser doesn't admit `C:`,
+so you will need to use this notation ``
 
 # 💻 Windows special requeriments <a name="windows_special_requeriments"></a>
 

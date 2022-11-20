@@ -420,7 +420,7 @@ def generate_build_output_directory(config: dict):
                 generate_import_std(config, zork_intrinsics_dir)
 
 
-def find_system_headers_path() -> str:
+def find_system_headers_path(config: dict) -> str:
     """
     Note: Only runs under Windows targets
 
@@ -430,13 +430,19 @@ def find_system_headers_path() -> str:
     """
     SYSTEM_HEADERS_PATH: str = ''
 
-    for path in SYSTEM_HEADERS_EXPECTED_PATHS:
+    # Check if the user has a configured value for the system headers
+    user_sys_headers: str = config.get('compiler').system_headers_path
+
+    if user_sys_headers.__eq__(''):
         if constants.OS == constants.WINDOWS:
+            # TODO Offer by default also the lookage for the MSVC toolchain
+            # system headers?
+            path = SYSTEM_HEADERS_EXPECTED_PATHS[0]
             gcc_version_folder = sorted(os.listdir(path), reverse=True)
             if len(gcc_version_folder) > 0:
                 SYSTEM_HEADERS_PATH = path + gcc_version_folder[0]
-                break
-        # TODO Check if it's needed a logic change for the include path on Linux
+    else:
+        SYSTEM_HEADERS_PATH = user_sys_headers
 
     if SYSTEM_HEADERS_PATH != '':
         return SYSTEM_HEADERS_PATH
@@ -452,7 +458,7 @@ def generate_import_std(config: dict, zork_intrinsics_dir_path: str):
     # If there's no user manually setted path, we perform the autosearch
     # for the system headers
     if config.get('compiler').system_headers_path == '':
-        config['compiler'].system_headers_path = find_system_headers_path()
+        config['compiler'].system_headers_path = find_system_headers_path(config)
     SYS_HEADERS_BASE_PATH: str = config.get('compiler').system_headers_path
 
     # We are going to store a relation between the files inside of the root

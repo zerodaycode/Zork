@@ -23,7 +23,9 @@ SUPPORTED_CPP_LANG_LEVELS: list = [
     '11', '14', '17', '20', '23', '1a', '2a', '1x', '2x'
 ]
 SUPPORTED_CPP_STDLIBS: list[str] = ['libstdc++', 'libc++']
-SYSTEM_HEADERS_EXPECTED_PATHS: list[str] = ['C:/msys64/mingw64/include/c++/']
+SYSTEM_HEADERS_EXPECTED_PATHS: list[str] = [
+    'C:/msys64/mingw64/include/c++/',
+]
 
 
 """ Zork Sections """
