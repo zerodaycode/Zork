@@ -7,7 +7,7 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
     
 jobs:
-  Uploading binaries and installers:
+  generate-release-and-binaries:
     permissions:
       contents: write
     strategy:
