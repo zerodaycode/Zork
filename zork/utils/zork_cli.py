@@ -104,7 +104,7 @@ def new_project_autogenerator(
             # due to the use of `import std;` we need to link with Clang's std
             # implementation in the examples, because we only generate the
             # custom modulemap implementation for Windows
-            conf_file.replace('libstdc++', 'libc++')
+            conf_file = conf_file.replace('libstdc++', 'libc++')
 
         zork_conf_file.write(conf_file)
 
