@@ -7,7 +7,7 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
     
 jobs:
-  Uploading binaries and installers:
+  generate-release-and-binaries:
     permissions:
       contents: write
     strategy:
@@ -20,6 +20,18 @@ jobs:
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Generate release ${{ steps.version.outputs.version }}
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        uses: actions/create-release@v1
+        id: create-release
+        with:
+          draft: false
+          prerelease: false
+          release_name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Make enviromment Python
         uses: actions/setup-python@v4
@@ -47,7 +59,7 @@ jobs:
       - name: Generate compressed file for Linux
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
-          tar -czvf zork-linux.tar.gz zork++
+          tar -czvf zork-linux.tar.gz ./dist/zork++
 
       - name: Upload Windows artifact
         if: ${{ matrix.os == 'windows-latest' }}
@@ -61,7 +73,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Linux artifact
-        if: ${{ matrix.os == 'linux-latest' }}
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
