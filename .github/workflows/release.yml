@@ -42,18 +42,6 @@ jobs:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.ref }}
 
-      - name: Generate release ${{ steps.version.outputs.version }}
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        uses: actions/create-release@v1
-        id: create-release
-        with:
-          draft: false
-          prerelease: false
-          release_name: ${{ steps.version.outputs.version }}
-          tag_name: ${{ github.ref }}
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-
       - name: Make enviromment Python
         uses: actions/setup-python@v4
         with:
@@ -88,7 +76,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          upload_url: ${{ jobs.generate-release.steps.create-release.outputs.upload_url }}
+          upload_url: ${{ needs.generate-release.steps.create-release.outputs.upload_url }}
           asset_path: windows-installer.zip
           asset_name: windows-installer.zip
           asset_content_type: application/zip
@@ -99,7 +87,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          upload_url: ${{ jobs.generate-release.steps.create-release.outputs.upload_url }}
+          upload_url: ${{ needs.generate-release.steps.create-release.outputs.upload_url }}
           asset_path: zork-linux.tar.gz
           asset_name: zork-linux.tar.gz
           asset_content_type: application/tar+gzip
