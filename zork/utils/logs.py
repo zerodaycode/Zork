@@ -14,12 +14,12 @@ def initial_log(tests: bool):
         some useful info about the OS where the program it's running """
     if tests:
         print(
-            "\n[INFO]: Starting a new C++ compilation job with Zork on " +
+            "\n[INFO]: Running the tests for the project with Zork on " +
             f"[{OS} {OS_release}, {OS_architecture}, {OS_arch_linkage}]"
         )
     else:
         print(
-            "\n[INFO]: Running the tests for the project with Zork on " +
+            "\n[INFO]: Starting a new C++ compilation job with Zork on " +
             f"[{OS} {OS_release}, {OS_architecture}, {OS_arch_linkage}]"
         )
 
