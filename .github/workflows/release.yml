@@ -13,16 +13,18 @@ jobs:
     runs-on: 'ubuntu-latest'
 
     steps:
-      - name: Generate release ${{ steps.version.outputs.version }}
-        uses: actions/create-release@v1
-        id: create-release
-        with:
-          draft: false
-          prerelease: false
-          release_name: ${{ steps.version.outputs.version }}
-          tag_name: ${{ github.ref }}
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+    - name: Generate release ${{ steps.version.outputs.version }}
+      uses: actions/create-release@v1
+      id: create-release
+      with:
+        draft: false
+        prerelease: false
+        release_name: ${{ steps.version.outputs.version }}
+        tag_name: ${{ github.ref }}
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+    outputs:
+      upload_url: ${{ steps.create-release.outputs.upload_url }}
 
   generate-binaries:
     needs: 'generate-release'
@@ -73,7 +75,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          upload_url: ${{ needs.generate-release.steps.create-release.outputs.upload_url }}
+          upload_url: ${{ needs.generate-release.outputs.upload_url }}
           asset_path: windows-installer.zip
           asset_name: windows-installer.zip
           asset_content_type: application/zip
@@ -84,7 +86,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          upload_url: ${{ needs.generate-release.steps.create-release.outputs.upload_url }}
+          upload_url: ${{ needs.generate-release.outputs.upload_url }}
           asset_path: zork-linux.tar.gz
           asset_name: zork-linux.tar.gz
           asset_content_type: application/tar+gzip

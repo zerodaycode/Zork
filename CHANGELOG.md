@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2022 - 12 - 06
+
+### Fix
+
+- Correction on the log showed for the executable autorunner and for the tests runner
+
 ## [0.3.0] - 2022 - 11 - 22
 
 ### Added

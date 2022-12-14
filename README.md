@@ -15,7 +15,7 @@
 [![GitHub Issues](https://img.shields.io/github/issues/zerodaycode/Zork.svg)](https://github.com/zerodaycode/Zork/issues) </br>
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/zerodaycode/Zork.svg)](https://github.com/zerodaycode/Zork/pulls)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
-[![Windows Installer](https://github.com/zerodaycode/Zork/actions/workflows/windows-create-installer.yml/badge.svg?branch=main)](https://github.com/zerodaycode/Zork/actions/workflows/windows-create-installer.yml)
+[![Windows Installer](https://github.com/zerodaycode/Zork/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/zerodaycode/Zork/actions/workflows/release.yml)
 ![Coverage](https://zerodaycode.github.io/Zork/coverage-status.svg)
 </div>
 
