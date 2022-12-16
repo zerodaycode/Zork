@@ -1,0 +1,32 @@
+[project]
+name = 'calculator'
+authors =  [
+    'Zero Day Code  # Replace this for the real authors'
+    ]
+
+[compiler]
+cpp_compiler =  'clang++'
+
+[language]
+cpp_standard = 20
+std_lib = 'libc++'
+modules =  true
+
+[build]
+output_dir = './out'
+
+[executable]
+executable_name = 'calculator'
+sources = [
+    '*.cpp'
+]
+auto_execute = true
+
+[modules]
+base_ifcs_dir = 'calculator/ifc/'
+interfaces = '*.cppm'
+base_impls_dir = 'calculator/src/'
+implementations = [
+    'math.cpp',
+    'math2.cpp=[math]'
+]

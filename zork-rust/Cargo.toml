@@ -5,11 +5,11 @@ edition = "2021"
 
 [lib]
 name = "zork"
-path = "src/lib/lib.rs"
+path = "src/lib.rs"
 
 [[bin]]
 name = "zork"
-path = "src/bin/main.rs"
+path = "src/main.rs"
 
 [dependencies]
 toml = "0.5.10"
