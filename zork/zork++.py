@@ -43,10 +43,12 @@ import runners
 
 if __name__ == '__main__':
     process_init_time = time.time_ns() // 1_000_000
-    initial_log()
 
     cli_options = command_line_interface()
     verbose: bool = cli_options.verbose
+    tests: bool = cli_options.tests
+
+    initial_log(tests)
 
     if 'project_name' in cli_options:
         proj_already_created: bool = \
@@ -87,8 +89,7 @@ if __name__ == '__main__':
             build_project(
                 config,
                 verbose,
-                proj_name,
-                cli_options.tests
+                tests
             )
         )
 
