@@ -44,7 +44,7 @@ sources: *.cpp
 auto_execute: true
 
 [[#tests]]
-tests_name: zork_proj_tests
+tests_executable_name: zork_proj_tests
 sources: *.cpp
 auto_run_tests: true
 

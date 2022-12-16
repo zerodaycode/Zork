@@ -121,7 +121,7 @@ class ExecutableConfig:
 @dataclass
 class TestsConfig:
     """ The user defined configuration to run tests"""
-    tests_name: str
+    tests_executable_name: str
     sources_base_path: str
     sources: list
     auto_run_tests: str
@@ -130,8 +130,8 @@ class TestsConfig:
         """ Sets the value(s) for the members of the class,
             given any value related by the method's parameter
             'property name'"""
-        if property_name == 'tests_name':
-            self.tests_name = value
+        if property_name == 'tests_executable_name':
+            self.tests_executable_name = value
         elif property_name == 'sources_base_path':
             self.sources_base_path = value
         elif property_name == 'sources':

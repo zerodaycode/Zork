@@ -7,7 +7,7 @@ import os
 from utils.constants import CONFIGURATION_FILE_NAME
 
 
-def find_config_file(root_path: str, verbose) -> bool:
+def find_config_file(root_path: str, verbose: bool) -> bool:
     """
         Tries to find in the directory where this script it's placed
         a `zork.conf` file that identifies the "config" file

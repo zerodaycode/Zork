@@ -48,7 +48,6 @@ def get_section_blocks(file: str) -> list:
     """
         Get all section blocks
     """
-
     return re.findall(
         BLOCK_PATTERN, "".join(file), re.MULTILINE
     )
@@ -77,7 +76,6 @@ def parse_attr_properties_block(blocks: list) -> dict:
         properties: list = []
 
         for prop in extracted_properties:
-
             property_values = ";".join(
                 [
                     p_value.strip('\t').strip(' ')
@@ -90,7 +88,6 @@ def parse_attr_properties_block(blocks: list) -> dict:
                     "property_value": property_values
                 }
             )
-
 
         retrieved_data[attribute_identifier] = properties
 
