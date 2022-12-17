@@ -34,6 +34,7 @@ use serde::*;
 /// For a test over a real example, please look at the
 /// [`zork::config_file::ZorkConfigFile`] doc-test
 #[derive(Deserialize, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ProjectAttribute<'a> {
     pub name: &'a str,
     pub authors: Option<Vec<&'a str>>

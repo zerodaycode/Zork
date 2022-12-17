@@ -3,7 +3,6 @@
 
 pub mod project;
 pub mod compiler;
-pub mod language;
 pub mod build;
 pub mod executable;
 pub mod modules;
@@ -14,7 +13,6 @@ use serde::Deserialize;
 use self::{
     project::ProjectAttribute,
     compiler::CompilerAttribute,
-    language::LanguageAttribute,
     build::BuildAttribute,
     executable::ExecutableAttribute,
     modules::ModulesAttribute,
@@ -51,8 +49,7 @@ use self::{
 pub struct ZorkConfigFile<'a> {
     #[serde(borrow)] pub project: ProjectAttribute<'a>,
     #[serde(borrow)] pub compiler: CompilerAttribute<'a>,
-    pub language: LanguageAttribute,
-    pub build: Option<BuildAttribute>,
+    pub build: Option<BuildAttribute<'a>>,
     pub executable: Option<ExecutableAttribute>,
     pub modules: Option<ModulesAttribute>,
     pub tests: Option<TestsAttribute>
