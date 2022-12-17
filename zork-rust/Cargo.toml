@@ -5,19 +5,11 @@ edition = "2021"
 
 [lib]
 name = "zork"
-<<<<<<< HEAD
-path = "src/lib.rs"
-
-[[bin]]
-name = "zork"
-path = "src/main.rs"
-=======
 path = "src/lib/lib.rs"
 
 [[bin]]
 name = "zork"
 path = "src/bin/main.rs"
->>>>>>> alex/feature/GH-45-rewrite-zork++-from-scratch-in-rust
 
 [dependencies]
 toml = "0.5.10"
