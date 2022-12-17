@@ -17,7 +17,74 @@ fn load_compiler_config_from_array() {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct ZorkConfig {
-    pub compiler: Compiler,
+    pub project: ProjectAttribute,
+    pub compiler: CompilerAttibute,
+    pub language: LanguageAttribute,
+    pub build: Option< BuildAttribute >,
+    pub executable: Option< ExecutableAttribute >,
+    pub modules: Option< ModulesAttribute >,
+    pub tests: Option< TestAttribute >,
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+pub struct ProjectAttribute {
+    pub name: String,
+    pub authors: Option< Vec< String> >
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+pub struct CompilerAttibute {
+    pub cpp_compiler: SupportCompiler,
+    pub extra_args: Option<String>,
+    pub system_headers_path: Option<String>
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+pub enum SupportCompiler {
+    #[serde(alias = "CLANG++", alias = "clang++",alias = "CLANG", alias = "clang")]
+    CLANG,
+    #[serde(alias = "GCC", alias = "GCC")]
+    GCC,
+    #[serde(alias = "MSVC", alias = "msvc")]
+    MSVC
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+pub struct LanguageAttribute {
+    pub cpp_standard: u8,
+    pub std_lib: Option< String >,
+    pub modules: Option< bool >
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+pub struct BuildAttribute {
+    pub output_dir: Option< String >
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+pub struct ExecutableAttribute {
+    pub executable_name: Option< String >,
+    pub sources_base_path: Option< String >,
+    pub sources: Option< Vec<String> >,
+    pub auto_execute: Option< bool >,
+    pub extra_args: Option< String >
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+pub struct ModulesAttribute {
+    pub base_ifcs_dir: Option< String >,
+    pub interfaces: Option< Vec<String> >,
+    pub base_impls_dir: Option< String >,
+    pub implementations: Option< Vec<String> >
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+pub struct TestAttribute {
+    pub tests_executable_name: Option< Vec<String> >,
+    pub sources_base_path: Option< Vec<String> >,
+    pub sources: Option< Vec<String> >,
+    pub auto_run_tests: Option< bool >,
+    pub extra_args: Option< String >
 }
 
 
