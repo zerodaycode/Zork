@@ -1,6 +1,6 @@
 # CPP files for testing the project in place
 notes.txt
-src/
+
 # out/
 .pytest_cache/
 .zork_venv/
