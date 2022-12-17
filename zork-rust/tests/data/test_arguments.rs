@@ -1,4 +1,4 @@
-use zork::data::arguments::{FileAttributes, ProjectAttribute, CompilerAttibute, SupportCompiler, ModulesAttribute, TestAttribute};
+use zork::data::arguments::{FileAttributes, ProjectAttribute, CompilerAttibute, SupportCompiler, ModulesAttribute, TestAttribute, ExecutableAttribute, LanguageAttribute, BuildAttribute};
 
 
 
@@ -17,9 +17,7 @@ fn parse_arguments_toml_project_attribute(){
             assert_eq!(params.name.as_str(),"calculator");
             assert!(params.authors.is_some());
 
-            assert_eq!( params.authors.clone().unwrap().len(), 1,
-                ""
-            );
+            assert_eq!( params.authors.clone().unwrap().len(), 1 );
 
             assert_eq!( params.authors.clone().unwrap().get(0).unwrap(),
                 "Zero Day Code  # Replace this for the real authors",
@@ -91,36 +89,47 @@ fn parse_arguments_toml_all_arguments_attribute(){
 
     match &zork_config {
         Ok( params ) => {
-            assert_eq!( params.project.name.as_str(), "calculator" );
-            assert_eq!(
-                params.project.authors.as_ref(), 
-                Some( 
+            let project = ProjectAttribute {
+                name: "calculator".to_string(),
+                authors: Some( 
                     vec![
                         "Zero Day Code  # Replace this for the real authors".to_string()
-                    ].as_ref() 
+                    ]
                 )
-            );
+            };
+            assert_eq!(params.project, project );
 
-            assert_eq!( params.compiler.cpp_compiler, SupportCompiler::CLANG );
-            assert_eq!( params.compiler.extra_args, Some("aaa".to_string()) );
-            assert_eq!( params.compiler.system_headers_path, Some("system_headers_path".to_string()) );
+            let compiler = CompilerAttibute {
+                cpp_compiler: SupportCompiler::CLANG,
+                extra_args: Some("aaa".to_string()),
+                system_headers_path: Some("system_headers_path".to_string()),
+            };
+            assert_eq!(params.compiler, compiler);
 
-            assert_eq!( params.language.cpp_standard, 20 );
-            assert_eq!( params.language.modules, Some(true) );
+            let language = LanguageAttribute {
+                cpp_standard: 20 ,
+                std_lib: Some("libc++".to_string()),
+                modules: Some(true),
+            };
+            assert_eq!(params.language, language);
 
-            assert!( params.build.is_some() );
-            assert_eq!( params.build.as_ref().unwrap().output_dir,Some("./out".to_string()) );
+            let build = BuildAttribute {
+                output_dir: Some("./out".to_string()),
+            };
+            assert_eq!(params.build, Some(build));
 
             assert!( params.executable.is_some() );
-            assert_eq!( params.executable.as_ref().unwrap().auto_execute, Some(true) );
-            assert_eq!( params.executable.as_ref().unwrap().executable_name, Some("calculator".to_string()) );
-            assert_eq!( params.executable.as_ref().unwrap().extra_args, Some("aaa".to_string()) );
-            assert_eq!( 
-                params.executable.as_ref().unwrap().sources,
-                Some(
+
+            let executable = ExecutableAttribute{
+                executable_name: Some("calculator".to_string()),
+                sources_base_path:  Some("asd".to_string()),
+                sources: Some(
                     vec![ "*.cpp".to_string()]
-                )
-            );
+                ),
+                auto_execute: Some(true),
+                extra_args: Some("aaa".to_string()) ,
+            };
+            assert_eq!( params.executable, Some(executable) );
 
             assert!( params.modules.as_ref().is_some() );
             let modules = ModulesAttribute {
@@ -190,6 +199,7 @@ fn get_string_parse_config<'a> () -> &'a str {
     ]
     auto_execute = true
     extra_args = 'aaa'
+    sources_base_path = 'asd'
 
     [modules]
     base_ifcs_dir = 'calculator/ifc/'
