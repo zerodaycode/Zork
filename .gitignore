@@ -8,6 +8,10 @@ src/
 htmlcov/
 *.xml
 
+# Rust
+target/
+Cargo.lock
+
 # Editors
 .vscode
 .vs
