@@ -50,7 +50,7 @@ pub struct ZorkConfigFile<'a> {
     #[serde(borrow)] pub project: ProjectAttribute<'a>,
     #[serde(borrow)] pub compiler: CompilerAttribute<'a>,
     pub build: Option<BuildAttribute<'a>>,
-    pub executable: Option<ExecutableAttribute>,
-    pub modules: Option<ModulesAttribute>,
-    pub tests: Option<TestsAttribute>
+    pub executable: Option<ExecutableAttribute<'a>>,
+    pub modules: Option<ModulesAttribute<'a>>,
+    pub tests: Option<TestsAttribute<'a>>
 }
