@@ -37,6 +37,9 @@ def run_executable(config: dict, proj_name: str):
             if " " in el:
                 intermediate =  '"' + el + '"'
                 QUOTED_PATHS += intermediate
+            elif el.startswith('./'):
+                intermediate =  el[2:]
+                QUOTED_PATHS += intermediate
             else:
                 QUOTED_PATHS += el
             QUOTED_PATHS += '\\'
