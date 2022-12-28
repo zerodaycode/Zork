@@ -1,4 +1,4 @@
-///!  It knows that he must produce an executable with especific configuration
+///! Specify the execution configuration
 
 use serde::*;
 
@@ -16,7 +16,7 @@ use serde::*;
 /// const CONFIG_FILE_MOCK: &str = r#"
 ///     #[executable]
 ///     executable_name = "outputExecutableName"
-///     sources_base_path = './dirSourceCode'
+///     sources_base_path = './src'
 ///     sources = [
 ///         '*.cpp'
 ///     ] 
@@ -28,7 +28,7 @@ use serde::*;
 ///    .expect("A failure happened parsing the Zork toml file");
 ///
 /// assert_eq!(config.executable_name, Some("outputExecutableName"));
-/// assert_eq!(config.sources_base_path, Some("./dirSourceCode"));
+/// assert_eq!(config.sources_base_path, Some("./src"));
 /// assert_eq!(config.sources, Some(vec!["*.cpp"]));
 /// assert_eq!(config.auto_execute, Some(true));
 /// assert_eq!(config.extra_args, Some("example"))
@@ -43,9 +43,9 @@ use serde::*;
 /// [`zork::config_file::ZorkConfigFile`] doc-test
 #[derive(Deserialize, Debug, PartialEq)]
 pub struct ExecutableAttribute<'a> {
-    pub executable_name: Option<&'a str>,
-    pub sources_base_path: Option<&'a str>,
-    pub sources: Option<Vec<&'a str>>,
+    #[serde(borrow)] pub executable_name: Option<&'a str>,
+    #[serde(borrow)] pub sources_base_path: Option<&'a str>,
+    #[serde(borrow)] pub sources: Option<Vec<&'a str>>,
     pub auto_execute: Option<bool>,
-    pub extra_args: Option<&'a str>
+    #[serde(borrow)] pub extra_args: Option<&'a str>
 }

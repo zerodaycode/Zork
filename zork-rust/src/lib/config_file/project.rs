@@ -37,5 +37,5 @@ use serde::*;
 #[serde(deny_unknown_fields)]
 pub struct ProjectAttribute<'a> {
     pub name: &'a str,
-    pub authors: Option<Vec<&'a str>>
+    #[serde(borrow)] pub authors: Option<Vec<&'a str>>
 }

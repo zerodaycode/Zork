@@ -17,7 +17,7 @@ use serde::Deserialize;
 ///     #[module]
 ///     base_ifcs_dir = "./ifc"
 ///     interfaces = [
-///         'exampleInterface1', 'exampleInterface2'    
+///         'Interface1', 'Interface2'    
 ///     ]
 ///     base_impls_dir = './src' 
 ///     implementations = [
@@ -29,7 +29,7 @@ use serde::Deserialize;
 ///    .expect("A failure happened parsing the Zork toml file");
 ///
 /// assert_eq!(config.base_ifcs_dir, Some("./ifc"));
-/// assert_eq!(config.interfaces, Some(vec!["exampleInterface1","exampleInterface2"]));
+/// assert_eq!(config.interfaces, Some(vec!["Interface1","Interface2"]));
 /// assert_eq!(config.base_impls_dir, Some("./src"));
 /// assert_eq!(config.implementations, Some(vec!["Implementation1","Implementation2"]));
 /// ```
@@ -44,8 +44,8 @@ use serde::Deserialize;
 
 #[derive(Deserialize, Debug, PartialEq)]
 pub struct ModulesAttribute<'a> {
-    pub base_ifcs_dir: Option<&'a str>,
-    pub interfaces: Option<Vec<&'a str>>,
-    pub base_impls_dir: Option<&'a str>,
-    pub implementations: Option<Vec<&'a str>>
+    #[serde(borrow)] pub base_ifcs_dir: Option<&'a str>,
+    #[serde(borrow)] pub interfaces: Option<Vec<&'a str>>,
+    #[serde(borrow)] pub base_impls_dir: Option<&'a str>,
+    #[serde(borrow)] pub implementations: Option<Vec<&'a str>>
 }
