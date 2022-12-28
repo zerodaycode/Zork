@@ -14,3 +14,4 @@ path = "src/bin/main.rs"
 [dependencies]
 toml = "0.5.10"
 serde = { version = "1.0.138", features = ["derive"] }
+clap = { version = "4.0.32", features = ["derive"] }
