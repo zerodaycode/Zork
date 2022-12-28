@@ -49,8 +49,8 @@ use self::{
 pub struct ZorkConfigFile<'a> {
     #[serde(borrow)] pub project: ProjectAttribute<'a>,
     #[serde(borrow)] pub compiler: CompilerAttribute<'a>,
-    pub build: Option<BuildAttribute<'a>>,
-    pub executable: Option<ExecutableAttribute>,
-    pub modules: Option<ModulesAttribute>,
-    pub tests: Option<TestsAttribute>
+    #[serde(borrow)] pub build: Option<BuildAttribute<'a>>,
+    #[serde(borrow)] pub executable: Option<ExecutableAttribute<'a>>,
+    #[serde(borrow)] pub modules: Option<ModulesAttribute<'a>>,
+    #[serde(borrow)] pub tests: Option<TestsAttribute<'a>>
 }
