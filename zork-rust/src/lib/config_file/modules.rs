@@ -15,11 +15,11 @@ use serde::Deserialize;
 /// use zork::config_file::modules::ModulesAttribute;
 /// const CONFIG_FILE_MOCK: &str = r#"
 ///     #[module]
-///     base_ifcs_dir = "./dirExample"
+///     base_ifcs_dir = "./ifc"
 ///     interfaces = [
 ///         'exampleInterface1', 'exampleInterface2'    
 ///     ]
-///     base_impls_dir = './dirImplementationsInterfaceExample' 
+///     base_impls_dir = './src' 
 ///     implementations = [
 ///         'Implementation1','Implementation2'
 ///     ]
@@ -28,9 +28,9 @@ use serde::Deserialize;
 /// let config: ModulesAttribute = toml::from_str(CONFIG_FILE_MOCK)
 ///    .expect("A failure happened parsing the Zork toml file");
 ///
-/// assert_eq!(config.base_ifcs_dir, Some("./dirExample"));
+/// assert_eq!(config.base_ifcs_dir, Some("./ifc"));
 /// assert_eq!(config.interfaces, Some(vec!["exampleInterface1","exampleInterface2"]));
-/// assert_eq!(config.base_impls_dir, Some("./dirImplementationsInterfaceExample"));
+/// assert_eq!(config.base_impls_dir, Some("./src"));
 /// assert_eq!(config.implementations, Some(vec!["Implementation1","Implementation2"]));
 /// ```
 /// > Note: TOML table are toml commented (#) to allow us to parse
