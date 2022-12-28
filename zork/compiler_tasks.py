@@ -60,7 +60,9 @@ def call_clang_to_work(
 
     command_line = base_command_line + extra_args + [
         '-o',
-        f'{config.get("build").output_dir}/' + executable_name
+        f'{config.get("build").output_dir}/'
+        + executable_name
+        + '.exe' if constants.OS == constants.WINDOWS else ''
     ]
 
     # Adds the source files to the command line
@@ -455,6 +457,11 @@ def generate_import_std(config: dict, zork_intrinsics_dir_path: str):
         the C++23 proposal of unifiying the standard library into only one
         module, bring it into scope as `import std;`
     """
+    # TODO Check for rebuild argument
+    if os.path.exists(f'{config.get("build").output_dir}/zork/intrinsics/std.h'):
+        print("Cached out/zork directory found")
+        return
+
     # If there's no user manually setted path, we perform the autosearch
     # for the system headers
     if config.get('compiler').system_headers_path == '':
@@ -464,7 +471,7 @@ def generate_import_std(config: dict, zork_intrinsics_dir_path: str):
     # We are going to store a relation between the files inside of the root
     # of the folder of the include files, and the ones stored in a subdirectory.
     system_headers: dict = {}
-    discarded_headers: list[str] =  ['cstdlib', 'stdlib.h']
+    discarded_headers: list[str] =  ['cstdlib', 'stdlib.h', 'stacktrace']
 
     for root, _, sys_headers in os.walk(SYS_HEADERS_BASE_PATH):
         if root == SYS_HEADERS_BASE_PATH:
@@ -474,6 +481,7 @@ def generate_import_std(config: dict, zork_intrinsics_dir_path: str):
             # system_headers.update({root.removeprefix(SYS_HEADERS_BASE_PATH): sys_headers})
             # TODO study case, multiple headers causes redefinition problems when exported on the
             # module map file. Most std important ones even tho are reexported on the module map
+    # print(f'sys headers: {system_headers}')
 
     # The files that will make possible the `import std;`
     ZORK_MODULE_MAP: str = ''
@@ -482,7 +490,8 @@ def generate_import_std(config: dict, zork_intrinsics_dir_path: str):
     for path, sys_headers in system_headers.items():
         path = path.replace('\\', '/')
         for file in sys_headers:
-            if file.endswith('.tcc') or file in discarded_headers:
+            # print(f'FILE: {file}')
+            if file.endswith('.tcc') or '.' in file or file in discarded_headers:
                 continue
             if path == 'root':
                 SYSTEM_HEADERS_HEADER += f'#include <{file}>\n'
