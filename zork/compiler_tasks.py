@@ -61,7 +61,7 @@ def call_clang_to_work(
     command_line = base_command_line + extra_args + [
         '-o',
         f'{config.get("build").output_dir}/'
-        + executable_name 
+        + executable_name
         + '.exe' if constants.OS == constants.WINDOWS else ''
     ]
 
@@ -458,12 +458,10 @@ def generate_import_std(config: dict, zork_intrinsics_dir_path: str):
         module, bring it into scope as `import std;`
     """
     # TODO Check for rebuild argument
-    print(f'path value: {config.get("build").output_dir}/zork')
     if os.path.exists(f'{config.get("build").output_dir}/zork/intrinsics/std.h'):
         print("Cached out/zork directory found")
         return
-    else:
-        print("Still not cached")
+
     # If there's no user manually setted path, we perform the autosearch
     # for the system headers
     if config.get('compiler').system_headers_path == '':
