@@ -1,37 +1,22 @@
-use env_logger::Builder;
-use log::LevelFilter;
-use tracing::{info};
-use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt};
-use zork::{utils::logger::CustomLayer, config_cli::CliArgs};
+use env_logger::Target;
+use zork::{config_cli::CliArgs, utils::logger::config_logger};
 use clap::Parser;
-use std::io::Write;
-use chrono::Local;
 
 
 fn main() {
-    let parser_cli = CliArgs::parse_from(["","-vv"]);
+    let parser_cli = CliArgs::parse_from([""]);
+
+    config_logger(parser_cli.verbose, Target::Stdout)
+        .expect("Error configure logger");
+
+
     
-    tracing_subscriber::registry().with(CustomLayer{
-        verbose_level: parser_cli.verbose.clone()
-    }).init();
-    info!(m="asd",a="aaaa");
-
-    let mut builder = Builder::from_default_env();
-
-
-    builder
-        .format(|buf, record| {
-            writeln!(buf,
-                "{} [{}] - {}",
-                Local::now().format("%Y-%m-%dT%H:%M:%S"),
-                record.level(),
-                record.args()
-            )
-        })
-        .filter(None, LevelFilter::Info)
-        .try_init();
-
     log::warn!("warn");
     log::info!("info");
-    log::debug!("debug");
+    log::error!("error");
+
 }
+
+
+
+
