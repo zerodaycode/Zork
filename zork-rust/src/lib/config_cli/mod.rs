@@ -14,14 +14,14 @@ use command::Command;
 /// let parser = CliArgs::parse_from(["", "-vv"]);
 /// assert_eq!(2, parser.verbose);
 /// 
-/// let parser = CliArgs::parse_from(["","tests"]);
-/// assert_eq!(parser.command,Some(Command::Tests));
+/// let parser = CliArgs::parse_from(["", "tests"]);
+/// assert_eq!(parser.command, Some(Command::Tests));
 /// 
 // Create Template Project
-/// let parser = CliArgs::parse_from(["","-n","ZeroDayCodeTemplate","--legacy","--git","--compiler","clang"]);
-/// assert_eq!(parser.new_template,Some(String::from("ZeroDayCodeTemplate")));
-/// assert_eq!(parser.legacy,true);
-/// assert_eq!(parser.git,true);
+/// let parser = CliArgs::parse_from(["", "-n", "ZeroDayCodeTemplate", "--legacy", "--git", "--compiler", "clang"]);
+/// assert_eq!(parser.new_template, Some(String::from("ZeroDayCodeTemplate")));
+/// assert_eq!(parser.legacy, true);
+/// assert_eq!(parser.git, true);
 /// assert_eq!(parser.compiler, Some(CppCompiler::CLANG)); 
 /// 
 /// 
