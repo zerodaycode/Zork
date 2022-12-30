@@ -1,0 +1,19 @@
+[package]
+name = "zork"
+version = "0.5.0"
+edition = "2021"
+
+[lib]
+name = "zork"
+path = "src/lib/lib.rs"
+
+[[bin]]
+name = "zork"
+path = "src/bin/main.rs"
+
+[dependencies]
+toml = "0.5.10"
+serde = { version = "1.0.138", features = ["derive"] }
+clap = { version = "4.0.32", features = ["derive"] }
+log = "0.4.17"
+env_logger = "0.10.0"

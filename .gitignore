@@ -1,29 +1,19 @@
 # CPP files for testing the project in place
 notes.txt
-src/
+
 # out/
-.pytest_cache/
-.zork_venv/
 .coverage
 htmlcov/
 *.xml
+
+# Rust
+target/
+Cargo.lock
 
 # Editors
 .vscode
 .vs
 .idea
-
-# Build
-*.spec
-build/
-dist/
-
-# Python specific
-__pycache__/
-
-# Python build ones
-dist/
-Zork.egg-info/
 
 # Prerequisites
 *.d
