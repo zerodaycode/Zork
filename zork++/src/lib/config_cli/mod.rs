@@ -1,15 +1,11 @@
-pub mod command;
-
-use clap::{Parser, ValueEnum};
-use command::Command;
+use clap::{Parser, Subcommand, ValueEnum};
 
 /// [`CliArgs`] This is parser arguments to command line argument
 ///
 /// #Test
 /// ```rust
-/// use zork::config_cli::{CliArgs,CppCompiler};
-/// use zork::config_cli::command::Command;
 /// use clap::Parser;
+/// use zork::config_cli::{CliArgs, Command, CppCompiler};
 ///
 /// let parser = CliArgs::parse_from(["", "-vv"]);
 /// assert_eq!(2, parser.verbose);
@@ -30,7 +26,10 @@ use command::Command;
 #[command(name = "Zork++")]
 #[command(author = "Zero Day Code")]
 #[command(version = "0.5.0")]
-#[command(about = "Zork++ is a build system for modern C++ projects", long_about = "Zork++ is a project of Zero Day Code. Find us: https://github.com/zerodaycode/Zork")]
+#[command(
+    about = "Zork++ is a build system for modern C++ projects",
+    long_about = "Zork++ is a project of Zero Day Code. Find us: https://github.com/zerodaycode/Zork"
+)]
 pub struct CliArgs {
     #[command(subcommand)]
     pub command: Option<Command>,
@@ -57,10 +56,18 @@ pub struct CliArgs {
     pub compiler: Option<CppCompiler>,
 }
 
+/// [`Command`] -  The core enum commands
+#[derive(Subcommand, Debug, PartialEq, Eq)]
+pub enum Command {
+    /// Executes the tests under the specified directory in the config file
+    Tests,
+}
+
 /// [`CppCompiler`] The C++ compilers available within Zork++ as a command line argument for the `new` argument
+/// TODO Possible future interesting on support the Intel's C++ compiler?
 #[derive(ValueEnum, Clone, Debug, PartialEq, Eq)]
 pub enum CppCompiler {
     CLANG,
     MSVC,
-    GCC, // Possible future interesting on support the Intel's C++ compiler?
+    GCC,
 }

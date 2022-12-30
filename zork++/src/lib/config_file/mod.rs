@@ -14,29 +14,29 @@ use self::{
     modules::ModulesAttribute, project::ProjectAttribute, tests::TestsAttribute,
 };
 
-// /// ```
-// #[test]
-// fn load_compiler_config_from_array() {
-//     const CONFIG_FILE_MOCK: &str = r#"
-//         [project]
-//         name = 'Zork++ serde tests'
-//         authors = ['zerodaycode.gz@gmail.com']
-
-//         [language]
-//         cpp_compiler = 'clang'
-
-//         [compiler]
-//         cpp_compiler = 'clang'
-//     "#;
-
-//     let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)
-//         .expect("A failure happened parsing the Zork toml file");
-
-//     let compiler_attribute = &config.compiler;
-
-//     assert_eq!(compiler_attribute.cpp_compiler, CppCompiler::CLANG);
-// }
-// /// ```
+/// ```rust
+/// use zork::config_file::{
+///     ZorkConfigFile,
+///     compiler::CppCompiler
+/// };
+/// 
+/// const CONFIG_FILE_MOCK: &str = r#"
+///     [project]
+///     name = 'Zork++ serde tests'
+///     authors = ['zerodaycode.gz@gmail.com']
+///
+///     [compiler]
+///     cpp_compiler = 'clang'
+///     cpp_standard = '20'
+/// "#;
+///
+/// let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)
+///     .expect("A failure happened parsing the Zork toml file");
+///
+/// let compiler_attribute = &config.compiler;
+///
+/// assert_eq!(compiler_attribute.cpp_compiler, CppCompiler::CLANG);
+/// ```
 /// The [`ZorkConfigFile`] is the type that holds
 /// the whole hierarchy of Zork++ config file attributes
 /// and properties

@@ -2,8 +2,6 @@
 notes.txt
 
 # out/
-.pytest_cache/
-.zork_venv/
 .coverage
 htmlcov/
 *.xml
@@ -16,18 +14,6 @@ Cargo.lock
 .vscode
 .vs
 .idea
-
-# Build
-*.spec
-build/
-dist/
-
-# Python specific
-__pycache__/
-
-# Python build ones
-dist/
-Zork.egg-info/
 
 # Prerequisites
 *.d
