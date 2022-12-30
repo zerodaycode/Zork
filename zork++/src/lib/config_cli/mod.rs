@@ -41,11 +41,6 @@ pub struct CliArgs {
     pub new_template: Option<String>,
     #[arg(
         long,
-        help = "To generate a C++ modules project or a classical one with headers, can you use with template project"
-    )]
-    pub legacy: bool,
-    #[arg(
-        long,
         help = "Initializes a new local git repo, can you use with template project"
     )]
     pub git: bool,
