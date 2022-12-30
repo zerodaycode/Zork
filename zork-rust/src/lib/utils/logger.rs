@@ -1,15 +1,12 @@
 use env_logger::{Builder, Target};
 use log::{LevelFilter, SetLoggerError};
 
-
-
-
-/// 
+///
 /// [`config_logger`] configure logger
-/// 
-/// TODO to capture output and make test required top layer 
-/// 
-pub fn config_logger(verbose_level: u8, target: Target ) -> Result<(), SetLoggerError>{
+///
+/// TODO to capture output and make test required top layer
+///
+pub fn config_logger(verbose_level: u8, target: Target) -> Result<(), SetLoggerError> {
     let mut builder = Builder::from_default_env();
 
     builder
@@ -19,12 +16,11 @@ pub fn config_logger(verbose_level: u8, target: Target ) -> Result<(), SetLogger
 
     if verbose_level == 1 {
         builder.filter(None, LevelFilter::Warn);
-    }else if verbose_level == 2 {
+    } else if verbose_level == 2 {
         builder.filter(None, LevelFilter::Info);
-    }else {
+    } else {
         builder.filter(None, LevelFilter::Error);
     }
-    
 
     builder.try_init()
 }
