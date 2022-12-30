@@ -1,22 +1,17 @@
-///! root file for the crate where the datastructures that holds the TOML
-/// parsed data lives.
-
-pub mod project;
-pub mod compiler;
 pub mod build;
+pub mod compiler;
 pub mod executable;
 pub mod modules;
+///! root file for the crate where the datastructures that holds the TOML
+/// parsed data lives.
+pub mod project;
 pub mod tests;
 
 use serde::Deserialize;
 
 use self::{
-    project::ProjectAttribute,
-    compiler::CompilerAttribute,
-    build::BuildAttribute,
-    executable::ExecutableAttribute,
-    modules::ModulesAttribute,
-    tests::TestsAttribute
+    build::BuildAttribute, compiler::CompilerAttribute, executable::ExecutableAttribute,
+    modules::ModulesAttribute, project::ProjectAttribute, tests::TestsAttribute,
 };
 
 // /// ```
@@ -47,10 +42,16 @@ use self::{
 /// and properties
 #[derive(Deserialize, Debug)]
 pub struct ZorkConfigFile<'a> {
-    #[serde(borrow)] pub project: ProjectAttribute<'a>,
-    #[serde(borrow)] pub compiler: CompilerAttribute<'a>,
-    #[serde(borrow)] pub build: Option<BuildAttribute<'a>>,
-    #[serde(borrow)] pub executable: Option<ExecutableAttribute<'a>>,
-    #[serde(borrow)] pub modules: Option<ModulesAttribute<'a>>,
-    #[serde(borrow)] pub tests: Option<TestsAttribute<'a>>
+    #[serde(borrow)]
+    pub project: ProjectAttribute<'a>,
+    #[serde(borrow)]
+    pub compiler: CompilerAttribute<'a>,
+    #[serde(borrow)]
+    pub build: Option<BuildAttribute<'a>>,
+    #[serde(borrow)]
+    pub executable: Option<ExecutableAttribute<'a>>,
+    #[serde(borrow)]
+    pub modules: Option<ModulesAttribute<'a>>,
+    #[serde(borrow)]
+    pub tests: Option<TestsAttribute<'a>>,
 }
