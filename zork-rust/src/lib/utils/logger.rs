@@ -18,6 +18,8 @@ pub fn config_logger(verbose_level: u8, target: Target) -> Result<(), SetLoggerE
         builder.filter(None, LevelFilter::Warn);
     } else if verbose_level == 2 {
         builder.filter(None, LevelFilter::Info);
+    } else if verbose_level > 2 {
+        panic!("Zork++ not support this verbose level, max level 2 '-vv'")
     } else {
         builder.filter(None, LevelFilter::Error);
     }
