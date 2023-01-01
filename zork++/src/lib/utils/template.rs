@@ -1,8 +1,7 @@
 use crate::config_cli::CppCompiler;
 use crate::utils::constans::{INTERFACE_MOD_FILE, MAIN, SRC_MOD_FILE, SRC_MOD_FILE_2, ZORK_CONF};
 use log::info;
-use serde::{Deserialize, Serialize};
-use std::io::{Write, Read};
+use std::io::{Write};
 use std::path::PathBuf;
 use std::process::Command;
 use std::str::FromStr;
