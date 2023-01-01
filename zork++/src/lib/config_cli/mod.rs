@@ -38,7 +38,7 @@ pub struct CliArgs {
     pub verbose: u8,
 
     #[arg(short, long, group = "base_option", help = "Create Project template")]
-    pub new_template: Option<String>,
+    pub new_template: bool,
     #[arg(
         long,
         help = "Initializes a new local git repo, can you use with template project"
