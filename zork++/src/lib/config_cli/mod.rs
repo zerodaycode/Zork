@@ -66,3 +66,13 @@ pub enum CppCompiler {
     MSVC,
     GCC,
 }
+
+impl CppCompiler {
+    pub fn get_default_extesion(&self) -> &str {
+        match *self {
+            CppCompiler::CLANG => "cppm",
+            CppCompiler::MSVC => "ixx",
+            CppCompiler::GCC => todo!("GCC is still not supported yet by Zork++"),
+        }
+    }
+}
