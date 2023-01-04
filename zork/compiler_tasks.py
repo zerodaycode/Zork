@@ -62,7 +62,7 @@ def call_clang_to_work(
         '-o',
         f'{config.get("build").output_dir}/'
         + executable_name
-        + '.exe' if constants.OS == constants.WINDOWS else ''
+        + ('.exe' if constants.OS == constants.WINDOWS else '')
     ]
 
     # Adds the source files to the command line
