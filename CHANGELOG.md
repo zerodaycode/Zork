@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2022 - 12 - 28
+
+### Fix
+
+- Solved a bug that was leading to an incorrect command line generation under Unix OS
+
 ## [0.4.1] - 2022 - 12 - 28
 
 ### Update

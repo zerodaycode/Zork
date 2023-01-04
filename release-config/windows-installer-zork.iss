@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Zork++"
-#define MyAppVersion "0.3.1"
+#define MyAppVersion "0.4.2"
 #define MyAppPublisher "ZeroDayCode"
 #define MyAppURL "https://github.com/zerodaycode/Zork"
 #define MyAppExeName "zork++.exe"
@@ -39,6 +39,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Files]
+Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\zork++.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
