@@ -1,9 +1,10 @@
+///! root file for the crate where the datastructures that holds the TOML
+/// parsed data lives.
+
 pub mod build;
 pub mod compiler;
 pub mod executable;
 pub mod modules;
-///! root file for the crate where the datastructures that holds the TOML
-/// parsed data lives.
 pub mod project;
 pub mod tests;
 
@@ -19,7 +20,7 @@ use self::{
 ///     ZorkConfigFile,
 ///     compiler::CppCompiler
 /// };
-/// 
+///
 /// const CONFIG_FILE_MOCK: &str = r#"
 ///     [project]
 ///     name = 'Zork++ serde tests'
