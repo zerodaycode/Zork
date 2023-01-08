@@ -5,7 +5,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 /// #Test
 /// ```rust
 /// use clap::Parser;
-/// use zork::config_cli::{CliArgs, Command, CppCompiler};
+/// use zork::cli::{CliArgs, Command, CppCompiler};
 ///
 /// let parser = CliArgs::parse_from(["", "-vv"]);
 /// assert_eq!(2, parser.verbose);

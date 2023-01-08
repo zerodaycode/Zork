@@ -1,6 +1,6 @@
 use clap::Parser;
 use env_logger::Target;
-use zork::{config_cli::CliArgs, utils::logger::config_logger};
+use zork::{cli::CliArgs, utils::logger::config_logger};
 
 fn main() {
     let parser_cli = CliArgs::parse_from([""]);
