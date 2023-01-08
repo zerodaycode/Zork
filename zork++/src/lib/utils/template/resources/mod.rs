@@ -1,5 +1,3 @@
-pub const ROOT_PATH_NAME: &str = "example";
-pub const PROJECT_NAME: &str = "calculator";
 pub const CONFIG_FILE_NAME: &str = "zork.toml"; // zork.toml
 
 pub const IFC_MOD_FILE: &str = include_str!("math.cppm");

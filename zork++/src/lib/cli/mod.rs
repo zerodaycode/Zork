@@ -45,6 +45,8 @@ pub enum Command {
     /// Executes the tests under the specified directory in the config file
     Test,
     New {
+        #[arg(help = "Name of the new project")]
+        name: String,
         #[arg(long, help = "Initialize a new local git repo")]
         git: bool,
         #[arg(long, default_value_t = CppCompiler::CLANG, help = "Which compiler to use")]
