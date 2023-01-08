@@ -11,17 +11,13 @@ use clap::{Parser, Subcommand, ValueEnum};
 /// use clap::Parser;
 /// use zork::cli::{CliArgs, Command, CppCompiler};
 ///
-/// let parser = CliArgs::parse_from(["", "-vv"]);
-/// assert_eq!(2, parser.verbose);
-///
-/// let parser = CliArgs::parse_from(["", "tests"]);
-/// assert_eq!(parser.command, Some(Command::Tests));
+/// let parser = CliArgs::parse_from(["", "-vv", "test"]);
+/// assert_eq!(parser.command, Command::Test);
+/// assert_eq!(parser.verbose, 2);
 ///
 // Create Template Project
-/// let parser = CliArgs::parse_from(["", "-n", "--git", "--compiler", "clang"]);
-/// assert_eq!(parser.new_template, true);
-/// assert_eq!(parser.git, true);
-/// assert_eq!(parser.compiler, Some(CppCompiler::CLANG));
+/// let parser = CliArgs::parse_from(["", "new", "example", "--git", "--compiler", "clang"]);
+/// assert_eq!(parser.command, Command::New{name: "example".to_owned(), git: true, compiler: CppCompiler::CLANG});
 /// ```
 #[derive(Parser, Debug)]
 #[command(name = "Zork++")]
@@ -33,7 +29,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 )]
 pub struct CliArgs {
     #[command(subcommand)]
-    pub command: Option<Command>,
+    pub command: Command,
 
     #[arg(short, long, action = clap::ArgAction::Count, help="Zork++ maximum allowed verbosity level is: '-vv'")]
     pub verbose: u8,
@@ -44,6 +40,7 @@ pub struct CliArgs {
 pub enum Command {
     /// Executes the tests under the specified directory in the config file
     Test,
+    /// Creates a new template project
     New {
         #[arg(help = "Name of the new project")]
         name: String,

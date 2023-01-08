@@ -6,12 +6,11 @@ use zork::{
 };
 
 fn main() {
-    let cli_args = CliArgs::parse_from(vec!["", "-vv", "new", "--git"]);
+    let cli_args = CliArgs::parse();
     config_logger(cli_args.verbose, Target::Stdout).expect("Error configuring the logger");
 
     match cli_args.command {
-        Some(Command::Test) => todo!("Implement test routine"),
-        Some(Command::New { name, git, compiler }) => create_templated_project(name, git, compiler.into()),
-        None => todo!("Show usage"),
+        Command::Test => todo!("Implement test routine"),
+        Command::New { name, git, compiler } => create_templated_project(name, git, compiler.into())
     }
 }
