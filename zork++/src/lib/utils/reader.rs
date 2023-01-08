@@ -1,9 +1,8 @@
 use std::{fs::File, io::Read, path::Path};
 
 use crate::{
-    cli::CliArgs,
     config_file::ZorkConfigFile,
-    utils::template::resources::{CONFIG_FILE_NAME, ROOT_PATH_NAME},
+    utils::template::resources::CONFIG_FILE_NAME,
 };
 
 //TODO
@@ -18,13 +17,10 @@ pub fn get_config_file<'a>(path: &'a str, buffer: &'a mut String) -> ZorkConfigF
 }
 
 //TODO
-pub fn find_config_file(cli_args: &CliArgs) -> String {
+pub fn find_config_file() -> String {
     log::info!("Sarching for configuration file");
 
-    let mut path = Path::new(".").join(CONFIG_FILE_NAME);
-    if cli_args.new_template {
-        path = Path::new(".").join(ROOT_PATH_NAME).join(CONFIG_FILE_NAME);
-    }
+    let path = Path::new(".").join(CONFIG_FILE_NAME);
 
     path.to_str().expect("Error get path file").to_owned()
 }
