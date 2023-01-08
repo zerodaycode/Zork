@@ -1,3 +1,4 @@
+use crate::config_file::compiler;
 use clap::{Parser, Subcommand, ValueEnum};
 
 
@@ -60,19 +61,19 @@ pub enum Command {
 
 /// [`CppCompiler`] The C++ compilers available within Zork++ as a command line argument for the `new` argument
 /// TODO Possible future interesting on support the Intel's C++ compiler?
-#[derive(ValueEnum, Clone, Debug, PartialEq, Eq)]
+#[derive(ValueEnum, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum CppCompiler {
     CLANG,
     MSVC,
     GCC,
 }
 
-impl CppCompiler {
-    pub fn get_default_extesion(&self) -> &str {
-        match *self {
-            CppCompiler::CLANG => "cppm",
-            CppCompiler::MSVC => "ixx",
-            CppCompiler::GCC => todo!("GCC is still not supported yet by Zork++"),
+impl Into<compiler::CppCompiler> for CppCompiler {
+    fn into(self) -> compiler::CppCompiler {
+        match self {
+            CppCompiler::CLANG => compiler::CppCompiler::CLANG,
+            CppCompiler::MSVC => compiler::CppCompiler::MSVC,
+            CppCompiler::GCC => compiler::CppCompiler::GCC,
         }
     }
 }
