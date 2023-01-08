@@ -19,7 +19,7 @@ use self::{
 ///     ZorkConfigFile,
 ///     compiler::CppCompiler
 /// };
-/// 
+///
 /// const CONFIG_FILE_MOCK: &str = r#"
 ///     [project]
 ///     name = 'Zork++ serde tests'

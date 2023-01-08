@@ -38,12 +38,7 @@ pub struct CliArgs {
     pub verbose: u8,
 
     #[arg(short, long, group = "base_option", help = "Create Project template")]
-    pub new_template: Option<String>,
-    #[arg(
-        long,
-        help = "To generate a C++ modules project or a classical one with headers, can you use with template project"
-    )]
-    pub legacy: bool,
+    pub new_template: bool,
     #[arg(
         long,
         help = "Initializes a new local git repo, can you use with template project"
@@ -70,4 +65,14 @@ pub enum CppCompiler {
     CLANG,
     MSVC,
     GCC,
+}
+
+impl CppCompiler {
+    pub fn get_default_extesion(&self) -> &str {
+        match *self {
+            CppCompiler::CLANG => "cppm",
+            CppCompiler::MSVC => "ixx",
+            CppCompiler::GCC => todo!("GCC is still not supported yet by Zork++"),
+        }
+    }
 }
