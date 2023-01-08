@@ -1,12 +1,14 @@
 use clap::Parser;
 use env_logger::Target;
 use zork::{
+    compiler::build_project,
+    config_file::ZorkConfigFile, 
     cli::CliArgs,
     utils::{
         logger::config_logger,
         template::create_templated_project,
         reader::find_config_file
-    }, config_file::ZorkConfigFile,
+    }, 
 };
 
 fn main() {
@@ -20,4 +22,6 @@ fn main() {
     let config_file: String = find_config_file();
     let _config: ZorkConfigFile = toml::from_str(&config_file.as_str())
         .expect("Error generating the configuration for Canyon");
+
+    build_project(&_config, &cli_args);
 }

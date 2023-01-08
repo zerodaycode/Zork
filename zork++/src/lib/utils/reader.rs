@@ -3,7 +3,10 @@ use std::{path::PathBuf, fs};
 use walkdir::WalkDir;
 use super::constants::CONFIG_FILE_NAME;
 
-/// Checks for the existence of the `zork.toml` configuration files
+/// Checks for the existence of the `zork.toml` configuration files.
+/// For now, when finds the first one, stops. Pending to decide if 
+/// Zork++ should support multiple configuration files (for nested projects)
+/// or just by parsing one config file
 /// 
 /// This function panics if there's no configuration file
 /// (or isn't present in any directory of the project)
