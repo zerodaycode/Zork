@@ -88,6 +88,16 @@ pub enum CppCompiler {
     GCC, // Possible future interesting on support the Intel's C++ compiler?
 }
 
+impl CppCompiler {
+    pub fn get_default_module_extension(&self) -> &str {
+        match *self {
+            CppCompiler::CLANG => "cppm",
+            CppCompiler::MSVC => "ixx",
+            CppCompiler::GCC => todo!("GCC is still not supported yet by Zork++"),
+        }
+    }
+}
+
 /// The C++ ISO standard levels of the language, represented as an
 /// enumerated type in Rust
 ///
