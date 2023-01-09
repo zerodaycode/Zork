@@ -14,7 +14,7 @@ use crate::{config_file::ZorkConfigFile, cli::CliArgs, utils::constants::DEFAULT
 /// 
 /// TODO Decision path for building the executable command line,
 /// the tests executable command line, a static lib, a dylib...
-pub fn build_project(config: &ZorkConfigFile, cli_args: &CliArgs) {
+pub fn build_project(config: &ZorkConfigFile, _cli_args: &CliArgs) {
     // Create the directory for dump the generated files
     create_output_directory(config);
 }
@@ -42,7 +42,7 @@ fn create_output_directory(config: &ZorkConfigFile) {
         || DEFAULT_OUTPUT_DIR, 
         |build| build.output_dir.unwrap_or(DEFAULT_OUTPUT_DIR)
     );
-    let zork_intrinsics_dir: &str = &format!("{out_dir}/zork/intrinsics");
+    let _zork_intrinsics_dir: &str = &format!("{out_dir}/zork/intrinsics");
 
     if !is_out_dir_already_created(out_dir) {  // Generate the output directory structure
 
