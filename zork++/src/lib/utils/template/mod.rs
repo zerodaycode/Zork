@@ -1,4 +1,3 @@
-
 pub mod resources;
 
 use crate::config_file::compiler::CppCompiler;
@@ -49,16 +48,8 @@ pub fn create_templated_project(project_name: String, git: bool, compiler: CppCo
         "main.cpp", // TODO from constants
         resources::MAIN.as_bytes(),
     );
-    create_file(
-        &path_src,
-        "math.cpp",
-        resources::SRC_MOD_FILE.as_bytes(),
-    );
-    create_file(
-        &path_src,
-        "math2.cpp",
-        resources::SRC_MOD_FILE_2.as_bytes(),
-    );
+    create_file(&path_src, "math.cpp", resources::SRC_MOD_FILE.as_bytes());
+    create_file(&path_src, "math2.cpp", resources::SRC_MOD_FILE_2.as_bytes());
 
     // TODO The replaces must dissapear in the next PR
     let mut zork_conf = resources::CONFIG_FILE

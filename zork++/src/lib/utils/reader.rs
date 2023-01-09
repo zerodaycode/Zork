@@ -1,9 +1,6 @@
 use std::{fs::File, io::Read, path::Path};
 
-use crate::{
-    config_file::ZorkConfigFile,
-    utils::template::resources::CONFIG_FILE_NAME,
-};
+use crate::{config_file::ZorkConfigFile, utils::template::resources::CONFIG_FILE_NAME};
 
 //TODO
 pub fn get_config_file<'a>(path: &'a str, buffer: &'a mut String) -> ZorkConfigFile<'a> {

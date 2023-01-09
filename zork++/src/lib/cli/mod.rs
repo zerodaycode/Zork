@@ -3,7 +3,6 @@ use std::fmt::Display;
 use crate::config_file::compiler;
 use clap::{Parser, Subcommand, ValueEnum};
 
-
 /// [`CliArgs`] is the command line arguments parser
 ///
 /// #Test
@@ -48,7 +47,7 @@ pub enum Command {
         git: bool,
         #[arg(long, default_value_t = CppCompiler::CLANG, help = "Which compiler to use")]
         compiler: CppCompiler,
-    }
+    },
 }
 
 /// [`CppCompiler`] The C++ compilers available within Zork++ as a command line argument for the `new` argument
@@ -70,6 +69,9 @@ impl Display for CppCompiler {
     }
 }
 
+// Clippy warns to prefer implementing the From trait instead of Into.
+// That would require that the project model know about cli details, which is ugly.
+#[allow(clippy::from_over_into)]
 impl Into<compiler::CppCompiler> for CppCompiler {
     fn into(self) -> compiler::CppCompiler {
         match self {

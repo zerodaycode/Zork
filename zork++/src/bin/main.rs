@@ -11,6 +11,10 @@ fn main() {
 
     match cli_args.command {
         Command::Test => todo!("Implement test routine"),
-        Command::New { name, git, compiler } => create_templated_project(name, git, compiler.into())
+        Command::New {
+            name,
+            git,
+            compiler,
+        } => create_templated_project(name, git, compiler.into()),
     }
 }
