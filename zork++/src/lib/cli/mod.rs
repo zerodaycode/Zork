@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use crate::config_file::compiler;
 use clap::{Parser, Subcommand, ValueEnum};
 
@@ -45,7 +43,7 @@ pub enum Command {
         name: String,
         #[arg(long, help = "Initialize a new local git repo")]
         git: bool,
-        #[arg(long, default_value_t = CppCompiler::CLANG, help = "Which compiler to use")]
+        #[arg(long, default_value = "clang", help = "Which compiler to use")]
         compiler: CppCompiler,
     },
 }
@@ -57,16 +55,6 @@ pub enum CppCompiler {
     CLANG,
     MSVC,
     GCC,
-}
-
-impl Display for CppCompiler {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self {
-            CppCompiler::CLANG => write!(f, "clang"),
-            CppCompiler::MSVC => write!(f, "msvc"),
-            CppCompiler::GCC => write!(f, "gcc"),
-        }
-    }
 }
 
 // Clippy warns to prefer implementing the From trait instead of Into.
