@@ -17,3 +17,4 @@ serde = { version = "1.0.138", features = ["derive"] }
 clap = { version = "4.0.32", features = ["derive"] }
 log = "0.4.17"
 env_logger = "0.10.0"
+walkdir = "2"
