@@ -20,5 +20,5 @@ pub fn find_config_file() -> Result<String> {
         }
     }
 
-    fs::read_to_string(&path).with_context(|| format!("Could not read {:?}", path))
+    fs::read_to_string(&path).with_context(|| format!("Could not read {path:?}"))
 }

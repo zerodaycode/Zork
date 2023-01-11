@@ -72,6 +72,6 @@ mod tests {
         assert!(Path::new("./out/zork/intrinsics").exists());
 
         // Clean up the out directory created for testing purposes
-        assert!(!fs::remove_dir_all("./out").is_err())
+        assert!(fs::remove_dir_all("./out").is_ok())
     }
 }
