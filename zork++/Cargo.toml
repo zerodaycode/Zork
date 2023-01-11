@@ -18,3 +18,4 @@ clap = { version = "4.0.32", features = ["derive"] }
 log = "0.4.17"
 env_logger = "0.10.0"
 walkdir = "2"
+color-eyre = { version = "0.6.2", default-features = false }
