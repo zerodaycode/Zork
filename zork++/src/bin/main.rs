@@ -3,6 +3,7 @@ use color_eyre::{eyre::Context, Result};
 use env_logger::Target;
 use zork::{
     cli::{CliArgs, Command},
+    compiler::build_project,
     config_file::ZorkConfigFile,
     utils::reader::find_config_file,
     utils::{logger::config_logger, template::create_templated_project},
@@ -13,14 +14,22 @@ fn main() -> Result<()> {
 
     // This line just remains here for debug purposes while integration tests
     // are not created
-    let cli_args = CliArgs::parse_from(vec!["", "new", "example", "--git", "--compiler", "clang"]);
-    // Correct one: let cli_args = CliArgs::parse();
+    let cli_args = CliArgs::parse_from(vec![
+        "",
+        "-vv",
+        "new",
+        "example",
+        "--git",
+        "--compiler",
+        "clang",
+    ]);
+    // let cli_args = CliArgs::parse();
 
     config_logger(cli_args.verbose, Target::Stdout).expect("Error configuring the logger");
 
     let config_file: String =
         find_config_file().with_context(|| "Failed to read configuration file")?;
-    let _config: ZorkConfigFile = toml::from_str(config_file.as_str())
+    let config: ZorkConfigFile = toml::from_str(config_file.as_str())
         .with_context(|| "Could not parse configuration file")?;
 
     /* TODO We should build the project normally (taking in consideration the implementation
@@ -34,8 +43,12 @@ fn main() -> Result<()> {
     ~ zork++ run => zork++ build + run the generated binary
     */
     match cli_args.command {
-        /* Command::Build => build_project(&_config, &cli_args),
-        Command::Run => {
+        // TODO provisional Ok wrapper, pending to implement color eyre err handling
+        Command::Build => {
+            build_project(&config, &cli_args);
+            Ok(())
+        },
+        /*Command::Run => {
             build_project(&_config, &cli_args);
             TODO run generated executable based on the path out property info
         } */
