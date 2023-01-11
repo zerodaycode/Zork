@@ -1,11 +1,10 @@
-use std::fs;
+//! The crate responsable for executing the core work of `Zork++`,
+// generate command lines and execute them in a shell of the current
+// operating system against the designed compilers in the configuration
+// file.
 
 use crate::{cli::CliArgs, config_file::ZorkConfigFile, utils::constants::DEFAULT_OUTPUT_DIR};
-
-///! The crate responsable for executing the core work of `Zork++`,
-/// generate command lines and execute them in a shell of the current
-/// operating system against the designed compilers in the configuration
-/// file.
+use std::fs;
 
 /// The entry point of the compilation process
 ///
@@ -37,21 +36,42 @@ pub fn build_project(config: &ZorkConfigFile, _cli_args: &CliArgs) {
 /// TODO Generate the caché process, like last time project build,
 /// and only rebuild files that is metadata contains a newer last
 /// time modified date that the last Zork++ process
+///
+/// TODO Handle error with `color_eyre`
 fn create_output_directory(config: &ZorkConfigFile) {
     let out_dir = config.build.as_ref().map_or_else(
         || DEFAULT_OUTPUT_DIR,
         |build| build.output_dir.unwrap_or(DEFAULT_OUTPUT_DIR),
     );
-    let _zork_intrinsics_dir: &str = &format!("{out_dir}/zork/intrinsics");
 
-    if !is_out_dir_already_created(out_dir) { // Generate the output directory structure
-    }
+    // Recursively create a directory and all of its parent components if they are missing
+    fs::create_dir_all(format!("{out_dir}/zork/cache"))
+        .expect("A failure happened creating the cache Zork subdirectory");
+    fs::create_dir_all(format!("{out_dir}/zork/intrinsics"))
+        .expect("A failure happened creating the cache Zork subdirectory");
 }
 
-/// Little helper for determine if the output directory wasn't been created yet
-fn is_out_dir_already_created(out_dir: &str) -> bool {
-    fs::read_dir("./")
-        .expect("Failed to read the directories of the project")
-        .into_iter()
-        .any(|dir_entry| dir_entry.unwrap().path().ends_with(out_dir))
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use crate::utils::template::resources::CONFIG_FILE;
+
+    use super::*;
+
+    #[test]
+    fn test_creation_directories() {
+        let zcf: ZorkConfigFile = toml::from_str(CONFIG_FILE).unwrap();
+
+        // This should create and out/ directory in the ./zork++ folder at the root of this project
+        create_output_directory(&zcf);
+
+        assert!(Path::new("./out").exists());
+        assert!(Path::new("./out/zork").exists());
+        assert!(Path::new("./out/zork/cache").exists());
+        assert!(Path::new("./out/zork/intrinsics").exists());
+
+        // Clean up the out directory created for testing purposes
+        assert!(!fs::remove_dir_all("./out").is_err())
+    }
 }
