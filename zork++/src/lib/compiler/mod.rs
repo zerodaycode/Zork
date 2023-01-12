@@ -19,14 +19,14 @@ use std::path::Path;
 ///
 /// TODO Decision path for building the executable command line,
 /// the tests executable command line, a static lib, a dylib...
-pub fn build_project(_cli_args: &CliArgs) -> Result<()> {
+pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
     let config_file: String =
-        find_config_file().with_context(|| "Failed to read configuration file")?;
+        find_config_file(base_path).with_context(|| "Failed to read configuration file")?;
     let config: ZorkConfigFile = toml::from_str(config_file.as_str())
         .with_context(|| "Could not parse configuration file")?;
 
     // Create the directory for dump the generated files
-    create_output_directory(&config)?;
+    create_output_directory(base_path, &config)?;
 
     Ok(())
 }
@@ -51,14 +51,15 @@ pub fn build_project(_cli_args: &CliArgs) -> Result<()> {
 /// time modified date that the last Zork++ process
 ///
 /// TODO Handle error with `color_eyre`
-fn create_output_directory(config: &ZorkConfigFile) -> Result<()> {
-    let out_dir = config.build.as_ref().map_or_else(
-        || DEFAULT_OUTPUT_DIR,
-        |build| build.output_dir.unwrap_or(DEFAULT_OUTPUT_DIR),
-    );
+fn create_output_directory(base_path: &Path, config: &ZorkConfigFile) -> Result<()> {
+    let out_dir = config
+        .build
+        .as_ref()
+        .and_then(|build| build.output_dir)
+        .unwrap_or(DEFAULT_OUTPUT_DIR);
 
     // Recursively create a directory and all of its parent components if they are missing
-    let zork_path = Path::new(out_dir).join("zork");
+    let zork_path = base_path.join(out_dir).join("zork");
 
     utils::fs::create_directory(&zork_path.join("cache"))?;
     utils::fs::create_directory(&zork_path.join("intrinsics"))?;
@@ -67,32 +68,27 @@ fn create_output_directory(config: &ZorkConfigFile) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use color_eyre::Result;
+    use tempfile::tempdir;
 
     use crate::utils::template::resources::CONFIG_FILE;
-    use crate::utils::test;
 
     use super::*;
 
     #[test]
     fn test_creation_directories() -> Result<()> {
-        test::in_temp_dir(|_temp| {
-            let zcf: ZorkConfigFile = toml::from_str(CONFIG_FILE).unwrap();
+        let temp = tempdir()?;
 
-            // This should create and out/ directory in the ./zork++ folder at the root of this project
-            create_output_directory(&zcf)?;
+        let zcf: ZorkConfigFile = toml::from_str(CONFIG_FILE)?;
 
-            assert!(Path::new("./out").exists());
-            assert!(Path::new("./out/zork").exists());
-            assert!(Path::new("./out/zork/cache").exists());
-            assert!(Path::new("./out/zork/intrinsics").exists());
+        // This should create and out/ directory in the ./zork++ folder at the root of this project
+        create_output_directory(temp.path(), &zcf)?;
 
-            // Clean up the out directory created for testing purposes
-            assert!(std::fs::remove_dir_all("./out").is_ok());
+        assert!(temp.path().join("out").exists());
+        assert!(temp.path().join("out/zork").exists());
+        assert!(temp.path().join("out/zork/cache").exists());
+        assert!(temp.path().join("out/zork/intrinsics").exists());
 
-            Ok(())
-        })
+        Ok(())
     }
 }

@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use clap::Parser;
 use color_eyre::{eyre::Context, Result};
 use env_logger::Target;
@@ -37,7 +39,9 @@ fn main() -> Result<()> {
     */
     match cli_args.command {
         // TODO provisional Ok wrapper, pending to implement color eyre err handling
-        Command::Build => build_project(&cli_args).with_context(|| "Failed to build project"),
+        Command::Build => {
+            build_project(Path::new("."), &cli_args).with_context(|| "Failed to build project")
+        }
         /*Command::Run => {
             build_project(&_config, &cli_args);
             TODO run generated executable based on the path out property info
@@ -47,7 +51,7 @@ fn main() -> Result<()> {
             name,
             git,
             compiler,
-        } => create_templated_project(&name, git, compiler.into())
+        } => create_templated_project(Path::new("."), &name, git, compiler.into())
             .with_context(|| "Failed to create new project"),
     }
 }
