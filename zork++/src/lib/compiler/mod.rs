@@ -55,23 +55,30 @@ fn create_output_directory(config: &ZorkConfigFile) {
 mod tests {
     use std::path::Path;
 
+    use color_eyre::Result;
+
     use crate::utils::template::resources::CONFIG_FILE;
+    use crate::utils::test;
 
     use super::*;
 
     #[test]
-    fn test_creation_directories() {
-        let zcf: ZorkConfigFile = toml::from_str(CONFIG_FILE).unwrap();
+    fn test_creation_directories() -> Result<()> {
+        test::in_temp_dir(|_temp| {
+            let zcf: ZorkConfigFile = toml::from_str(CONFIG_FILE).unwrap();
 
-        // This should create and out/ directory in the ./zork++ folder at the root of this project
-        create_output_directory(&zcf);
+            // This should create and out/ directory in the ./zork++ folder at the root of this project
+            create_output_directory(&zcf);
 
-        assert!(Path::new("./out").exists());
-        assert!(Path::new("./out/zork").exists());
-        assert!(Path::new("./out/zork/cache").exists());
-        assert!(Path::new("./out/zork/intrinsics").exists());
+            assert!(Path::new("./out").exists());
+            assert!(Path::new("./out/zork").exists());
+            assert!(Path::new("./out/zork/cache").exists());
+            assert!(Path::new("./out/zork/intrinsics").exists());
 
-        // Clean up the out directory created for testing purposes
-        assert!(fs::remove_dir_all("./out").is_ok())
+            // Clean up the out directory created for testing purposes
+            assert!(fs::remove_dir_all("./out").is_ok());
+
+            Ok(())
+        })
     }
 }

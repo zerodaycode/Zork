@@ -141,3 +141,32 @@ fn create_directory(path_create: &Path) -> Result<()> {
         .create(path_create)
         .with_context(|| format!("Could not create directory {path_create:?}"))
 }
+
+#[cfg(test)]
+mod tests {
+    use color_eyre::Result;
+
+    use crate::config_file::compiler::CppCompiler;
+    use crate::utils::test;
+
+    #[test]
+    fn test_create_if_root_not_empty() -> Result<()> {
+        test::in_temp_dir(|temp| {
+            const PROJECT_NAME: &str = "example";
+
+            let project_path = temp.join(PROJECT_NAME);
+            let dummy_path = project_path.join("dummy.txt");
+
+            std::fs::create_dir(project_path)?;
+            std::fs::File::create(dummy_path)?;
+
+            let result = super::create_templated_project(PROJECT_NAME, false, CppCompiler::CLANG);
+            assert!(
+                result.is_err(),
+                "The project was created, even though the project root is not empty"
+            );
+
+            Ok(())
+        })
+    }
+}
