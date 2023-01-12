@@ -47,7 +47,7 @@ fn main() -> Result<()> {
         Command::Build => {
             build_project(&config, &cli_args);
             Ok(())
-        },
+        }
         /*Command::Run => {
             build_project(&_config, &cli_args);
             TODO run generated executable based on the path out property info

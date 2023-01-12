@@ -1,5 +1,3 @@
-use std::env::consts::OS;
-
 ///! file for represent the available configuration properties within Zork++
 ///! for setting up the target compiler
 ///
@@ -112,35 +110,59 @@ impl CppCompiler {
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
-    pub fn get_module_ifcs_args(&self, config: &ZorkConfigFile) -> Vec<String> {
+    pub fn get_module_ifc_args(
+        &self,
+        config: &ZorkConfigFile,
+        interface: &ModuleInterface,
+    ) -> Vec<String> {
+        let out_dir = if let Some(build_attr) = &config.build {
+            build_attr.output_dir.unwrap_or_default()
+        } else {
+            ""
+        };
+        let base_path = config.modules.as_ref().unwrap().base_ifcs_dir;
         match *self {
             CppCompiler::CLANG => {
-                let mut v = vec![
-                    "--precompile".to_string(),
-                    "-fimplicit-modules".to_string()
-                ];
+                let mut command = Vec::with_capacity(8);
 
                 if let Some(std_lib) = &config.compiler.std_lib {
-                    v.push(format!("-stdlib={}", std_lib.as_str()))
+                    command.push(format!("-stdlib={}", std_lib.as_str()))
                 }
 
+                command.push("-fimplicit-modules".to_string());
+                command.push("-x c++-module".to_string());
+                command.push(base_path.map_or_else(
+                    || interface.filename.to_string(),
+                    |bp| format!("{bp}/{}", interface.filename),
+                )); // The interface file
+                command.push("--precompile".to_string());
+
                 if std::env::consts::OS.eq("windows") {
-                    let out_dir = if let Some(build_attr) = &config.build {
-                        build_attr.output_dir.unwrap_or_default()
-                    } else { "" };
-                    v.push(
+                    command.push(
                         // This is a Zork++ feature to allow the users to write `import std;`
                         // under -std=c++20 with clang linking against GCC under Windows with
-                        // some MinGW installation or similar. 
+                        // some MinGW installation or similar.
                         // Should this be handled in another way?
-                        format!(
-                            "-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"
-                        )
+                        format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"),
                     )
-                } else { v.push("-fimplicit-module-maps".to_string()) }
+                } else {
+                    command.push("-fimplicit-module-maps".to_string())
+                }
 
-                v
-            },
+                // The resultant BMI as a .pcm file
+                command.push("-o".to_string());
+
+                if let Some(module_name) = interface.module_name {
+                    command.push(format!("{out_dir}/modules/interfaces/{module_name}.pcm"))
+                } else {
+                    command.push(format!(
+                        "{out_dir}/modules/interfaces/{}.pcm",
+                        interface.filename.split('.').collect::<Vec<_>>()[0]
+                    ))
+                };
+
+                command
+            }
             CppCompiler::MSVC => todo!(),
             CppCompiler::GCC => todo!(),
         }
@@ -154,7 +176,7 @@ impl CppCompiler {
 /// use the latests features available
 ///
 /// Variant *LATEST* is the `MSVC` specific way of set the language
-/// standard level to the latest features available in that compiler
+/// standard level to the latest features available in Microsoft's compiler
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum LanguageLevel {
     #[serde(alias = "20")]
@@ -176,7 +198,7 @@ impl LanguageLevel {
             LanguageLevel::CPP23 => "23",
             LanguageLevel::CPP2A => "2a",
             LanguageLevel::CPP2B => "2b",
-            LanguageLevel::LATEST =>"latest",
+            LanguageLevel::LATEST => "latest",
         }
     }
 

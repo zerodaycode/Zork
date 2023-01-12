@@ -26,7 +26,7 @@ use serde::Deserialize;
 ///    .expect("A failure happened parsing the Zork toml file");
 ///
 /// assert_eq!(config.base_ifcs_dir, Some("./ifc"));
-/// 
+///
 /// let ifcs = config.interfaces.unwrap();
 /// let ifc_0 = &ifcs[0];
 /// assert_eq!(ifc_0.filename, "math.cppm");
@@ -34,7 +34,7 @@ use serde::Deserialize;
 /// let ifc_1 = &ifcs[1];
 /// assert_eq!(ifc_1.filename, "some_module.cppm");
 /// assert_eq!(ifc_1.module_name, Some("math"));
-/// 
+///
 /// assert_eq!(config.base_impls_dir, Some("./src"));
 /// assert_eq!(config.implementations, Some(vec!["Implementation1","Implementation2"]));
 /// ```
@@ -56,7 +56,7 @@ pub struct ModulesAttribute<'a> {
 /// C++ module declared on this module interface with the `export module 'module_name'
 /// statement. If this attribute isn't present, Zork++ will assume that the
 /// C++ module declared within this file is equls to the filename
-/// 
+///
 /// ### Tests
 ///
 /// ```rust
@@ -72,13 +72,13 @@ pub struct ModulesAttribute<'a> {
 ///
 /// let config: ModulesAttribute = toml::from_str(CONFIG_FILE_MOCK)
 ///    .expect("A failure happened parsing the Zork toml file");
-/// 
+///
 /// let ifcs = config.interfaces.unwrap();
-/// 
+///
 /// let ifc_0 = &ifcs[0];
 /// assert_eq!(ifc_0.filename, "math.cppm");
 /// assert_eq!(ifc_0.module_name, None);
-/// 
+///
 /// let ifc_1 = &ifcs[1];
 /// assert_eq!(ifc_1.filename, "some_module.cppm");
 /// assert_eq!(ifc_1.module_name, Some("math"));
@@ -87,7 +87,7 @@ pub struct ModulesAttribute<'a> {
 /// assert_eq!(ifc_2.filename, "a.cppm");
 /// assert_eq!(ifc_2.module_name, Some("module"));
 /// let deps = ifc_2.dependencies.as_ref().unwrap();
-/// 
+///
 /// assert_eq!(deps[0], "math");
 /// assert_eq!(deps[1], "type_traits");
 /// assert_eq!(deps[2], "iostream");
@@ -99,5 +99,5 @@ pub struct ModuleInterface<'a> {
     #[serde(borrow)]
     pub module_name: Option<&'a str>,
     #[serde(borrow)]
-    pub dependencies: Option<Vec<&'a str>>
+    pub dependencies: Option<Vec<&'a str>>,
 }

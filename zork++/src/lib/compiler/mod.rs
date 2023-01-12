@@ -3,7 +3,11 @@
 // operating system against the designed compilers in the configuration
 // file.
 
-use crate::{cli::CliArgs, config_file::{ZorkConfigFile, modules::ModuleInterface, compiler::CppCompiler}, utils::constants::DEFAULT_OUTPUT_DIR};
+use crate::{
+    cli::CliArgs,
+    config_file::{modules::ModuleInterface, ZorkConfigFile},
+    utils::constants::DEFAULT_OUTPUT_DIR,
+};
 use std::fs;
 
 /// The entry point of the compilation process
@@ -20,28 +24,22 @@ pub fn build_project(config: &ZorkConfigFile, _cli_args: &CliArgs) {
     let base_command_line = get_base_command_line(config);
 
     // 1st - Build the modules
-    build_modules(
-        config, &base_command_line
-    );
+    build_modules(config, &base_command_line);
 }
 
 /// Generates the base command line that is shared among multiple processes
 /// like, for example, generate the command line for the executable and build
 /// modules
-fn get_base_command_line<'a>(config: &'a ZorkConfigFile) -> Vec<String> {
+fn get_base_command_line(config: &ZorkConfigFile) -> Vec<String> {
     let compiler = &config.compiler;
-    
-    let mut base_command_line = Vec::with_capacity(2);
-    base_command_line.push(compiler.cpp_compiler.get_driver().to_string());
-    base_command_line.push(
+    vec![
+        compiler.cpp_compiler.get_driver().to_string(),
         compiler.cpp_standard.as_cmd_arg(&compiler.cpp_compiler)
-    );
-
-    base_command_line
+    ]
 }
 
 /// Triggers the build process for compile the declared modules in the project
-/// 
+///
 /// This function acts like a operation result processor, by running instances
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses
@@ -58,19 +56,22 @@ fn build_modules(config: &ZorkConfigFile, bcl: &Vec<String>) {
 fn prebuild_module_interfaces(
     config: &ZorkConfigFile,
     interfaces: &Vec<ModuleInterface>,
-    bcl: &Vec<String>
+    base_command_line: &Vec<String>,
 ) {
-    // is a base path declared?
-    // let base_path = base_path.unwrap_or_default();
-    // base cmd args
-    let mut bmis_args = Vec::from_iter(bcl.iter());
-    let args = config.compiler.cpp_compiler
-    .get_module_ifcs_args(config); // longer lived binding for debug
-    bmis_args.extend(args.iter());
-    // interfaces.iter().for_each()
-    println!("BMIs: {:?}", bmis_args)
-}
+    let mut commands: Vec<Vec<String>> = Vec::with_capacity(interfaces.len());
 
+    for module_interface in interfaces {
+        let mut bmis_args = Vec::from_iter(base_command_line.as_slice().iter().cloned());
+        let args = config
+            .compiler
+            .cpp_compiler
+            .get_module_ifc_args(config, module_interface);
+        bmis_args.extend(args.into_iter());
+
+        commands.push(bmis_args)
+    }
+    println!("BMIs: {commands:?}");
+}
 
 /// Creates the directory for output the elements generated
 /// during the build process. Also, it will generate the
@@ -91,7 +92,7 @@ fn prebuild_module_interfaces(
 /// and only rebuild files that is metadata contains a newer last
 /// time modified date that the last Zork++ process
 ///
-/// TODO Handle error with `color_eyre`
+/// TODO Handle error with `color_eyre`. Subdirs as constants?=!
 fn create_output_directory(config: &ZorkConfigFile) {
     let out_dir = config.build.as_ref().map_or_else(
         || DEFAULT_OUTPUT_DIR,
@@ -99,10 +100,14 @@ fn create_output_directory(config: &ZorkConfigFile) {
     );
 
     // Recursively create a directory and all of its parent components if they are missing
+    fs::create_dir_all(format!("{out_dir}/modules/interfaces"))
+        .expect("A failure happened creating the module interfaces dir");
+    fs::create_dir_all(format!("{out_dir}/modules/implementations"))
+        .expect("A failure happened creating the module interfaces dir");
     fs::create_dir_all(format!("{out_dir}/zork/cache"))
-        .expect("A failure happened creating the cache Zork subdirectory");
+        .expect("A failure happened creating the cache Zork dir");
     fs::create_dir_all(format!("{out_dir}/zork/intrinsics"))
-        .expect("A failure happened creating the cache Zork subdirectory");
+        .expect("A failure happened creating the intrinsics Zork dir");
 }
 
 #[cfg(test)]
