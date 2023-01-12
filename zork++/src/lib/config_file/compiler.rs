@@ -96,6 +96,16 @@ impl CppCompiler {
             CppCompiler::GCC => todo!("GCC is still not supported yet by Zork++"),
         }
     }
+
+    /// Returns an &str representing the compiler driver that will be called
+    /// in the command line to generate the build events
+    pub fn get_driver(&self) -> &str {
+        match *self {
+            CppCompiler::CLANG => "clang++",
+            CppCompiler::MSVC => "cl",
+            CppCompiler::GCC => "g++",
+        }
+    }
 }
 
 /// The C++ ISO standard levels of the language, represented as an
@@ -108,16 +118,6 @@ impl CppCompiler {
 /// standard level to the latest features available in that compiler
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum LanguageLevel {
-    #[serde(alias = "98")]
-    CPP98,
-    #[serde(alias = "03")]
-    CPP03,
-    #[serde(alias = "11")]
-    CPP11,
-    #[serde(alias = "14")]
-    CPP14,
-    #[serde(alias = "17")]
-    CPP17,
     #[serde(alias = "20")]
     CPP20,
     #[serde(alias = "23")]
@@ -128,6 +128,25 @@ pub enum LanguageLevel {
     CPP2B,
     #[serde(alias = "latest")]
     LATEST,
+}
+
+impl LanguageLevel {
+    pub fn as_str(&self) -> &str {
+        match *self {
+            LanguageLevel::CPP20 => "20",
+            LanguageLevel::CPP23 => "23",
+            LanguageLevel::CPP2A => "2a",
+            LanguageLevel::CPP2B => "2b",
+            LanguageLevel::LATEST =>"latest",
+        }
+    }
+
+    pub fn as_cmd_arg(&self, compiler: &CppCompiler) -> String {
+        match compiler {
+            CppCompiler::CLANG | CppCompiler::GCC => format!("-std=c++{}", self.as_str()),
+            CppCompiler::MSVC => format!("/std:c++{}", self.as_str()),
+        }
+    }
 }
 
 /// The standard library (compiler specific) that the user

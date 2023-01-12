@@ -16,7 +16,28 @@ use std::fs;
 pub fn build_project(config: &ZorkConfigFile, _cli_args: &CliArgs) {
     // Create the directory for dump the generated files
     create_output_directory(config);
+
+    let mut base_command_line = Vec::with_capacity(2);
+    base_command_line.push(config.compiler.cpp_compiler.get_driver());
+    base_command_line.push(
+        config.compiler.cpp_standard.as_cmd_arg(&config.compiler.cpp_compiler).as_str()
+    );
 }
+
+// /// Generates the base command line that is shared among multiple processes
+// /// like, for example, generate the command line for the executable and build
+// /// modules
+// fn get_base_command_line<'a>(config: &'a ZorkConfigFile) -> Vec<&'a str> {
+//     let compiler = &config.compiler;
+    
+//     let mut base_command_line = Vec::with_capacity(2);
+//     base_command_line.push(compiler.cpp_compiler.get_driver());
+//     base_command_line.push(
+//         compiler.cpp_standard.as_cmd_arg(&compiler.cpp_compiler)
+//     );
+
+//     base_command_line
+// }
 
 /// Creates the directory for output the elements generated
 /// during the build process. Also, it will generate the
