@@ -8,7 +8,10 @@ use crate::{
     config_file::{modules::ModuleInterface, ZorkConfigFile},
     utils::constants::DEFAULT_OUTPUT_DIR,
 };
-use std::fs;
+use std::{
+    fs,
+    process::Command,
+};
 
 /// The entry point of the compilation process
 ///
@@ -20,23 +23,8 @@ use std::fs;
 pub fn build_project(config: &ZorkConfigFile, _cli_args: &CliArgs) {
     // Create the directory for dump the generated files
     create_output_directory(config);
-
-    let base_command_line = get_base_command_line(config);
-
     // 1st - Build the modules
-    let modules_commands = build_modules(config, &base_command_line);
-}
-
-/// Generates the base command line that is shared among multiple processes
-/// like, for example, generate the command line for the executable and build
-/// modules
-fn get_base_command_line(config: &ZorkConfigFile) -> Vec<String> {
-    let compiler = &config.compiler;
-    println!("Choosen compiler: {compiler:?}");
-    vec![
-        compiler.cpp_compiler.get_driver().to_string(),
-        compiler.cpp_standard.as_cmd_arg(&compiler.cpp_compiler)
-    ]
+    let _modules_commands = build_modules(config);
 }
 
 /// Triggers the build process for compile the declared modules in the project
@@ -44,11 +32,44 @@ fn get_base_command_line(config: &ZorkConfigFile) -> Vec<String> {
 /// This function acts like a operation result processor, by running instances
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses
-fn build_modules(config: &ZorkConfigFile, bcl: &Vec<String>) {
+fn build_modules(config: &ZorkConfigFile) {
+    let compiler_driver = &config.compiler.cpp_compiler.get_driver();
+
     if let Some(modules) = &config.modules {
         if let Some(interfaces) = &modules.interfaces {
             // TODO append to a collection to make them able to be dump into a text file
-            let miu_commands = prebuild_module_interfaces(config, interfaces, bcl);
+            let miu_commands = prebuild_module_interfaces(config, interfaces);
+
+            // For debugging purposes, then will be refactored
+            for command in miu_commands {
+                let output = Command::new(compiler_driver)
+                    .args(command)
+                    .output()
+                    .expect("failed to execute process");
+                // TODO If compiler is msvc, we must launch cl
+
+                println!("Command execution result: {:?}", output.status);
+                println!(
+                    "Command execution stdout: {:?}",
+                    String::from_utf16(
+                        &output
+                            .stdout
+                            .iter()
+                            .map(|b| *b as u16)
+                            .collect::<Vec<u16>>()
+                    )
+                );
+                println!(
+                    "Command execution stderr: {:?}",
+                    String::from_utf16(
+                        &output
+                            .stderr
+                            .iter()
+                            .map(|b| *b as u16)
+                            .collect::<Vec<u16>>()
+                    )
+                );
+            }
         }
     }
 }
@@ -58,20 +79,17 @@ fn build_modules(config: &ZorkConfigFile, bcl: &Vec<String>) {
 fn prebuild_module_interfaces(
     config: &ZorkConfigFile,
     interfaces: &Vec<ModuleInterface>,
-    base_command_line: &Vec<String>,
 ) -> Vec<Vec<String>> {
+
     let mut commands: Vec<Vec<String>> = Vec::with_capacity(interfaces.len());
-
-    for module_interface in interfaces {
-        let mut bmis_args = Vec::from_iter(base_command_line.as_slice().iter().cloned());
-        let args = config
-            .compiler
-            .cpp_compiler
-            .get_module_ifc_args(config, module_interface);
-        bmis_args.extend(args.into_iter());
-
-        commands.push(bmis_args)
-    }
+    interfaces.iter().for_each(|module_interface| {
+        commands.push(
+            config
+                .compiler
+                .cpp_compiler
+                .get_module_ifc_args(config, module_interface),
+        )
+    });
     println!("BMIs: {commands:?}");
 
     commands

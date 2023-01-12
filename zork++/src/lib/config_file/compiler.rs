@@ -128,14 +128,16 @@ impl CppCompiler {
         interface: &ModuleInterface,
     ) -> Vec<String> {
         let compiler = &config.compiler.cpp_compiler;
+        let base_path = config.modules.as_ref().unwrap().base_ifcs_dir;
+
         let out_dir = if let Some(build_attr) = &config.build {
             build_attr.output_dir.unwrap_or_default()
         } else {
             ""
         };
-        
-        let base_path = config.modules.as_ref().unwrap().base_ifcs_dir;
+
         let mut command = Vec::with_capacity(8);
+        command.push(config.compiler.cpp_standard.as_cmd_arg(compiler));
 
         match *self {
             CppCompiler::CLANG => {
@@ -144,39 +146,44 @@ impl CppCompiler {
                 }
 
                 command.push("-fimplicit-modules".to_string());
-                command.push("-x c++-module".to_string());
+                command.push("-x".to_string());
+                command.push("c++-module".to_string());
                 command.push("--precompile".to_string());
 
-                if std::env::consts::OS.eq("windows") {
-                    command.push(
-                        // This is a Zork++ feature to allow the users to write `import std;`
-                        // under -std=c++20 with clang linking against GCC under Windows with
-                        // some MinGW installation or similar.
-                        // Should this be handled in another way?
-                        format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"),
-                    )
-                } else {
-                    command.push("-fimplicit-module-maps".to_string())
-                }
+                // if std::env::consts::OS.eq("windows") {
+                //     command.push(
+                //         // This is a Zork++ feature to allow the users to write `import std;`
+                //         // under -std=c++20 with clang linking against GCC under Windows with
+                //         // some MinGW installation or similar.
+                //         // Should this be handled in another way?
+                //         format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"),
+                //     )
+                // } else {
+                //     command.push("-fimplicit-module-maps".to_string())
+                // }
 
                 // The resultant BMI as a .pcm file
                 command.push("-o".to_string());
                 // The output file
                 if let Some(module_name) = interface.module_name {
-                    command.push(format!("{out_dir}/{compiler}/modules/interfaces/{module_name}.pcm"))
+                    command.push(format!(
+                        "{out_dir}/{compiler}/modules/interfaces/{module_name}.pcm"
+                    ))
                 } else {
                     command.push(format!(
                         "{out_dir}/{compiler}/modules/interfaces/{}.pcm",
                         interface.filename.split('.').collect::<Vec<_>>()[0]
                     ))
                 };
-            },
+            }
             CppCompiler::MSVC => {
                 command.push("-c".to_string());
                 command.push("-ifcOutput".to_string());
                 // The output .ifc file
                 if let Some(module_name) = interface.module_name {
-                    command.push(format!("{out_dir}/{compiler}/modules/interfaces/{module_name}.ifc"))
+                    command.push(format!(
+                        "{out_dir}/{compiler}/modules/interfaces/{module_name}.ifc"
+                    ))
                 } else {
                     command.push(format!(
                         "{out_dir}/{compiler}/modules/interfaces/{}.ifc",
@@ -187,7 +194,7 @@ impl CppCompiler {
                 command.push(format!("/Fo{out_dir}/{compiler}/modules/interfaces\\"));
                 command.push("-interface".to_string());
                 command.push("-TP".to_string());
-            },
+            }
             CppCompiler::GCC => todo!(),
         }
 
