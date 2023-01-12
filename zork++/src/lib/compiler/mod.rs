@@ -3,7 +3,7 @@
 // operating system against the designed compilers in the configuration
 // file.
 
-use crate::{cli::CliArgs, config_file::ZorkConfigFile, utils::constants::DEFAULT_OUTPUT_DIR};
+use crate::{cli::CliArgs, config_file::{ZorkConfigFile, modules::ModuleInterface, compiler::CppCompiler}, utils::constants::DEFAULT_OUTPUT_DIR};
 use std::fs;
 
 /// The entry point of the compilation process
@@ -17,10 +17,12 @@ pub fn build_project(config: &ZorkConfigFile, _cli_args: &CliArgs) {
     // Create the directory for dump the generated files
     create_output_directory(config);
 
-    let _base_command_line = get_base_command_line(config);
+    let base_command_line = get_base_command_line(config);
 
-    // 1st - Build the module interfaces
-    let _build_module_ifcs_cmd = build_module_interfaces(config);
+    // 1st - Build the modules
+    build_modules(
+        config, &base_command_line
+    );
 }
 
 /// Generates the base command line that is shared among multiple processes
@@ -38,13 +40,35 @@ fn get_base_command_line<'a>(config: &'a ZorkConfigFile) -> Vec<String> {
     base_command_line
 }
 
-/// Generates the command line necessary to build the module interfaces declared in the project
-fn build_module_interfaces(config: &ZorkConfigFile) -> Vec<String> {
-    let _targets = &config.modules;
+/// Triggers the build process for compile the declared modules in the project
+/// 
+/// This function acts like a operation result processor, by running instances
+/// and parsing the obtained result, handling the flux according to the
+/// compiler responses
+fn build_modules(config: &ZorkConfigFile, bcl: &Vec<String>) {
+    if let Some(modules) = &config.modules {
+        if let Some(interfaces) = &modules.interfaces {
+            prebuild_module_interfaces(config, interfaces, bcl);
+        }
+    }
+}
 
-    vec![
-
-    ]
+/// Parses the configuration in order to build the BMIs declared for the project,
+/// by precompiling the module interface units
+fn prebuild_module_interfaces(
+    config: &ZorkConfigFile,
+    interfaces: &Vec<ModuleInterface>,
+    bcl: &Vec<String>
+) {
+    // is a base path declared?
+    // let base_path = base_path.unwrap_or_default();
+    // base cmd args
+    let mut bmis_args = Vec::from_iter(bcl.iter());
+    let args = config.compiler.cpp_compiler
+    .get_module_ifcs_args(config); // longer lived binding for debug
+    bmis_args.extend(args.iter());
+    // interfaces.iter().for_each()
+    println!("BMIs: {:?}", bmis_args)
 }
 
 

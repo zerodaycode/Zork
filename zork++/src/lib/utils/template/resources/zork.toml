@@ -5,7 +5,7 @@ authors = [ "Zero Day Code" ]  # Replace this for the real authors
 [compiler]
 cpp_compiler = "clang"
 cpp_standard = "20"
-std_lib = "libcpp"
+std_lib = "libstdc++"
 [build]
 output_dir = "./out"
 [executable]
@@ -22,7 +22,9 @@ sources = [
 auto_run_tests = true
 [modules]
 base_ifcs_dir = "<project_name>/ifc/"
-interfaces = [ "*.cppm" ]
+interfaces = [ 
+    { filename = 'math.cppm' }    
+]
 base_impls_dir = "<project_name>/src/"
 implementations = [
     "math.cpp",

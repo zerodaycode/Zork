@@ -14,16 +14,16 @@ fn main() -> Result<()> {
 
     // This line just remains here for debug purposes while integration tests
     // are not created
-    let cli_args = CliArgs::parse_from(vec![
-        "",
-        "-vv",
-        "new",
-        "example",
-        "--git",
-        "--compiler",
-        "clang",
-    ]);
-    // let cli_args = CliArgs::parse();
+    // let cli_args = CliArgs::parse_from(vec![
+    //     "",
+    //     "-vv",
+    //     "new",
+    //     "example",
+    //     "--git",
+    //     "--compiler",
+    //     "clang",
+    // ]);
+    let cli_args = CliArgs::parse();
 
     config_logger(cli_args.verbose, Target::Stdout).expect("Error configuring the logger");
 

@@ -1,3 +1,5 @@
+use std::env::consts::OS;
+
 ///! file for represent the available configuration properties within Zork++
 ///! for setting up the target compiler
 ///
@@ -6,6 +8,8 @@
 /// allowing Zork++ to compile one project for multiple compilers
 /// at the same time
 use serde::Deserialize;
+
+use super::{modules::ModuleInterface, ZorkConfigFile};
 
 /// [`CompilerAttribute`] - Configuration properties for
 /// targeting one of the available compilers within Zork++
@@ -89,6 +93,16 @@ pub enum CppCompiler {
 }
 
 impl CppCompiler {
+    /// Returns an &str representing the compiler driver that will be called
+    /// in the command line to generate the build events
+    pub fn get_driver(&self) -> &str {
+        match *self {
+            CppCompiler::CLANG => "clang++",
+            CppCompiler::MSVC => "cl",
+            CppCompiler::GCC => "g++",
+        }
+    }
+
     pub fn get_default_module_extension(&self) -> &str {
         match *self {
             CppCompiler::CLANG => "cppm",
@@ -97,13 +111,38 @@ impl CppCompiler {
         }
     }
 
-    /// Returns an &str representing the compiler driver that will be called
-    /// in the command line to generate the build events
-    pub fn get_driver(&self) -> &str {
+    /// Generates the expected arguments for precompile the BMIs depending on self
+    pub fn get_module_ifcs_args(&self, config: &ZorkConfigFile) -> Vec<String> {
         match *self {
-            CppCompiler::CLANG => "clang++",
-            CppCompiler::MSVC => "cl",
-            CppCompiler::GCC => "g++",
+            CppCompiler::CLANG => {
+                let mut v = vec![
+                    "--precompile".to_string(),
+                    "-fimplicit-modules".to_string()
+                ];
+
+                if let Some(std_lib) = &config.compiler.std_lib {
+                    v.push(format!("-stdlib={}", std_lib.as_str()))
+                }
+
+                if std::env::consts::OS.eq("windows") {
+                    let out_dir = if let Some(build_attr) = &config.build {
+                        build_attr.output_dir.unwrap_or_default()
+                    } else { "" };
+                    v.push(
+                        // This is a Zork++ feature to allow the users to write `import std;`
+                        // under -std=c++20 with clang linking against GCC under Windows with
+                        // some MinGW installation or similar. 
+                        // Should this be handled in another way?
+                        format!(
+                            "-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"
+                        )
+                    )
+                } else { v.push("-fimplicit-module-maps".to_string()) }
+
+                v
+            },
+            CppCompiler::MSVC => todo!(),
+            CppCompiler::GCC => todo!(),
         }
     }
 }
@@ -144,7 +183,7 @@ impl LanguageLevel {
     pub fn as_cmd_arg(&self, compiler: &CppCompiler) -> String {
         match compiler {
             CppCompiler::CLANG | CppCompiler::GCC => format!("-std=c++{}", self.as_str()),
-            CppCompiler::MSVC => format!("/std:c++{}", self.as_str()),
+            CppCompiler::MSVC => format!("-std:c++{}", self.as_str()),
         }
     }
 }
@@ -153,8 +192,17 @@ impl LanguageLevel {
 /// desires to link against
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum StdLib {
-    #[serde(alias = "stdlib++", alias = "stdlib", alias = "stdlibcpp")]
+    #[serde(alias = "libstdc++", alias = "gccstdlib", alias = "libstdcpp")]
     STDLIBCPP,
     #[serde(alias = "libc++", alias = "libcpp")]
     LIBCPP,
+}
+
+impl StdLib {
+    pub fn as_str(&self) -> &str {
+        match *self {
+            StdLib::STDLIBCPP => "libstdc++",
+            StdLib::LIBCPP => "libc++",
+        }
+    }
 }
