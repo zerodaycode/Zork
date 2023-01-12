@@ -24,7 +24,7 @@ pub fn build_project(config: &ZorkConfigFile, _cli_args: &CliArgs) {
     let base_command_line = get_base_command_line(config);
 
     // 1st - Build the modules
-    build_modules(config, &base_command_line);
+    let modules_commands = build_modules(config, &base_command_line);
 }
 
 /// Generates the base command line that is shared among multiple processes
@@ -32,6 +32,7 @@ pub fn build_project(config: &ZorkConfigFile, _cli_args: &CliArgs) {
 /// modules
 fn get_base_command_line(config: &ZorkConfigFile) -> Vec<String> {
     let compiler = &config.compiler;
+    println!("Choosen compiler: {compiler:?}");
     vec![
         compiler.cpp_compiler.get_driver().to_string(),
         compiler.cpp_standard.as_cmd_arg(&compiler.cpp_compiler)
@@ -46,7 +47,8 @@ fn get_base_command_line(config: &ZorkConfigFile) -> Vec<String> {
 fn build_modules(config: &ZorkConfigFile, bcl: &Vec<String>) {
     if let Some(modules) = &config.modules {
         if let Some(interfaces) = &modules.interfaces {
-            prebuild_module_interfaces(config, interfaces, bcl);
+            // TODO append to a collection to make them able to be dump into a text file
+            let miu_commands = prebuild_module_interfaces(config, interfaces, bcl);
         }
     }
 }
@@ -57,7 +59,7 @@ fn prebuild_module_interfaces(
     config: &ZorkConfigFile,
     interfaces: &Vec<ModuleInterface>,
     base_command_line: &Vec<String>,
-) {
+) -> Vec<Vec<String>> {
     let mut commands: Vec<Vec<String>> = Vec::with_capacity(interfaces.len());
 
     for module_interface in interfaces {
@@ -71,6 +73,8 @@ fn prebuild_module_interfaces(
         commands.push(bmis_args)
     }
     println!("BMIs: {commands:?}");
+
+    commands
 }
 
 /// Creates the directory for output the elements generated
@@ -98,15 +102,16 @@ fn create_output_directory(config: &ZorkConfigFile) {
         || DEFAULT_OUTPUT_DIR,
         |build| build.output_dir.unwrap_or(DEFAULT_OUTPUT_DIR),
     );
+    let compiler = &config.compiler.cpp_compiler;
 
     // Recursively create a directory and all of its parent components if they are missing
-    fs::create_dir_all(format!("{out_dir}/modules/interfaces"))
+    fs::create_dir_all(format!("{out_dir}/{compiler}/modules/interfaces"))
         .expect("A failure happened creating the module interfaces dir");
-    fs::create_dir_all(format!("{out_dir}/modules/implementations"))
+    fs::create_dir_all(format!("{out_dir}/{compiler}/modules/implementations"))
         .expect("A failure happened creating the module interfaces dir");
-    fs::create_dir_all(format!("{out_dir}/zork/cache"))
+    fs::create_dir_all(format!("{out_dir}/{compiler}/zork/cache"))
         .expect("A failure happened creating the cache Zork dir");
-    fs::create_dir_all(format!("{out_dir}/zork/intrinsics"))
+    fs::create_dir_all(format!("{out_dir}/{compiler}/zork/intrinsics"))
         .expect("A failure happened creating the intrinsics Zork dir");
 }
 

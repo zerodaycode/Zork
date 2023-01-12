@@ -1,3 +1,5 @@
+use core::fmt;
+
 ///! file for represent the available configuration properties within Zork++
 ///! for setting up the target compiler
 ///
@@ -90,6 +92,16 @@ pub enum CppCompiler {
     GCC, // Possible future interesting on support the Intel's C++ compiler?
 }
 
+impl fmt::Display for CppCompiler {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            CppCompiler::CLANG => write!(f, "clang"),
+            CppCompiler::MSVC => write!(f, "msvc"),
+            CppCompiler::GCC => write!(f, "gcc"),
+        }
+    }
+}
+
 impl CppCompiler {
     /// Returns an &str representing the compiler driver that will be called
     /// in the command line to generate the build events
@@ -115,26 +127,24 @@ impl CppCompiler {
         config: &ZorkConfigFile,
         interface: &ModuleInterface,
     ) -> Vec<String> {
+        let compiler = &config.compiler.cpp_compiler;
         let out_dir = if let Some(build_attr) = &config.build {
             build_attr.output_dir.unwrap_or_default()
         } else {
             ""
         };
+        
         let base_path = config.modules.as_ref().unwrap().base_ifcs_dir;
+        let mut command = Vec::with_capacity(8);
+
         match *self {
             CppCompiler::CLANG => {
-                let mut command = Vec::with_capacity(8);
-
                 if let Some(std_lib) = &config.compiler.std_lib {
                     command.push(format!("-stdlib={}", std_lib.as_str()))
                 }
 
                 command.push("-fimplicit-modules".to_string());
                 command.push("-x c++-module".to_string());
-                command.push(base_path.map_or_else(
-                    || interface.filename.to_string(),
-                    |bp| format!("{bp}/{}", interface.filename),
-                )); // The interface file
                 command.push("--precompile".to_string());
 
                 if std::env::consts::OS.eq("windows") {
@@ -151,21 +161,43 @@ impl CppCompiler {
 
                 // The resultant BMI as a .pcm file
                 command.push("-o".to_string());
-
+                // The output file
                 if let Some(module_name) = interface.module_name {
-                    command.push(format!("{out_dir}/modules/interfaces/{module_name}.pcm"))
+                    command.push(format!("{out_dir}/{compiler}/modules/interfaces/{module_name}.pcm"))
                 } else {
                     command.push(format!(
-                        "{out_dir}/modules/interfaces/{}.pcm",
+                        "{out_dir}/{compiler}/modules/interfaces/{}.pcm",
                         interface.filename.split('.').collect::<Vec<_>>()[0]
                     ))
                 };
-
-                command
-            }
-            CppCompiler::MSVC => todo!(),
+            },
+            CppCompiler::MSVC => {
+                command.push("-c".to_string());
+                command.push("-ifcOutput".to_string());
+                // The output .ifc file
+                if let Some(module_name) = interface.module_name {
+                    command.push(format!("{out_dir}/{compiler}/modules/interfaces/{module_name}.ifc"))
+                } else {
+                    command.push(format!(
+                        "{out_dir}/{compiler}/modules/interfaces/{}.ifc",
+                        interface.filename.split('.').collect::<Vec<_>>()[0]
+                    ))
+                };
+                // The output .obj file
+                command.push(format!("/Fo{out_dir}/{compiler}/modules/interfaces\\"));
+                command.push("-interface".to_string());
+                command.push("-TP".to_string());
+            },
             CppCompiler::GCC => todo!(),
         }
+
+        // The input file
+        command.push(base_path.map_or_else(
+            || interface.filename.to_string(),
+            |bp| format!("{bp}/{}", interface.filename),
+        )); // The interface file
+
+        command
     }
 }
 
