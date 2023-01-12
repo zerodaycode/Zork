@@ -8,9 +8,9 @@ use color_eyre::{eyre::Context, Result};
 use crate::{
     cli::CliArgs,
     config_file::ZorkConfigFile,
-    utils::{constants::DEFAULT_OUTPUT_DIR, reader::find_config_file},
+    utils::{self, constants::DEFAULT_OUTPUT_DIR, reader::find_config_file},
 };
-use std::fs;
+use std::path::Path;
 
 /// The entry point of the compilation process
 ///
@@ -58,11 +58,10 @@ fn create_output_directory(config: &ZorkConfigFile) -> Result<()> {
     );
 
     // Recursively create a directory and all of its parent components if they are missing
-    fs::create_dir_all(format!("{out_dir}/zork/cache"))
-        .with_context(|| "A failure happened creating the cache Zork subdirectory")?;
-    fs::create_dir_all(format!("{out_dir}/zork/intrinsics"))
-        .with_context(|| "A failure happened creating the cache Zork subdirectory")?;
+    let zork_path = Path::new(out_dir).join("zork");
 
+    utils::fs::create_directory(&zork_path.join("cache"))?;
+    utils::fs::create_directory(&zork_path.join("intrinsics"))?;
     Ok(())
 }
 
@@ -91,7 +90,7 @@ mod tests {
             assert!(Path::new("./out/zork/intrinsics").exists());
 
             // Clean up the out directory created for testing purposes
-            assert!(fs::remove_dir_all("./out").is_ok());
+            assert!(std::fs::remove_dir_all("./out").is_ok());
 
             Ok(())
         })

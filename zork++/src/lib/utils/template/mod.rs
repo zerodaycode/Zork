@@ -5,12 +5,8 @@ use crate::utils;
 use color_eyre::eyre::{bail, Context};
 use color_eyre::Result;
 use log::info;
-use std::io::Write;
+use std::path::Path;
 use std::process::Command;
-use std::{
-    fs::{DirBuilder, File},
-    path::Path,
-};
 
 /// Generates a new C++ standarized empty base project
 /// with a pre-designed structure to organize the
@@ -40,24 +36,24 @@ pub fn create_templated_project(
 
     check_project_root_available(project_root)?;
 
-    create_directory(project_root)?;
-    create_directory(&path_ifc)?;
-    create_directory(&path_src)?;
-    create_directory(&path_test)?;
-    create_directory(&path_dependencies)?;
+    utils::fs::create_directory(project_root)?;
+    utils::fs::create_directory(&path_ifc)?;
+    utils::fs::create_directory(&path_src)?;
+    utils::fs::create_directory(&path_test)?;
+    utils::fs::create_directory(&path_dependencies)?;
 
-    create_file(
+    utils::fs::create_file(
         &path_ifc,
         &format!("{}.{}", "math", compiler.get_default_module_extension()),
         resources::IFC_MOD_FILE.as_bytes(),
     )?;
-    create_file(
+    utils::fs::create_file(
         &path_src,
         "main.cpp", // TODO from constants
         resources::MAIN.as_bytes(),
     )?;
-    create_file(&path_src, "math.cpp", resources::SRC_MOD_FILE.as_bytes())?;
-    create_file(&path_src, "math2.cpp", resources::SRC_MOD_FILE_2.as_bytes())?;
+    utils::fs::create_file(&path_src, "math.cpp", resources::SRC_MOD_FILE.as_bytes())?;
+    utils::fs::create_file(&path_src, "math2.cpp", resources::SRC_MOD_FILE_2.as_bytes())?;
 
     // TODO The replaces must dissapear in the next PR
     let mut zork_conf = resources::CONFIG_FILE
@@ -68,7 +64,7 @@ pub fn create_templated_project(
     if cfg!(windows) {
         zork_conf = zork_conf.replace("libcpp", "stdlib")
     }
-    create_file(
+    utils::fs::create_file(
         project_root,
         utils::constants::CONFIG_FILE_NAME,
         zork_conf.as_bytes(),
@@ -124,22 +120,6 @@ fn initialize_git_repository(project_root: &Path) -> Result<()> {
     };
 
     Ok(())
-}
-
-fn create_file<'a>(path: &Path, filename: &'a str, buff_write: &'a [u8]) -> Result<()> {
-    let file_path = path.join(filename);
-
-    File::create(&file_path)
-        .with_context(|| format!("Could not create file {file_path:?}"))?
-        .write_all(buff_write)
-        .with_context(|| format!("Could not write to file {file_path:?}"))
-}
-
-fn create_directory(path_create: &Path) -> Result<()> {
-    DirBuilder::new()
-        .recursive(true)
-        .create(path_create)
-        .with_context(|| format!("Could not create directory {path_create:?}"))
 }
 
 #[cfg(test)]
