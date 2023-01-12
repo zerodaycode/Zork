@@ -3,7 +3,13 @@
 // operating system against the designed compilers in the configuration
 // file.
 
-use crate::{cli::CliArgs, config_file::ZorkConfigFile, utils::constants::DEFAULT_OUTPUT_DIR};
+use color_eyre::{eyre::Context, Result};
+
+use crate::{
+    cli::CliArgs,
+    config_file::ZorkConfigFile,
+    utils::{constants::DEFAULT_OUTPUT_DIR, reader::find_config_file},
+};
 use std::fs;
 
 /// The entry point of the compilation process
@@ -13,9 +19,16 @@ use std::fs;
 ///
 /// TODO Decision path for building the executable command line,
 /// the tests executable command line, a static lib, a dylib...
-pub fn build_project(config: &ZorkConfigFile, _cli_args: &CliArgs) {
+pub fn build_project(_cli_args: &CliArgs) -> Result<()> {
+    let config_file: String =
+        find_config_file().with_context(|| "Failed to read configuration file")?;
+    let config: ZorkConfigFile = toml::from_str(config_file.as_str())
+        .with_context(|| "Could not parse configuration file")?;
+
     // Create the directory for dump the generated files
-    create_output_directory(config);
+    create_output_directory(&config)?;
+
+    Ok(())
 }
 
 /// Creates the directory for output the elements generated
@@ -38,7 +51,7 @@ pub fn build_project(config: &ZorkConfigFile, _cli_args: &CliArgs) {
 /// time modified date that the last Zork++ process
 ///
 /// TODO Handle error with `color_eyre`
-fn create_output_directory(config: &ZorkConfigFile) {
+fn create_output_directory(config: &ZorkConfigFile) -> Result<()> {
     let out_dir = config.build.as_ref().map_or_else(
         || DEFAULT_OUTPUT_DIR,
         |build| build.output_dir.unwrap_or(DEFAULT_OUTPUT_DIR),
@@ -46,9 +59,11 @@ fn create_output_directory(config: &ZorkConfigFile) {
 
     // Recursively create a directory and all of its parent components if they are missing
     fs::create_dir_all(format!("{out_dir}/zork/cache"))
-        .expect("A failure happened creating the cache Zork subdirectory");
+        .with_context(|| "A failure happened creating the cache Zork subdirectory")?;
     fs::create_dir_all(format!("{out_dir}/zork/intrinsics"))
-        .expect("A failure happened creating the cache Zork subdirectory");
+        .with_context(|| "A failure happened creating the cache Zork subdirectory")?;
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -68,7 +83,7 @@ mod tests {
             let zcf: ZorkConfigFile = toml::from_str(CONFIG_FILE).unwrap();
 
             // This should create and out/ directory in the ./zork++ folder at the root of this project
-            create_output_directory(&zcf);
+            create_output_directory(&zcf)?;
 
             assert!(Path::new("./out").exists());
             assert!(Path::new("./out/zork").exists());
