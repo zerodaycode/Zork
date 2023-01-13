@@ -3,14 +3,13 @@
 // operating system against the designed compilers in the configuration
 // file.
 
+use color_eyre::{eyre::Context, Result};
+use std::{path::Path, process::Command};
+
 use crate::{
     cli::CliArgs,
     config_file::{modules::ModuleInterface, ZorkConfigFile},
-    utils::constants::DEFAULT_OUTPUT_DIR,
-};
-use std::{
-    fs,
-    process::Command,
+    utils::{self, constants::DEFAULT_OUTPUT_DIR, reader::find_config_file},
 };
 
 /// The entry point of the compilation process
@@ -20,11 +19,19 @@ use std::{
 ///
 /// TODO Decision path for building the executable command line,
 /// the tests executable command line, a static lib, a dylib...
-pub fn build_project(config: &ZorkConfigFile, _cli_args: &CliArgs) {
+pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
+    let config_file: String =
+        find_config_file(base_path).with_context(|| "Failed to read configuration file")?;
+    let config: ZorkConfigFile = toml::from_str(config_file.as_str())
+        .with_context(|| "Could not parse configuration file")?;
+
     // Create the directory for dump the generated files
-    create_output_directory(config);
+    create_output_directory(base_path, &config)?;
     // 1st - Build the modules
-    let _modules_commands = build_modules(config);
+    #[allow(clippy::let_unit_value)]  // TODO Solved when the commands will be returned
+    let _modules_commands = build_modules(&config);
+
+    Ok(())
 }
 
 /// Triggers the build process for compile the declared modules in the project
@@ -80,7 +87,6 @@ fn prebuild_module_interfaces(
     config: &ZorkConfigFile,
     interfaces: &Vec<ModuleInterface>,
 ) -> Vec<Vec<String>> {
-
     let mut commands: Vec<Vec<String>> = Vec::with_capacity(interfaces.len());
     interfaces.iter().for_each(|module_interface| {
         commands.push(
@@ -113,47 +119,53 @@ fn prebuild_module_interfaces(
 /// TODO Generate the caché process, like last time project build,
 /// and only rebuild files that is metadata contains a newer last
 /// time modified date that the last Zork++ process
-///
-/// TODO Handle error with `color_eyre`. Subdirs as constants?=!
-fn create_output_directory(config: &ZorkConfigFile) {
-    let out_dir = config.build.as_ref().map_or_else(
-        || DEFAULT_OUTPUT_DIR,
-        |build| build.output_dir.unwrap_or(DEFAULT_OUTPUT_DIR),
-    );
+fn create_output_directory(base_path: &Path, config: &ZorkConfigFile) -> Result<()> {
+    let out_dir = config
+        .build
+        .as_ref()
+        .and_then(|build| build.output_dir)
+        .unwrap_or(DEFAULT_OUTPUT_DIR);
+
     let compiler = &config.compiler.cpp_compiler;
 
     // Recursively create a directory and all of its parent components if they are missing
-    fs::create_dir_all(format!("{out_dir}/{compiler}/modules/interfaces"))
-        .expect("A failure happened creating the module interfaces dir");
-    fs::create_dir_all(format!("{out_dir}/{compiler}/modules/implementations"))
-        .expect("A failure happened creating the module interfaces dir");
-    fs::create_dir_all(format!("{out_dir}/{compiler}/zork/cache"))
-        .expect("A failure happened creating the cache Zork dir");
-    fs::create_dir_all(format!("{out_dir}/{compiler}/zork/intrinsics"))
-        .expect("A failure happened creating the intrinsics Zork dir");
+    let modules_path = base_path
+        .join(out_dir)
+        .join(compiler.to_string())
+        .join("modules");
+    let zork_path = base_path.join(out_dir).join("zork");
+
+    utils::fs::create_directory(&modules_path.join("interfaces"))?;
+    utils::fs::create_directory(&modules_path.join("implementations"))?;
+    utils::fs::create_directory(&zork_path.join("cache"))?;
+    utils::fs::create_directory(&zork_path.join("intrinsics"))?;
+
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use color_eyre::Result;
+    use tempfile::tempdir;
 
     use crate::utils::template::resources::CONFIG_FILE;
 
     use super::*;
 
     #[test]
-    fn test_creation_directories() {
-        let zcf: ZorkConfigFile = toml::from_str(CONFIG_FILE).unwrap();
+    fn test_creation_directories() -> Result<()> {
+        let temp = tempdir()?;
+
+        let zcf: ZorkConfigFile = toml::from_str(CONFIG_FILE)?;
 
         // This should create and out/ directory in the ./zork++ folder at the root of this project
-        create_output_directory(&zcf);
+        create_output_directory(temp.path(), &zcf)?;
 
-        assert!(Path::new("./out").exists());
-        assert!(Path::new("./out/zork").exists());
-        assert!(Path::new("./out/zork/cache").exists());
-        assert!(Path::new("./out/zork/intrinsics").exists());
+        assert!(temp.path().join("out").exists());
+        assert!(temp.path().join("out/zork").exists());
+        assert!(temp.path().join("out/zork/cache").exists());
+        assert!(temp.path().join("out/zork/intrinsics").exists());
 
-        // Clean up the out directory created for testing purposes
-        assert!(fs::remove_dir_all("./out").is_ok())
+        Ok(())
     }
 }
