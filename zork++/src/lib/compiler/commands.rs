@@ -8,7 +8,7 @@ use color_eyre::{eyre::Context, Result};
 
 /// Executes a new [`std::process::Command`] configured according the choosen
 /// compiler and the current operating system
-pub fn execute_command<'a>(compiler: &CppCompiler, arguments: Vec<String>) -> Result<()> {
+pub fn execute_command(compiler: &CppCompiler, arguments: Vec<String>) -> Result<()> {
     let process = if compiler.eq(&CppCompiler::MSVC) {
         Command::new( // TODO The initialization process + cache process MUST dynamically get this path and store it in cache
             "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"

@@ -9,7 +9,7 @@ use std::{collections::HashMap, path::Path};
 
 use crate::{
     cli::CliArgs,
-    config_file::{modules::ModuleInterface, ZorkConfigFile},
+    config_file::{compiler::CppCompiler, modules::ModuleInterface, ZorkConfigFile},
     utils::{self, constants::DEFAULT_OUTPUT_DIR, reader::find_config_file},
 };
 
@@ -30,7 +30,7 @@ pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
 
     // Create the directory for dump the generated files
     create_output_directory(base_path, &config)?;
-    
+
     // 1st - Build the modules
     let _modules_commands = build_modules(&config);
 
@@ -120,7 +120,7 @@ fn prebuild_module_interfaces(
 /// TODO Generate the caché process, like last time project build,
 /// and only rebuild files that is metadata contains a newer last
 /// time modified date that the last Zork++ process
-fn create_output_directory(base_path: &Path, config: &ZorkConfigFile) -> Result<()> {
+pub fn create_output_directory(base_path: &Path, config: &ZorkConfigFile) -> Result<()> {
     let out_dir = config
         .build
         .as_ref()
@@ -135,11 +135,27 @@ fn create_output_directory(base_path: &Path, config: &ZorkConfigFile) -> Result<
         .join(compiler.to_string())
         .join("modules");
     let zork_path = base_path.join(out_dir).join("zork");
+    let zork_cache_path = zork_path.join("cache");
+    let zork_intrinsics_path = zork_path.join("intrinsics");
 
     utils::fs::create_directory(&modules_path.join("interfaces"))?;
     utils::fs::create_directory(&modules_path.join("implementations"))?;
-    utils::fs::create_directory(&zork_path.join("cache"))?;
-    utils::fs::create_directory(&zork_path.join("intrinsics"))?;
+    utils::fs::create_directory(&zork_cache_path)?;
+    utils::fs::create_directory(&zork_intrinsics_path)?;
+
+    if compiler.eq(&CppCompiler::CLANG) {
+        // TODO This possible would be provisional
+        utils::fs::create_file(
+            &zork_intrinsics_path,
+            "std.h",
+            utils::template::resources::STD_HEADER.as_bytes(),
+        )?;
+        utils::fs::create_file(
+            &zork_intrinsics_path,
+            "zork.modulemap",
+            utils::template::resources::ZORK_MODULEMAP.as_bytes(),
+        )?;
+    }
 
     Ok(())
 }

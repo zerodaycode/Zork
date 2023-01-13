@@ -129,82 +129,80 @@ impl CppCompiler {
     ) -> Vec<String> {
         let compiler = &config.compiler.cpp_compiler;
         let base_path = config.modules.as_ref().unwrap().base_ifcs_dir;
+        let out_dir = config.build.as_ref().map_or("", |build_attribute| {
+            build_attribute.output_dir.unwrap_or_default()
+        });
 
-        let out_dir = if let Some(build_attr) = &config.build {
-            build_attr.output_dir.unwrap_or_default()
-        } else {
-            ""
-        };
-
-        let mut command = Vec::with_capacity(8);
-        command.push(config.compiler.cpp_standard.as_cmd_arg(compiler));
+        let mut arguments = Vec::with_capacity(8);
+        arguments.push(config.compiler.cpp_standard.as_cmd_arg(compiler));
 
         match *self {
+            // Refactor this one?
             CppCompiler::CLANG => {
                 if let Some(std_lib) = &config.compiler.std_lib {
-                    command.push(format!("-stdlib={}", std_lib.as_str()))
+                    arguments.push(format!("-stdlib={}", std_lib.as_str()))
                 }
 
-                command.push("-fimplicit-modules".to_string());
-                command.push("-x".to_string());
-                command.push("c++-module".to_string());
-                command.push("--precompile".to_string());
+                arguments.push("-fimplicit-modules".to_string());
+                arguments.push("-x".to_string());
+                arguments.push("c++-module".to_string());
+                arguments.push("--precompile".to_string());
 
-                // if std::env::consts::OS.eq("windows") {
-                //     command.push(
-                //         // This is a Zork++ feature to allow the users to write `import std;`
-                //         // under -std=c++20 with clang linking against GCC under Windows with
-                //         // some MinGW installation or similar.
-                //         // Should this be handled in another way?
-                //         format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"),
-                //     )
-                // } else {
-                //     command.push("-fimplicit-module-maps".to_string())
-                // }
+                if std::env::consts::OS.eq("windows") {
+                    arguments.push(
+                        // This is a Zork++ feature to allow the users to write `import std;`
+                        // under -std=c++20 with clang linking against GCC under Windows with
+                        // some MinGW installation or similar.
+                        // Should this be handled in another way?
+                        format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"),
+                    )
+                } else {
+                    arguments.push("-fimplicit-module-maps".to_string())
+                }
 
                 // The resultant BMI as a .pcm file
-                command.push("-o".to_string());
+                arguments.push("-o".to_string());
                 // The output file
                 if let Some(module_name) = interface.module_name {
-                    command.push(format!(
+                    arguments.push(format!(
                         "{out_dir}/{compiler}/modules/interfaces/{module_name}.pcm"
                     ))
                 } else {
-                    command.push(format!(
+                    arguments.push(format!(
                         "{out_dir}/{compiler}/modules/interfaces/{}.pcm",
                         interface.filename.split('.').collect::<Vec<_>>()[0]
                     ))
                 };
             }
             CppCompiler::MSVC => {
-                command.push("-c".to_string());
-                command.push("-ifcOutput".to_string());
+                arguments.push("-c".to_string());
+                arguments.push("-ifcOutput".to_string());
                 // The output .ifc file
                 if let Some(module_name) = interface.module_name {
-                    command.push(format!(
+                    arguments.push(format!(
                         "{out_dir}/{compiler}/modules/interfaces/{module_name}.ifc"
                     ))
                 } else {
-                    command.push(format!(
+                    arguments.push(format!(
                         "{out_dir}/{compiler}/modules/interfaces/{}.ifc",
                         interface.filename.split('.').collect::<Vec<_>>()[0]
                     ))
                 };
                 // The output .obj file
-                command.push(format!("/Fo{out_dir}/{compiler}/modules/interfaces\\"));
-                command.push("-interface".to_string());
-                command.push("-TP".to_string());
+                arguments.push(format!("/Fo{out_dir}/{compiler}/modules/interfaces\\"));
+                arguments.push("-interface".to_string());
+                arguments.push("-TP".to_string());
             }
             CppCompiler::GCC => todo!(),
         }
 
         // The input file
-        command.push(base_path.map_or_else(
+        arguments.push(base_path.map_or_else(
             || interface.filename.to_string(),
             |bp| format!("{bp}/{}", interface.filename),
         )); // The interface file
 
-        command
+        arguments
     }
 }
 
