@@ -6,7 +6,6 @@ authors = [ "Zero Day Code" ]  # Replace this for the real authors
 [compiler]
 cpp_compiler = "clang"
 cpp_standard = "20"
-std_lib = "libstdc++"
 
 [build]
 output_dir = "./out"
@@ -17,8 +16,8 @@ sources = [
     "*.cpp"
 ]
 auto_execute = true
-[tests]
 
+[tests]
 tests_executable_name = "zork_proj_tests"
 sources = [
     "*.cpp"

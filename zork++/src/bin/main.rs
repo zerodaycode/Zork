@@ -21,7 +21,12 @@ fn main() -> Result<()> {
     //     "example",
     //     "--git",
     //     "--compiler",
-    //     "clang",
+    //     "msvc",
+    // ]);
+    // let cli_args = CliArgs::parse_from(vec![
+    //     "",
+    //     "-vv",
+    //     "build",
     // ]);
     let cli_args = CliArgs::parse();
 
@@ -38,11 +43,9 @@ fn main() -> Result<()> {
     ~ zork++ run => zork++ build + run the generated binary
     */
     match cli_args.command {
-        // TODO provisional Ok wrapper, pending to implement color eyre err handling
-        Command::Build => {
-            build_project(Path::new("."), &cli_args).with_context(|| "Failed to build project")?;
-            Ok(())
-        }
+        Command::Build => 
+            build_project(Path::new("."), &cli_args)
+                .with_context(|| "Failed to build project"),
         /*Command::Run => {
             build_project(&_config, &cli_args);
             TODO run generated executable based on the path out property info
