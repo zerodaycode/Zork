@@ -153,17 +153,17 @@ mod tests {
 
     #[test]
     fn test_creation_directories() -> Result<()> {
-        let _temp = tempdir()?;
+        let temp = tempdir()?;
 
-        let _zcf: ZorkConfigFile = toml::from_str(CONFIG_FILE)?;
+        let zcf: ZorkConfigFile = toml::from_str(CONFIG_FILE)?;
 
         // This should create and out/ directory in the ./zork++ folder at the root of this project
-        // create_output_directory(temp.path(), &zcf)?;
+        create_output_directory(temp.path(), &zcf)?;
 
-        // assert!(temp.path().join("out").exists());
-        // assert!(temp.path().join("out/zork").exists());
-        // assert!(temp.path().join("out/zork/cache").exists());
-        // assert!(temp.path().join("out/zork/intrinsics").exists());
+        assert!(temp.path().join("out").exists());
+        assert!(temp.path().join("out/zork").exists());
+        assert!(temp.path().join("out/zork/cache").exists());
+        assert!(temp.path().join("out/zork/intrinsics").exists());
 
         Ok(())
     }
