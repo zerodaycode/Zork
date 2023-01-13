@@ -1,11 +1,11 @@
+use std::path::Path;
+
 use clap::Parser;
 use color_eyre::{eyre::Context, Result};
 use env_logger::Target;
 use zork::{
     cli::{CliArgs, Command},
     compiler::build_project,
-    config_file::ZorkConfigFile,
-    utils::reader::find_config_file,
     utils::{logger::config_logger, template::create_templated_project},
 };
 
@@ -27,11 +27,6 @@ fn main() -> Result<()> {
 
     config_logger(cli_args.verbose, Target::Stdout).expect("Error configuring the logger");
 
-    let config_file: String =
-        find_config_file().with_context(|| "Failed to read configuration file")?;
-    let config: ZorkConfigFile = toml::from_str(config_file.as_str())
-        .with_context(|| "Could not parse configuration file")?;
-
     /* TODO We should build the project normally (taking in consideration the implementation
     of a cache based on the metadata of the source code files), and then probably
     matching this available options, choose the final alternative
@@ -45,9 +40,8 @@ fn main() -> Result<()> {
     match cli_args.command {
         // TODO provisional Ok wrapper, pending to implement color eyre err handling
         Command::Build => {
-            build_project(&config, &cli_args);
-            Ok(())
-        },
+            build_project(Path::new("."), &cli_args).with_context(|| "Failed to build project")
+        }
         /*Command::Run => {
             build_project(&_config, &cli_args);
             TODO run generated executable based on the path out property info
@@ -57,7 +51,7 @@ fn main() -> Result<()> {
             name,
             git,
             compiler,
-        } => create_templated_project(name, git, compiler.into())
+        } => create_templated_project(Path::new("."), &name, git, compiler.into())
             .with_context(|| "Failed to create new project"),
     }
 }
