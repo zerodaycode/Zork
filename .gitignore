@@ -1,6 +1,7 @@
 # CPP files for testing the project in place
 notes.txt
 example/
+out/
 
 # out/
 .coverage

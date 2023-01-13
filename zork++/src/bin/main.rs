@@ -43,9 +43,9 @@ fn main() -> Result<()> {
     ~ zork++ run => zork++ build + run the generated binary
     */
     match cli_args.command {
-        Command::Build => 
-            build_project(Path::new("."), &cli_args)
-                .with_context(|| "Failed to build project"),
+        Command::Build => {
+            build_project(Path::new("."), &cli_args).with_context(|| "Failed to build project")
+        }
         /*Command::Run => {
             build_project(&_config, &cli_args);
             TODO run generated executable based on the path out property info

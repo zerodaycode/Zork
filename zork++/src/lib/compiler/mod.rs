@@ -2,15 +2,18 @@
 // generate command lines and execute them in a shell of the current
 // operating system against the designed compilers in the configuration
 // file.
+mod commands;
 
 use color_eyre::{eyre::Context, Result};
-use std::{path::Path, process::Command};
+use std::{collections::HashMap, path::Path};
 
 use crate::{
     cli::CliArgs,
-    config_file::{modules::ModuleInterface, ZorkConfigFile, compiler::CppCompiler},
+    config_file::{modules::ModuleInterface, ZorkConfigFile},
     utils::{self, constants::DEFAULT_OUTPUT_DIR, reader::find_config_file},
 };
+
+use self::commands::execute_command;
 
 /// The entry point of the compilation process
 ///
@@ -27,8 +30,8 @@ pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
 
     // Create the directory for dump the generated files
     create_output_directory(base_path, &config)?;
+    
     // 1st - Build the modules
-    #[allow(clippy::let_unit_value)]  // TODO Solved when the commands will be returned
     let _modules_commands = build_modules(&config);
 
     Ok(())
@@ -39,38 +42,36 @@ pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
 /// This function acts like a operation result processor, by running instances
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses>
-fn build_modules(config: &ZorkConfigFile) -> Result<()> {
+fn build_modules(config: &ZorkConfigFile) -> Result<HashMap<String, Vec<String>>> {
     let compiler = &config.compiler.cpp_compiler;
+    let mut commands: HashMap<String, Vec<String>> = HashMap::new();
 
+    // TODO Dev todo's!
+    // Change the string types for strong types (ie, unit structs with strong typing)
+    // Also, can we check first is modules and interfaces .is_some() and then lauch this process?
     if let Some(modules) = &config.modules {
         if let Some(interfaces) = &modules.interfaces {
             // TODO append to a collection to make them able to be dump into a text file
             let miu_commands = prebuild_module_interfaces(config, interfaces);
 
-            for command in miu_commands {
-                if cfg!(target_os = "windows") && compiler.eq(&CppCompiler::MSVC) {
-                    let process = Command::new(
-                        "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
-                        ).arg("&&")
-                        .arg(compiler.get_driver())
-                        .args(
-                            &command
-                        ).spawn()?
-                        .wait()
-                        .with_context(|| format!("[{compiler}] - Command {:?} failed!", command.join(" ")))?;
-                    log::info!("[{compiler}] - Command {:?}\nresult: {:?}", command.join(" "), process);
-                } else {
-                    let process = Command::new(compiler.get_driver())
-                        .args(&command)
-                        .spawn()?
-                        .wait()
-                        .with_context(|| format!("[{compiler}] - Command {:?} failed!", command.join(" ")))?;
-                    log::info!("[{compiler}] - Command {:?}\nresult: {:?}", command.join(" "), process);
-                }
+            // Store the commands for later dump it to a file (probably if check if needed?)
+            commands.insert(
+                // Change also for a strong type
+                String::from("MIU"), // this will be a strong type, so don't worry about raw str
+                miu_commands
+                    .iter()
+                    .map(|command| command.join(" "))
+                    .collect::<Vec<_>>(),
+            );
+
+            // Could this potentially be delayed until everything is up?
+            for arguments in miu_commands {
+                execute_command(compiler, arguments)?
             }
         }
     }
-    Ok(())
+
+    Ok(commands)
 }
 
 /// Parses the configuration in order to build the BMIs declared for the project,
@@ -80,7 +81,7 @@ fn prebuild_module_interfaces(
     interfaces: &Vec<ModuleInterface>,
 ) -> Vec<Vec<String>> {
     let mut commands: Vec<Vec<String>> = Vec::with_capacity(interfaces.len());
-    
+
     interfaces.iter().for_each(|module_interface| {
         commands.push(
             config
@@ -92,9 +93,10 @@ fn prebuild_module_interfaces(
 
     log::info!(
         "Module interface commands: {:?}",
-        commands.iter().map(|command| {
-            command.join(" ")
-        }).collect::<Vec<_>>()
+        commands
+            .iter()
+            .map(|command| { command.join(" ") })
+            .collect::<Vec<_>>()
     );
 
     commands
