@@ -35,6 +35,8 @@ pub struct CliArgs {
 /// [`Command`] -  The core enum commands
 #[derive(Subcommand, Debug, PartialEq, Eq)]
 pub enum Command {
+    /// Triggers the process that builds the project based on the config file directives
+    Build,
     /// Executes the tests under the specified directory in the config file
     Test,
     /// Creates a new template project

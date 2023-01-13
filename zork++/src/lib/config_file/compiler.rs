@@ -1,3 +1,5 @@
+use core::fmt;
+
 ///! file for represent the available configuration properties within Zork++
 ///! for setting up the target compiler
 ///
@@ -6,6 +8,8 @@
 /// allowing Zork++ to compile one project for multiple compilers
 /// at the same time
 use serde::Deserialize;
+
+use super::{modules::ModuleInterface, ZorkConfigFile};
 
 /// [`CompilerAttribute`] - Configuration properties for
 /// targeting one of the available compilers within Zork++
@@ -88,13 +92,119 @@ pub enum CppCompiler {
     GCC, // Possible future interesting on support the Intel's C++ compiler?
 }
 
+impl fmt::Display for CppCompiler {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            CppCompiler::CLANG => write!(f, "clang"),
+            CppCompiler::MSVC => write!(f, "msvc"),
+            CppCompiler::GCC => write!(f, "gcc"),
+        }
+    }
+}
+
 impl CppCompiler {
+    /// Returns an &str representing the compiler driver that will be called
+    /// in the command line to generate the build events
+    pub fn get_driver(&self) -> &str {
+        match *self {
+            CppCompiler::CLANG => "clang++",
+            CppCompiler::MSVC => "cl",
+            CppCompiler::GCC => "g++",
+        }
+    }
+
     pub fn get_default_module_extension(&self) -> &str {
         match *self {
             CppCompiler::CLANG => "cppm",
             CppCompiler::MSVC => "ixx",
             CppCompiler::GCC => todo!("GCC is still not supported yet by Zork++"),
         }
+    }
+
+    /// Generates the expected arguments for precompile the BMIs depending on self
+    pub fn get_module_ifc_args(
+        &self,
+        config: &ZorkConfigFile,
+        interface: &ModuleInterface,
+    ) -> Vec<String> {
+        let compiler = &config.compiler.cpp_compiler;
+        let base_path = config.modules.as_ref().unwrap().base_ifcs_dir;
+
+        let out_dir = if let Some(build_attr) = &config.build {
+            build_attr.output_dir.unwrap_or_default()
+        } else {
+            ""
+        };
+
+        let mut command = Vec::with_capacity(8);
+        command.push(config.compiler.cpp_standard.as_cmd_arg(compiler));
+
+        match *self {
+            CppCompiler::CLANG => {
+                if let Some(std_lib) = &config.compiler.std_lib {
+                    command.push(format!("-stdlib={}", std_lib.as_str()))
+                }
+
+                command.push("-fimplicit-modules".to_string());
+                command.push("-x".to_string());
+                command.push("c++-module".to_string());
+                command.push("--precompile".to_string());
+
+                // if std::env::consts::OS.eq("windows") {
+                //     command.push(
+                //         // This is a Zork++ feature to allow the users to write `import std;`
+                //         // under -std=c++20 with clang linking against GCC under Windows with
+                //         // some MinGW installation or similar.
+                //         // Should this be handled in another way?
+                //         format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"),
+                //     )
+                // } else {
+                //     command.push("-fimplicit-module-maps".to_string())
+                // }
+
+                // The resultant BMI as a .pcm file
+                command.push("-o".to_string());
+                // The output file
+                if let Some(module_name) = interface.module_name {
+                    command.push(format!(
+                        "{out_dir}/{compiler}/modules/interfaces/{module_name}.pcm"
+                    ))
+                } else {
+                    command.push(format!(
+                        "{out_dir}/{compiler}/modules/interfaces/{}.pcm",
+                        interface.filename.split('.').collect::<Vec<_>>()[0]
+                    ))
+                };
+            }
+            CppCompiler::MSVC => {
+                command.push("-c".to_string());
+                command.push("-ifcOutput".to_string());
+                // The output .ifc file
+                if let Some(module_name) = interface.module_name {
+                    command.push(format!(
+                        "{out_dir}/{compiler}/modules/interfaces/{module_name}.ifc"
+                    ))
+                } else {
+                    command.push(format!(
+                        "{out_dir}/{compiler}/modules/interfaces/{}.ifc",
+                        interface.filename.split('.').collect::<Vec<_>>()[0]
+                    ))
+                };
+                // The output .obj file
+                command.push(format!("/Fo{out_dir}/{compiler}/modules/interfaces\\"));
+                command.push("-interface".to_string());
+                command.push("-TP".to_string());
+            }
+            CppCompiler::GCC => todo!(),
+        }
+
+        // The input file
+        command.push(base_path.map_or_else(
+            || interface.filename.to_string(),
+            |bp| format!("{bp}/{}", interface.filename),
+        )); // The interface file
+
+        command
     }
 }
 
@@ -105,19 +215,9 @@ impl CppCompiler {
 /// use the latests features available
 ///
 /// Variant *LATEST* is the `MSVC` specific way of set the language
-/// standard level to the latest features available in that compiler
+/// standard level to the latest features available in Microsoft's compiler
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum LanguageLevel {
-    #[serde(alias = "98")]
-    CPP98,
-    #[serde(alias = "03")]
-    CPP03,
-    #[serde(alias = "11")]
-    CPP11,
-    #[serde(alias = "14")]
-    CPP14,
-    #[serde(alias = "17")]
-    CPP17,
     #[serde(alias = "20")]
     CPP20,
     #[serde(alias = "23")]
@@ -130,12 +230,40 @@ pub enum LanguageLevel {
     LATEST,
 }
 
+impl LanguageLevel {
+    pub fn as_str(&self) -> &str {
+        match *self {
+            LanguageLevel::CPP20 => "20",
+            LanguageLevel::CPP23 => "23",
+            LanguageLevel::CPP2A => "2a",
+            LanguageLevel::CPP2B => "2b",
+            LanguageLevel::LATEST => "latest",
+        }
+    }
+
+    pub fn as_cmd_arg(&self, compiler: &CppCompiler) -> String {
+        match compiler {
+            CppCompiler::CLANG | CppCompiler::GCC => format!("-std=c++{}", self.as_str()),
+            CppCompiler::MSVC => format!("-std:c++{}", self.as_str()),
+        }
+    }
+}
+
 /// The standard library (compiler specific) that the user
 /// desires to link against
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum StdLib {
-    #[serde(alias = "stdlib++", alias = "stdlib", alias = "stdlibcpp")]
+    #[serde(alias = "libstdc++", alias = "gccstdlib", alias = "libstdcpp")]
     STDLIBCPP,
     #[serde(alias = "libc++", alias = "libcpp")]
     LIBCPP,
+}
+
+impl StdLib {
+    pub fn as_str(&self) -> &str {
+        match *self {
+            StdLib::STDLIBCPP => "libstdc++",
+            StdLib::LIBCPP => "libc++",
+        }
+    }
 }
