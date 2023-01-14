@@ -193,7 +193,20 @@ impl CppCompiler {
                 arguments.push("-interface".to_string());
                 arguments.push("-TP".to_string());
             }
-            CppCompiler::GCC => todo!(),
+            CppCompiler::GCC => {
+                arguments.push("-fmodules-ts".to_string());
+                arguments.push("-c".to_string());
+                if let Some(module_name) = interface.module_name {
+                    arguments.push(format!(
+                        "{out_dir}/{compiler}/modules/interfaces/{module_name}.o"
+                    ))
+                } else {
+                    arguments.push(format!(
+                        "{out_dir}/{compiler}/modules/interfaces/{}.o",
+                        interface.filename.split('.').collect::<Vec<_>>()[0]
+                    ))
+                };
+            },
         }
 
         // The input file
