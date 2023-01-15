@@ -33,8 +33,34 @@ pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
 
     // 1st - Build the modules
     let _modules_commands = build_modules(&config);
+    
+    // 2st - Build the executable or the tests
+    let executable_commands = build_executable(&config);
 
     Ok(())
+}
+
+/// Triggers the build process for compile the source files declared for the project
+/// and the
+fn build_executable(config: &ZorkConfigFile) {
+    let compiler = &config.compiler.cpp_compiler;
+
+    if let Some(executable_attr) = config.executable {
+        if let Some(source_files) = executable_attr.sources {
+            let mut commands: Vec<Vec<String>> = Vec::with_capacity(source_files.len());
+
+            source_files.iter().for_each(|source_file| {
+                let command_line = vec![
+                    compiler.get_driver(),
+                    &config.compiler.cpp_standard.as_cmd_arg(compiler),
+                ];
+                commands.push(
+                    // module_interfaces::get_module_ifc_args(config, module_interface),
+                    command_line
+                )
+            });
+        }
+    }
 }
 
 /// Triggers the build process for compile the declared modules in the project
@@ -170,8 +196,8 @@ pub fn create_output_directory(base_path: &Path, config: &ZorkConfigFile) -> Res
     utils::fs::create_directory(&zork_cache_path)?;
     utils::fs::create_directory(&zork_intrinsics_path)?;
 
-    if compiler.eq(&CppCompiler::CLANG) {
-        // TODO This possible would be provisional
+    // TODO This possibly would be temporary
+    if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
         utils::fs::create_file(
             &zork_intrinsics_path,
             "std.h",
@@ -356,6 +382,20 @@ mod helpers {
     use crate::config_file::TranslationUnit;
 
     use super::*;
+
+    /// Helper for resolve the wildcarded source code files
+    pub(crate) fn glob_resolver(
+        wildcarded_sources: &mut Vec<&str>
+    ) {
+        for source_file in wildcarded_sources {
+            if source_file.contains('*') {
+                let globs = glob::glob(&source_file)
+                    .expect(&format!("Error procesing glob entry: {source_file}"));
+                globs.into_iter()
+                    .map(|glob|)
+            }
+        }
+    }
 
     /// Formats the string that represents an input file that will be the target of
     /// the build process and that will be passed to the compiler
