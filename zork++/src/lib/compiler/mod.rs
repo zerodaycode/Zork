@@ -236,6 +236,7 @@ mod module_interfaces {
                 arguments.push(helpers::add_input_file(interface, base_path))
             },
             CppCompiler::MSVC => {
+                arguments.push("-EHsc".to_string());
                 arguments.push("-c".to_string());
                 // The output .ifc file
                 arguments.push("-ifcOutput".to_string());
@@ -249,6 +250,8 @@ mod module_interfaces {
             },
             CppCompiler::GCC => {
                 arguments.push("-fmodules-ts".to_string());
+                arguments.push("-x".to_string());
+                arguments.push("c++".to_string());
                 arguments.push("-c".to_string());
                 // The input file
                 arguments.push(helpers::add_input_file(interface, base_path));
@@ -317,16 +320,19 @@ mod module_interfaces {
                 arguments.push(helpers::add_input_file(implementation, base_path))
             },
             CppCompiler::MSVC => {
-                // arguments.push("-c".to_string());
-                // arguments.push("-ifcOutput".to_string());
-                // // The output .ifc file
-                // arguments.push(helpers::generate_prebuild_miu(compiler, out_dir, interface));
-                // // The output .obj file
-                // arguments.push(format!("/Fo{out_dir}/{compiler}/modules/interfaces\\"));
-                // // The input file
-                // arguments.push("-interface".to_string());
-                // arguments.push("-TP".to_string());
-                // arguments.push(helpers::miu_input_file(interface, base_path))
+                arguments.push("-EHsc".to_string());
+                arguments.push("-c".to_string());
+                arguments.push("-ifcSearchDir".to_string());
+                arguments.push(format!("{out_dir}/{compiler}/modules/interfaces/"));
+                // The input file
+                arguments.push(helpers::add_input_file(implementation, base_path));
+                // The output .obj file
+                arguments.push(
+                    format!(
+                        "/Fo{out_dir}/{compiler}/modules/implementations/{}",
+                        implementation.filename.split(".").collect::<Vec<_>>()[0]
+                    )
+                );
             },
             CppCompiler::GCC => {
                 arguments.push("-fmodules-ts".to_string());

@@ -29,8 +29,8 @@ base_ifcs_dir = "<project_name>/ifc"
 interfaces = [ 
     { filename = 'math.cppm' }    
 ]
-base_impls_dir = "<project_name>/src"
+base_impls_dir = "./example/src"
 implementations = [
-    "math.cpp",
-    "math2.cpp=[math]"
+    { filename = 'math.cpp' },
+    { filename = 'math.cppm', dependencies = ['math'] }
 ]
