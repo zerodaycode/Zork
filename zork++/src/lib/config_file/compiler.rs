@@ -9,8 +9,6 @@ use core::fmt;
 /// at the same time
 use serde::Deserialize;
 
-use super::{modules::ModuleInterface, ZorkConfigFile};
-
 /// [`CompilerAttribute`] - Configuration properties for
 /// targeting one of the available compilers within Zork++
 ///
@@ -117,105 +115,8 @@ impl CppCompiler {
         match *self {
             CppCompiler::CLANG => "cppm",
             CppCompiler::MSVC => "ixx",
-            CppCompiler::GCC => todo!("GCC is still not supported yet by Zork++"),
+            CppCompiler::GCC => "cc",
         }
-    }
-
-    /// Generates the expected arguments for precompile the BMIs depending on self
-    pub fn get_module_ifc_args(
-        &self,
-        config: &ZorkConfigFile,
-        interface: &ModuleInterface,
-    ) -> Vec<String> {
-        let compiler = &config.compiler.cpp_compiler;
-        let base_path = config.modules.as_ref().unwrap().base_ifcs_dir;
-        let out_dir = config.build.as_ref().map_or("", |build_attribute| {
-            build_attribute.output_dir.unwrap_or_default()
-        });
-
-        let mut arguments = Vec::with_capacity(8);
-        arguments.push(config.compiler.cpp_standard.as_cmd_arg(compiler));
-
-        match *self {
-            // Refactor this one?
-            CppCompiler::CLANG => {
-                if let Some(std_lib) = &config.compiler.std_lib {
-                    arguments.push(format!("-stdlib={}", std_lib.as_str()))
-                }
-
-                arguments.push("-fimplicit-modules".to_string());
-                arguments.push("-x".to_string());
-                arguments.push("c++-module".to_string());
-                arguments.push("--precompile".to_string());
-
-                if std::env::consts::OS.eq("windows") {
-                    arguments.push(
-                        // This is a Zork++ feature to allow the users to write `import std;`
-                        // under -std=c++20 with clang linking against GCC under Windows with
-                        // some MinGW installation or similar.
-                        // Should this be handled in another way?
-                        format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"),
-                    )
-                } else {
-                    arguments.push("-fimplicit-module-maps".to_string())
-                }
-
-                // The resultant BMI as a .pcm file
-                arguments.push("-o".to_string());
-                // The output file
-                if let Some(module_name) = interface.module_name {
-                    arguments.push(format!(
-                        "{out_dir}/{compiler}/modules/interfaces/{module_name}.pcm"
-                    ))
-                } else {
-                    arguments.push(format!(
-                        "{out_dir}/{compiler}/modules/interfaces/{}.pcm",
-                        interface.filename.split('.').collect::<Vec<_>>()[0]
-                    ))
-                };
-            }
-            CppCompiler::MSVC => {
-                arguments.push("-c".to_string());
-                arguments.push("-ifcOutput".to_string());
-                // The output .ifc file
-                if let Some(module_name) = interface.module_name {
-                    arguments.push(format!(
-                        "{out_dir}/{compiler}/modules/interfaces/{module_name}.ifc"
-                    ))
-                } else {
-                    arguments.push(format!(
-                        "{out_dir}/{compiler}/modules/interfaces/{}.ifc",
-                        interface.filename.split('.').collect::<Vec<_>>()[0]
-                    ))
-                };
-                // The output .obj file
-                arguments.push(format!("/Fo{out_dir}/{compiler}/modules/interfaces\\"));
-                arguments.push("-interface".to_string());
-                arguments.push("-TP".to_string());
-            }
-            CppCompiler::GCC => {
-                arguments.push("-fmodules-ts".to_string());
-                arguments.push("-c".to_string());
-                if let Some(module_name) = interface.module_name {
-                    arguments.push(format!(
-                        "{out_dir}/{compiler}/modules/interfaces/{module_name}.o"
-                    ))
-                } else {
-                    arguments.push(format!(
-                        "{out_dir}/{compiler}/modules/interfaces/{}.o",
-                        interface.filename.split('.').collect::<Vec<_>>()[0]
-                    ))
-                };
-            },
-        }
-
-        // The input file
-        arguments.push(base_path.map_or_else(
-            || interface.filename.to_string(),
-            |bp| format!("{bp}/{}", interface.filename),
-        )); // The interface file
-
-        arguments
     }
 }
 

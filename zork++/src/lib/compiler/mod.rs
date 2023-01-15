@@ -84,10 +84,7 @@ fn prebuild_module_interfaces(
 
     interfaces.iter().for_each(|module_interface| {
         commands.push(
-            config
-                .compiler
-                .cpp_compiler
-                .get_module_ifc_args(config, module_interface),
+            module_interfaces::get_module_ifc_args(config, module_interface),
         )
     });
 
@@ -158,6 +155,123 @@ pub fn create_output_directory(base_path: &Path, config: &ZorkConfigFile) -> Res
     }
 
     Ok(())
+}
+
+mod module_interfaces {
+    use crate::config_file::{ZorkConfigFile, modules::ModuleInterface, compiler::CppCompiler};
+
+    use super::helpers;
+
+    /// Generates the expected arguments for precompile the BMIs depending on self
+    pub fn get_module_ifc_args(
+        config: &ZorkConfigFile,
+        interface: &ModuleInterface,
+    ) -> Vec<String> {
+        let compiler = &config.compiler.cpp_compiler;
+        let base_path = config.modules.as_ref().unwrap().base_ifcs_dir;
+        let out_dir = config.build.as_ref().map_or("", |build_attribute| {
+            build_attribute.output_dir.unwrap_or_default()
+        });
+
+        let mut arguments = Vec::with_capacity(8);
+        arguments.push(config.compiler.cpp_standard.as_cmd_arg(compiler));
+
+        match *compiler {
+            // Refactor this one?
+            CppCompiler::CLANG => {
+                if let Some(std_lib) = &config.compiler.std_lib {
+                    arguments.push(format!("-stdlib={}", std_lib.as_str()))
+                }
+
+                arguments.push("-fimplicit-modules".to_string());
+                arguments.push("-x".to_string());
+                arguments.push("c++-module".to_string());
+                arguments.push("--precompile".to_string());
+
+                if std::env::consts::OS.eq("windows") {
+                    arguments.push(
+                        // This is a Zork++ feature to allow the users to write `import std;`
+                        // under -std=c++20 with clang linking against GCC under Windows with
+                        // some MinGW installation or similar.
+                        // Should this be handled in another way?
+                        format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"),
+                    )
+                } else {
+                    arguments.push("-fimplicit-module-maps".to_string())
+                }
+
+                // The resultant BMI as a .pcm file
+                arguments.push("-o".to_string());
+                // The output file
+                arguments.push(helpers::generate_prebuild_miu(compiler, out_dir, interface));
+                arguments.push(helpers::miu_input_file(interface, base_path))
+            },
+            CppCompiler::MSVC => {
+                arguments.push("-c".to_string());
+                arguments.push("-ifcOutput".to_string());
+                // The output .ifc file
+                arguments.push(helpers::generate_prebuild_miu(compiler, out_dir, interface));
+                // The output .obj file
+                arguments.push(format!("/Fo{out_dir}/{compiler}/modules/interfaces\\"));
+                // The input file
+                arguments.push("-interface".to_string());
+                arguments.push("-TP".to_string());
+                arguments.push(helpers::miu_input_file(interface, base_path))
+            },
+            CppCompiler::GCC => {
+                arguments.push("-fmodules-ts".to_string());
+                arguments.push("-c".to_string());
+                
+                // The input file
+                arguments.push(helpers::miu_input_file(interface, base_path));
+                
+                // The output file
+                arguments.push("-o".to_string());
+                arguments.push(helpers::generate_prebuild_miu(compiler, out_dir, interface));
+            },
+        }
+
+        arguments
+    }
+}
+
+/// Helpers for reduce the cyclomatic complexity introduced by the
+/// kind of workflow that should be done with this parse, format and
+/// generate
+mod helpers {
+    use super::*;
+
+    /// Formats the string that represents the input module interface file
+    /// that will be passed to the compiler
+    pub(crate) fn miu_input_file(interface: &ModuleInterface, base_path: Option<&str>) -> String {
+        base_path.map_or_else(
+            || interface.filename.to_string(),
+            |bp| format!("{bp}/{}", interface.filename),
+        )
+    }
+
+    pub(crate) fn generate_prebuild_miu(
+        compiler: &CppCompiler,
+        out_dir: &str,
+        interface: &ModuleInterface,
+    ) -> String {
+        let miu_ext = match compiler {
+            CppCompiler::CLANG => "pcm",
+            CppCompiler::MSVC => "ifc",
+            CppCompiler::GCC => "o",
+        };
+
+        if let Some(module_name) = interface.module_name {
+            format!(
+                "{out_dir}/{compiler}/modules/interfaces/{module_name}.{miu_ext}"
+            )
+        } else {
+            format!(
+                "{out_dir}/{compiler}/modules/interfaces/{}.{miu_ext}",
+                interface.filename.split('.').collect::<Vec<_>>()[0]
+            )
+        }
+    }
 }
 
 #[cfg(test)]
