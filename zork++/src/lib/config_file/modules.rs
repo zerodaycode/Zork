@@ -6,7 +6,10 @@ use serde::Deserialize;
 /// * `interfaces` - A list to define the module interface translation units for the project
 /// * `base_impls_dir` - Base directory to shorcut the path of the implementation files
 /// * `implementations` - A list to define the module interface translation units for the project
-///
+/// * `gcc_sys_headers` - An array field explicitly declare which system headers
+/// must be precompiled and cached in order to make a module mapper server
+/// following the `GCC` specifications
+/// 
 /// ### Tests
 ///
 /// ```rust
@@ -20,6 +23,7 @@ use serde::Deserialize;
 ///     implementations = [
 ///         { filename = 'math.cpp' }, { filename = 'some_module_impl.cpp', dependencies = ['iostream'] } 
 ///     ]
+///     gcc_sys_headers = ['iostream', 'vector', 'string', 'type_traits', 'functional']
 /// "#;
 ///
 /// let config: ModulesAttribute = toml::from_str(CONFIG_FILE_MOCK)
@@ -45,6 +49,14 @@ use serde::Deserialize;
 /// let impl_1 = &impls[1];
 /// assert_eq!(impl_1.filename, "some_module_impl.cpp");
 /// assert_eq!(impl_1.dependencies, Some(vec!["iostream"]));
+/// 
+/// 
+/// let gcc_sys_headers = config.gcc_sys_headers.unwrap();
+/// assert_eq!(&gcc_sys_headers[0], &"iostream");
+/// assert_eq!(&gcc_sys_headers[1], &"vector");
+/// assert_eq!(&gcc_sys_headers[2], &"string");
+/// assert_eq!(&gcc_sys_headers[3], &"type_traits");
+/// assert_eq!(&gcc_sys_headers[4], &"functional");
 /// ```
 #[derive(Deserialize, Debug, PartialEq)]
 pub struct ModulesAttribute<'a> {
@@ -56,6 +68,8 @@ pub struct ModulesAttribute<'a> {
     pub base_impls_dir: Option<&'a str>,
     #[serde(borrow)]
     pub implementations: Option<Vec<ModuleImplementation<'a>>>,
+    #[serde(borrow)]
+    pub gcc_sys_headers: Option<Vec<&'a str>>,
 }
 
 /// [`ModuleInterface`] -  A module interface structure for dealing
