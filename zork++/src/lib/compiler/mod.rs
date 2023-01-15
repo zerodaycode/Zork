@@ -329,13 +329,13 @@ mod module_interfaces {
                 // arguments.push(helpers::miu_input_file(interface, base_path))
             },
             CppCompiler::GCC => {
-                // arguments.push("-fmodules-ts".to_string());
-                // arguments.push("-c".to_string());
-                // // The input file
-                // arguments.push(helpers::miu_input_file(interface, base_path));
-                // // The output file
-                // arguments.push("-o".to_string());
-                // arguments.push(helpers::generate_prebuild_miu(compiler, out_dir, interface));
+                arguments.push("-fmodules-ts".to_string());
+                arguments.push("-c".to_string());
+                // The input file
+                arguments.push(helpers::add_input_file(implementation, base_path));
+                // The output file
+                arguments.push("-o".to_string());
+                arguments.push(helpers::generate_impl_obj_file(compiler, out_dir, implementation));
             },
         }
 
