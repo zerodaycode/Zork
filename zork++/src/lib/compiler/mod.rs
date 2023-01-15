@@ -207,7 +207,6 @@ mod module_interfaces {
         arguments.push(config.compiler.cpp_standard.as_cmd_arg(compiler));
 
         match *compiler {
-            // Refactor this one?
             CppCompiler::CLANG => {
                 if let Some(std_lib) = &config.compiler.std_lib {
                     arguments.push(format!("-stdlib={}", std_lib.as_str()))
@@ -238,8 +237,8 @@ mod module_interfaces {
             },
             CppCompiler::MSVC => {
                 arguments.push("-c".to_string());
-                arguments.push("-ifcOutput".to_string());
                 // The output .ifc file
+                arguments.push("-ifcOutput".to_string());
                 arguments.push(helpers::generate_prebuild_miu(compiler, out_dir, interface));
                 // The output .obj file
                 arguments.push(format!("/Fo{out_dir}/{compiler}/modules/interfaces\\"));
@@ -251,10 +250,8 @@ mod module_interfaces {
             CppCompiler::GCC => {
                 arguments.push("-fmodules-ts".to_string());
                 arguments.push("-c".to_string());
-                
                 // The input file
                 arguments.push(helpers::add_input_file(interface, base_path));
-                
                 // The output file
                 arguments.push("-o".to_string());
                 arguments.push(helpers::generate_prebuild_miu(compiler, out_dir, interface));
@@ -279,7 +276,6 @@ mod module_interfaces {
         arguments.push(config.compiler.cpp_standard.as_cmd_arg(compiler));
 
         match *compiler {
-            // Refactor this one?
             CppCompiler::CLANG => {
                 if let Some(std_lib) = &config.compiler.std_lib {
                     arguments.push(format!("-stdlib={}", std_lib.as_str()))
@@ -290,10 +286,6 @@ mod module_interfaces {
 
                 if std::env::consts::OS.eq("windows") {
                     arguments.push(
-                        // This is a Zork++ feature to allow the users to write `import std;`
-                        // under -std=c++20 with clang linking against GCC under Windows with
-                        // some MinGW installation or similar.
-                        // Should this be handled in another way?
                         format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"),
                     )
                 } else {
@@ -339,10 +331,8 @@ mod module_interfaces {
             CppCompiler::GCC => {
                 // arguments.push("-fmodules-ts".to_string());
                 // arguments.push("-c".to_string());
-                
                 // // The input file
                 // arguments.push(helpers::miu_input_file(interface, base_path));
-                
                 // // The output file
                 // arguments.push("-o".to_string());
                 // arguments.push(helpers::generate_prebuild_miu(compiler, out_dir, interface));
