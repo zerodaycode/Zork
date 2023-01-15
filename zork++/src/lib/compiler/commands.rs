@@ -10,7 +10,7 @@ use color_eyre::{eyre::Context, Result};
 /// compiler and the current operating system
 pub fn execute_command(compiler: &CppCompiler, arguments: Vec<String>) -> Result<()> {
     log::info!(
-        "[{compiler}] - Executing command {:?}",
+        "[{compiler}] - Executing command => {:?}",
         format!("{} {}", compiler.get_driver(), arguments.join(" "))
     );
 

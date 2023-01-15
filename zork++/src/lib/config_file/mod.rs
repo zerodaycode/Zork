@@ -55,3 +55,11 @@ pub struct ZorkConfigFile<'a> {
     #[serde(borrow)]
     pub tests: Option<TestsAttribute<'a>>,
 }
+
+
+/// Represents any kind of translation unit and the generic operations
+/// applicable to all the implementors
+pub trait TranslationUnit {
+    /// Outputs the declared filename for `self` being the translation unit
+    fn get_filename(&self) -> String;
+}

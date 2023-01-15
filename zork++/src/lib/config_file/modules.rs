@@ -1,6 +1,8 @@
 ///!  The core section to instruct the compiler to work with C++20 modules. The most important are the base path to the interfaces and implementation files
 use serde::Deserialize;
 
+use super::TranslationUnit;
+
 /// [`ModulesAttribute`] -  The core section to instruct the compiler to work with C++20 modules. The most important are the base path to the interfaces and implementation files
 /// * `base_ifcs_dir`- Base directory to shorcut the path of the implementation files
 /// * `interfaces` - A list to define the module interface translation units for the project
@@ -126,6 +128,11 @@ pub struct ModuleInterface<'a> {
     #[serde(borrow)]
     pub dependencies: Option<Vec<&'a str>>,
 }
+impl<'a> TranslationUnit for ModuleInterface<'a> {
+    fn get_filename(&self) -> String {
+        self.filename.to_string()
+    }
+}
 
 /// [`ModuleImplementation`] -  Type for dealing with the parse work
 /// of compile module implementation translation units
@@ -166,4 +173,9 @@ pub struct ModuleImplementation<'a> {
     pub filename: &'a str,
     #[serde(borrow)]
     pub dependencies: Option<Vec<&'a str>>,
+}
+impl<'a> TranslationUnit for ModuleImplementation<'a> {
+    fn get_filename(&self) -> String {
+        self.filename.to_string()
+    }
 }

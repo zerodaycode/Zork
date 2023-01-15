@@ -9,7 +9,7 @@ use std::{collections::HashMap, path::Path};
 
 use crate::{
     cli::CliArgs,
-    config_file::{compiler::CppCompiler, modules::ModuleInterface, ZorkConfigFile},
+    config_file::{compiler::CppCompiler, modules::{ModuleInterface, ModuleImplementation}, ZorkConfigFile},
     utils::{self, constants::DEFAULT_OUTPUT_DIR, reader::find_config_file},
 };
 
@@ -50,13 +50,13 @@ fn build_modules(config: &ZorkConfigFile) -> Result<HashMap<String, Vec<String>>
     // Change the string types for strong types (ie, unit structs with strong typing)
     // Also, can we check first is modules and interfaces .is_some() and then lauch this process?
     if let Some(modules) = &config.modules {
+        // TODO refactor - IFCS
         if let Some(interfaces) = &modules.interfaces {
             // TODO append to a collection to make them able to be dump into a text file
             let miu_commands = prebuild_module_interfaces(config, interfaces);
 
             // Store the commands for later dump it to a file (probably if check if needed?)
             commands.insert(
-                // Change also for a strong type
                 String::from("MIU"), // this will be a strong type, so don't worry about raw str
                 miu_commands
                     .iter()
@@ -66,6 +66,27 @@ fn build_modules(config: &ZorkConfigFile) -> Result<HashMap<String, Vec<String>>
 
             // Could this potentially be delayed until everything is up?
             for arguments in miu_commands {
+                execute_command(compiler, arguments)?
+            }
+        }
+
+        // TODO refactor - IMPLS
+        if let Some(impls) = &modules.implementations {
+            // TODO append to a collection to make them able to be dump into a text file
+            let impl_commands = compile_module_implementations(config, impls);
+
+            // Store the commands for later dump it to a file (probably if check if needed?)
+            commands.insert(
+                String::from("IMPLS"), // this will be a strong type, so don't worry about raw str
+                impl_commands
+                    .iter()
+                    .map(|command| command.join(" "))
+                    .collect::<Vec<_>>(),
+            );
+
+            // Could this potentially be delayed until everything is up?
+            // OR not, better run in before store data to save up space and performance
+            for arguments in impl_commands {
                 execute_command(compiler, arguments)?
             }
         }
@@ -88,13 +109,22 @@ fn prebuild_module_interfaces(
         )
     });
 
-    log::info!(
-        "Module interface commands: {:?}",
-        commands
-            .iter()
-            .map(|command| { command.join(" ") })
-            .collect::<Vec<_>>()
-    );
+    commands
+}
+
+/// Parses the configuration in order to compile the module implementation
+/// translation units declared for the project
+fn compile_module_implementations(
+    config: &ZorkConfigFile,
+    impls: &Vec<ModuleImplementation>,
+) -> Vec<Vec<String>> {
+    let mut commands: Vec<Vec<String>> = Vec::with_capacity(impls.len());
+
+    impls.iter().for_each(|module_impl| {
+        commands.push(
+            module_interfaces::get_module_impl_args(config, module_impl),
+        )
+    });
 
     commands
 }
@@ -158,7 +188,7 @@ pub fn create_output_directory(base_path: &Path, config: &ZorkConfigFile) -> Res
 }
 
 mod module_interfaces {
-    use crate::config_file::{ZorkConfigFile, modules::ModuleInterface, compiler::CppCompiler};
+    use crate::config_file::{ZorkConfigFile, modules::{ModuleInterface, ModuleImplementation}, compiler::CppCompiler};
 
     use super::helpers;
 
@@ -204,7 +234,7 @@ mod module_interfaces {
                 arguments.push("-o".to_string());
                 // The output file
                 arguments.push(helpers::generate_prebuild_miu(compiler, out_dir, interface));
-                arguments.push(helpers::miu_input_file(interface, base_path))
+                arguments.push(helpers::add_input_file(interface, base_path))
             },
             CppCompiler::MSVC => {
                 arguments.push("-c".to_string());
@@ -216,18 +246,106 @@ mod module_interfaces {
                 // The input file
                 arguments.push("-interface".to_string());
                 arguments.push("-TP".to_string());
-                arguments.push(helpers::miu_input_file(interface, base_path))
+                arguments.push(helpers::add_input_file(interface, base_path))
             },
             CppCompiler::GCC => {
                 arguments.push("-fmodules-ts".to_string());
                 arguments.push("-c".to_string());
                 
                 // The input file
-                arguments.push(helpers::miu_input_file(interface, base_path));
+                arguments.push(helpers::add_input_file(interface, base_path));
                 
                 // The output file
                 arguments.push("-o".to_string());
                 arguments.push(helpers::generate_prebuild_miu(compiler, out_dir, interface));
+            },
+        }
+
+        arguments
+    }
+
+    /// Generates the expected arguments for compile the implementation module translation units
+    pub fn get_module_impl_args(
+        config: &ZorkConfigFile,
+        implementation: &ModuleImplementation,
+    ) -> Vec<String> {
+        let compiler = &config.compiler.cpp_compiler;
+        let base_path = config.modules.as_ref().unwrap().base_impls_dir;
+        let out_dir = config.build.as_ref().map_or("", |build_attribute| {
+            build_attribute.output_dir.unwrap_or_default()
+        });
+
+        let mut arguments = Vec::with_capacity(8);
+        arguments.push(config.compiler.cpp_standard.as_cmd_arg(compiler));
+
+        match *compiler {
+            // Refactor this one?
+            CppCompiler::CLANG => {
+                if let Some(std_lib) = &config.compiler.std_lib {
+                    arguments.push(format!("-stdlib={}", std_lib.as_str()))
+                }
+
+                arguments.push("-fimplicit-modules".to_string());
+                arguments.push("-c".to_string());
+
+                if std::env::consts::OS.eq("windows") {
+                    arguments.push(
+                        // This is a Zork++ feature to allow the users to write `import std;`
+                        // under -std=c++20 with clang linking against GCC under Windows with
+                        // some MinGW installation or similar.
+                        // Should this be handled in another way?
+                        format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"),
+                    )
+                } else {
+                    arguments.push("-fimplicit-module-maps".to_string())
+                }
+
+                // The resultant object file
+                arguments.push("-o".to_string());
+                arguments.push(helpers::generate_impl_obj_file(compiler, out_dir, implementation));
+                // Explicit direct module dependencies
+                if let Some(ifc_dependencies) = &implementation.dependencies {
+                    ifc_dependencies.iter().for_each(|ifc_dep| {
+                        arguments.push(
+                            format!("-fmodule-file={out_dir}/{compiler}/modules/interfaces/{ifc_dep}.pcm")
+                        )
+                    })
+                } else {
+                    // If the implementation file does not declared any explicit dependency, we 
+                    // assume that the unique direct dependency is it's related interface file,
+                    // and that both files matches the same filename (without counting the extension)
+                    arguments.push(
+                        format!(
+                            "-fmodule-file={out_dir}/{compiler}/modules/interfaces/{}.pcm",
+                            implementation.filename.split(".").collect::<Vec<_>>()[0]
+                        )
+                    )
+                }
+                // The input file
+                arguments.push(helpers::add_input_file(implementation, base_path))
+            },
+            CppCompiler::MSVC => {
+                // arguments.push("-c".to_string());
+                // arguments.push("-ifcOutput".to_string());
+                // // The output .ifc file
+                // arguments.push(helpers::generate_prebuild_miu(compiler, out_dir, interface));
+                // // The output .obj file
+                // arguments.push(format!("/Fo{out_dir}/{compiler}/modules/interfaces\\"));
+                // // The input file
+                // arguments.push("-interface".to_string());
+                // arguments.push("-TP".to_string());
+                // arguments.push(helpers::miu_input_file(interface, base_path))
+            },
+            CppCompiler::GCC => {
+                // arguments.push("-fmodules-ts".to_string());
+                // arguments.push("-c".to_string());
+                
+                // // The input file
+                // arguments.push(helpers::miu_input_file(interface, base_path));
+                
+                // // The output file
+                // arguments.push("-o".to_string());
+                // arguments.push(helpers::generate_prebuild_miu(compiler, out_dir, interface));
             },
         }
 
@@ -239,14 +357,19 @@ mod module_interfaces {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
+    use crate::config_file::TranslationUnit;
+
     use super::*;
 
-    /// Formats the string that represents the input module interface file
-    /// that will be passed to the compiler
-    pub(crate) fn miu_input_file(interface: &ModuleInterface, base_path: Option<&str>) -> String {
+    /// Formats the string that represents an input file that will be the target of
+    /// the build process and that will be passed to the compiler
+    pub(crate) fn add_input_file<T: TranslationUnit>(
+        translation_unit: &T,
+        base_path: Option<&str>
+    ) -> String {
         base_path.map_or_else(
-            || interface.filename.to_string(),
-            |bp| format!("{bp}/{}", interface.filename),
+            || translation_unit.get_filename(),
+            |bp| format!("{bp}/{}", translation_unit.get_filename()),
         )
     }
 
@@ -271,6 +394,17 @@ mod helpers {
                 interface.filename.split('.').collect::<Vec<_>>()[0]
             )
         }
+    }
+
+    pub(crate) fn generate_impl_obj_file(
+        compiler: &CppCompiler,
+        out_dir: &str,
+        implementation: &ModuleImplementation
+    ) -> String {
+        format!(
+            "{out_dir}/{compiler}/modules/implementations/{}.o",
+            implementation.filename.split('.').collect::<Vec<_>>()[0]
+        )
     }
 }
 
