@@ -8,7 +8,7 @@ use color_eyre::{eyre::Context, Result};
 
 /// Executes a new [`std::process::Command`] configured according the choosen
 /// compiler and the current operating system
-pub fn execute_command(compiler: &CppCompiler, arguments: Vec<String>) -> Result<()> {
+pub fn execute_command(compiler: &CppCompiler, arguments: &Vec<String>) -> Result<()> {
     log::info!(
         "[{compiler}] - Executing command => {:?}",
         format!("{} {}", compiler.get_driver(), arguments.join(" "))
@@ -19,13 +19,13 @@ pub fn execute_command(compiler: &CppCompiler, arguments: Vec<String>) -> Result
             "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
         ).arg("&&")
             .arg(compiler.get_driver())
-            .args(&arguments)
+            .args(arguments)
             .spawn()?
             .wait()
             .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
     } else {
         Command::new(compiler.get_driver())
-            .args(&arguments)
+            .args(arguments)
             .spawn()?
             .wait()
             .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
@@ -33,4 +33,25 @@ pub fn execute_command(compiler: &CppCompiler, arguments: Vec<String>) -> Result
 
     log::info!("[{compiler}] - Result: {:?}", process);
     Ok(())
+}
+
+
+/// A kind of caché of the generated command lines
+#[derive(Debug)]
+pub struct Commands<'a> {
+    pub compiler: &'a CppCompiler,
+    pub interfaces: Vec<Vec<String>>,
+    pub implementations: Vec<Vec<String>>,
+    pub sources: Vec<String>,
+}
+
+impl<'a> Commands<'a> {
+    pub fn new(compiler: &'a CppCompiler) -> Self {
+        Self {
+            compiler,
+            interfaces: Vec::with_capacity(0),
+            implementations: Vec::with_capacity(0),
+            sources: Vec::with_capacity(0)
+        }
+    }
 }

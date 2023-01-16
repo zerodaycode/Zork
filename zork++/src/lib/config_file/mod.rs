@@ -7,6 +7,8 @@ pub mod modules;
 pub mod project;
 pub mod tests;
 
+use std::fmt::Display;
+
 use serde::Deserialize;
 
 use self::{
@@ -59,7 +61,17 @@ pub struct ZorkConfigFile<'a> {
 
 /// Represents any kind of translation unit and the generic operations
 /// applicable to all the implementors
-pub trait TranslationUnit {
+pub trait TranslationUnit: Display {
     /// Outputs the declared filename for `self` being the translation unit
     fn get_filename(&self) -> String;
+}
+impl TranslationUnit for &str {
+    fn get_filename(&self) -> String {
+        self.to_string()
+    }
+}
+impl TranslationUnit for String {
+    fn get_filename(&self) -> String {
+        self.clone()
+    }
 }

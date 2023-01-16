@@ -1,3 +1,5 @@
+use core::fmt;
+
 ///!  The core section to instruct the compiler to work with C++20 modules. The most important are the base path to the interfaces and implementation files
 use serde::Deserialize;
 
@@ -128,6 +130,11 @@ pub struct ModuleInterface<'a> {
     #[serde(borrow)]
     pub dependencies: Option<Vec<&'a str>>,
 }
+impl fmt::Display for ModuleInterface<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, {:?}, {:?})", self.filename, self.module_name, self.dependencies)
+    }
+}
 impl<'a> TranslationUnit for ModuleInterface<'a> {
     fn get_filename(&self) -> String {
         self.filename.to_string()
@@ -173,6 +180,11 @@ pub struct ModuleImplementation<'a> {
     pub filename: &'a str,
     #[serde(borrow)]
     pub dependencies: Option<Vec<&'a str>>,
+}
+impl fmt::Display for ModuleImplementation<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}, {:?})", self.filename, self.dependencies)
+    }
 }
 impl<'a> TranslationUnit for ModuleImplementation<'a> {
     fn get_filename(&self) -> String {

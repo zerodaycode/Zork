@@ -3,14 +3,15 @@
 // operating system against the designed compilers in the configuration
 // file.
 mod commands;
+mod arguments;
 
 use color_eyre::{eyre::Context, Result};
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 
 use crate::{
     cli::CliArgs,
     config_file::{compiler::CppCompiler, modules::{ModuleInterface, ModuleImplementation}, ZorkConfigFile},
-    utils::{self, constants::DEFAULT_OUTPUT_DIR, reader::find_config_file},
+    utils::{self, constants::DEFAULT_OUTPUT_DIR, reader::find_config_file}, compiler::commands::Commands
 };
 
 use self::commands::execute_command;
@@ -28,39 +29,40 @@ pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
     let config: ZorkConfigFile = toml::from_str(config_file.as_str())
         .with_context(|| "Could not parse configuration file")?;
 
+    // A registry of the generated command lines
+    let mut commands = Commands::new(&config.compiler.cpp_compiler);
+
     // Create the directory for dump the generated files
     create_output_directory(base_path, &config)?;
 
     // 1st - Build the modules
-    let _modules_commands = build_modules(&config);
-    
+    build_modules(&config, &mut commands)?;
     // 2st - Build the executable or the tests
-    let executable_commands = build_executable(&config);
+    build_executable(&config, &mut commands)?;
+
+    log::info!("Generated commands: {:?}", &commands);
 
     Ok(())
 }
 
 /// Triggers the build process for compile the source files declared for the project
 /// and the
-fn build_executable(config: &ZorkConfigFile) {
-    let compiler = &config.compiler.cpp_compiler;
+fn build_executable(config: &ZorkConfigFile, commands: &mut Commands) -> Result<()> {
+    if let Some(executable_attr) = &config.executable {
+        if let Some(source_files) = &executable_attr.sources {
+            let sources = helpers::glob_resolver(source_files)?;
+            log::info!("Sources files: {sources:?}");
 
-    if let Some(executable_attr) = config.executable {
-        if let Some(source_files) = executable_attr.sources {
-            let mut commands: Vec<Vec<String>> = Vec::with_capacity(source_files.len());
+            commands.sources =
+                sources::generate_main_command_line_args(config, &sources, false);
 
-            source_files.iter().for_each(|source_file| {
-                let command_line = vec![
-                    compiler.get_driver(),
-                    &config.compiler.cpp_standard.as_cmd_arg(compiler),
-                ];
-                commands.push(
-                    // module_interfaces::get_module_ifc_args(config, module_interface),
-                    command_line
-                )
-            });
+            log::info!("Commands for the source files: {:?}", &commands.sources);
         }
+
+        execute_command(commands.compiler, &commands.sources)?
     }
+
+    Ok(())
 }
 
 /// Triggers the build process for compile the declared modules in the project
@@ -68,57 +70,32 @@ fn build_executable(config: &ZorkConfigFile) {
 /// This function acts like a operation result processor, by running instances
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses>
-fn build_modules(config: &ZorkConfigFile) -> Result<HashMap<String, Vec<String>>> {
-    let compiler = &config.compiler.cpp_compiler;
-    let mut commands: HashMap<String, Vec<String>> = HashMap::new();
-
+fn build_modules(
+    config: &ZorkConfigFile<'_>,
+    commands: &mut Commands<'_>
+) -> Result<()> {
     // TODO Dev todo's!
     // Change the string types for strong types (ie, unit structs with strong typing)
     // Also, can we check first is modules and interfaces .is_some() and then lauch this process?
     if let Some(modules) = &config.modules {
-        // TODO refactor - IFCS
         if let Some(interfaces) = &modules.interfaces {
-            // TODO append to a collection to make them able to be dump into a text file
-            let miu_commands = prebuild_module_interfaces(config, interfaces);
+            commands.interfaces = prebuild_module_interfaces(config, interfaces);
 
-            // Store the commands for later dump it to a file (probably if check if needed?)
-            commands.insert(
-                String::from("MIU"), // this will be a strong type, so don't worry about raw str
-                miu_commands
-                    .iter()
-                    .map(|command| command.join(" "))
-                    .collect::<Vec<_>>(),
-            );
-
-            // Could this potentially be delayed until everything is up?
-            for arguments in miu_commands {
-                execute_command(compiler, arguments)?
+            for miu in &commands.interfaces {
+                execute_command(commands.compiler, miu)?
             }
         }
 
-        // TODO refactor - IMPLS
         if let Some(impls) = &modules.implementations {
-            // TODO append to a collection to make them able to be dump into a text file
-            let impl_commands = compile_module_implementations(config, impls);
-
-            // Store the commands for later dump it to a file (probably if check if needed?)
-            commands.insert(
-                String::from("IMPLS"), // this will be a strong type, so don't worry about raw str
-                impl_commands
-                    .iter()
-                    .map(|command| command.join(" "))
-                    .collect::<Vec<_>>(),
-            );
-
-            // Could this potentially be delayed until everything is up?
-            // OR not, better run in before store data to save up space and performance
-            for arguments in impl_commands {
-                execute_command(compiler, arguments)?
+            commands.implementations = compile_module_implementations(config, impls);
+            
+            for impls in &commands.implementations {
+                execute_command(commands.compiler, impls)?
             }
         }
     }
 
-    Ok(commands)
+    Ok(())
 }
 
 /// Parses the configuration in order to build the BMIs declared for the project,
@@ -131,7 +108,7 @@ fn prebuild_module_interfaces(
 
     interfaces.iter().for_each(|module_interface| {
         commands.push(
-            module_interfaces::get_module_ifc_args(config, module_interface),
+            sources::generate_module_interfaces_args(config, module_interface),
         )
     });
 
@@ -148,7 +125,7 @@ fn compile_module_implementations(
 
     impls.iter().for_each(|module_impl| {
         commands.push(
-            module_interfaces::get_module_impl_args(config, module_impl),
+            sources::generate_module_implementation_args(config, module_impl),
         )
     });
 
@@ -213,18 +190,69 @@ pub fn create_output_directory(base_path: &Path, config: &ZorkConfigFile) -> Res
     Ok(())
 }
 
-mod module_interfaces {
+
+
+/// Specific operations over source files
+mod sources {
     use crate::config_file::{ZorkConfigFile, modules::{ModuleInterface, ModuleImplementation}, compiler::CppCompiler};
 
     use super::helpers;
 
+    /// Generates the command line arguments for non-module source files, including the one that
+    /// holds the main function
+    pub fn generate_main_command_line_args(
+        config: &ZorkConfigFile<'_>,
+        sources: &Vec<String>,
+        is_tests_process: bool
+    ) -> Vec<String> {
+        let compiler = &config.compiler.cpp_compiler;
+        let (base_path, out_dir, executable_name) = helpers::generate_common_args_for_binary(config, is_tests_process);
+
+        let mut arguments = Vec::new();
+        arguments.push((config.compiler.cpp_standard.as_cmd_arg(compiler)).to_string());
+
+        match compiler {
+            CppCompiler::CLANG => {
+                arguments.push("-fimplicit-modules".to_string());
+                arguments.push("-o".to_string());
+                arguments.push(format!(
+                    "{out_dir}/{compiler}/{executable_name}{}",
+                    if cfg!(target_os = "windows") {".exe"} else {""}
+                ));
+                if std::env::consts::OS.eq("windows") {
+                    arguments.push(
+                        // This is a Zork++ feature to allow the users to write `import std;`
+                        // under -std=c++20 with clang linking against GCC under Windows with
+                        // some MinGW installation or similar.
+                        // Should this be handled in another way?
+                        format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"),
+                    )
+                } else {
+                    arguments.push("-fimplicit-module-maps".to_string())
+                }
+                
+            },
+            CppCompiler::MSVC => todo!(),
+            CppCompiler::GCC => todo!(),
+        };
+
+        // Adding the source files
+        sources.iter().for_each(|source_file| {
+            arguments.push(format!(".{base_path}/{source_file}"))
+        });
+
+        arguments
+    }
+
     /// Generates the expected arguments for precompile the BMIs depending on self
-    pub fn get_module_ifc_args(
+    pub fn generate_module_interfaces_args(
         config: &ZorkConfigFile,
         interface: &ModuleInterface,
     ) -> Vec<String> {
         let compiler = &config.compiler.cpp_compiler;
-        let base_path = config.modules.as_ref().unwrap().base_ifcs_dir;
+        let base_path = config.modules.as_ref().map(|modules_attr|
+            modules_attr.base_ifcs_dir.unwrap_or_default()
+        );
         let out_dir = config.build.as_ref().map_or("", |build_attribute| {
             build_attribute.output_dir.unwrap_or_default()
         });
@@ -291,12 +319,14 @@ mod module_interfaces {
     }
 
     /// Generates the expected arguments for compile the implementation module translation units
-    pub fn get_module_impl_args(
+    pub fn generate_module_implementation_args(
         config: &ZorkConfigFile,
         implementation: &ModuleImplementation,
     ) -> Vec<String> {
         let compiler = &config.compiler.cpp_compiler;
-        let base_path = config.modules.as_ref().unwrap().base_impls_dir;
+        let base_path = config.modules.as_ref().map(|modules_attr|
+            modules_attr.base_impls_dir.unwrap_or_default()
+        );
         let out_dir = config.build.as_ref().map_or("", |build_attribute| {
             build_attribute.output_dir.unwrap_or_default()
         });
@@ -383,18 +413,71 @@ mod helpers {
 
     use super::*;
 
-    /// Helper for resolve the wildcarded source code files
-    pub(crate) fn glob_resolver(
-        wildcarded_sources: &mut Vec<&str>
-    ) {
-        for source_file in wildcarded_sources {
+    /// Generates common arguments, like the base path
+    pub(crate) fn generate_common_args_for_binary(config: &ZorkConfigFile, is_tests_process: bool) -> (String, String, String) {
+        if !is_tests_process {
+            (
+                config.executable.as_ref().map_or("", |exec_attr|
+                    exec_attr.sources_base_path.unwrap_or_default()
+                ).to_string(),
+                config.build.as_ref().map_or("", |build_attribute|
+                    build_attribute.output_dir.unwrap_or_default()
+                ).to_string(),
+                config.executable.as_ref().map_or("", |exec_attr| 
+                    exec_attr.executable_name.unwrap_or_default()
+                ).to_string()
+            )
+        } else {
+            (
+                config.tests.as_ref().map_or("", |tests_attr|
+                    tests_attr.source_base_path.unwrap_or_default()
+                ).to_string(),
+                config.build.as_ref().map_or("", |build_attribute|
+                    build_attribute.output_dir.unwrap_or_default()
+                ).to_string(),
+                config.tests.as_ref().map_or("", |tests_attr| 
+                    tests_attr.test_executable_name.unwrap_or_default()
+                ).to_string()
+            )
+        }
+    }
+
+    /// Helper for resolve the wildcarded source code files. First, retrieves the wildcarded ones
+    /// and second, takes the non-wildcard and joins them all in a single collection
+    pub(crate) fn glob_resolver<T: TranslationUnit>(source_files: &Vec<T>) -> Result<Vec<String>> {
+        let mut all_sources = Vec::new();
+        
+        for source_file in source_files.into_iter() {
+            let source_file = source_file.to_string();
+            
             if source_file.contains('*') {
-                let globs = glob::glob(&source_file)
-                    .expect(&format!("Error procesing glob entry: {source_file}"));
-                globs.into_iter()
-                    .map(|glob|)
+                all_sources.extend(
+                glob::glob(&source_file)
+                        .with_context(|| "Failed to read configuration file")?
+                        .into_iter()
+                        .map(|glob| {
+                            glob.with_context(|| "Failed to retrieve the PathBuf on the process")
+                                .unwrap()
+                                .as_path()
+                                .to_str()
+                                .map_or(String::from(""), |file_name| file_name.to_string())
+                        })
+                    .filter(|src_file| !(*src_file).eq(""))
+                )
             }
         }
+
+        all_sources.extend(
+            source_files.iter()
+                .filter_map(
+                    |src_file| match !(src_file).to_string().contains("*") {
+                        true => Some(src_file.to_string()),
+                        false => None,
+                    }
+                )
+        );
+
+        Ok(all_sources)
     }
 
     /// Formats the string that represents an input file that will be the target of
