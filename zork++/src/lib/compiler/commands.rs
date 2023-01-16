@@ -40,7 +40,7 @@ pub fn execute_command(compiler: &CppCompiler, arguments: &Vec<String>) -> Resul
 #[derive(Debug)]
 pub struct Commands<'a> {
     pub compiler: &'a CppCompiler,
-    pub interfaces: Vec<Vec<String>>,
+    pub interfaces: CommandLine,
     pub implementations: Vec<Vec<String>>,
     pub sources: Vec<String>,
 }

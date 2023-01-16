@@ -88,7 +88,7 @@ fn build_modules(
 
         if let Some(impls) = &modules.implementations {
             commands.implementations = compile_module_implementations(config, impls);
-            
+
             for impls in &commands.implementations {
                 execute_command(commands.compiler, impls)?
             }
@@ -196,7 +196,7 @@ pub fn create_output_directory(base_path: &Path, config: &ZorkConfigFile) -> Res
 mod sources {
     use crate::config_file::{ZorkConfigFile, modules::{ModuleInterface, ModuleImplementation}, compiler::CppCompiler};
 
-    use super::helpers;
+    use super::{helpers, arguments::Argument};
 
     /// Generates the command line arguments for non-module source files, including the one that
     /// holds the main function
@@ -248,7 +248,7 @@ mod sources {
     pub fn generate_module_interfaces_args(
         config: &ZorkConfigFile,
         interface: &ModuleInterface,
-    ) -> Vec<String> {
+    ) -> Vec<Argument> {
         let compiler = &config.compiler.cpp_compiler;
         let base_path = config.modules.as_ref().map(|modules_attr|
             modules_attr.base_ifcs_dir.unwrap_or_default()
@@ -258,18 +258,18 @@ mod sources {
         });
 
         let mut arguments = Vec::with_capacity(8);
-        arguments.push(config.compiler.cpp_standard.as_cmd_arg(compiler));
+        arguments.push(Argument::from(config.compiler.cpp_standard.as_cmd_arg(compiler)));
 
         match *compiler {
             CppCompiler::CLANG => {
                 if let Some(std_lib) = &config.compiler.std_lib {
-                    arguments.push(format!("-stdlib={}", std_lib.as_str()))
+                    arguments.push(Argument::from(format!("-stdlib={}", std_lib.as_str())))
                 }
 
-                arguments.push("-fimplicit-modules".to_string());
-                arguments.push("-x".to_string());
-                arguments.push("c++-module".to_string());
-                arguments.push("--precompile".to_string());
+                arguments.push(Argument::from("-fimplicit-modules"));
+                arguments.push(Argument::from("-x"));
+                arguments.push(Argument::from("c++-module"));
+                arguments.push(Argument::from("--precompile"));
 
                 if std::env::consts::OS.eq("windows") {
                     arguments.push(
@@ -277,17 +277,23 @@ mod sources {
                         // under -std=c++20 with clang linking against GCC under Windows with
                         // some MinGW installation or similar.
                         // Should this be handled in another way?
-                        format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"),
+                        Argument::from(
+                            format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap")
+                        ),
                     )
                 } else {
-                    arguments.push("-fimplicit-module-maps".to_string())
+                    arguments.push(Argument::from("-fimplicit-module-maps"))
                 }
 
                 // The resultant BMI as a .pcm file
-                arguments.push("-o".to_string());
+                arguments.push(Argument::from("-o"));
                 // The output file
-                arguments.push(helpers::generate_prebuild_miu(compiler, out_dir, interface));
-                arguments.push(helpers::add_input_file(interface, base_path))
+                arguments.push(Argument::from(
+                    helpers::generate_prebuild_miu(compiler, out_dir, interface)
+                ));
+                arguments.push(Argument::from(
+                    helpers::add_input_file(interface, base_path)
+                ))
             },
             CppCompiler::MSVC => {
                 arguments.push("-EHsc".to_string());
@@ -444,30 +450,37 @@ mod helpers {
 
     /// Helper for resolve the wildcarded source code files. First, retrieves the wildcarded ones
     /// and second, takes the non-wildcard and joins them all in a single collection
-    pub(crate) fn glob_resolver<T: TranslationUnit>(source_files: &Vec<T>) -> Result<Vec<String>> {
+    pub(crate) fn glob_resolver<T: TranslationUnit>(source_files: &Vec<T>) -> Result<Vec<impl TranslationUnit>> {
         let mut all_sources = Vec::new();
         
         for source_file in source_files.into_iter() {
             let source_file = source_file.to_string();
             
             if source_file.contains('*') {
-                all_sources.extend(
-                glob::glob(&source_file)
-                        .with_context(|| "Failed to read configuration file")?
-                        .into_iter()
-                        .map(|glob| {
-                            glob.with_context(|| "Failed to retrieve the PathBuf on the process")
-                                .unwrap()
-                                .as_path()
-                                .to_str()
-                                .map_or(String::from(""), |file_name| file_name.to_string())
-                        })
-                    .filter(|src_file| !(*src_file).eq(""))
-                )
+                let paths = glob::glob(&source_file)
+                    .with_context(|| "Failed to read configuration file")?;
+                let globs = paths.into_iter()
+                    .map(|glob| {
+                        glob.with_context(|| "Failed to retrieve the PathBuf on the process")
+                            .unwrap()
+                            .as_path()
+                            .to_str()
+                            .map_or(String::from(""), |file_name| file_name.to_string())
+                    })
+                .filter(|src_file| !(*src_file).eq(""));
+                
+                all_sources.extend(globs)
             }
         }
 
-        all_sources.extend(
+        all_sources.extend(retrive_non_globs(source_files));
+        
+        Ok(all_sources)
+    }
+
+    /// todo
+    fn retrive_non_globs<T: TranslationUnit>(source_files: &Vec<T>) -> impl Iterator<Item = String> + '_ {
+        // source_files.extend(
             source_files.iter()
                 .filter_map(
                     |src_file| match !(src_file).to_string().contains("*") {
@@ -475,9 +488,7 @@ mod helpers {
                         false => None,
                     }
                 )
-        );
-
-        Ok(all_sources)
+        // );
     }
 
     /// Formats the string that represents an input file that will be the target of

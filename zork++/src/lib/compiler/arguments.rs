@@ -6,8 +6,15 @@ pub struct Argument {
     pub value: String
 }
 
-impl Argument {
-    pub fn new<T: ToString>(val: T) {
-        
+impl From<&str> for Argument {
+    fn from(value: &str) -> Self {
+        Self { value: value.to_string() }
     }
-} 
+}
+
+impl From<String> for Argument {
+    fn from(value: String) -> Self {
+        Self { value }
+    }
+}
+
