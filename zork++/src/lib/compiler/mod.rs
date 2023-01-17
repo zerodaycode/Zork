@@ -294,7 +294,7 @@ mod sources {
                 ));
                 arguments.push(Argument::from(
                     helpers::add_input_file(interface, base_path)
-                ))
+                ));
             },
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("-EHsc"));
