@@ -47,7 +47,7 @@ pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
 
 /// Triggers the build process for compile the source files declared for the project
 /// and the
-fn build_executable(config: &ZorkConfigFile, commands: &mut Commands) -> Result<()> {
+fn build_executable<'a>(config: &'a ZorkConfigFile, commands: &'a mut Commands) -> Result<()> {
     if let Some(executable_attr) = &config.executable {
         if let Some(source_files) = &executable_attr.sources {
             let sources = helpers::glob_resolver(source_files)?;
@@ -57,9 +57,9 @@ fn build_executable(config: &ZorkConfigFile, commands: &mut Commands) -> Result<
                 &config.compiler.cpp_compiler, &commands
             );
 
-            commands.sources =
-                sources::generate_main_command_line_args(config, &sources, false);
-
+            commands.sources.extend(
+                sources::generate_main_command_line_args(config, &sources, bmis_and_objs, false)
+            .into_iter());
             log::info!("Commands for the source files: {:?}", &commands.sources);
         }
 
@@ -204,9 +204,10 @@ mod sources {
 
     /// Generates the command line arguments for non-module source files, including the one that
     /// holds the main function
-    pub fn generate_main_command_line_args<'a>(
-        config: &ZorkConfigFile<'_>,
-        sources: &Vec<impl TranslationUnit>,
+    pub fn generate_main_command_line_args<'a, I: Iterator<Item = Argument<'a>>>(
+        config: &'a ZorkConfigFile<'_>,
+        sources: &'a Vec<impl TranslationUnit>,
+        bmis_and_obj_files: I,
         is_tests_process: bool
     ) -> Vec<Argument<'a>> {
         let compiler = &config.compiler.cpp_compiler;
@@ -235,7 +236,7 @@ mod sources {
                     arguments.push(Argument::from("-fimplicit-module-maps"))
                 }
                 
-                arguments.extend(helpers::get_bmis_and_obj_files(compiler, commands));
+                arguments.extend(bmis_and_obj_files);
             },
             CppCompiler::MSVC => todo!(),
             CppCompiler::GCC => todo!(),
@@ -568,10 +569,10 @@ mod helpers {
 
     /// Gets the generated prebuild module interfaces and object files in order to 
     /// pass them to the main command line
-    pub(crate) fn get_bmis_and_obj_files<'a>(
-        compiler: &'a CppCompiler,
-        commands: &'a Commands<'a>
-    ) -> impl Iterator<Item = Argument<'a>> {
+    pub(crate) fn get_bmis_and_obj_files<'a, 'b: 'a>(
+        compiler: &'b CppCompiler,
+        commands: &'b Commands<'a>
+    ) -> impl Iterator<Item = Argument<'a>> + 'a {
         let target_ext = compiler.get_default_module_extension();
         
         let bmis_paths = commands.interfaces.iter()
