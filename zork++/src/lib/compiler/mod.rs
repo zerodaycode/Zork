@@ -52,6 +52,10 @@ fn build_executable(config: &ZorkConfigFile, commands: &mut Commands) -> Result<
         if let Some(source_files) = &executable_attr.sources {
             let sources = helpers::glob_resolver(source_files)?;
             log::info!("Sources files: {sources:#?}");
+            
+            let bmis_and_objs = helpers::get_bmis_and_obj_files(
+                &config.compiler.cpp_compiler, &commands
+            );
 
             commands.sources =
                 sources::generate_main_command_line_args(config, &sources, false);
@@ -206,7 +210,8 @@ mod sources {
         is_tests_process: bool
     ) -> Vec<Argument<'a>> {
         let compiler = &config.compiler.cpp_compiler;
-        let (base_path, out_dir, executable_name) = helpers::generate_common_args_for_binary(config, is_tests_process);
+        let (base_path, out_dir, executable_name) = 
+            helpers::generate_common_args_for_binary(config, is_tests_process);
 
         let mut arguments = Vec::new();
         arguments.push(Argument::from(config.compiler.cpp_standard.as_cmd_arg(compiler)));
@@ -222,7 +227,7 @@ mod sources {
                     )
                 ));
 
-                if std::env::consts::OS.eq("windows") {
+                if cfg!(target_os = "windows") {
                     arguments.push(Argument::from(
                         format!("-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap")
                     ))
@@ -230,6 +235,7 @@ mod sources {
                     arguments.push(Argument::from("-fimplicit-module-maps"))
                 }
                 
+                arguments.extend(helpers::get_bmis_and_obj_files(compiler, commands));
             },
             CppCompiler::MSVC => todo!(),
             CppCompiler::GCC => todo!(),
@@ -438,6 +444,8 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
+    use clap::Arg;
+
     use crate::config_file::TranslationUnit;
 
     use super::*;
@@ -556,6 +564,33 @@ mod helpers {
             "{out_dir}/{compiler}/modules/implementations/{}.o",
             implementation.filename.split('.').collect::<Vec<_>>()[0]
         )
+    }
+
+    /// Gets the generated prebuild module interfaces and object files in order to 
+    /// pass them to the main command line
+    pub(crate) fn get_bmis_and_obj_files<'a>(
+        compiler: &'a CppCompiler,
+        commands: &'a Commands<'a>
+    ) -> impl Iterator<Item = Argument<'a>> {
+        let target_ext = compiler.get_default_module_extension();
+        
+        let bmis_paths = commands.interfaces.iter()
+            .flatten()
+            .filter(move |cmd_arg| {
+                let val = cmd_arg.value;
+                val.contains(target_ext) || val.ends_with(".o") 
+            })
+            .map(|i| i.to_owned());
+
+        let mod_impl_paths = commands.implementations.iter()
+            .flatten()
+            .filter(move |cmd_arg| {
+                let val = cmd_arg.value;
+                val.contains(target_ext) || val.ends_with(".o") 
+            })
+            .map(|i| i.to_owned());
+        
+        bmis_paths.chain(mod_impl_paths)
     }
 }
 
