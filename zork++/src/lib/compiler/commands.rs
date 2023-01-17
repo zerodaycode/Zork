@@ -6,9 +6,11 @@ use std::process::Command;
 use crate::config_file::compiler::CppCompiler;
 use color_eyre::{eyre::Context, Result};
 
+use super::arguments::Argument;
+
 /// Executes a new [`std::process::Command`] configured according the choosen
 /// compiler and the current operating system
-pub fn execute_command(compiler: &CppCompiler, arguments: &Vec<String>) -> Result<()> {
+pub fn execute_command(compiler: &CppCompiler, arguments: &Vec<Argument>) -> Result<()> {
     log::info!(
         "[{compiler}] - Executing command => {:?}",
         format!("{} {}", compiler.get_driver(), arguments.join(" "))
@@ -40,9 +42,9 @@ pub fn execute_command(compiler: &CppCompiler, arguments: &Vec<String>) -> Resul
 #[derive(Debug)]
 pub struct Commands<'a> {
     pub compiler: &'a CppCompiler,
-    pub interfaces: CommandLine,
-    pub implementations: Vec<Vec<String>>,
-    pub sources: Vec<String>,
+    pub interfaces: Vec<Vec<Argument>>,
+    pub implementations: Vec<Vec<Argument>>,
+    pub sources: Vec<Argument>,
 }
 
 impl<'a> Commands<'a> {
