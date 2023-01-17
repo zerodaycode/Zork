@@ -42,9 +42,9 @@ pub fn execute_command(compiler: &CppCompiler, arguments: &Vec<Argument>) -> Res
 #[derive(Debug)]
 pub struct Commands<'a> {
     pub compiler: &'a CppCompiler,
-    pub interfaces: Vec<Vec<Argument>>,
-    pub implementations: Vec<Vec<Argument>>,
-    pub sources: Vec<Argument>,
+    pub interfaces: Vec<Vec<Argument<'a>>>,
+    pub implementations: Vec<Vec<Argument<'a>>>,
+    pub sources: Vec<Argument<'a>>,
 }
 
 impl<'a> Commands<'a> {

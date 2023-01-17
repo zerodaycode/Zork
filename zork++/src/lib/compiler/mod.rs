@@ -100,10 +100,10 @@ fn build_modules(
 
 /// Parses the configuration in order to build the BMIs declared for the project,
 /// by precompiling the module interface units
-fn prebuild_module_interfaces(
+fn prebuild_module_interfaces<'a>(
     config: &ZorkConfigFile,
     interfaces: &Vec<ModuleInterface>,
-) -> Vec<Vec<Argument>> {
+) -> Vec<Vec<Argument<'a>>> {
     let mut commands: Vec<Vec<Argument>> = Vec::with_capacity(interfaces.len());
 
     interfaces.iter().for_each(|module_interface| {
@@ -117,10 +117,10 @@ fn prebuild_module_interfaces(
 
 /// Parses the configuration in order to compile the module implementation
 /// translation units declared for the project
-fn compile_module_implementations(
+fn compile_module_implementations<'a>(
     config: &ZorkConfigFile,
     impls: &Vec<ModuleImplementation>,
-) -> Vec<Vec<Argument>> {
+) -> Vec<Vec<Argument<'a>>> {
     let mut commands: Vec<Vec<Argument>> = Vec::with_capacity(impls.len());
 
     impls.iter().for_each(|module_impl| {
@@ -200,11 +200,11 @@ mod sources {
 
     /// Generates the command line arguments for non-module source files, including the one that
     /// holds the main function
-    pub fn generate_main_command_line_args(
+    pub fn generate_main_command_line_args<'a>(
         config: &ZorkConfigFile<'_>,
         sources: &Vec<impl TranslationUnit>,
         is_tests_process: bool
-    ) -> Vec<Argument> {
+    ) -> Vec<Argument<'a>> {
         let compiler = &config.compiler.cpp_compiler;
         let (base_path, out_dir, executable_name) = helpers::generate_common_args_for_binary(config, is_tests_process);
 
@@ -246,10 +246,10 @@ mod sources {
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
-    pub fn generate_module_interfaces_args(
+    pub fn generate_module_interfaces_args<'a>(
         config: &ZorkConfigFile,
         interface: &ModuleInterface,
-    ) -> Vec<Argument> {
+    ) -> Vec<Argument<'a>> {
         let compiler = &config.compiler.cpp_compiler;
         let base_path = config.modules.as_ref().map(|modules_attr|
             modules_attr.base_ifcs_dir.unwrap_or_default()
@@ -272,7 +272,7 @@ mod sources {
                 arguments.push(Argument::from("c++-module"));
                 arguments.push(Argument::from("--precompile"));
 
-                if std::env::consts::OS.eq("windows") {
+                if cfg!(target_os = "windows") {
                     arguments.push(
                         // This is a Zork++ feature to allow the users to write `import std;`
                         // under -std=c++20 with clang linking against GCC under Windows with
@@ -336,10 +336,10 @@ mod sources {
     }
 
     /// Generates the expected arguments for compile the implementation module translation units
-    pub fn generate_module_implementation_args(
+    pub fn generate_module_implementation_args<'a>(
         config: &ZorkConfigFile,
         implementation: &ModuleImplementation,
-    ) -> Vec<Argument> {
+    ) -> Vec<Argument<'a>> {
         let compiler = &config.compiler.cpp_compiler;
         let base_path = config.modules.as_ref().map(|modules_attr|
             modules_attr.base_impls_dir.unwrap_or_default()

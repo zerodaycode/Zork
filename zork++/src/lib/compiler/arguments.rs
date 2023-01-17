@@ -1,34 +1,34 @@
 //! Types and procedures that represents a command line argument, 
 //! or collections of command line arguments
 
-use std::{borrow::Borrow, ops::Deref, ffi::OsStr};
+use std::{borrow::Borrow, ffi::OsStr};
 
 /// Type for represent a command line argument
 #[derive(Debug, Clone)]
-pub struct Argument {
-    pub value: String
+pub struct Argument<'a> {
+    pub value: &'a str
 }
 
-impl From<&str> for Argument {
-    fn from(value: &str) -> Self {
-        Self { value: value.to_string() }
-    }
-}
-
-impl From<String> for Argument {
-    fn from(value: String) -> Self {
+impl<'a> From<&'a str> for Argument<'a> {
+    fn from(value: &'a str) -> Self {
         Self { value }
     }
 }
 
-impl Borrow<str> for Argument {
-    fn borrow(&self) -> &str {
-        self.value.as_str()
+impl<'a> From<String> for Argument<'a> {
+    fn from(value: String) -> Argument<'a> {
+        Self { value: Box::leak(value.into_boxed_str()) }
     }
 }
 
-impl AsRef<OsStr> for Argument {
+impl<'a> Borrow<str> for Argument<'a> {
+    fn borrow(&self) -> &str {
+        self.value
+    }
+}
+
+impl<'a> AsRef<OsStr> for Argument<'a> {
     fn as_ref(&self) -> &OsStr {
-        OsStr::new(self.value.as_str())
+        OsStr::new(self.value)
     }
 }
