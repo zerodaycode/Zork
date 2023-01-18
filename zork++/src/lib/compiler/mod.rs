@@ -24,8 +24,8 @@ use self::{commands::execute_command, arguments::Argument};
 /// TODO Decision path for building the executable command line,
 /// the tests executable command line, a static lib, a dylib...
 pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
-    let config_file: String =
-        find_config_file(base_path).with_context(|| "Failed to read configuration file")?;
+    let config_file: String = find_config_file(base_path)
+        .with_context(|| "Failed to read configuration file")?;
     let config: ZorkConfigFile = toml::from_str(config_file.as_str())
         .with_context(|| "Could not parse configuration file")?;
 
@@ -38,35 +38,35 @@ pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
     // 1st - Build the modules
     build_modules(&config, &mut commands)?;
     // 2st - Build the executable or the tests
-    build_executable(&config, &mut commands)?;
+    let bmis_and_objs = helpers::get_bmis_and_obj_files(
+        &config.compiler.cpp_compiler, &commands.interfaces, &commands.implementations,
+    );
+    let main_exec_commands = build_executable(&config, bmis_and_objs)?;
 
-    log::info!("Generated commands: {:?}", &commands);
+    // log::info!("Generated commands: {:?}", &commands);
 
     Ok(())
 }
 
 /// Triggers the build process for compile the source files declared for the project
 /// and the
-fn build_executable<'a>(config: &'a ZorkConfigFile, commands: &'a mut Commands) -> Result<()> {
+fn build_executable<'a>(config: &'a ZorkConfigFile, bmis_and_objs_paths: Vec<Argument<'a>>) -> Result<Vec<Argument<'a>>> {
+    let mut r = Vec::new();
+    
     if let Some(executable_attr) = &config.executable {
         if let Some(source_files) = &executable_attr.sources {
             let sources = helpers::glob_resolver(source_files)?;
             log::info!("Sources files: {sources:#?}");
             
-            let bmis_and_objs = helpers::get_bmis_and_obj_files(
-                &config.compiler.cpp_compiler, &commands
+            r.extend(
+                sources::generate_main_command_line_args(config, sources, bmis_and_objs_paths, false)
             );
-
-            commands.sources.extend(
-                sources::generate_main_command_line_args(config, &sources, bmis_and_objs, false)
-            .into_iter());
-            log::info!("Commands for the source files: {:?}", &commands.sources);
+            log::info!("Commands for the source files: {:?}", r);
+            execute_command(&config.compiler.cpp_compiler, &r)?;
         }
-
-        execute_command(commands.compiler, &commands.sources)?
     }
 
-    Ok(())
+    Ok(r)
 }
 
 /// Triggers the build process for compile the declared modules in the project
@@ -83,7 +83,7 @@ fn build_modules(
     // Also, can we check first is modules and interfaces .is_some() and then lauch this process?
     if let Some(modules) = &config.modules {
         if let Some(interfaces) = &modules.interfaces {
-            commands.interfaces = prebuild_module_interfaces(config, interfaces);
+            prebuild_module_interfaces(config, interfaces, commands);
 
             for miu in &commands.interfaces {
                 execute_command(commands.compiler, miu)?
@@ -91,7 +91,7 @@ fn build_modules(
         }
 
         if let Some(impls) = &modules.implementations {
-            commands.implementations = compile_module_implementations(config, impls);
+            compile_module_implementations(config, impls, commands);
 
             for impls in &commands.implementations {
                 execute_command(commands.compiler, impls)?
@@ -107,16 +107,11 @@ fn build_modules(
 fn prebuild_module_interfaces<'a>(
     config: &ZorkConfigFile,
     interfaces: &Vec<ModuleInterface>,
-) -> Vec<Vec<Argument<'a>>> {
-    let mut commands: Vec<Vec<Argument>> = Vec::with_capacity(interfaces.len());
-
+    commands: &mut Commands
+) {
     interfaces.iter().for_each(|module_interface| {
-        commands.push(
-            sources::generate_module_interfaces_args(config, module_interface),
-        )
+        sources::generate_module_interfaces_args(config, module_interface, commands);
     });
-
-    commands
 }
 
 /// Parses the configuration in order to compile the module implementation
@@ -124,16 +119,11 @@ fn prebuild_module_interfaces<'a>(
 fn compile_module_implementations<'a>(
     config: &ZorkConfigFile,
     impls: &Vec<ModuleImplementation>,
-) -> Vec<Vec<Argument<'a>>> {
-    let mut commands: Vec<Vec<Argument>> = Vec::with_capacity(impls.len());
-
+    commands: &mut Commands
+) {
     impls.iter().for_each(|module_impl| {
-        commands.push(
-            sources::generate_module_implementation_args(config, module_impl),
-        )
+        sources::generate_module_implementation_args(config, module_impl, commands);
     });
-
-    commands
 }
 
 /// Creates the directory for output the elements generated
@@ -200,14 +190,14 @@ pub fn create_output_directory(base_path: &Path, config: &ZorkConfigFile) -> Res
 mod sources {
     use crate::config_file::{ZorkConfigFile, modules::{ModuleInterface, ModuleImplementation}, compiler::CppCompiler, TranslationUnit};
 
-    use super::{helpers, arguments::Argument};
+    use super::{helpers, arguments::Argument, commands::Commands};
 
     /// Generates the command line arguments for non-module source files, including the one that
     /// holds the main function
-    pub fn generate_main_command_line_args<'a, I: Iterator<Item = Argument<'a>>>(
+    pub fn generate_main_command_line_args<'a>(
         config: &'a ZorkConfigFile<'_>,
-        sources: &'a Vec<impl TranslationUnit>,
-        bmis_and_obj_files: I,
+        sources: Vec<impl TranslationUnit>,
+        bmis_and_obj_files: Vec<Argument<'a>>,
         is_tests_process: bool
     ) -> Vec<Argument<'a>> {
         let compiler = &config.compiler.cpp_compiler;
@@ -236,7 +226,12 @@ mod sources {
                     arguments.push(Argument::from("-fimplicit-module-maps"))
                 }
                 
-                arguments.extend(bmis_and_obj_files);
+                // arguments.extend(bmis_and_obj_files);
+                bmis_and_obj_files.iter().for_each(|m| {
+                    arguments.push(Argument::from(
+                        format!("-fmodule-file={}", m.value)
+                    ))
+                });
             },
             CppCompiler::MSVC => todo!(),
             CppCompiler::GCC => todo!(),
@@ -245,7 +240,7 @@ mod sources {
         // Adding the source files
         sources.iter().for_each(|source_file| {
             arguments.push(Argument::from(
-                format!(".{base_path}/{source_file}")
+                format!(".{base_path}/{}", &source_file)
             ))
         });
 
@@ -256,7 +251,8 @@ mod sources {
     pub fn generate_module_interfaces_args<'a>(
         config: &ZorkConfigFile,
         interface: &ModuleInterface,
-    ) -> Vec<Argument<'a>> {
+        commands: &mut Commands
+    ) {
         let compiler = &config.compiler.cpp_compiler;
         let base_path = config.modules.as_ref().map(|modules_attr|
             modules_attr.base_ifcs_dir.unwrap_or_default()
@@ -296,9 +292,10 @@ mod sources {
                 // The resultant BMI as a .pcm file
                 arguments.push(Argument::from("-o"));
                 // The output file
-                arguments.push(Argument::from(
-                    helpers::generate_prebuild_miu(compiler, out_dir, interface)
-                ));
+                let miu = helpers::generate_prebuild_miu(compiler, out_dir, interface);
+                commands.generated_files_paths.push(miu.clone());
+                arguments.push(Argument::from(miu));
+                // The input file
                 arguments.push(Argument::from(
                     helpers::add_input_file(interface, base_path)
                 ));
@@ -308,9 +305,9 @@ mod sources {
                 arguments.push(Argument::from("-c"));
                 // The output .ifc file
                 arguments.push(Argument::from("-ifcOutput"));
-                arguments.push(Argument::from(
-                    helpers::generate_prebuild_miu(compiler, out_dir, interface)
-                ));
+                let miu = helpers::generate_prebuild_miu(compiler, out_dir, interface);
+                commands.generated_files_paths.push(miu.clone());
+                arguments.push(Argument::from(miu));
                 // The output .obj file
                 arguments.push(Argument::from(
                     format!("/Fo{out_dir}/{compiler}/modules/interfaces\\")
@@ -333,20 +330,21 @@ mod sources {
                 ));
                 // The output file
                 arguments.push(Argument::from("-o"));
-                arguments.push(Argument::from(
-                    helpers::generate_prebuild_miu(compiler, out_dir, interface)
-                ));
+                let miu = helpers::generate_prebuild_miu(compiler, out_dir, interface);
+                commands.generated_files_paths.push(miu.clone());
+                arguments.push(Argument::from(miu));
             },
         }
 
-        arguments
+        commands.implementations.push(arguments);
     }
 
     /// Generates the expected arguments for compile the implementation module translation units
     pub fn generate_module_implementation_args<'a>(
         config: &ZorkConfigFile,
         implementation: &ModuleImplementation,
-    ) -> Vec<Argument<'a>> {
+        commands: &mut Commands<'_>
+    ) {
         let compiler = &config.compiler.cpp_compiler;
         let base_path = config.modules.as_ref().map(|modules_attr|
             modules_attr.base_impls_dir.unwrap_or_default()
@@ -377,9 +375,9 @@ mod sources {
 
                 // The resultant object file
                 arguments.push(Argument::from("-o"));
-                arguments.push(Argument::from(
-                    helpers::generate_impl_obj_file(compiler, out_dir, implementation)
-                ));
+                let obj_file = helpers::generate_impl_obj_file(compiler, out_dir, implementation);
+                commands.generated_files_paths.push(helpers::generate_impl_obj_file(compiler, out_dir, implementation));
+                arguments.push(Argument::from(obj_file));
                 // Explicit direct module dependencies
                 if let Some(ifc_dependencies) = &implementation.dependencies {
                     ifc_dependencies.iter().for_each(|ifc_dep| {
@@ -415,12 +413,13 @@ mod sources {
                     helpers::add_input_file(implementation, base_path)
                 ));
                 // The output .obj file
-                arguments.push(Argument::from(
-                    format!(
-                        "/Fo{out_dir}/{compiler}/modules/implementations/{}",
-                        implementation.filename.split(".").collect::<Vec<_>>()[0]
-                    )
-                ));
+                
+                let obj_file = format!(
+                    "/Fo{out_dir}/{compiler}/modules/implementations/{}",
+                    implementation.filename.split(".").collect::<Vec<_>>()[0]
+                );
+                commands.generated_files_paths.push(obj_file.clone());
+                arguments.push(Argument::from(obj_file));
             },
             CppCompiler::GCC => {
                 arguments.push(Argument::from("-fmodules-ts"));
@@ -436,8 +435,8 @@ mod sources {
                 ));
             },
         }
-
-        arguments
+        
+        commands.implementations.push(arguments);
     }
 }
 
@@ -445,6 +444,8 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
+    use std::cell::Ref;
+
     use clap::Arg;
 
     use crate::config_file::TranslationUnit;
@@ -569,13 +570,14 @@ mod helpers {
 
     /// Gets the generated prebuild module interfaces and object files in order to 
     /// pass them to the main command line
-    pub(crate) fn get_bmis_and_obj_files<'a, 'b: 'a>(
-        compiler: &'b CppCompiler,
-        commands: &'b Commands<'a>
-    ) -> impl Iterator<Item = Argument<'a>> + 'a {
+    pub(crate) fn get_bmis_and_obj_files<'a>(
+        compiler: &'a CppCompiler,
+        ifcs_args: &'a Vec<Vec<Argument<'a>>>,
+        impls_args: &'a Vec<Vec<Argument<'a>>>,
+    ) -> Vec<Argument<'a>> {
         let target_ext = compiler.get_default_module_extension();
         
-        let bmis_paths = commands.interfaces.iter()
+        let bmis_paths = ifcs_args.iter()
             .flatten()
             .filter(move |cmd_arg| {
                 let val = cmd_arg.value;
@@ -583,7 +585,7 @@ mod helpers {
             })
             .map(|i| i.to_owned());
 
-        let mod_impl_paths = commands.implementations.iter()
+        let mod_impl_paths = impls_args.iter()
             .flatten()
             .filter(move |cmd_arg| {
                 let val = cmd_arg.value;
@@ -591,7 +593,7 @@ mod helpers {
             })
             .map(|i| i.to_owned());
         
-        bmis_paths.chain(mod_impl_paths)
+        bmis_paths.chain(mod_impl_paths).collect::<Vec<_>>()
     }
 }
 

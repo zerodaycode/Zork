@@ -45,6 +45,7 @@ pub struct Commands<'a> {
     pub interfaces: Vec<Vec<Argument<'a>>>,
     pub implementations: Vec<Vec<Argument<'a>>>,
     pub sources: Vec<Argument<'a>>,
+    pub generated_files_paths: Vec<String>
 }
 
 impl<'a> Commands<'a> {
@@ -53,7 +54,14 @@ impl<'a> Commands<'a> {
             compiler,
             interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
-            sources: Vec::with_capacity(0)
+            sources: Vec::with_capacity(0),
+            generated_files_paths: Vec::with_capacity(0),
         }
     }
 }
+
+// #[derive(Debug)]
+// pub struct ModulesCommands<'a> {
+//     pub args: Vec<Vec<Argument<'a>>>,
+//     pub generated_files_paths: Vec<String>
+// }
