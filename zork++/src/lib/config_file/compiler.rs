@@ -118,6 +118,14 @@ impl CppCompiler {
             CppCompiler::GCC => "cc",
         }
     }
+
+    pub fn get_typical_bmi_extension(&self) -> &str {
+        match *self {
+            CppCompiler::CLANG => ".pcm",
+            CppCompiler::MSVC => ".ifc",
+            CppCompiler::GCC => ".o",
+        }
+    }
 }
 
 /// The C++ ISO standard levels of the language, represented as an

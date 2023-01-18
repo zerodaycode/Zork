@@ -41,6 +41,8 @@ pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
     let bmis_and_objs = helpers::get_bmis_and_obj_files(
         &config.compiler.cpp_compiler, &commands.interfaces, &commands.implementations,
     );
+    log::info!("Commands: {:#?}", commands);
+    log::info!("BMIS AND OBJS: {:#?}", bmis_and_objs);
     let main_exec_commands = build_executable(&config, bmis_and_objs)?;
 
     // log::info!("Generated commands: {:?}", &commands);
@@ -61,7 +63,7 @@ fn build_executable<'a>(config: &'a ZorkConfigFile, bmis_and_objs_paths: Vec<Arg
             r.extend(
                 sources::generate_main_command_line_args(config, sources, bmis_and_objs_paths, false)
             );
-            log::info!("Commands for the source files: {:?}", r);
+            log::info!("Commands for the source files: {:#?}", r);
             execute_command(&config.compiler.cpp_compiler, &r)?;
         }
     }
@@ -210,13 +212,6 @@ mod sources {
         match compiler {
             CppCompiler::CLANG => {
                 arguments.push(Argument::from("-fimplicit-modules"));
-                arguments.push(Argument::from("-o"));
-                arguments.push(Argument::from(
-                    format!(
-                        "{out_dir}/{compiler}/{executable_name}{}",
-                        if cfg!(target_os = "windows") {".exe"} else {""}
-                    )
-                ));
 
                 if cfg!(target_os = "windows") {
                     arguments.push(Argument::from(
@@ -225,6 +220,14 @@ mod sources {
                 } else {
                     arguments.push(Argument::from("-fimplicit-module-maps"))
                 }
+
+                arguments.push(Argument::from("-o"));
+                arguments.push(Argument::from(
+                    format!(
+                        "{out_dir}/{compiler}/{executable_name}{}",
+                        if cfg!(target_os = "windows") {".exe"} else {""}
+                    )
+                ));
                 
                 // arguments.extend(bmis_and_obj_files);
                 bmis_and_obj_files.iter().for_each(|m| {
@@ -336,7 +339,8 @@ mod sources {
             },
         }
 
-        commands.implementations.push(arguments);
+        
+        commands.interfaces.push(arguments);
     }
 
     /// Generates the expected arguments for compile the implementation module translation units
@@ -444,10 +448,6 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
-    use std::cell::Ref;
-
-    use clap::Arg;
-
     use crate::config_file::TranslationUnit;
 
     use super::*;
@@ -575,7 +575,9 @@ mod helpers {
         ifcs_args: &'a Vec<Vec<Argument<'a>>>,
         impls_args: &'a Vec<Vec<Argument<'a>>>,
     ) -> Vec<Argument<'a>> {
-        let target_ext = compiler.get_default_module_extension();
+        let target_ext = compiler.get_typical_bmi_extension();
+
+        log::info!("BMIS: {:?}", ifcs_args);
         
         let bmis_paths = ifcs_args.iter()
             .flatten()
