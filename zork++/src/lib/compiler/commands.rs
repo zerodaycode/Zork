@@ -45,7 +45,7 @@ pub struct Commands<'a> {
     pub interfaces: Vec<Vec<Argument<'a>>>,
     pub implementations: Vec<Vec<Argument<'a>>>,
     pub sources: Vec<Argument<'a>>,
-    pub generated_files_paths: Vec<String>
+    pub generated_files_paths: Vec<Argument<'a>>
 }
 
 impl<'a> Commands<'a> {
