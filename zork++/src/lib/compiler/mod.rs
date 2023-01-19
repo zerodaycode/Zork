@@ -38,32 +38,32 @@ pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
     // 1st - Build the modules
     build_modules(&config, &mut commands)?;
     // 2st - Build the executable or the tests
-    let bmis_and_objs = helpers::get_bmis_and_obj_files(
+    let bmi_and_obj_files = helpers::get_bmi_and_obj_files(
         &config.compiler.cpp_compiler, &commands.interfaces, &commands.implementations,
     );
-    log::info!("Commands: {:#?}", commands);
-    log::info!("BMIS AND OBJS: {:#?}", bmis_and_objs);
-    let main_exec_commands = build_executable(&config, bmis_and_objs)?;
 
-    // log::info!("Generated commands: {:?}", &commands);
+    commands.sources = build_executable(&config, bmi_and_obj_files)?;
+    log::info!("Generated commands: {:?}", &commands);
 
     Ok(())
 }
 
 /// Triggers the build process for compile the source files declared for the project
 /// and the
-fn build_executable<'a>(config: &'a ZorkConfigFile, bmis_and_objs_paths: Vec<Argument<'a>>) -> Result<Vec<Argument<'a>>> {
+fn build_executable<'a>(
+    config: &'a ZorkConfigFile,
+    bmis_and_obj_files: impl Iterator<Item = Argument<'a>>,
+) -> Result<Vec<Argument<'a>>> {
     let mut r = Vec::new();
     
     if let Some(executable_attr) = &config.executable {
         if let Some(source_files) = &executable_attr.sources {
             let sources = helpers::glob_resolver(source_files)?;
-            log::info!("Sources files: {sources:#?}");
-            
+
             r.extend(
-                sources::generate_main_command_line_args(config, sources, bmis_and_objs_paths, false)
+                sources::generate_main_command_line_args(config, sources, bmis_and_obj_files, false)
             );
-            log::info!("Commands for the source files: {:#?}", r);
+            log::info!("Command for the binary: {:?}", r);
             execute_command(&config.compiler.cpp_compiler, &r)?;
         }
     }
@@ -199,7 +199,7 @@ mod sources {
     pub fn generate_main_command_line_args<'a>(
         config: &'a ZorkConfigFile<'_>,
         sources: Vec<impl TranslationUnit>,
-        bmis_and_obj_files: Vec<Argument<'a>>,
+        bmis_and_obj_files: impl Iterator<Item = Argument<'a>>,
         is_tests_process: bool
     ) -> Vec<Argument<'a>> {
         let compiler = &config.compiler.cpp_compiler;
@@ -212,6 +212,9 @@ mod sources {
         match compiler {
             CppCompiler::CLANG => {
                 arguments.push(Argument::from("-fimplicit-modules"));
+                arguments.push(Argument::from(
+                    format!("-fprebuilt-module-path={out_dir}/{compiler}/modules/interfaces")
+                ));
 
                 if cfg!(target_os = "windows") {
                     arguments.push(Argument::from(
@@ -229,12 +232,13 @@ mod sources {
                     )
                 ));
                 
-                // arguments.extend(bmis_and_obj_files);
-                bmis_and_obj_files.iter().for_each(|m| {
-                    arguments.push(Argument::from(
-                        format!("-fmodule-file={}", m.value)
-                    ))
-                });
+                arguments.extend(bmis_and_obj_files);
+                // bmis_ifcs_paths.for_each(|f| {
+                //     arguments.push(Argument::from(f.value))
+                // });
+                // impl_obj_files_paths.for_each(|f| {
+                //     arguments.push(Argument::from(f.value))
+                // })
             },
             CppCompiler::MSVC => todo!(),
             CppCompiler::GCC => todo!(),
@@ -568,34 +572,22 @@ mod helpers {
         )
     }
 
-    /// Gets the generated prebuild module interfaces and object files in order to 
-    /// pass them to the main command line
-    pub(crate) fn get_bmis_and_obj_files<'a>(
+    /// Returns a tuple with the generated prebuild module interfaces and object files 
+    /// paths.
+    /// Tuple.0 are BMI's paths and Tuple.1 are the generated implementation object files
+    pub(crate) fn get_bmi_and_obj_files<'a>(
         compiler: &'a CppCompiler,
         ifcs_args: &'a Vec<Vec<Argument<'a>>>,
         impls_args: &'a Vec<Vec<Argument<'a>>>,
-    ) -> Vec<Argument<'a>> {
+    ) -> impl Iterator<Item = Argument<'a>> {
         let target_ext = compiler.get_typical_bmi_extension();
 
-        log::info!("BMIS: {:?}", ifcs_args);
-        
-        let bmis_paths = ifcs_args.iter()
+        ifcs_args.iter().chain(impls_args)
             .flatten()
-            .filter(move |cmd_arg| {
-                let val = cmd_arg.value;
-                val.contains(target_ext) || val.ends_with(".o") 
-            })
-            .map(|i| i.to_owned());
-
-        let mod_impl_paths = impls_args.iter()
-            .flatten()
-            .filter(move |cmd_arg| {
-                let val = cmd_arg.value;
-                val.contains(target_ext) || val.ends_with(".o") 
-            })
-            .map(|i| i.to_owned());
-        
-        bmis_paths.chain(mod_impl_paths).collect::<Vec<_>>()
+            .filter(move |cmd_arg| 
+                cmd_arg.value.contains(target_ext) || cmd_arg.value.ends_with(".o") 
+            )
+            .map(|i| i.to_owned())
     }
 }
 
