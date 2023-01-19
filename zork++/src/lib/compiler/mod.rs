@@ -43,7 +43,6 @@ pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
     );
 
     commands.sources = build_executable(&config, bmi_and_obj_files)?;
-    log::info!("Generated commands: {}", &commands);
 
     Ok(())
 }
@@ -234,12 +233,29 @@ mod sources {
                 
                 arguments.extend(bmis_and_obj_files);
             },
-            CppCompiler::MSVC => todo!(),
+            CppCompiler::MSVC => {
+                arguments.push(Argument::from("/EHsc"));
+                arguments.push(Argument::from("/nologo"));
+                arguments.push(Argument::from("/ifcSearchDir"));
+                arguments.push(Argument::from(
+                    format!("{out_dir}/{compiler}/modules/interfaces")
+                ));
+                arguments.push(Argument::from(
+                    format!("/Fo{out_dir}/{compiler}\\")
+                ));
+                arguments.push(Argument::from(
+                    format!("/Fe{out_dir}/{compiler}/{executable_name}.exe")
+                ));
+
+            },
             CppCompiler::GCC => todo!(),
         };
 
+        log::info!("Sources: {sources:?}");
+
         // Adding the source files
         sources.iter().for_each(|source_file| {
+            log::info!("Adding source file: {source_file:?}");
             arguments.push(Argument::from(
                 format!(".{base_path}/{}", &source_file)
             ))

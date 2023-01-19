@@ -1,0 +1,1 @@
+hello C:\Users\Alex\Desktop\code\Zork\zork++\gcc_tests\gcm.cache\hello.gcm
