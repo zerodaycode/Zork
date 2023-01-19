@@ -43,7 +43,7 @@ pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
     );
 
     commands.sources = build_executable(&config, bmi_and_obj_files)?;
-    log::info!("Generated commands: {:?}", &commands);
+    log::info!("Generated commands: {}", &commands);
 
     Ok(())
 }
@@ -233,12 +233,6 @@ mod sources {
                 ));
                 
                 arguments.extend(bmis_and_obj_files);
-                // bmis_ifcs_paths.for_each(|f| {
-                //     arguments.push(Argument::from(f.value))
-                // });
-                // impl_obj_files_paths.for_each(|f| {
-                //     arguments.push(Argument::from(f.value))
-                // })
             },
             CppCompiler::MSVC => todo!(),
             CppCompiler::GCC => todo!(),
@@ -347,7 +341,7 @@ mod sources {
         commands.interfaces.push(arguments);
     }
 
-    /// Generates the expected arguments for compile the implementation module translation units
+    /// Generates the expected arguments for compile the implementation module files
     pub fn generate_module_implementation_args<'a>(
         config: &ZorkConfigFile,
         implementation: &ModuleImplementation,

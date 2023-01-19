@@ -32,3 +32,9 @@ impl<'a> AsRef<OsStr> for Argument<'a> {
         OsStr::new(self.value)
     }
 }
+
+impl<'a> core::fmt::Display for Argument<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}

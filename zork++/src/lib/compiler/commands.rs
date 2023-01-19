@@ -60,8 +60,15 @@ impl<'a> Commands<'a> {
     }
 }
 
-// #[derive(Debug)]
-// pub struct ModulesCommands<'a> {
-//     pub args: Vec<Vec<Argument<'a>>>,
-//     pub generated_files_paths: Vec<String>
-// }
+impl<'a> core::fmt::Display for Commands<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Commands for [{}]:\n- Interfaces: {:?},\n- Implementations: {:?},\n- Main command line: {:?}",
+            self.compiler,
+            self.interfaces.iter().map(|vec| { vec.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
+            self.implementations.iter().map(|vec| { vec.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
+            self.sources.iter().map(|e| e.value).collect::<Vec<_>>().join(" ")
+        )
+    }
+}
