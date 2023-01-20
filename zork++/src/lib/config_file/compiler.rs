@@ -1,3 +1,5 @@
+use core::fmt;
+
 ///! file for represent the available configuration properties within Zork++
 ///! for setting up the target compiler
 ///
@@ -88,12 +90,40 @@ pub enum CppCompiler {
     GCC, // Possible future interesting on support the Intel's C++ compiler?
 }
 
+impl fmt::Display for CppCompiler {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            CppCompiler::CLANG => write!(f, "clang"),
+            CppCompiler::MSVC => write!(f, "msvc"),
+            CppCompiler::GCC => write!(f, "gcc"),
+        }
+    }
+}
+
 impl CppCompiler {
+    /// Returns an &str representing the compiler driver that will be called
+    /// in the command line to generate the build events
+    pub fn get_driver(&self) -> &str {
+        match *self {
+            CppCompiler::CLANG => "clang++",
+            CppCompiler::MSVC => "cl",
+            CppCompiler::GCC => "g++",
+        }
+    }
+
     pub fn get_default_module_extension(&self) -> &str {
         match *self {
             CppCompiler::CLANG => "cppm",
             CppCompiler::MSVC => "ixx",
-            CppCompiler::GCC => todo!("GCC is still not supported yet by Zork++"),
+            CppCompiler::GCC => "cc",
+        }
+    }
+
+    pub fn get_typical_bmi_extension(&self) -> &str {
+        match *self {
+            CppCompiler::CLANG => ".pcm",
+            CppCompiler::MSVC => ".ifc",
+            CppCompiler::GCC => ".o",
         }
     }
 }
@@ -105,19 +135,9 @@ impl CppCompiler {
 /// use the latests features available
 ///
 /// Variant *LATEST* is the `MSVC` specific way of set the language
-/// standard level to the latest features available in that compiler
+/// standard level to the latest features available in Microsoft's compiler
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum LanguageLevel {
-    #[serde(alias = "98")]
-    CPP98,
-    #[serde(alias = "03")]
-    CPP03,
-    #[serde(alias = "11")]
-    CPP11,
-    #[serde(alias = "14")]
-    CPP14,
-    #[serde(alias = "17")]
-    CPP17,
     #[serde(alias = "20")]
     CPP20,
     #[serde(alias = "23")]
@@ -130,12 +150,46 @@ pub enum LanguageLevel {
     LATEST,
 }
 
+impl LanguageLevel {
+    pub fn as_str(&self) -> &str {
+        match *self {
+            LanguageLevel::CPP20 => "20",
+            LanguageLevel::CPP23 => "23",
+            LanguageLevel::CPP2A => "2a",
+            LanguageLevel::CPP2B => "2b",
+            LanguageLevel::LATEST => "latest",
+        }
+    }
+
+    pub fn as_cmd_arg(&self, compiler: &CppCompiler) -> String {
+        match compiler {
+            CppCompiler::CLANG | CppCompiler::GCC => format!("-std=c++{}", self.as_str()),
+            CppCompiler::MSVC => format!("/std:c++{}", self.as_str()),
+        }
+    }
+}
+
+impl fmt::Display for LanguageLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 /// The standard library (compiler specific) that the user
 /// desires to link against
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub enum StdLib {
-    #[serde(alias = "stdlib++", alias = "stdlib", alias = "stdlibcpp")]
+    #[serde(alias = "libstdc++", alias = "gccstdlib", alias = "libstdcpp")]
     STDLIBCPP,
     #[serde(alias = "libc++", alias = "libcpp")]
     LIBCPP,
+}
+
+impl StdLib {
+    pub fn as_str(&self) -> &str {
+        match *self {
+            StdLib::STDLIBCPP => "libstdc++",
+            StdLib::LIBCPP => "libc++",
+        }
+    }
 }

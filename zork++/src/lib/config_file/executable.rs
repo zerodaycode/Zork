@@ -1,13 +1,15 @@
 ///! Specify the execution configuration
 use serde::*;
 
+use super::ExtraArgs;
+
 /// [`ExecutableAttribute`] -  The core section to instruct the compiler to work with C++20 modules.
 /// The most important are the base path to the interfaces and implementation files
-/// * `executable_name`- This is name to output executable file
-/// * `sources_base_path` - Define directory source code
-/// * `sources` - Define list extension files source code
-/// * `auto_execute` - To run zork can execute after build proyect
-/// * `extra_args` - Define other params to add execution executable
+/// * `executable_name`- The name that the final binary is to be generated with
+/// * `sources_base_path` - Optional param for specify where the non-modules source files lives
+/// * `sources` - The sources to be included in the project
+/// * `extra_args` - Holds extra arguments that the user wants to introduce
+/// in the build process
 ///
 /// ### Tests
 ///
@@ -20,7 +22,6 @@ use serde::*;
 ///     sources = [
 ///         '*.cpp'
 ///     ]
-///     auto_execute = true
 ///     extra_args = 'example'
 /// "#;
 ///
@@ -30,8 +31,7 @@ use serde::*;
 /// assert_eq!(config.executable_name, Some("outputExecutableName"));
 /// assert_eq!(config.sources_base_path, Some("./src"));
 /// assert_eq!(config.sources, Some(vec!["*.cpp"]));
-/// assert_eq!(config.auto_execute, Some(true));
-/// assert_eq!(config.extra_args, Some("example"))
+/// assert_eq!(config.extra_args, Some(vec!["example"]))
 /// ```
 /// > Note: TOML table are toml commented (#) to allow us to parse
 /// the inner attributes as the direct type that they belongs to.
@@ -41,7 +41,7 @@ use serde::*;
 ///
 /// For a test over a real example, please look at the
 /// [`zork::config_file::ZorkConfigFile`] doc-test
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct ExecutableAttribute<'a> {
     #[serde(borrow)]
     pub executable_name: Option<&'a str>,
@@ -49,7 +49,18 @@ pub struct ExecutableAttribute<'a> {
     pub sources_base_path: Option<&'a str>,
     #[serde(borrow)]
     pub sources: Option<Vec<&'a str>>,
-    pub auto_execute: Option<bool>,
     #[serde(borrow)]
-    pub extra_args: Option<&'a str>,
+    pub extra_args: Option<Vec<&'a str>>,
+}
+
+impl ExtraArgs for ExecutableAttribute<'_> {
+    fn get_extra_args(&self) -> Option<Vec<&str>> {
+        self.extra_args.clone()
+    }
+}
+
+impl ExtraArgs for &'_ ExecutableAttribute<'_> {
+    fn get_extra_args(&self) -> Option<Vec<&str>> {
+        self.extra_args.clone()
+    }
 }

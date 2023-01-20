@@ -1,6 +1,8 @@
-# CPP files for testing the project in place
+# For testing the project in place
 notes.txt
 example/
+out/
+gcm.cache/
 
 # out/
 .coverage

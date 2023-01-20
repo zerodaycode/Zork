@@ -14,16 +14,21 @@ fn main() -> Result<()> {
 
     // This line just remains here for debug purposes while integration tests
     // are not created
-    let cli_args = CliArgs::parse_from(vec![
-        "",
-        "-vv",
-        "new",
-        "example",
-        "--git",
-        "--compiler",
-        "clang",
-    ]);
-    // let cli_args = CliArgs::parse();
+    // let cli_args = CliArgs::parse_from(vec![
+    //     "",
+    //     "-vv",
+    //     "new",
+    //     "example",
+    //     "--git",
+    //     "--compiler",
+    //     "msvc",
+    // ]);
+    // let cli_args = CliArgs::parse_from(vec![
+    //     "",
+    //     "-vv",
+    //     "build",
+    // ]);
+    let cli_args = CliArgs::parse();
 
     config_logger(cli_args.verbose, Target::Stdout).expect("Error configuring the logger");
 
@@ -38,7 +43,6 @@ fn main() -> Result<()> {
     ~ zork++ run => zork++ build + run the generated binary
     */
     match cli_args.command {
-        // TODO provisional Ok wrapper, pending to implement color eyre err handling
         Command::Build => {
             build_project(Path::new("."), &cli_args).with_context(|| "Failed to build project")
         }
