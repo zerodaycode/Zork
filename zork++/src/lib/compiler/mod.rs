@@ -106,9 +106,9 @@ fn build_modules(
 
 /// Parses the configuration in order to build the BMIs declared for the project,
 /// by precompiling the module interface units
-fn prebuild_module_interfaces<'a>(
+fn prebuild_module_interfaces(
     config: &ZorkConfigFile,
-    interfaces: &Vec<ModuleInterface>,
+    interfaces: &[ModuleInterface],
     commands: &mut Commands
 ) {
     interfaces.iter().for_each(|module_interface| {
@@ -118,9 +118,9 @@ fn prebuild_module_interfaces<'a>(
 
 /// Parses the configuration in order to compile the module implementation
 /// translation units declared for the project
-fn compile_module_implementations<'a>(
+fn compile_module_implementations(
     config: &ZorkConfigFile,
-    impls: &Vec<ModuleImplementation>,
+    impls: &[ModuleImplementation],
     commands: &mut Commands
 ) {
     impls.iter().for_each(|module_impl| {
@@ -287,7 +287,7 @@ mod sources {
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
-    pub fn generate_module_interfaces_args<'a>(
+    pub fn generate_module_interfaces_args(
         config: &ZorkConfigFile,
         interface: &ModuleInterface,
         commands: &mut Commands
@@ -387,7 +387,7 @@ mod sources {
     }
 
     /// Generates the expected arguments for compile the implementation module files
-    pub fn generate_module_implementation_args<'a>(
+    pub fn generate_module_implementation_args(
         config: &ZorkConfigFile,
         implementation: &ModuleImplementation,
         commands: &mut Commands<'_>
@@ -441,7 +441,7 @@ mod sources {
                     arguments.push(Argument::from(
                         format!(
                             "-fmodule-file={out_dir}/{compiler}/modules/interfaces/{}.pcm",
-                            implementation.filename.split(".").collect::<Vec<_>>()[0]
+                            implementation.filename.split('.').collect::<Vec<_>>()[0]
                         )
                     ))
                 }
@@ -465,7 +465,7 @@ mod sources {
                 // The output .obj file
                 let obj_file_path = format!(
                     "{out_dir}/{compiler}/modules/implementations/{}.obj",
-                    implementation.filename.split(".").collect::<Vec<_>>()[0]
+                    implementation.filename.split('.').collect::<Vec<_>>()[0]
                 );
                 commands.generated_files_paths.push(Argument::from(obj_file_path.clone()));
                 arguments.push(Argument::from(format!("/Fo{obj_file_path}")));
@@ -530,10 +530,12 @@ mod helpers {
 
     /// Helper for resolve the wildcarded source code files. First, retrieves the wildcarded ones
     /// and second, takes the non-wildcard and joins them all in a single collection
-    pub(crate) fn glob_resolver<T: TranslationUnit>(source_files: &Vec<T>) -> Result<Vec<impl TranslationUnit>> {
+    pub(crate) fn glob_resolver<T: TranslationUnit>(source_files: &[T]) 
+        -> Result<Vec<impl TranslationUnit>> 
+    {
         let mut all_sources = Vec::new();
         
-        for source_file in source_files.into_iter() {
+        for source_file in source_files.iter() {
             let source_file = source_file.to_string();
             
             if source_file.contains('*') {
@@ -559,7 +561,9 @@ mod helpers {
     }
 
     /// Returns an [Iterator] holding the source files which are no wildcard values
-    fn retrive_non_globs<T: TranslationUnit>(source_files: &Vec<T>) -> impl Iterator<Item = String> + '_ {
+    fn retrive_non_globs<T: TranslationUnit>(source_files: &[T]) 
+        -> impl Iterator<Item = String> + '_ 
+    {
         source_files.iter()
             .filter_map(
                 |src_file| match !(src_file).to_string().contains('*') {
