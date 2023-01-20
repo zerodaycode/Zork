@@ -164,8 +164,14 @@ impl LanguageLevel {
     pub fn as_cmd_arg(&self, compiler: &CppCompiler) -> String {
         match compiler {
             CppCompiler::CLANG | CppCompiler::GCC => format!("-std=c++{}", self.as_str()),
-            CppCompiler::MSVC => format!("-std:c++{}", self.as_str()),
+            CppCompiler::MSVC => format!("/std:c++{}", self.as_str()),
         }
+    }
+}
+
+impl fmt::Display for LanguageLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 

@@ -35,13 +35,13 @@ pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
     // Create the directory for dump the generated files
     create_output_directory(base_path, &config)?;
 
+    if config.compiler.cpp_compiler == CppCompiler::GCC { // Special GCC case
+        helpers::process_gcc_system_modules(&config, &mut commands)
+    }
+
     // 1st - Build the modules
     build_modules(&config, &mut commands)?;
     // 2st - Build the executable or the tests
-    // let bmi_and_obj_files = helpers::get_bmi_and_obj_files(
-    //     &config.compiler.cpp_compiler, &commands.interfaces, &commands.implementations,
-    // );
-
     build_executable(&config, &mut commands)?;
 
     Ok(())
@@ -256,14 +256,19 @@ mod sources {
                 arguments.push(Argument::from(
                     format!("/Fe{out_dir}/{compiler}/{executable_name}.exe")
                 ));
-                arguments.extend(
-                    commands.generated_files_paths
-                        .clone()
-                        .into_iter()
-                        .filter(|f| !f.value.contains(compiler.get_typical_bmi_extension()))
-                );
+                arguments.extend(commands.generated_files_paths.clone().into_iter());
             },
-            CppCompiler::GCC => todo!(),
+            CppCompiler::GCC => {
+                arguments.push(Argument::from("-fmodules-ts"));
+                arguments.push(Argument::from("-o"));
+                arguments.push(Argument::from(
+                    format!(
+                        "{out_dir}/{compiler}/{executable_name}{}",
+                        if cfg!(target_os = "windows") {".exe"} else {""}
+                    )
+                ));
+                arguments.extend(commands.generated_files_paths.clone().into_iter());
+            },
         };
 
         // Adding the source files
@@ -340,7 +345,7 @@ mod sources {
                 let miu_file_path= Argument::from(
                     helpers::generate_prebuild_miu(compiler, out_dir, interface)
                 );
-                commands.generated_files_paths.push(miu_file_path.clone());
+                // commands.generated_files_paths.push(miu_file_path.clone()); // TODO Review this line
                 arguments.push(miu_file_path);
                 // The output .obj file
                 arguments.push(Argument::from(
@@ -469,9 +474,11 @@ mod sources {
                 ));
                 // The output file
                 arguments.push(Argument::from("-o"));
-                arguments.push(Argument::from(
+                let obj_file_path = Argument::from(
                     helpers::generate_impl_obj_file(compiler, out_dir, implementation)
-                ));
+                );
+                commands.generated_files_paths.push(obj_file_path.clone());
+                arguments.push(obj_file_path);
             },
         }
         
@@ -598,7 +605,7 @@ mod helpers {
         implementation: &ModuleImplementation
     ) -> String {
         format!(
-            "{out_dir}/{compiler}/modules/implementations/{}.obj",
+            "{out_dir}/{compiler}/modules/implementations/{}.o",
             implementation.filename.split('.').collect::<Vec<_>>()[0]
         )
     }
@@ -618,6 +625,28 @@ mod helpers {
             .collect::<Vec<_>>();
 
         dst.extend(args.into_iter())
+    }
+
+    /// GCC specific requirement. System headers as modules must be built before being imported
+    pub(crate) fn process_gcc_system_modules<'a>(
+        config: &ZorkConfigFile<'a>,
+        commands: &mut Commands<'a>
+    ) {
+        if let Some(gcc_system_modules) = &config.modules.as_ref().unwrap().gcc_sys_headers {
+            let language_level = format!("-std=c++{}", &config.compiler.cpp_standard);
+            let mut sys_modules = Vec::new();
+
+            gcc_system_modules.iter().for_each(|sys_module| {
+                sys_modules.push(vec![
+                    Argument::from(language_level.clone()), 
+                    Argument::from("-fmodules-ts"), 
+                    Argument::from("-x"), 
+                    Argument::from("c++-system-header"),
+                    Argument::from(*sys_module)   
+                ]);
+            });
+            commands.interfaces.extend(sys_modules.into_iter());
+        }
     }
 }
 
