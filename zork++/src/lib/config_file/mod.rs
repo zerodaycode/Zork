@@ -75,3 +75,9 @@ impl TranslationUnit for String {
         self.clone()
     }
 }
+
+/// Interfaces the behaviour for some property of retrieve
+/// it's extra arguments field if exists on T
+pub trait ExtraArgs {
+    fn get_extra_args(&self) -> Option<Vec<&str>>;
+}

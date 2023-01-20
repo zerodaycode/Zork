@@ -1,6 +1,8 @@
 ///! Specify the execution configuration
 use serde::*;
 
+use super::ExtraArgs;
+
 /// [`ExecutableAttribute`] -  The core section to instruct the compiler to work with C++20 modules.
 /// The most important are the base path to the interfaces and implementation files
 /// * `executable_name`- The name that the final binary is to be generated with
@@ -39,7 +41,7 @@ use serde::*;
 ///
 /// For a test over a real example, please look at the
 /// [`zork::config_file::ZorkConfigFile`] doc-test
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Deserialize, Debug, PartialEq, Clone, Default)]
 pub struct ExecutableAttribute<'a> {
     #[serde(borrow)]
     pub executable_name: Option<&'a str>,
@@ -49,4 +51,16 @@ pub struct ExecutableAttribute<'a> {
     pub sources: Option<Vec<&'a str>>,
     #[serde(borrow)]
     pub extra_args: Option<Vec<&'a str>>,
+}
+
+impl ExtraArgs for ExecutableAttribute<'_> {
+    fn get_extra_args(&self) -> Option<Vec<&str>> {
+        self.extra_args.clone()
+    }
+}
+
+impl ExtraArgs for &'_ ExecutableAttribute<'_> {
+    fn get_extra_args(&self) -> Option<Vec<&str>> {
+        self.extra_args.clone()
+    }
 }

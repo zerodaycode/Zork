@@ -216,6 +216,7 @@ mod sources {
                 if let Some(std_lib) = &config.compiler.std_lib {
                     arguments.push(Argument::from(format!("-stdlib={}", std_lib.as_str())))
                 }
+                helpers::add_extra_args_if_present(&config.executable, &mut arguments);
 
                 arguments.push(Argument::from("-fimplicit-modules"));
                 
@@ -239,12 +240,12 @@ mod sources {
                     )
                 ));
                 
-                // log::info!("\nBMIS AND OBJS FILES: {:?}", bmis_and_obj_files.collect::<Vec<_>>());
                 arguments.extend(commands.generated_files_paths.clone().into_iter());
             },
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("/EHsc"));
                 arguments.push(Argument::from("/nologo"));
+                helpers::add_extra_args_if_present(&config.executable, &mut arguments);
                 arguments.push(Argument::from("/ifcSearchDir"));
                 arguments.push(Argument::from(
                     format!("{out_dir}/{compiler}/modules/interfaces")
@@ -255,7 +256,12 @@ mod sources {
                 arguments.push(Argument::from(
                     format!("/Fe{out_dir}/{compiler}/{executable_name}.exe")
                 ));
-
+                arguments.extend(
+                    commands.generated_files_paths
+                        .clone()
+                        .into_iter()
+                        .filter(|f| !f.value.contains(compiler.get_typical_bmi_extension()))
+                );
             },
             CppCompiler::GCC => todo!(),
         };
@@ -326,11 +332,11 @@ mod sources {
                 ));
             },
             CppCompiler::MSVC => {
-                arguments.push(Argument::from("-EHsc"));
+                arguments.push(Argument::from("/EHsc"));
                 arguments.push(Argument::from("/nologo"));
-                arguments.push(Argument::from("-c"));
+                arguments.push(Argument::from("/c"));
                 // The output .ifc file
-                arguments.push(Argument::from("-ifcOutput"));
+                arguments.push(Argument::from("/ifcOutput"));
                 let miu_file_path= Argument::from(
                     helpers::generate_prebuild_miu(compiler, out_dir, interface)
                 );
@@ -341,8 +347,8 @@ mod sources {
                     format!("/Fo{out_dir}/{compiler}/modules/interfaces\\")
                 ));
                 // The input file
-                arguments.push(Argument::from("-interface"));
-                arguments.push(Argument::from("-TP"));
+                arguments.push(Argument::from("/interface"));
+                arguments.push(Argument::from("/TP"));
                 arguments.push(Argument::from(
                     helpers::add_input_file(interface, base_path)
                 ))
@@ -435,10 +441,10 @@ mod sources {
                 ))
             },
             CppCompiler::MSVC => {
-                arguments.push(Argument::from("-EHsc"));
+                arguments.push(Argument::from("/EHsc"));
                 arguments.push(Argument::from("/nologo"));
-                arguments.push(Argument::from("-c"));
-                arguments.push(Argument::from("-ifcSearchDir"));
+                arguments.push(Argument::from("/c"));
+                arguments.push(Argument::from("/ifcSearchDir"));
                 arguments.push(Argument::from(
                     format!("{out_dir}/{compiler}/modules/interfaces/")
                 ));
@@ -447,12 +453,12 @@ mod sources {
                     helpers::add_input_file(implementation, base_path)
                 ));
                 // The output .obj file
-                let obj_file = Argument::from(format!(
-                    "/Fo{out_dir}/{compiler}/modules/implementations/{}",
+                let obj_file_path = format!(
+                    "{out_dir}/{compiler}/modules/implementations/{}.obj",
                     implementation.filename.split(".").collect::<Vec<_>>()[0]
-                ));
-                commands.generated_files_paths.push(obj_file.clone());
-                arguments.push(Argument::from(obj_file));
+                );
+                commands.generated_files_paths.push(Argument::from(obj_file_path.clone()));
+                arguments.push(Argument::from(format!("/Fo{obj_file_path}")));
             },
             CppCompiler::GCC => {
                 arguments.push(Argument::from("-fmodules-ts"));
@@ -477,7 +483,7 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
-    use crate::config_file::TranslationUnit;
+    use crate::config_file::{TranslationUnit, ExtraArgs};
 
     use super::*;
 
@@ -592,9 +598,26 @@ mod helpers {
         implementation: &ModuleImplementation
     ) -> String {
         format!(
-            "{out_dir}/{compiler}/modules/implementations/{}.o",
+            "{out_dir}/{compiler}/modules/implementations/{}.obj",
             implementation.filename.split('.').collect::<Vec<_>>()[0]
         )
+    }
+
+    /// Extends a [`alloc::vec::Vec`] of [`Argument`] with the extra arguments
+    /// declared for some property in the configuration file if they are present
+    pub(crate) fn add_extra_args_if_present<'a, T>(property: &Option<T>, dst: &mut Vec<Argument<'a>>) 
+        where T: Default + ExtraArgs + 'a
+    {
+        let args = property
+            .as_ref()
+            .unwrap_or(&T::default())
+            .get_extra_args()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|v| Argument::from(v.to_owned()))
+            .collect::<Vec<_>>();
+
+        dst.extend(args.into_iter())
     }
 }
 
