@@ -1,7 +1,8 @@
 ///! Specify the execution configuration
 use serde::*;
 
-use super::ExtraArgs;
+use crate::bounds::ExtraArgs;
+
 
 /// [`ExecutableAttribute`] -  The core section to instruct the compiler to work with C++20 modules.
 /// The most important are the base path to the interfaces and implementation files
@@ -22,7 +23,7 @@ use super::ExtraArgs;
 ///     sources = [
 ///         '*.cpp'
 ///     ]
-///     extra_args = 'example'
+///     extra_args = ['example']
 /// "#;
 ///
 /// let config: ExecutableAttribute = toml::from_str(CONFIG_FILE_MOCK)
@@ -57,10 +58,19 @@ impl ExtraArgs for ExecutableAttribute<'_> {
     fn get_extra_args(&self) -> Option<Vec<&str>> {
         self.extra_args.clone()
     }
-}
 
-impl ExtraArgs for &'_ ExecutableAttribute<'_> {
-    fn get_extra_args(&self) -> Option<Vec<&str>> {
-        self.extra_args.clone()
+    fn get_extra_args_alloc(&self) -> Vec<String> {
+        self.extra_args
+            .clone()
+            .unwrap_or_default()
+            .iter()
+            .map(|e| e.to_string())
+            .collect()
     }
 }
+
+// impl ExtraArgs for &'_ ExecutableAttribute<'_> {
+//     fn get_extra_args(&self) -> Option<Vec<&str>> {
+//         self.extra_args.clone()
+//     }
+// }

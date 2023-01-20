@@ -1,4 +1,4 @@
-use crate::config_file::compiler;
+use crate::project_model;
 use clap::{Parser, Subcommand, ValueEnum};
 
 /// [`CliArgs`] is the command line arguments parser
@@ -62,12 +62,12 @@ pub enum CppCompiler {
 // Clippy warns to prefer implementing the From trait instead of Into.
 // That would require that the project model know about cli details, which is ugly.
 #[allow(clippy::from_over_into)]
-impl Into<compiler::CppCompiler> for CppCompiler {
-    fn into(self) -> compiler::CppCompiler {
+impl Into<project_model::compiler::CppCompiler> for CppCompiler {
+    fn into(self) -> project_model::compiler::CppCompiler {
         match self {
-            CppCompiler::CLANG => compiler::CppCompiler::CLANG,
-            CppCompiler::MSVC => compiler::CppCompiler::MSVC,
-            CppCompiler::GCC => compiler::CppCompiler::GCC,
+            CppCompiler::CLANG => project_model::compiler::CppCompiler::CLANG,
+            CppCompiler::MSVC => project_model::compiler::CppCompiler::MSVC,
+            CppCompiler::GCC => project_model::compiler::CppCompiler::GCC,
         }
     }
 }

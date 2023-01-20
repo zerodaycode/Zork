@@ -1,6 +1,6 @@
 pub mod resources;
 
-use crate::config_file::compiler::CppCompiler;
+use crate::project_model::compiler::CppCompiler;
 use crate::utils;
 use color_eyre::eyre::{bail, Context};
 use color_eyre::Result;
@@ -126,7 +126,6 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::config_file::compiler::CppCompiler;
 
     #[test]
     fn test_create_if_root_not_empty() -> Result<()> {
