@@ -245,6 +245,11 @@ mod sources {
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("/EHsc"));
                 arguments.push(Argument::from("/nologo"));
+                // If /std:c++20 this, else should be the direct options
+                // available on C++23 to use directly import std by precompiling the standard library
+                arguments.push(Argument::from("/experimental:module"));
+                arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
+                
                 helpers::add_extra_args_if_present(&config.executable, &mut arguments);
                 arguments.push(Argument::from("/ifcSearchDir"));
                 arguments.push(Argument::from(
@@ -557,7 +562,7 @@ mod helpers {
     fn retrive_non_globs<T: TranslationUnit>(source_files: &Vec<T>) -> impl Iterator<Item = String> + '_ {
         source_files.iter()
             .filter_map(
-                |src_file| match !(src_file).to_string().contains("*") {
+                |src_file| match !(src_file).to_string().contains('*') {
                     true => Some(src_file.to_string()),
                     false => None,
                 }
@@ -615,16 +620,16 @@ mod helpers {
     pub(crate) fn add_extra_args_if_present<'a, T>(property: &Option<T>, dst: &mut Vec<Argument<'a>>) 
         where T: Default + ExtraArgs + 'a
     {
+        let binding = T::default();
         let args = property
             .as_ref()
-            .unwrap_or(&T::default())
+            .unwrap_or(&binding)
             .get_extra_args()
             .unwrap_or_default()
             .into_iter()
-            .map(|v| Argument::from(v.to_owned()))
-            .collect::<Vec<_>>();
+            .map(|v| Argument::from(v.to_owned()));
 
-        dst.extend(args.into_iter())
+        dst.extend(args)
     }
 
     /// GCC specific requirement. System headers as modules must be built before being imported
