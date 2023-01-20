@@ -428,7 +428,7 @@ mod sources {
                 // The output .obj file
                 let obj_file_path = format!(
                     "{out_dir}/{compiler}/modules/implementations/{}.obj",
-                    implementation.filename.split(".").collect::<Vec<_>>()[0]
+                    implementation.filename.split('.').collect::<Vec<_>>()[0]
                 );
                 commands.generated_files_paths.push(Argument::from(obj_file_path.clone()));
                 arguments.push(Argument::from(format!("/Fo{obj_file_path}")));
@@ -567,16 +567,16 @@ mod helpers {
         let args = property
             .get_extra_args_alloc()
             .into_iter()
-            .map(|v| Argument::from(v.to_owned()))
+            .map(Argument::from)
             .collect::<Vec<_>>();
 
         dst.extend(args.into_iter())
     }
 
     /// GCC specific requirement. System headers as modules must be built before being imported
-    pub(crate) fn process_gcc_system_modules<'a>(
+    pub(crate) fn process_gcc_system_modules(
         config: &ZorkModel,
-        commands: &mut Commands<'a>
+        commands: &mut Commands<'_>
     ) {
         let language_level = format!("-std=c++{}", &config.compiler.cpp_standard.as_str());
         let mut sys_modules = Vec::new();
