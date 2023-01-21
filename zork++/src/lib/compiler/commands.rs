@@ -51,7 +51,7 @@ impl<'a> Commands<'a> {
     pub fn new(compiler: &'a CppCompiler) -> Self {
         Self {
             compiler,
-            interfaces: Vec::with_capacity(32),
+            interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
             sources: Vec::with_capacity(0),
             generated_files_paths: Vec::with_capacity(0),
