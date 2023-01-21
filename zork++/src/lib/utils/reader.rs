@@ -263,3 +263,70 @@ fn assemble_tests_model<'a>(
         extra_args,
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::project_model::compiler::{CppCompiler, LanguageLevel};
+
+    use super::*;
+
+    #[test]
+    fn test_project_model_with_minimal_config() -> Result<()> {
+        const CONFIG_FILE_MOCK: &str = r#"
+            [project]
+            name = 'Zork++'
+            authors = ['zerodaycode.gz@gmail.com']
+
+            [compiler]
+            cpp_compiler = 'clang'
+            cpp_standard = '20'
+        "#;
+
+        let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
+        let model = build_model(&config);
+
+        let expected = ZorkModel {
+            project: ProjectModel {
+                name: "Zork++",
+                authors: &["zerodaycode.gz@gmail.com"],
+            },
+            compiler: CompilerModel {
+                cpp_compiler: CppCompiler::CLANG,
+                cpp_standard: LanguageLevel::CPP20,
+                std_lib: None,
+                extra_args: vec![],
+                system_headers_path: None,
+            },
+            build: BuildModel {
+                output_dir: Path::new("./out"),
+            },
+            executable: ExecutableModel {
+                executable_name: "Zork++",
+                sourceset: SourceSet {
+                    base_path: Path::new("."),
+                    sources: vec![],
+                },
+                extra_args: vec![],
+            },
+            modules: ModulesModel {
+                base_ifcs_dir: Path::new("."),
+                interfaces: vec![],
+                base_impls_dir: Path::new("."),
+                implementations: vec![],
+                gcc_sys_headers: vec![],
+            },
+            tests: TestsModel {
+                test_executable_name: "Zork++_test".to_string(),
+                sourceset: SourceSet {
+                    base_path: Path::new("."),
+                    sources: vec![],
+                },
+                extra_args: vec![],
+            },
+        };
+
+        assert_eq!(model, expected);
+
+        Ok(())
+    }
+}
