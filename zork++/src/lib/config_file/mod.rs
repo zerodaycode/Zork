@@ -7,7 +7,7 @@ pub mod modules;
 pub mod project;
 pub mod tests;
 
-use std::fmt::{Display, Debug};
+use std::fmt::{Debug, Display};
 
 use serde::Deserialize;
 
@@ -57,7 +57,6 @@ pub struct ZorkConfigFile<'a> {
     #[serde(borrow)]
     pub tests: Option<TestsAttribute<'a>>,
 }
-
 
 /// Represents any kind of translation unit and the generic operations
 /// applicable to all the implementors

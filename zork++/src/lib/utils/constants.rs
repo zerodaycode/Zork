@@ -2,3 +2,4 @@
 
 pub const CONFIG_FILE_NAME: &str = "zork.toml";
 pub const DEFAULT_OUTPUT_DIR: &str = "./out";
+pub const CACHE_FILE: &str = "cache.toml";

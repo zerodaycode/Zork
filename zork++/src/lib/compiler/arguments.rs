@@ -1,4 +1,4 @@
-//! Types and procedures that represents a command line argument, 
+//! Types and procedures that represents a command line argument,
 //! or collections of command line arguments
 
 use std::{borrow::Borrow, ffi::OsStr};
@@ -6,7 +6,7 @@ use std::{borrow::Borrow, ffi::OsStr};
 /// Type for represent a command line argument
 #[derive(Debug, Clone)]
 pub struct Argument<'a> {
-    pub value: &'a str
+    pub value: &'a str,
 }
 
 impl<'a> From<&'a str> for Argument<'a> {
@@ -17,7 +17,9 @@ impl<'a> From<&'a str> for Argument<'a> {
 
 impl<'a> From<String> for Argument<'a> {
     fn from(value: String) -> Argument<'a> {
-        Self { value: Box::leak(value.into_boxed_str()) }
+        Self {
+            value: Box::leak(value.into_boxed_str()),
+        }
     }
 }
 

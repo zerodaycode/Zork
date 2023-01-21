@@ -13,7 +13,7 @@ use super::TranslationUnit;
 /// * `gcc_sys_headers` - An array field explicitly declare which system headers
 /// must be precompiled and cached in order to make a module mapper server
 /// following the `GCC` specifications
-/// 
+///
 /// ### Tests
 ///
 /// ```rust
@@ -25,7 +25,7 @@ use super::TranslationUnit;
 ///     ]
 ///     base_impls_dir = './src'
 ///     implementations = [
-///         { filename = 'math.cpp' }, { filename = 'some_module_impl.cpp', dependencies = ['iostream'] } 
+///         { filename = 'math.cpp' }, { filename = 'some_module_impl.cpp', dependencies = ['iostream'] }
 ///     ]
 ///     gcc_sys_headers = ['iostream', 'vector', 'string', 'type_traits', 'functional']
 /// "#;
@@ -45,7 +45,7 @@ use super::TranslationUnit;
 ///
 ///  
 /// assert_eq!(config.base_impls_dir, Some("./src"));
-/// 
+///
 /// let impls = config.implementations.unwrap();
 /// let impl_0 = &impls[0];
 /// assert_eq!(impl_0.filename, "math.cpp");
@@ -53,8 +53,8 @@ use super::TranslationUnit;
 /// let impl_1 = &impls[1];
 /// assert_eq!(impl_1.filename, "some_module_impl.cpp");
 /// assert_eq!(impl_1.dependencies, Some(vec!["iostream"]));
-/// 
-/// 
+///
+///
 /// let gcc_sys_headers = config.gcc_sys_headers.unwrap();
 /// assert_eq!(&gcc_sys_headers[0], &"iostream");
 /// assert_eq!(&gcc_sys_headers[1], &"vector");
@@ -78,7 +78,7 @@ pub struct ModulesAttribute<'a> {
 
 /// [`ModuleInterface`] -  A module interface structure for dealing
 /// with the parse work of prebuild module interface units
-/// 
+///
 /// * `filename`- The filename of a primary module interface
 /// * `module_name` - An optional field for make an explicit declaration of the
 /// C++ module declared on this module interface with the `export module 'module_name'
@@ -86,7 +86,7 @@ pub struct ModulesAttribute<'a> {
 /// C++ module declared within this file is equls to the filename
 /// * `dependencies` - An optional array field for declare the module interfaces
 /// in which this file is dependent on
-/// 
+///
 /// ### Tests
 /// ```rust
 /// use zork::config_file::modules::ModulesAttribute;
@@ -132,7 +132,11 @@ pub struct ModuleInterface<'a> {
 }
 impl fmt::Display for ModuleInterface<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}, {:?}, {:?})", self.filename, self.module_name, self.dependencies)
+        write!(
+            f,
+            "({}, {:?}, {:?})",
+            self.filename, self.module_name, self.dependencies
+        )
     }
 }
 impl<'a> TranslationUnit for ModuleInterface<'a> {
@@ -143,7 +147,7 @@ impl<'a> TranslationUnit for ModuleInterface<'a> {
 
 /// [`ModuleImplementation`] -  Type for dealing with the parse work
 /// of compile module implementation translation units
-/// 
+///
 /// * `filename`- The filename of a primary module interface
 /// * `dependencies` - An optional array field for declare the module interfaces
 /// in which this file is dependent on
