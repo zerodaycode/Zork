@@ -64,11 +64,11 @@ fn build_executable<'a>(
 ) -> Result<Vec<Argument<'a>>> {
     let mut args = Vec::new();
 
-    let sources = helpers::glob_resolver(&model.executable.sources)?;
-
     args.extend(sources::generate_main_command_line_args(
-        model, sources, commands, false,
-    ));
+        model,
+        commands,
+        &model.executable,
+    )?);
 
     log::info!("Command for the binary: {:?}", args);
     execute_command(&model.compiler.cpp_compiler, &args)?;
@@ -181,10 +181,12 @@ pub fn create_output_directory(base_path: &Path, model: &ZorkModel) -> Result<()
 
 /// Specific operations over source files
 mod sources {
+    use color_eyre::Result;
+
     use crate::project_model::{
         compiler::CppCompiler,
         modules::{ModuleImplementationModel, ModuleInterfaceModel},
-        TranslationUnit, ZorkModel,
+        ExecutableTarget, ZorkModel,
     };
 
     use super::{arguments::Argument, commands::Commands, helpers};
@@ -193,15 +195,17 @@ mod sources {
     /// holds the main function
     pub fn generate_main_command_line_args<'a>(
         model: &'a ZorkModel,
-        sources: Vec<impl TranslationUnit>,
         commands: &mut Commands<'a>,
-        is_tests_process: bool,
-    ) -> Vec<Argument<'a>> {
+        target: &'a impl ExecutableTarget<'a>,
+    ) -> Result<Vec<Argument<'a>>> {
         log::info!("\n\nGenerating the main command line");
 
         let compiler = &model.compiler.cpp_compiler;
-        let (base_path, out_dir, executable_name) =
-            helpers::generate_common_args_for_binary(model, is_tests_process);
+        let out_dir = model.build.output_dir;
+
+        let base_path = target.sources_base_path();
+        let sources = helpers::glob_resolver(target.sources())?;
+        let executable_name = target.name();
 
         let mut arguments = Vec::new();
         arguments.push(Argument::from(model.compiler.language_level_arg()));
@@ -273,7 +277,7 @@ mod sources {
             arguments.push(Argument::from(format!("{base_path}/{}", &source_file)))
         });
 
-        arguments
+        Ok(arguments)
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
@@ -474,26 +478,6 @@ mod helpers {
     use crate::project_model::{ExtraArgs, TranslationUnit};
 
     use super::*;
-
-    /// Generates common arguments, like the base path
-    pub(crate) fn generate_common_args_for_binary<'a>(
-        model: &'a ZorkModel,
-        is_tests_process: bool,
-    ) -> (&'a str, &'a str, &'a str) {
-        if !is_tests_process {
-            (
-                model.executable.sources_base_path,
-                model.build.output_dir,
-                model.executable.executable_name,
-            )
-        } else {
-            (
-                model.tests.source_base_path,
-                model.build.output_dir,
-                &model.tests.test_executable_name,
-            )
-        }
-    }
 
     /// Helper for resolve the wildcarded source code files. First, retrieves the wildcarded ones
     /// and second, takes the non-wildcard and joins them all in a single collection
