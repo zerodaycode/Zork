@@ -203,9 +203,6 @@ mod sources {
 
         let compiler = &model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir;
-
-        let base_path = target.sources_base_path();
-        let sources = helpers::glob_resolver(target.sources())?;
         let executable_name = target.name();
 
         let mut arguments = Vec::new();
@@ -273,10 +270,7 @@ mod sources {
             }
         };
 
-        // Adding the source files
-        sources.iter().for_each(|source_file| {
-            arguments.push(Argument::from(format!("{base_path}/{}", &source_file)))
-        });
+        target.sourceset().as_args_to(&mut arguments)?;
 
         Ok(arguments)
     }
@@ -479,51 +473,6 @@ mod helpers {
     use crate::project_model::TranslationUnit;
 
     use super::*;
-
-    /// Helper for resolve the wildcarded source code files. First, retrieves the wildcarded ones
-    /// and second, takes the non-wildcard and joins them all in a single collection
-    pub(crate) fn glob_resolver<T: TranslationUnit>(
-        source_files: &[T],
-    ) -> Result<Vec<impl TranslationUnit>> {
-        let mut all_sources = Vec::new();
-
-        for source_file in source_files.iter() {
-            let source_file = source_file.to_string();
-
-            if source_file.contains('*') {
-                let paths = glob::glob(&source_file)
-                    .with_context(|| "Failed to read configuration file")?;
-                let globs = paths
-                    .into_iter()
-                    .map(|glob| {
-                        glob.with_context(|| "Failed to retrieve the PathBuf on the process")
-                            .unwrap()
-                            .as_path()
-                            .to_str()
-                            .map_or(String::from(""), |file_name| file_name.to_string())
-                    })
-                    .filter(|src_file| !(*src_file).eq(""));
-
-                all_sources.extend(globs)
-            }
-        }
-
-        all_sources.extend(retrive_non_globs(source_files));
-
-        Ok(all_sources)
-    }
-
-    /// Returns an [Iterator] holding the source files which are no wildcard values
-    fn retrive_non_globs<T: TranslationUnit>(
-        source_files: &[T],
-    ) -> impl Iterator<Item = String> + '_ {
-        source_files
-            .iter()
-            .filter_map(|src_file| match !(src_file).to_string().contains('*') {
-                true => Some(src_file.to_string()),
-                false => None,
-            })
-    }
 
     /// Formats the string that represents an input file that will be the target of
     /// the build process and that will be passed to the compiler

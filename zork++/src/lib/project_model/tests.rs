@@ -1,10 +1,9 @@
-use super::{arguments::Argument, ExecutableTarget, ExtraArgs};
+use super::{arguments::Argument, sourceset::SourceSet, ExecutableTarget, ExtraArgs};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct TestsModel<'a> {
     pub test_executable_name: String,
-    pub source_base_path: &'a str,
-    pub sources: Vec<&'a str>,
+    pub sourceset: SourceSet<'a>,
     pub extra_args: Vec<Argument<'a>>,
 }
 
@@ -19,11 +18,7 @@ impl<'a> ExecutableTarget<'a> for TestsModel<'a> {
         &self.test_executable_name
     }
 
-    fn sources_base_path(&'a self) -> &'a str {
-        self.source_base_path
-    }
-
-    fn sources(&'a self) -> &'a [&'a str] {
-        &self.sources
+    fn sourceset(&'a self) -> &'a SourceSet<'a> {
+        &self.sourceset
     }
 }

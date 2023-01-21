@@ -4,13 +4,14 @@ pub mod compiler;
 pub mod executable;
 pub mod modules;
 pub mod project;
+pub mod sourceset;
 pub mod tests;
 
 use std::fmt::{Debug, Display};
 
 use self::{
     arguments::Argument, build::BuildModel, compiler::CompilerModel, executable::ExecutableModel,
-    modules::ModulesModel, project::ProjectModel, tests::TestsModel,
+    modules::ModulesModel, project::ProjectModel, sourceset::SourceSet, tests::TestsModel,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -29,8 +30,7 @@ pub trait ExtraArgs<'a> {
 
 pub trait ExecutableTarget<'a>: ExtraArgs<'a> {
     fn name(&'a self) -> &'a str;
-    fn sources_base_path(&'a self) -> &'a str;
-    fn sources(&'a self) -> &'a [&'a str];
+    fn sourceset(&'a self) -> &'a SourceSet<'a>;
 }
 
 /// Represents any kind of translation unit and the generic operations

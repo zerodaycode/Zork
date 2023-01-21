@@ -15,6 +15,7 @@ use crate::{
         executable::ExecutableModel,
         modules::{ModuleImplementationModel, ModuleInterfaceModel, ModulesModel},
         project::ProjectModel,
+        sourceset::{Source, SourceSet},
         tests::TestsModel,
         ZorkModel,
     },
@@ -106,11 +107,25 @@ fn assemble_executable_model<'a>(
         .and_then(|exe| exe.executable_name)
         .unwrap_or(project_name);
 
-    let sources_base_path = config.and_then(|exe| exe.sources_base_path).unwrap_or(".");
+    let base_path = config.and_then(|exe| exe.sources_base_path).unwrap_or(".");
 
     let sources = config
         .and_then(|exe| exe.sources.clone())
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .into_iter()
+        .map(|source| {
+            if source.contains('.') {
+                Source::Glob(source)
+            } else {
+                Source::File(source)
+            }
+        })
+        .collect();
+
+    let sourceset = SourceSet {
+        base_path: Path::new(base_path),
+        sources,
+    };
 
     let extra_args = config
         .and_then(|exe| exe.extra_args.clone())
@@ -119,8 +134,7 @@ fn assemble_executable_model<'a>(
 
     ExecutableModel {
         executable_name,
-        sources_base_path,
-        sources,
+        sourceset,
         extra_args,
     }
 }
@@ -208,11 +222,25 @@ fn assemble_tests_model<'a>(
         |exe_name| exe_name.to_owned(),
     );
 
-    let source_base_path = config.and_then(|exe| exe.source_base_path).unwrap_or(".");
+    let base_path = config.and_then(|exe| exe.source_base_path).unwrap_or(".");
 
     let sources = config
         .and_then(|exe| exe.sources.clone())
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .into_iter()
+        .map(|source| {
+            if source.contains('.') {
+                Source::Glob(source)
+            } else {
+                Source::File(source)
+            }
+        })
+        .collect();
+
+    let sourceset = SourceSet {
+        base_path: Path::new(base_path),
+        sources,
+    };
 
     let extra_args = config
         .and_then(|exe| exe.extra_args)
@@ -221,8 +249,7 @@ fn assemble_tests_model<'a>(
 
     TestsModel {
         test_executable_name,
-        source_base_path,
-        sources,
+        sourceset,
         extra_args,
     }
 }
