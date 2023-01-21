@@ -1,16 +1,20 @@
-use std::{path::Path};
+use std::path::Path;
 
-use chrono::{Utc};
 use clap::Parser;
 use color_eyre::{eyre::Context, Result};
 use env_logger::Target;
 use zork::{
     cli::{CliArgs, Command},
     compiler::build_project,
-    utils::{logger::config_logger, template::create_templated_project},
+    utils::{
+        cache::get_files_info_directories, logger::config_logger,
+        template::create_templated_project,
+    },
 };
 
 fn main() -> Result<()> {
+    let file_info = get_files_info_directories(Path::new("."), vec!["target"]);
+    println!("{:?}", file_info);
     color_eyre::install()?;
 
     // This line just remains here for debug purposes while integration tests
