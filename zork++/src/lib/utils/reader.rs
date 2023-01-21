@@ -9,6 +9,7 @@ use crate::{
         ZorkConfigFile,
     },
     project_model::{
+        arguments::Argument,
         build::BuildModel,
         compiler::CompilerModel,
         executable::ExecutableModel,
@@ -113,6 +114,7 @@ fn assemble_executable_model<'a>(
 
     let extra_args = config
         .and_then(|exe| exe.extra_args.clone())
+        .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
         .unwrap_or_default();
 
     ExecutableModel {
@@ -214,8 +216,8 @@ fn assemble_tests_model<'a>(
 
     let extra_args = config
         .and_then(|exe| exe.extra_args)
-        .map(|arg| vec![arg])
-        .unwrap_or_else(Vec::new);
+        .map(|arg| vec![Argument::from(arg)])
+        .unwrap_or_default();
 
     TestsModel {
         test_executable_name,

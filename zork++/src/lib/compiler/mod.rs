@@ -2,7 +2,6 @@
 // generate command lines and execute them in a shell of the current
 // operating system against the designed compilers in the configuration
 // file.
-mod arguments;
 mod commands;
 
 use color_eyre::{eyre::Context, Result};
@@ -13,6 +12,7 @@ use crate::{
     compiler::commands::Commands,
     config_file::ZorkConfigFile,
     project_model::{
+        arguments::Argument,
         compiler::CppCompiler,
         modules::{ModuleImplementationModel, ModuleInterfaceModel},
         ZorkModel,
@@ -23,7 +23,7 @@ use crate::{
     },
 };
 
-use self::{arguments::Argument, commands::execute_command};
+use self::commands::execute_command;
 
 /// The entry point of the compilation process
 ///
@@ -81,7 +81,7 @@ fn build_executable<'a>(
 /// This function acts like a operation result processor, by running instances
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses>
-fn build_modules(model: &ZorkModel, commands: &mut Commands<'_>) -> Result<()> {
+fn build_modules<'a>(model: &'a ZorkModel, commands: &mut Commands<'a>) -> Result<()> {
     // TODO Dev todo's!
     // Change the string types for strong types (ie, unit structs with strong typing)
     // Also, can we check first is modules and interfaces .is_some() and then lauch this process?
@@ -104,10 +104,10 @@ fn build_modules(model: &ZorkModel, commands: &mut Commands<'_>) -> Result<()> {
 
 /// Parses the configuration in order to build the BMIs declared for the project,
 /// by precompiling the module interface units
-fn prebuild_module_interfaces(
-    model: &ZorkModel,
-    interfaces: &[ModuleInterfaceModel],
-    commands: &mut Commands,
+fn prebuild_module_interfaces<'a>(
+    model: &'a ZorkModel,
+    interfaces: &'a [ModuleInterfaceModel],
+    commands: &mut Commands<'a>,
 ) {
     interfaces.iter().for_each(|module_interface| {
         sources::generate_module_interfaces_args(model, module_interface, commands);
@@ -116,10 +116,10 @@ fn prebuild_module_interfaces(
 
 /// Parses the configuration in order to compile the module implementation
 /// translation units declared for the project
-fn compile_module_implementations(
-    model: &ZorkModel,
-    impls: &[ModuleImplementationModel],
-    commands: &mut Commands,
+fn compile_module_implementations<'a>(
+    model: &'a ZorkModel,
+    impls: &'a [ModuleImplementationModel],
+    commands: &mut Commands<'a>,
 ) {
     impls.iter().for_each(|module_impl| {
         sources::generate_module_implementation_args(model, module_impl, commands);
@@ -184,12 +184,13 @@ mod sources {
     use color_eyre::Result;
 
     use crate::project_model::{
+        arguments::Argument,
         compiler::CppCompiler,
         modules::{ModuleImplementationModel, ModuleInterfaceModel},
         ExecutableTarget, ZorkModel,
     };
 
-    use super::{arguments::Argument, commands::Commands, helpers};
+    use super::{commands::Commands, helpers};
 
     /// Generates the command line arguments for non-module source files, including the one that
     /// holds the main function
@@ -208,14 +209,14 @@ mod sources {
         let executable_name = target.name();
 
         let mut arguments = Vec::new();
-        arguments.push(Argument::from(model.compiler.language_level_arg()));
+        arguments.push(model.compiler.language_level_arg());
 
         match compiler {
             CppCompiler::CLANG => {
-                if let Some(std_lib) = &model.compiler.std_lib {
-                    arguments.push(Argument::from(format!("-stdlib={}", std_lib.as_str())))
+                if let Some(arg) = model.compiler.stdlib_arg() {
+                    arguments.push(arg);
                 }
-                helpers::add_extra_args(&model.executable, &mut arguments);
+                arguments.extend_from_slice(target.extra_args());
 
                 arguments.push(Argument::from("-fimplicit-modules"));
 
@@ -246,7 +247,7 @@ mod sources {
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("/EHsc"));
                 arguments.push(Argument::from("/nologo"));
-                helpers::add_extra_args(&model.executable, &mut arguments);
+                arguments.extend_from_slice(target.extra_args());
                 arguments.push(Argument::from("/ifcSearchDir"));
                 arguments.push(Argument::from(format!(
                     "{out_dir}/{compiler}/modules/interfaces"
@@ -281,22 +282,22 @@ mod sources {
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
-    pub fn generate_module_interfaces_args(
-        model: &ZorkModel,
-        interface: &ModuleInterfaceModel,
-        commands: &mut Commands,
+    pub fn generate_module_interfaces_args<'a>(
+        model: &'a ZorkModel,
+        interface: &'a ModuleInterfaceModel,
+        commands: &mut Commands<'a>,
     ) {
         let compiler = &model.compiler.cpp_compiler;
         let base_path = &model.modules.base_ifcs_dir;
         let out_dir = &model.build.output_dir;
 
         let mut arguments = Vec::with_capacity(8);
-        arguments.push(Argument::from(model.compiler.language_level_arg()));
+        arguments.push(model.compiler.language_level_arg());
 
         match *compiler {
             CppCompiler::CLANG => {
-                if let Some(std_lib) = &model.compiler.std_lib {
-                    arguments.push(Argument::from(format!("-stdlib={}", std_lib.as_str())))
+                if let Some(arg) = model.compiler.stdlib_arg() {
+                    arguments.push(arg);
                 }
 
                 arguments.push(Argument::from("-fimplicit-modules"));
@@ -373,22 +374,22 @@ mod sources {
     }
 
     /// Generates the expected arguments for compile the implementation module files
-    pub fn generate_module_implementation_args(
-        model: &ZorkModel,
-        implementation: &ModuleImplementationModel,
-        commands: &mut Commands<'_>,
+    pub fn generate_module_implementation_args<'a>(
+        model: &'a ZorkModel,
+        implementation: &'a ModuleImplementationModel,
+        commands: &mut Commands<'a>,
     ) {
         let compiler = &model.compiler.cpp_compiler;
         let base_path = model.modules.base_impls_dir;
         let out_dir = model.build.output_dir;
 
         let mut arguments = Vec::with_capacity(8);
-        arguments.push(Argument::from(model.compiler.language_level_arg()));
+        arguments.push(model.compiler.language_level_arg());
 
         match *compiler {
             CppCompiler::CLANG => {
-                if let Some(std_lib) = &model.compiler.std_lib {
-                    arguments.push(Argument::from(format!("-stdlib={}", std_lib.as_str())))
+                if let Some(arg) = model.compiler.stdlib_arg() {
+                    arguments.push(arg);
                 }
 
                 arguments.push(Argument::from("-fimplicit-modules"));
@@ -475,7 +476,7 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
-    use crate::project_model::{ExtraArgs, TranslationUnit};
+    use crate::project_model::TranslationUnit;
 
     use super::*;
 
@@ -555,26 +556,15 @@ mod helpers {
         )
     }
 
-    /// Extends a [`alloc::vec::Vec`] of [`Argument`] with the extra arguments
-    /// declared for some property in the configuration file if they are present
-    pub(crate) fn add_extra_args<'a, T>(property: &'a T, dst: &mut Vec<Argument<'a>>)
-    where
-        T: ExtraArgs<'a>,
-    {
-        let args = property.extra_args().iter().map(|arg| Argument::from(*arg));
-
-        dst.extend(args)
-    }
-
     /// GCC specific requirement. System headers as modules must be built before being imported
     pub(crate) fn process_gcc_system_modules<'a>(
         model: &'a ZorkModel,
         commands: &mut Commands<'a>,
     ) {
-        let language_level = format!("-std=c++{}", &model.compiler.cpp_standard.as_str());
+        let language_level = model.compiler.language_level_arg();
         let sys_modules = model.modules.gcc_sys_headers.iter().map(|sys_module| {
             vec![
-                Argument::from(language_level.clone()),
+                language_level.clone(),
                 Argument::from("-fmodules-ts"),
                 Argument::from("-x"),
                 Argument::from("c++-system-header"),

@@ -4,7 +4,7 @@
 use std::{borrow::Borrow, ffi::OsStr};
 
 /// Type for represent a command line argument
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Argument<'a> {
     pub value: &'a str,
 }

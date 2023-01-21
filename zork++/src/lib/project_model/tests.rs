@@ -1,15 +1,15 @@
-use super::{ExecutableTarget, ExtraArgs};
+use super::{arguments::Argument, ExecutableTarget, ExtraArgs};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct TestsModel<'a> {
     pub test_executable_name: String,
     pub source_base_path: &'a str,
     pub sources: Vec<&'a str>,
-    pub extra_args: Vec<&'a str>,
+    pub extra_args: Vec<Argument<'a>>,
 }
 
 impl<'a> ExtraArgs<'a> for TestsModel<'a> {
-    fn extra_args(&'a self) -> &'a [&'a str] {
+    fn extra_args(&'a self) -> &'a [Argument<'a>] {
         &self.extra_args
     }
 }

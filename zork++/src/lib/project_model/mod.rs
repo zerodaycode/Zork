@@ -1,3 +1,4 @@
+pub mod arguments;
 pub mod build;
 pub mod compiler;
 pub mod executable;
@@ -8,8 +9,8 @@ pub mod tests;
 use std::fmt::{Debug, Display};
 
 use self::{
-    build::BuildModel, compiler::CompilerModel, executable::ExecutableModel, modules::ModulesModel,
-    project::ProjectModel, tests::TestsModel,
+    arguments::Argument, build::BuildModel, compiler::CompilerModel, executable::ExecutableModel,
+    modules::ModulesModel, project::ProjectModel, tests::TestsModel,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -23,7 +24,7 @@ pub struct ZorkModel<'a> {
 }
 
 pub trait ExtraArgs<'a> {
-    fn extra_args(&'a self) -> &'a [&'a str];
+    fn extra_args(&'a self) -> &'a [Argument<'a>];
 }
 
 pub trait ExecutableTarget<'a>: ExtraArgs<'a> {
