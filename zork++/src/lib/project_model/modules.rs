@@ -3,22 +3,22 @@ use core::fmt;
 use crate::bounds::TranslationUnit;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ModulesModel {
-    pub base_ifcs_dir: String,
-    pub interfaces: Vec<ModuleInterfaceModel>,
-    pub base_impls_dir: String,
-    pub implementations: Vec<ModuleImplementationModel>,
-    pub gcc_sys_headers: Vec<String>,
+pub struct ModulesModel<'a> {
+    pub base_ifcs_dir: &'a str,
+    pub interfaces: Vec<ModuleInterfaceModel<'a>>,
+    pub base_impls_dir: &'a str,
+    pub implementations: Vec<ModuleImplementationModel<'a>>,
+    pub gcc_sys_headers: Vec<&'a str>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ModuleInterfaceModel {
-    pub filename: String,
-    pub module_name: String,
-    pub dependencies: Vec<String>,
+pub struct ModuleInterfaceModel<'a> {
+    pub filename: &'a str,
+    pub module_name: &'a str,
+    pub dependencies: Vec<&'a str>,
 }
 
-impl fmt::Display for ModuleInterfaceModel {
+impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -28,25 +28,25 @@ impl fmt::Display for ModuleInterfaceModel {
     }
 }
 
-impl TranslationUnit for ModuleInterfaceModel {
+impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
     fn get_filename(&self) -> String {
         self.filename.to_string()
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ModuleImplementationModel {
-    pub filename: String,
-    pub dependencies: Vec<String>,
+pub struct ModuleImplementationModel<'a> {
+    pub filename: &'a str,
+    pub dependencies: Vec<&'a str>,
 }
 
-impl fmt::Display for ModuleImplementationModel {
+impl<'a> fmt::Display for ModuleImplementationModel<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({}, {:?})", self.filename, self.dependencies)
     }
 }
 
-impl TranslationUnit for ModuleImplementationModel {
+impl<'a> TranslationUnit for ModuleImplementationModel<'a> {
     fn get_filename(&self) -> String {
         self.filename.to_string()
     }

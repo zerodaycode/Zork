@@ -48,22 +48,13 @@ pub fn find_config_file(base_path: &Path) -> Result<String> {
     fs::read_to_string(&path).with_context(|| format!("Could not read {path:?}"))
 }
 
-pub fn load_model(base_path: &Path) -> Result<ZorkModel> {
-    let config_file: String =
-        find_config_file(base_path).with_context(|| "Failed to read configuration file")?;
-    let config: ZorkConfigFile = toml::from_str(config_file.as_str())
-        .with_context(|| "Could not parse configuration file")?;
-
-    Ok(build_model(&config))
-}
-
-pub fn build_model(config: &ZorkConfigFile) -> ZorkModel {
+pub fn build_model<'a>(config: &'a ZorkConfigFile) -> ZorkModel<'a> {
     let project = assemble_project_model(&config.project);
     let compiler = assemble_compiler_model(&config.compiler);
     let build = assemble_build_model(&config.build);
-    let executable = assemble_executable_model(&project.name, &config.executable);
+    let executable = assemble_executable_model(project.name, &config.executable);
     let modules = assemble_modules_model(&config.modules);
-    let tests = assemble_tests_model(&project.name, &config.tests);
+    let tests = assemble_tests_model(project.name, &config.tests);
 
     ZorkModel {
         project,
@@ -75,54 +66,54 @@ pub fn build_model(config: &ZorkConfigFile) -> ZorkModel {
     }
 }
 
-fn assemble_project_model(config: &ProjectAttribute) -> ProjectModel {
+fn assemble_project_model<'a>(config: &'a ProjectAttribute) -> ProjectModel<'a> {
     ProjectModel {
-        name: config.name.to_owned(),
-        authors: extract_vec_or_empty(&config.authors.as_ref()),
+        name: config.name,
+        authors: config
+            .authors
+            .as_ref()
+            .map_or_else(|| &[] as &[&str], |auths| auths.as_slice()),
     }
 }
 
-fn assemble_compiler_model(config: &CompilerAttribute) -> CompilerModel {
+fn assemble_compiler_model<'a>(config: &'a CompilerAttribute) -> CompilerModel<'a> {
     CompilerModel {
         cpp_compiler: config.cpp_compiler.clone().into(),
         cpp_standard: config.cpp_standard.clone().into(),
         std_lib: config.std_lib.clone().map(|lib| lib.into()),
-        extra_args: extract_vec_or_empty(&config.extra_args.as_ref()),
-        system_headers_path: config.system_headers_path.map(str::to_owned),
+        extra_args: config.extra_args.clone().unwrap_or_default(),
+        system_headers_path: config.system_headers_path,
     }
 }
 
-fn assemble_build_model(config: &Option<BuildAttribute>) -> BuildModel {
+fn assemble_build_model<'a>(config: &'a Option<BuildAttribute>) -> BuildModel<'a> {
     let output_dir = config
         .as_ref()
         .and_then(|build| build.output_dir)
-        .unwrap_or(DEFAULT_OUTPUT_DIR)
-        .into();
+        .unwrap_or(DEFAULT_OUTPUT_DIR);
 
     BuildModel { output_dir }
 }
 
-fn assemble_executable_model(
-    project_name: &str,
-    config: &Option<ExecutableAttribute>,
-) -> ExecutableModel {
+fn assemble_executable_model<'a>(
+    project_name: &'a str,
+    config: &'a Option<ExecutableAttribute>,
+) -> ExecutableModel<'a> {
     let config = config.as_ref();
 
     let executable_name = config
         .and_then(|exe| exe.executable_name)
-        .unwrap_or(project_name)
-        .into();
+        .unwrap_or(project_name);
 
-    let sources_base_path = config
-        .and_then(|exe| exe.sources_base_path)
-        .unwrap_or(".")
-        .into();
+    let sources_base_path = config.and_then(|exe| exe.sources_base_path).unwrap_or(".");
 
-    let sources = config.and_then(|exe| exe.sources.as_ref());
-    let sources = extract_vec_or_empty(&sources);
+    let sources = config
+        .and_then(|exe| exe.sources.clone())
+        .unwrap_or_default();
 
-    let extra_args = config.and_then(|exe| exe.extra_args.as_ref());
-    let extra_args = extract_vec_or_empty(&extra_args);
+    let extra_args = config
+        .and_then(|exe| exe.extra_args.clone())
+        .unwrap_or_default();
 
     ExecutableModel {
         executable_name,
@@ -132,35 +123,35 @@ fn assemble_executable_model(
     }
 }
 
-fn assemble_modules_model(config: &Option<ModulesAttribute>) -> ModulesModel {
+fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesModel<'a> {
     let config = config.as_ref();
 
     let base_ifcs_dir = config
         .and_then(|modules| modules.base_ifcs_dir)
-        .unwrap_or(".")
-        .into();
+        .unwrap_or(".");
 
     let interfaces = config
         .and_then(|modules| modules.interfaces.as_ref())
-        .unwrap_or(&Vec::new())
-        .iter()
-        .map(assemble_module_interface_model)
-        .collect();
+        .map(|ifcs| ifcs.iter().map(assemble_module_interface_model).collect())
+        .unwrap_or_default();
 
     let base_impls_dir = config
         .and_then(|modules| modules.base_impls_dir)
-        .unwrap_or(".")
-        .into();
+        .unwrap_or(".");
 
     let implementations = config
         .and_then(|modules| modules.implementations.as_ref())
-        .unwrap_or(&Vec::new())
-        .iter()
-        .map(assemble_module_implementation_model)
-        .collect();
+        .map(|impls| {
+            impls
+                .iter()
+                .map(assemble_module_implementation_model)
+                .collect()
+        })
+        .unwrap_or_default();
 
-    let gcc_sys_headers = config.and_then(|modules| modules.gcc_sys_headers.as_ref());
-    let gcc_sys_headers = extract_vec_or_empty(&gcc_sys_headers);
+    let gcc_sys_headers = config
+        .and_then(|modules| modules.gcc_sys_headers.clone())
+        .unwrap_or_default();
 
     ModulesModel {
         base_ifcs_dir,
@@ -171,15 +162,14 @@ fn assemble_modules_model(config: &Option<ModulesAttribute>) -> ModulesModel {
     }
 }
 
-fn assemble_module_interface_model(config: &ModuleInterface) -> ModuleInterfaceModel {
-    let filename: String = config.filename.into();
+fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInterfaceModel<'a> {
+    let filename = config.filename;
 
     let module_name = config
         .module_name
-        .unwrap_or_else(|| filename.split('.').collect::<Vec<_>>()[0])
-        .into();
+        .unwrap_or_else(|| filename.split('.').collect::<Vec<_>>()[0]);
 
-    let dependencies = extract_vec_or_empty(&config.dependencies.as_ref());
+    let dependencies = config.dependencies.clone().unwrap_or_default();
 
     ModuleInterfaceModel {
         filename,
@@ -188,15 +178,15 @@ fn assemble_module_interface_model(config: &ModuleInterface) -> ModuleInterfaceM
     }
 }
 
-fn assemble_module_implementation_model(
-    config: &ModuleImplementation,
-) -> ModuleImplementationModel {
-    let filename: String = config.filename.into();
+fn assemble_module_implementation_model<'a>(
+    config: &'a ModuleImplementation,
+) -> ModuleImplementationModel<'a> {
+    let filename = config.filename;
 
-    let mut dependencies = extract_vec_or_empty(&config.dependencies.as_ref());
+    let mut dependencies = config.dependencies.clone().unwrap_or_default();
     if dependencies.is_empty() {
         let implicit_dependency = filename.split('.').collect::<Vec<_>>()[0];
-        dependencies.push(implicit_dependency.into());
+        dependencies.push(implicit_dependency);
     }
 
     ModuleImplementationModel {
@@ -205,25 +195,26 @@ fn assemble_module_implementation_model(
     }
 }
 
-fn assemble_tests_model(project_name: &str, config: &Option<TestsAttribute>) -> TestsModel {
+fn assemble_tests_model<'a>(
+    project_name: &'a str,
+    config: &'a Option<TestsAttribute>,
+) -> TestsModel<'a> {
     let config = config.as_ref();
 
-    let test_executable_name = config
-        .and_then(|exe| exe.test_executable_name)
-        .map(|exe_name| exe_name.into())
-        .unwrap_or(format!("{project_name}_test"));
+    let test_executable_name = config.and_then(|exe| exe.test_executable_name).map_or_else(
+        || format!("{project_name}_test"),
+        |exe_name| exe_name.to_owned(),
+    );
 
-    let source_base_path = config
-        .and_then(|exe| exe.source_base_path)
-        .unwrap_or(".")
-        .into();
+    let source_base_path = config.and_then(|exe| exe.source_base_path).unwrap_or(".");
 
-    let sources = config.and_then(|exe| exe.sources.as_ref());
-    let sources = extract_vec_or_empty(&sources);
+    let sources = config
+        .and_then(|exe| exe.sources.clone())
+        .unwrap_or_default();
 
     let extra_args = config
         .and_then(|exe| exe.extra_args)
-        .map(|arg| vec![arg.into()])
+        .map(|arg| vec![arg])
         .unwrap_or_else(Vec::new);
 
     TestsModel {
@@ -232,10 +223,4 @@ fn assemble_tests_model(project_name: &str, config: &Option<TestsAttribute>) -> 
         sources,
         extra_args,
     }
-}
-
-fn extract_vec_or_empty(opt_vec: &Option<&Vec<&str>>) -> Vec<String> {
-    opt_vec
-        .map(|vec| vec.iter().map(|element| (*element).to_owned()).collect())
-        .unwrap_or_default()
 }

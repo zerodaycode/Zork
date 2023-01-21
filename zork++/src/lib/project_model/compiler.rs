@@ -1,15 +1,15 @@
 use core::fmt;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct CompilerModel {
+pub struct CompilerModel<'a> {
     pub cpp_compiler: CppCompiler,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
-    pub extra_args: Vec<String>,
-    pub system_headers_path: Option<String>,
+    pub extra_args: Vec<&'a str>,
+    pub system_headers_path: Option<&'a str>,
 }
 
-impl CompilerModel {
+impl<'a> CompilerModel<'a> {
     pub fn language_level_arg(&self) -> String {
         match self.cpp_compiler {
             CppCompiler::CLANG | CppCompiler::GCC => {

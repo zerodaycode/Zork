@@ -3,7 +3,6 @@ use serde::*;
 
 use crate::bounds::ExtraArgs;
 
-
 /// [`ExecutableAttribute`] -  The core section to instruct the compiler to work with C++20 modules.
 /// The most important are the base path to the interfaces and implementation files
 /// * `executable_name`- The name that the final binary is to be generated with

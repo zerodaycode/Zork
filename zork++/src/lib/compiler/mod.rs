@@ -5,19 +5,22 @@
 mod arguments;
 mod commands;
 
-
 use color_eyre::{eyre::Context, Result};
 use std::path::Path;
 
 use crate::{
     cli::CliArgs,
     compiler::commands::Commands,
+    config_file::ZorkConfigFile,
     project_model::{
         compiler::CppCompiler,
         modules::{ModuleImplementationModel, ModuleInterfaceModel},
         ZorkModel,
     },
-    utils::{self, reader::load_model},
+    utils::{
+        self,
+        reader::{build_model, find_config_file},
+    },
 };
 
 use self::{arguments::Argument, commands::execute_command};
@@ -27,22 +30,28 @@ use self::{arguments::Argument, commands::execute_command};
 /// Whenever this process gets triggered, the files declared within the
 /// configuration file will be build
 pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
-    let config = load_model(base_path).with_context(|| "Failed to load project model")?;
+    let config_file: String =
+        find_config_file(base_path).with_context(|| "Failed to read configuration file")?;
+    let config: ZorkConfigFile = toml::from_str(config_file.as_str())
+        .with_context(|| "Could not parse configuration file")?;
+
+    let model = build_model(&config);
 
     // A registry of the generated command lines
-    let mut commands = Commands::new(&config.compiler.cpp_compiler);
+    let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
     // Create the directory for dump the generated files
-    create_output_directory(base_path, &config)?;
+    create_output_directory(base_path, &model)?;
 
-    if config.compiler.cpp_compiler == CppCompiler::GCC { // Special GCC case
-        helpers::process_gcc_system_modules(&config, &mut commands)
+    if model.compiler.cpp_compiler == CppCompiler::GCC {
+        // Special GCC case
+        helpers::process_gcc_system_modules(&model, &mut commands)
     }
 
     // 1st - Build the modules
-    build_modules(&config, &mut commands)?;
+    build_modules(&model, &mut commands)?;
     // 2st - Build the executable or the tests
-    build_executable(&config, &mut commands)?;
+    build_executable(&model, &mut commands)?;
 
     Ok(())
 }
@@ -50,19 +59,19 @@ pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
 /// Triggers the build process for compile the source files declared for the project
 /// and the
 fn build_executable<'a>(
-    config: &ZorkModel,
+    model: &'a ZorkModel,
     commands: &'a mut Commands<'a>,
 ) -> Result<Vec<Argument<'a>>> {
     let mut args = Vec::new();
 
-    let sources = helpers::glob_resolver(&config.executable.sources)?;
+    let sources = helpers::glob_resolver(&model.executable.sources)?;
 
     args.extend(sources::generate_main_command_line_args(
-        config, sources, commands, false,
+        model, sources, commands, false,
     ));
 
     log::info!("Command for the binary: {:?}", args);
-    execute_command(&config.compiler.cpp_compiler, &args)?;
+    execute_command(&model.compiler.cpp_compiler, &args)?;
 
     Ok(args)
 }
@@ -72,19 +81,19 @@ fn build_executable<'a>(
 /// This function acts like a operation result processor, by running instances
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses>
-fn build_modules(config: &ZorkModel, commands: &mut Commands<'_>) -> Result<()> {
+fn build_modules(model: &ZorkModel, commands: &mut Commands<'_>) -> Result<()> {
     // TODO Dev todo's!
     // Change the string types for strong types (ie, unit structs with strong typing)
     // Also, can we check first is modules and interfaces .is_some() and then lauch this process?
     log::info!("\n\nBuilding the module interfaces");
-    prebuild_module_interfaces(config, &config.modules.interfaces, commands);
+    prebuild_module_interfaces(model, &model.modules.interfaces, commands);
 
     for miu in &commands.interfaces {
         execute_command(commands.compiler, miu)?
     }
 
     log::info!("\n\nBuilding the module implementations");
-    compile_module_implementations(config, &config.modules.implementations, commands);
+    compile_module_implementations(model, &model.modules.implementations, commands);
 
     for impls in &commands.implementations {
         execute_command(commands.compiler, impls)?
@@ -96,24 +105,24 @@ fn build_modules(config: &ZorkModel, commands: &mut Commands<'_>) -> Result<()> 
 /// Parses the configuration in order to build the BMIs declared for the project,
 /// by precompiling the module interface units
 fn prebuild_module_interfaces(
-    config: &ZorkModel,
+    model: &ZorkModel,
     interfaces: &[ModuleInterfaceModel],
     commands: &mut Commands,
 ) {
     interfaces.iter().for_each(|module_interface| {
-        sources::generate_module_interfaces_args(config, module_interface, commands);
+        sources::generate_module_interfaces_args(model, module_interface, commands);
     });
 }
 
 /// Parses the configuration in order to compile the module implementation
 /// translation units declared for the project
 fn compile_module_implementations(
-    config: &ZorkModel,
+    model: &ZorkModel,
     impls: &[ModuleImplementationModel],
     commands: &mut Commands,
 ) {
     impls.iter().for_each(|module_impl| {
-        sources::generate_module_implementation_args(config, module_impl, commands);
+        sources::generate_module_implementation_args(model, module_impl, commands);
     });
 }
 
@@ -135,9 +144,9 @@ fn compile_module_implementations(
 /// TODO Generate the caché process, like last time project build,
 /// and only rebuild files that is metadata contains a newer last
 /// time modified date that the last Zork++ process
-pub fn create_output_directory(base_path: &Path, config: &ZorkModel) -> Result<()> {
-    let out_dir = &config.build.output_dir;
-    let compiler = &config.compiler.cpp_compiler;
+pub fn create_output_directory(base_path: &Path, model: &ZorkModel) -> Result<()> {
+    let out_dir = &model.build.output_dir;
+    let compiler = &model.compiler.cpp_compiler;
 
     // Recursively create a directory and all of its parent components if they are missing
     let modules_path = Path::new(base_path)
@@ -172,37 +181,40 @@ pub fn create_output_directory(base_path: &Path, config: &ZorkModel) -> Result<(
 
 /// Specific operations over source files
 mod sources {
-    use crate::{project_model::{
-        compiler::CppCompiler,
-        modules::{ModuleImplementationModel, ModuleInterfaceModel},
-        ZorkModel
-    }, bounds::TranslationUnit};
+    use crate::{
+        bounds::TranslationUnit,
+        project_model::{
+            compiler::CppCompiler,
+            modules::{ModuleImplementationModel, ModuleInterfaceModel},
+            ZorkModel,
+        },
+    };
 
     use super::{arguments::Argument, commands::Commands, helpers};
 
     /// Generates the command line arguments for non-module source files, including the one that
     /// holds the main function
     pub fn generate_main_command_line_args<'a>(
-        config: &ZorkModel,
+        model: &'a ZorkModel,
         sources: Vec<impl TranslationUnit>,
-        commands: &'a mut Commands<'a>,
+        commands: &mut Commands<'a>,
         is_tests_process: bool,
     ) -> Vec<Argument<'a>> {
         log::info!("\n\nGenerating the main command line");
 
-        let compiler = &config.compiler.cpp_compiler;
+        let compiler = &model.compiler.cpp_compiler;
         let (base_path, out_dir, executable_name) =
-            helpers::generate_common_args_for_binary(config, is_tests_process);
+            helpers::generate_common_args_for_binary(model, is_tests_process);
 
         let mut arguments = Vec::new();
-        arguments.push(Argument::from(config.compiler.language_level_arg()));
+        arguments.push(Argument::from(model.compiler.language_level_arg()));
 
         match compiler {
             CppCompiler::CLANG => {
-                if let Some(std_lib) = &config.compiler.std_lib {
+                if let Some(std_lib) = &model.compiler.std_lib {
                     arguments.push(Argument::from(format!("-stdlib={}", std_lib.as_str())))
                 }
-                helpers::add_extra_args(&config.executable, &mut arguments);
+                helpers::add_extra_args(&model.executable, &mut arguments);
 
                 arguments.push(Argument::from("-fimplicit-modules"));
 
@@ -233,30 +245,30 @@ mod sources {
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("/EHsc"));
                 arguments.push(Argument::from("/nologo"));
-                helpers::add_extra_args(&config.executable, &mut arguments);
+                helpers::add_extra_args(&model.executable, &mut arguments);
                 arguments.push(Argument::from("/ifcSearchDir"));
-                arguments.push(Argument::from(
-                    format!("{out_dir}/{compiler}/modules/interfaces")
-                ));
-                arguments.push(Argument::from(
-                    format!("/Fo{out_dir}/{compiler}\\")
-                ));
-                arguments.push(Argument::from(
-                    format!("/Fe{out_dir}/{compiler}/{executable_name}.exe")
-                ));
+                arguments.push(Argument::from(format!(
+                    "{out_dir}/{compiler}/modules/interfaces"
+                )));
+                arguments.push(Argument::from(format!("/Fo{out_dir}/{compiler}\\")));
+                arguments.push(Argument::from(format!(
+                    "/Fe{out_dir}/{compiler}/{executable_name}.exe"
+                )));
                 arguments.extend(commands.generated_files_paths.clone().into_iter());
-            },
+            }
             CppCompiler::GCC => {
                 arguments.push(Argument::from("-fmodules-ts"));
                 arguments.push(Argument::from("-o"));
-                arguments.push(Argument::from(
-                    format!(
-                        "{out_dir}/{compiler}/{executable_name}{}",
-                        if cfg!(target_os = "windows") {".exe"} else {""}
-                    )
-                ));
+                arguments.push(Argument::from(format!(
+                    "{out_dir}/{compiler}/{executable_name}{}",
+                    if cfg!(target_os = "windows") {
+                        ".exe"
+                    } else {
+                        ""
+                    }
+                )));
                 arguments.extend(commands.generated_files_paths.clone().into_iter());
-            },
+            }
         };
 
         // Adding the source files
@@ -269,20 +281,20 @@ mod sources {
 
     /// Generates the expected arguments for precompile the BMIs depending on self
     pub fn generate_module_interfaces_args(
-        config: &ZorkModel,
+        model: &ZorkModel,
         interface: &ModuleInterfaceModel,
         commands: &mut Commands,
     ) {
-        let compiler = &config.compiler.cpp_compiler;
-        let base_path = &config.modules.base_ifcs_dir;
-        let out_dir = &config.build.output_dir;
+        let compiler = &model.compiler.cpp_compiler;
+        let base_path = &model.modules.base_ifcs_dir;
+        let out_dir = &model.build.output_dir;
 
         let mut arguments = Vec::with_capacity(8);
-        arguments.push(Argument::from(config.compiler.language_level_arg()));
+        arguments.push(Argument::from(model.compiler.language_level_arg()));
 
         match *compiler {
             CppCompiler::CLANG => {
-                if let Some(std_lib) = &config.compiler.std_lib {
+                if let Some(std_lib) = &model.compiler.std_lib {
                     arguments.push(Argument::from(format!("-stdlib={}", std_lib.as_str())))
                 }
 
@@ -323,9 +335,8 @@ mod sources {
                 arguments.push(Argument::from("/c"));
                 // The output .ifc file
                 arguments.push(Argument::from("/ifcOutput"));
-                let miu_file_path= Argument::from(
-                    helpers::generate_prebuild_miu(compiler, out_dir, interface)
-                );
+                let miu_file_path =
+                    Argument::from(helpers::generate_prebuild_miu(compiler, out_dir, interface));
                 // commands.generated_files_paths.push(miu_file_path.clone()); // TODO Review this line MSVC Doesn't need to include .ifc files on the linkage
                 arguments.push(miu_file_path);
                 // The output .obj file
@@ -335,10 +346,10 @@ mod sources {
                 // The input file
                 arguments.push(Argument::from("/interface"));
                 arguments.push(Argument::from("/TP"));
-                arguments.push(Argument::from(
-                    helpers::add_input_file(interface, base_path)
-                ))
-            },
+                arguments.push(Argument::from(helpers::add_input_file(
+                    interface, base_path,
+                )))
+            }
             CppCompiler::GCC => {
                 arguments.push(Argument::from("-fmodules-ts"));
                 arguments.push(Argument::from("-x"));
@@ -362,20 +373,20 @@ mod sources {
 
     /// Generates the expected arguments for compile the implementation module files
     pub fn generate_module_implementation_args(
-        config: &ZorkModel,
+        model: &ZorkModel,
         implementation: &ModuleImplementationModel,
         commands: &mut Commands<'_>,
     ) {
-        let compiler = &config.compiler.cpp_compiler;
-        let base_path = &config.modules.base_impls_dir;
-        let out_dir = &config.build.output_dir;
+        let compiler = &model.compiler.cpp_compiler;
+        let base_path = model.modules.base_impls_dir;
+        let out_dir = model.build.output_dir;
 
         let mut arguments = Vec::with_capacity(8);
-        arguments.push(Argument::from(config.compiler.language_level_arg()));
+        arguments.push(Argument::from(model.compiler.language_level_arg()));
 
         match *compiler {
             CppCompiler::CLANG => {
-                if let Some(std_lib) = &config.compiler.std_lib {
+                if let Some(std_lib) = &model.compiler.std_lib {
                     arguments.push(Argument::from(format!("-stdlib={}", std_lib.as_str())))
                 }
 
@@ -430,9 +441,11 @@ mod sources {
                     "{out_dir}/{compiler}/modules/implementations/{}.obj",
                     implementation.filename.split('.').collect::<Vec<_>>()[0]
                 );
-                commands.generated_files_paths.push(Argument::from(obj_file_path.clone()));
+                commands
+                    .generated_files_paths
+                    .push(Argument::from(obj_file_path.clone()));
                 arguments.push(Argument::from(format!("/Fo{obj_file_path}")));
-            },
+            }
             CppCompiler::GCC => {
                 arguments.push(Argument::from("-fmodules-ts"));
                 arguments.push(Argument::from("-c"));
@@ -443,12 +456,14 @@ mod sources {
                 )));
                 // The output file
                 arguments.push(Argument::from("-o"));
-                let obj_file_path = Argument::from(
-                    helpers::generate_impl_obj_file(compiler, out_dir, implementation)
-                );
+                let obj_file_path = Argument::from(helpers::generate_impl_obj_file(
+                    compiler,
+                    out_dir,
+                    implementation,
+                ));
                 commands.generated_files_paths.push(obj_file_path.clone());
                 arguments.push(obj_file_path);
-            },
+            }
         }
 
         commands.implementations.push(arguments);
@@ -459,25 +474,25 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
-    use crate::bounds::{TranslationUnit, ExtraArgs};
+    use crate::bounds::{ExtraArgs, TranslationUnit};
 
     use super::*;
 
     /// Generates common arguments, like the base path
-    pub(crate) fn generate_common_args_for_binary(
-        model: &ZorkModel,
+    pub(crate) fn generate_common_args_for_binary<'a>(
+        model: &'a ZorkModel,
         is_tests_process: bool,
-    ) -> (&String, &String, &String) {
+    ) -> (&'a str, &'a str, &'a str) {
         if !is_tests_process {
             (
-                &model.executable.sources_base_path,
-                &model.build.output_dir,
-                &model.executable.executable_name,
+                model.executable.sources_base_path,
+                model.build.output_dir,
+                model.executable.executable_name,
             )
         } else {
             (
-                &model.tests.source_base_path,
-                &model.build.output_dir,
+                model.tests.source_base_path,
+                model.build.output_dir,
                 &model.tests.test_executable_name,
             )
         }
@@ -517,9 +532,9 @@ mod helpers {
     }
 
     /// Returns an [Iterator] holding the source files which are no wildcard values
-    fn retrive_non_globs<T: TranslationUnit>(source_files: &[T]) 
-        -> impl Iterator<Item = String> + '_
-    {
+    fn retrive_non_globs<T: TranslationUnit>(
+        source_files: &[T],
+    ) -> impl Iterator<Item = String> + '_ {
         source_files
             .iter()
             .filter_map(|src_file| match !(src_file).to_string().contains('*') {
@@ -532,7 +547,7 @@ mod helpers {
     /// the build process and that will be passed to the compiler
     pub(crate) fn add_input_file<T: TranslationUnit>(
         translation_unit: &T,
-        base_path: &String,
+        base_path: &str,
     ) -> String {
         format!("{base_path}/{}", translation_unit.get_filename())
     }
@@ -561,35 +576,40 @@ mod helpers {
 
     /// Extends a [`alloc::vec::Vec`] of [`Argument`] with the extra arguments
     /// declared for some property in the configuration file if they are present
-    pub(crate) fn add_extra_args<'a, T>(property: &T, dst: &mut Vec<Argument<'a>>) 
-        where T: ExtraArgs + 'a
+    pub(crate) fn add_extra_args<'a, T>(property: &T, dst: &mut Vec<Argument<'a>>)
+    where
+        T: ExtraArgs + 'a,
     {
         let args = property
             .get_extra_args_alloc()
             .into_iter()
-            .map(Argument::from)
-            .collect::<Vec<_>>();
+            .map(Argument::from);
 
-        dst.extend(args.into_iter())
+        dst.extend(args)
     }
 
     /// GCC specific requirement. System headers as modules must be built before being imported
-    pub(crate) fn process_gcc_system_modules(
-        config: &ZorkModel,
-        commands: &mut Commands<'_>
+    pub(crate) fn process_gcc_system_modules<'a>(
+        model: &'a ZorkModel,
+        commands: &mut Commands<'a>,
     ) {
-        let language_level = format!("-std=c++{}", &config.compiler.cpp_standard.as_str());
+        let language_level = format!("-std=c++{}", &model.compiler.cpp_standard.as_str());
         let mut sys_modules = Vec::new();
 
-        config.modules.gcc_sys_headers.clone().into_iter().for_each(|sys_module| {
-            sys_modules.push(vec![
-                Argument::from(language_level.clone()), 
-                Argument::from("-fmodules-ts"), 
-                Argument::from("-x"), 
-                Argument::from("c++-system-header"),
-                Argument::from(sys_module)   
-            ]);
-        });
+        model
+            .modules
+            .gcc_sys_headers
+            .clone()
+            .into_iter()
+            .for_each(|sys_module| {
+                sys_modules.push(vec![
+                    Argument::from(language_level.clone()),
+                    Argument::from("-fmodules-ts"),
+                    Argument::from("-x"),
+                    Argument::from("c++-system-header"),
+                    Argument::from(sys_module),
+                ]);
+            });
         commands.interfaces.extend(sys_modules.into_iter());
     }
 }

@@ -13,11 +13,11 @@ use self::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ZorkModel {
-    pub project: ProjectModel,
-    pub compiler: CompilerModel,
-    pub build: BuildModel,
-    pub executable: ExecutableModel,
-    pub modules: ModulesModel,
-    pub tests: TestsModel,
+pub struct ZorkModel<'a> {
+    pub project: ProjectModel<'a>,
+    pub compiler: CompilerModel<'a>,
+    pub build: BuildModel<'a>,
+    pub executable: ExecutableModel<'a>,
+    pub modules: ModulesModel<'a>,
+    pub tests: TestsModel<'a>,
 }
