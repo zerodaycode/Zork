@@ -1,9 +1,10 @@
-# CPP files for testing the project in place
+# For testing the project in place
 notes.txt
+example/
+out/
+gcm.cache/
 
 # out/
-.pytest_cache/
-.zork_venv/
 .coverage
 htmlcov/
 *.xml
@@ -16,18 +17,6 @@ Cargo.lock
 .vscode
 .vs
 .idea
-
-# Build
-*.spec
-build/
-dist/
-
-# Python specific
-__pycache__/
-
-# Python build ones
-dist/
-Zork.egg-info/
 
 # Prerequisites
 *.d
