@@ -181,13 +181,10 @@ pub fn create_output_directory(base_path: &Path, model: &ZorkModel) -> Result<()
 
 /// Specific operations over source files
 mod sources {
-    use crate::{
-        bounds::TranslationUnit,
-        project_model::{
-            compiler::CppCompiler,
-            modules::{ModuleImplementationModel, ModuleInterfaceModel},
-            ZorkModel,
-        },
+    use crate::project_model::{
+        compiler::CppCompiler,
+        modules::{ModuleImplementationModel, ModuleInterfaceModel},
+        TranslationUnit, ZorkModel,
     };
 
     use super::{arguments::Argument, commands::Commands, helpers};
@@ -474,7 +471,7 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
-    use crate::bounds::{ExtraArgs, TranslationUnit};
+    use crate::project_model::{ExtraArgs, TranslationUnit};
 
     use super::*;
 
@@ -549,7 +546,7 @@ mod helpers {
         translation_unit: &T,
         base_path: &str,
     ) -> String {
-        format!("{base_path}/{}", translation_unit.get_filename())
+        format!("{base_path}/{}", translation_unit.filename())
     }
 
     pub(crate) fn generate_prebuild_miu(
@@ -576,14 +573,11 @@ mod helpers {
 
     /// Extends a [`alloc::vec::Vec`] of [`Argument`] with the extra arguments
     /// declared for some property in the configuration file if they are present
-    pub(crate) fn add_extra_args<'a, T>(property: &T, dst: &mut Vec<Argument<'a>>)
+    pub(crate) fn add_extra_args<'a, T>(property: &'a T, dst: &mut Vec<Argument<'a>>)
     where
-        T: ExtraArgs + 'a,
+        T: ExtraArgs<'a>,
     {
-        let args = property
-            .get_extra_args_alloc()
-            .into_iter()
-            .map(Argument::from);
+        let args = property.extra_args().iter().map(|arg| Argument::from(*arg));
 
         dst.extend(args)
     }
@@ -594,23 +588,16 @@ mod helpers {
         commands: &mut Commands<'a>,
     ) {
         let language_level = format!("-std=c++{}", &model.compiler.cpp_standard.as_str());
-        let mut sys_modules = Vec::new();
-
-        model
-            .modules
-            .gcc_sys_headers
-            .clone()
-            .into_iter()
-            .for_each(|sys_module| {
-                sys_modules.push(vec![
-                    Argument::from(language_level.clone()),
-                    Argument::from("-fmodules-ts"),
-                    Argument::from("-x"),
-                    Argument::from("c++-system-header"),
-                    Argument::from(sys_module),
-                ]);
-            });
-        commands.interfaces.extend(sys_modules.into_iter());
+        let sys_modules = model.modules.gcc_sys_headers.iter().map(|sys_module| {
+            vec![
+                Argument::from(language_level.clone()),
+                Argument::from("-fmodules-ts"),
+                Argument::from("-x"),
+                Argument::from("c++-system-header"),
+                Argument::from(*sys_module),
+            ]
+        });
+        commands.interfaces.extend(sys_modules);
     }
 }
 

@@ -5,7 +5,7 @@ pub mod modules;
 pub mod project;
 pub mod tests;
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use self::{
     build::BuildModel, compiler::CompilerModel, executable::ExecutableModel, modules::ModulesModel,
@@ -20,4 +20,33 @@ pub struct ZorkModel<'a> {
     pub executable: ExecutableModel<'a>,
     pub modules: ModulesModel<'a>,
     pub tests: TestsModel<'a>,
+}
+
+pub trait ExtraArgs<'a> {
+    fn extra_args(&'a self) -> &'a [&'a str];
+}
+
+pub trait ExecutableTarget<'a>: ExtraArgs<'a> {
+    fn name(&'a self) -> &'a str;
+    fn sources_base_path(&'a self) -> &'a str;
+    fn sources(&'a self) -> &'a [&'a str];
+}
+
+/// Represents any kind of translation unit and the generic operations
+/// applicable to all the implementors
+pub trait TranslationUnit: Display + Debug {
+    /// Outputs the declared filename for `self` being the translation unit
+    fn filename(&self) -> &str;
+}
+
+impl TranslationUnit for &str {
+    fn filename(&self) -> &str {
+        self
+    }
+}
+
+impl TranslationUnit for String {
+    fn filename(&self) -> &str {
+        self
+    }
 }

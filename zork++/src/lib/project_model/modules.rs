@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::bounds::TranslationUnit;
+use super::TranslationUnit;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModulesModel<'a> {
@@ -29,8 +29,8 @@ impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
 }
 
 impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
-    fn get_filename(&self) -> String {
-        self.filename.to_string()
+    fn filename(&self) -> &str {
+        self.filename
     }
 }
 
@@ -47,7 +47,7 @@ impl<'a> fmt::Display for ModuleImplementationModel<'a> {
 }
 
 impl<'a> TranslationUnit for ModuleImplementationModel<'a> {
-    fn get_filename(&self) -> String {
-        self.filename.to_string()
+    fn filename(&self) -> &str {
+        self.filename
     }
 }

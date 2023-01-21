@@ -1,4 +1,4 @@
-use crate::bounds::ExtraArgs;
+use super::{ExecutableTarget, ExtraArgs};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ExecutableModel<'a> {
@@ -8,12 +8,22 @@ pub struct ExecutableModel<'a> {
     pub extra_args: Vec<&'a str>,
 }
 
-impl<'a> ExtraArgs for ExecutableModel<'a> {
-    fn get_extra_args(&self) -> Option<Vec<&str>> {
-        todo!()
+impl<'a> ExtraArgs<'a> for ExecutableModel<'a> {
+    fn extra_args(&'a self) -> &'a [&'a str] {
+        &self.extra_args
+    }
+}
+
+impl<'a> ExecutableTarget<'a> for ExecutableModel<'a> {
+    fn name(&'a self) -> &'a str {
+        self.executable_name
     }
 
-    fn get_extra_args_alloc(&self) -> Vec<String> {
-        todo!()
+    fn sources_base_path(&'a self) -> &'a str {
+        self.sources_base_path
+    }
+
+    fn sources(&'a self) -> &'a [&'a str] {
+        &self.sources
     }
 }
