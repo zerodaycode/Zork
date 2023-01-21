@@ -1,14 +1,15 @@
 use core::fmt;
+use std::path::Path;
 
-use super::arguments::Argument;
+use super::{arguments::Argument, ExtraArgs};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct CompilerModel<'a> {
     pub cpp_compiler: CppCompiler,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
-    pub extra_args: Vec<&'a str>,
-    pub system_headers_path: Option<&'a str>,
+    pub extra_args: Vec<Argument<'a>>,
+    pub system_headers_path: Option<&'a Path>,
 }
 
 impl<'a> CompilerModel<'a> {
@@ -29,6 +30,12 @@ impl<'a> CompilerModel<'a> {
     }
 }
 
+impl<'a> ExtraArgs<'a> for CompilerModel<'a> {
+    fn extra_args(&'a self) -> &'a [Argument<'a>] {
+        &self.extra_args
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum CppCompiler {
     CLANG,
@@ -38,10 +45,16 @@ pub enum CppCompiler {
 
 impl fmt::Display for CppCompiler {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_ref())
+    }
+}
+
+impl AsRef<str> for CppCompiler {
+    fn as_ref(&self) -> &str {
         match *self {
-            CppCompiler::CLANG => write!(f, "clang"),
-            CppCompiler::MSVC => write!(f, "msvc"),
-            CppCompiler::GCC => write!(f, "gcc"),
+            CppCompiler::CLANG => "clang",
+            CppCompiler::MSVC => "msvc",
+            CppCompiler::GCC => "gcc",
         }
     }
 }

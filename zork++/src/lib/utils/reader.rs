@@ -15,7 +15,7 @@ use crate::{
         executable::ExecutableModel,
         modules::{ModuleImplementationModel, ModuleInterfaceModel, ModulesModel},
         project::ProjectModel,
-        sourceset::{Source, SourceSet},
+        sourceset::{GlobPattern, Source, SourceSet},
         tests::TestsModel,
         ZorkModel,
     },
@@ -79,12 +79,18 @@ fn assemble_project_model<'a>(config: &'a ProjectAttribute) -> ProjectModel<'a> 
 }
 
 fn assemble_compiler_model<'a>(config: &'a CompilerAttribute) -> CompilerModel<'a> {
+    let extra_args = config
+        .extra_args
+        .as_ref()
+        .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
+        .unwrap_or_default();
+
     CompilerModel {
         cpp_compiler: config.cpp_compiler.clone().into(),
         cpp_standard: config.cpp_standard.clone().into(),
         std_lib: config.std_lib.clone().map(|lib| lib.into()),
-        extra_args: config.extra_args.clone().unwrap_or_default(),
-        system_headers_path: config.system_headers_path,
+        extra_args,
+        system_headers_path: config.system_headers_path.map(Path::new),
     }
 }
 
@@ -94,7 +100,9 @@ fn assemble_build_model<'a>(config: &'a Option<BuildAttribute>) -> BuildModel<'a
         .and_then(|build| build.output_dir)
         .unwrap_or(DEFAULT_OUTPUT_DIR);
 
-    BuildModel { output_dir }
+    BuildModel {
+        output_dir: Path::new(output_dir),
+    }
 }
 
 fn assemble_executable_model<'a>(
@@ -115,9 +123,9 @@ fn assemble_executable_model<'a>(
         .into_iter()
         .map(|source| {
             if source.contains('.') {
-                Source::Glob(source)
+                Source::Glob(GlobPattern(source))
             } else {
-                Source::File(source)
+                Source::File(Path::new(source))
             }
         })
         .collect();
@@ -166,13 +174,15 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
         .unwrap_or_default();
 
     let gcc_sys_headers = config
-        .and_then(|modules| modules.gcc_sys_headers.clone())
-        .unwrap_or_default();
+        .and_then(|modules| modules.gcc_sys_headers.as_ref())
+        .map_or_else(Default::default, |headers| {
+            headers.iter().map(Path::new).collect()
+        });
 
     ModulesModel {
-        base_ifcs_dir,
+        base_ifcs_dir: Path::new(base_ifcs_dir),
         interfaces,
-        base_impls_dir,
+        base_impls_dir: Path::new(base_impls_dir),
         implementations,
         gcc_sys_headers,
     }
@@ -188,7 +198,7 @@ fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInt
     let dependencies = config.dependencies.clone().unwrap_or_default();
 
     ModuleInterfaceModel {
-        filename,
+        filename: Path::new(filename),
         module_name,
         dependencies,
     }
@@ -206,7 +216,7 @@ fn assemble_module_implementation_model<'a>(
     }
 
     ModuleImplementationModel {
-        filename,
+        filename: Path::new(filename),
         dependencies,
     }
 }
@@ -230,9 +240,9 @@ fn assemble_tests_model<'a>(
         .into_iter()
         .map(|source| {
             if source.contains('.') {
-                Source::Glob(source)
+                Source::Glob(GlobPattern(source))
             } else {
-                Source::File(source)
+                Source::File(Path::new(source))
             }
         })
         .collect();

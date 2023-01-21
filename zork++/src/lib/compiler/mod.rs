@@ -187,7 +187,7 @@ mod sources {
         arguments::Argument,
         compiler::CppCompiler,
         modules::{ModuleImplementationModel, ModuleInterfaceModel},
-        ExecutableTarget, ZorkModel,
+        ExecutableTarget, TranslationUnit, ZorkModel,
     };
 
     use super::{commands::Commands, helpers};
@@ -219,19 +219,31 @@ mod sources {
 
                 if cfg!(target_os = "windows") {
                     arguments.push(Argument::from(format!(
-                        "-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"
+                        "-fmodule-map-file={:?}",
+                        out_dir
+                            .join("zork")
+                            .join("intrinsics")
+                            .join("zork.modulemap")
                     )))
                 } else {
                     arguments.push(Argument::from("-fimplicit-module-maps"))
                 }
 
                 arguments.push(Argument::from(format!(
-                    "-fprebuilt-module-path={out_dir}/{compiler}/modules/interfaces"
+                    "-fprebuilt-module-path={:?}",
+                    out_dir
+                        .join(compiler.as_ref())
+                        .join("modules")
+                        .join("interfaces")
                 )));
 
                 arguments.push(Argument::from("-o"));
                 arguments.push(Argument::from(format!(
-                    "{out_dir}/{compiler}/{executable_name}{}",
+                    "{}{}",
+                    out_dir
+                        .join(compiler.as_ref())
+                        .join(executable_name)
+                        .display(),
                     if cfg!(target_os = "windows") {
                         ".exe"
                     } else {
@@ -246,12 +258,23 @@ mod sources {
                 arguments.push(Argument::from("/nologo"));
                 arguments.extend_from_slice(target.extra_args());
                 arguments.push(Argument::from("/ifcSearchDir"));
+                arguments.push(Argument::from(
+                    out_dir
+                        .join(compiler.as_ref())
+                        .join("modules")
+                        .join("interfaces"),
+                ));
                 arguments.push(Argument::from(format!(
-                    "{out_dir}/{compiler}/modules/interfaces"
+                    "/Fo{}\\",
+                    out_dir.join(compiler.as_ref()).display()
                 )));
-                arguments.push(Argument::from(format!("/Fo{out_dir}/{compiler}\\")));
                 arguments.push(Argument::from(format!(
-                    "/Fe{out_dir}/{compiler}/{executable_name}.exe"
+                    "/Fe{}",
+                    out_dir
+                        .join(compiler.as_ref())
+                        .join(executable_name)
+                        .with_extension("exe")
+                        .display()
                 )));
                 arguments.extend(commands.generated_files_paths.clone().into_iter());
             }
@@ -259,7 +282,11 @@ mod sources {
                 arguments.push(Argument::from("-fmodules-ts"));
                 arguments.push(Argument::from("-o"));
                 arguments.push(Argument::from(format!(
-                    "{out_dir}/{compiler}/{executable_name}{}",
+                    "{}{}",
+                    out_dir
+                        .join(compiler.as_ref())
+                        .join(executable_name)
+                        .display(),
                     if cfg!(target_os = "windows") {
                         ".exe"
                     } else {
@@ -282,8 +309,8 @@ mod sources {
         commands: &mut Commands<'a>,
     ) {
         let compiler = &model.compiler.cpp_compiler;
-        let base_path = &model.modules.base_ifcs_dir;
-        let out_dir = &model.build.output_dir;
+        let base_path = model.modules.base_ifcs_dir;
+        let out_dir = model.build.output_dir;
 
         let mut arguments = Vec::with_capacity(8);
         arguments.push(model.compiler.language_level_arg());
@@ -306,7 +333,11 @@ mod sources {
                         // some MinGW installation or similar.
                         // Should this be handled in another way?
                         Argument::from(format!(
-                            "-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"
+                            "-fmodule-map-file={:?}",
+                            out_dir
+                                .join("zork")
+                                .join("intrinsics")
+                                .join("zork.modulemap")
                         )),
                     )
                 } else {
@@ -337,7 +368,12 @@ mod sources {
                 arguments.push(miu_file_path);
                 // The output .obj file
                 arguments.push(Argument::from(format!(
-                    "/Fo{out_dir}/{compiler}/modules/interfaces\\"
+                    "/Fo{}",
+                    out_dir
+                        .join(compiler.as_ref())
+                        .join("modules")
+                        .join("interfaces")
+                        .display()
                 )));
                 // The input file
                 arguments.push(Argument::from("/interface"));
@@ -391,7 +427,11 @@ mod sources {
 
                 if std::env::consts::OS.eq("windows") {
                     arguments.push(Argument::from(format!(
-                        "-fmodule-map-file={out_dir}/zork/intrinsics/zork.modulemap"
+                        "-fmodule-map-file={:?}",
+                        out_dir
+                            .join("zork")
+                            .join("intrinsics")
+                            .join("zork.modulemap")
                     )))
                 } else {
                     arguments.push(Argument::from("-fimplicit-module-maps"))
@@ -409,7 +449,13 @@ mod sources {
 
                 implementation.dependencies.iter().for_each(|ifc_dep| {
                     arguments.push(Argument::from(format!(
-                        "-fmodule-file={out_dir}/{compiler}/modules/interfaces/{ifc_dep}.pcm"
+                        "-fmodule-file={:?}",
+                        out_dir
+                            .join(compiler.as_ref())
+                            .join("modules")
+                            .join("interfaces")
+                            .join(ifc_dep)
+                            .with_extension(".pcm")
                     )))
                 });
 
@@ -424,23 +470,29 @@ mod sources {
                 arguments.push(Argument::from("/nologo"));
                 arguments.push(Argument::from("-c"));
                 arguments.push(Argument::from("-ifcSearchDir"));
-                arguments.push(Argument::from(format!(
-                    "{out_dir}/{compiler}/modules/interfaces/"
-                )));
+                arguments.push(Argument::from(
+                    out_dir
+                        .join(compiler.as_ref())
+                        .join("modules")
+                        .join("interfaces"),
+                ));
                 // The input file
                 arguments.push(Argument::from(helpers::add_input_file(
                     implementation,
                     base_path,
                 )));
                 // The output .obj file
-                let obj_file_path = format!(
-                    "{out_dir}/{compiler}/modules/implementations/{}.obj",
-                    implementation.filename.split('.').collect::<Vec<_>>()[0]
-                );
+                let obj_file_path = out_dir
+                    .join(compiler.as_ref())
+                    .join("modules")
+                    .join("implementations")
+                    .join(implementation.filestem())
+                    .with_extension(".obj");
+
                 commands
                     .generated_files_paths
                     .push(Argument::from(obj_file_path.clone()));
-                arguments.push(Argument::from(format!("/Fo{obj_file_path}")));
+                arguments.push(Argument::from(format!("/Fo{}", obj_file_path.display())));
             }
             CppCompiler::GCC => {
                 arguments.push(Argument::from("-fmodules-ts"));
@@ -470,6 +522,8 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
+    use std::path::PathBuf;
+
     use crate::project_model::TranslationUnit;
 
     use super::*;
@@ -478,31 +532,35 @@ mod helpers {
     /// the build process and that will be passed to the compiler
     pub(crate) fn add_input_file<T: TranslationUnit>(
         translation_unit: &T,
-        base_path: &str,
-    ) -> String {
-        format!("{base_path}/{}", translation_unit.filename())
+        base_path: &Path,
+    ) -> PathBuf {
+        base_path.join(translation_unit.filename())
     }
 
     pub(crate) fn generate_prebuild_miu(
         compiler: &CppCompiler,
-        out_dir: &str,
+        out_dir: &Path,
         interface: &ModuleInterfaceModel,
-    ) -> String {
-        let miu_ext = compiler.get_typical_bmi_extension();
-        let module_name = &interface.module_name;
-
-        format!("{out_dir}/{compiler}/modules/interfaces/{module_name}{miu_ext}")
+    ) -> PathBuf {
+        out_dir
+            .join(compiler.as_ref())
+            .join("modules")
+            .join("interfaces")
+            .join(interface.module_name)
+            .with_extension(compiler.get_typical_bmi_extension())
     }
 
     pub(crate) fn generate_impl_obj_file(
         compiler: &CppCompiler,
-        out_dir: &str,
+        out_dir: &Path,
         implementation: &ModuleImplementationModel,
-    ) -> String {
-        format!(
-            "{out_dir}/{compiler}/modules/implementations/{}.o",
-            implementation.filename.split('.').collect::<Vec<_>>()[0]
-        )
+    ) -> PathBuf {
+        out_dir
+            .join(compiler.as_ref())
+            .join("modules")
+            .join("implementations")
+            .join(implementation.filestem())
+            .with_extension(".o")
     }
 
     /// GCC specific requirement. System headers as modules must be built before being imported
@@ -517,7 +575,7 @@ mod helpers {
                 Argument::from("-fmodules-ts"),
                 Argument::from("-x"),
                 Argument::from("c++-system-header"),
-                Argument::from(*sys_module),
+                Argument::from(sys_module.to_path_buf()),
             ]
         });
         commands.interfaces.extend(sys_modules);

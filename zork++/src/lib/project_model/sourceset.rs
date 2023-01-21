@@ -1,13 +1,33 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use color_eyre::Result;
+use color_eyre::{eyre::Context, Result};
 
 use super::arguments::Argument;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Source<'a> {
-    File(&'a str),
-    Glob(&'a str),
+    File(&'a Path),
+    Glob(GlobPattern<'a>),
+}
+
+impl<'a> Source<'a> {
+    fn paths(&self) -> Result<Vec<PathBuf>> {
+        match self {
+            Source::File(file) => Ok(vec![file.to_path_buf()]),
+            Source::Glob(pattern) => pattern.resolve(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct GlobPattern<'a>(pub &'a str);
+
+impl<'a> GlobPattern<'a> {
+    fn resolve(&self) -> Result<Vec<PathBuf>> {
+        glob::glob(self.0)?
+            .map(|path| path.with_context(|| ""))
+            .collect()
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -18,31 +38,16 @@ pub struct SourceSet<'a> {
 
 impl<'a> SourceSet<'a> {
     pub fn as_args_to(&'a self, dst: &mut Vec<Argument<'a>>) -> Result<()> {
-        let paths: Result<Vec<Vec<Argument<'a>>>> = self
-            .sources
-            .iter()
-            .map(|source| resolve_glob(self.base_path, source))
-            .collect();
+        let paths: Result<Vec<Vec<PathBuf>>> = self.sources.iter().map(Source::paths).collect();
 
-        let paths = paths?.into_iter().flatten();
+        let paths = paths?
+            .into_iter()
+            .flatten()
+            .map(|path| self.base_path.join(path))
+            .map(Argument::from);
 
         dst.extend(paths);
 
         Ok(())
-    }
-}
-
-fn resolve_glob<'a>(base_path: &'a Path, source: &'a Source) -> Result<Vec<Argument<'a>>> {
-    match source {
-        Source::File(file) => {
-            let path = base_path.join(file);
-            Ok(vec![Argument::from(format!("{path:?}"))])
-        }
-        Source::Glob(glob_pattern) => glob::glob(glob_pattern)?
-            .map(|glob_match| {
-                let path = base_path.join(glob_match?);
-                Ok(Argument::from(format!("{path:?}")))
-            })
-            .collect(),
     }
 }

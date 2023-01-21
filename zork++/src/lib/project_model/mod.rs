@@ -7,7 +7,10 @@ pub mod project;
 pub mod sourceset;
 pub mod tests;
 
-use std::fmt::{Debug, Display};
+use std::{
+    fmt::{Debug, Display},
+    path::Path,
+};
 
 use self::{
     arguments::Argument, build::BuildModel, compiler::CompilerModel, executable::ExecutableModel,
@@ -37,17 +40,21 @@ pub trait ExecutableTarget<'a>: ExtraArgs<'a> {
 /// applicable to all the implementors
 pub trait TranslationUnit: Display + Debug {
     /// Outputs the declared filename for `self` being the translation unit
-    fn filename(&self) -> &str;
+    fn filename(&self) -> &Path;
+
+    fn filestem(&self) -> &str {
+        self.filename().file_stem().unwrap().to_str().unwrap()
+    }
 }
 
 impl TranslationUnit for &str {
-    fn filename(&self) -> &str {
-        self
+    fn filename(&self) -> &Path {
+        Path::new(self)
     }
 }
 
 impl TranslationUnit for String {
-    fn filename(&self) -> &str {
-        self
+    fn filename(&self) -> &Path {
+        Path::new(self)
     }
 }
