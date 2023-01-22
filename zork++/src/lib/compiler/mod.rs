@@ -2,17 +2,14 @@
 // generate command lines and execute them in a shell of the current
 // operating system against the designed compilers in the configuration
 // file.
-mod commands;
 
 use color_eyre::{eyre::Context, Result};
 use std::path::Path;
 
 use crate::{
-    cli::CliArgs,
-    compiler::commands::Commands,
+    cli::{CliArgs, output::{commands::{Commands, execute_command}, arguments::Argument}},
     config_file::ZorkConfigFile,
     project_model::{
-        arguments::Argument,
         compiler::CppCompiler,
         modules::{ModuleImplementationModel, ModuleInterfaceModel},
         ZorkModel,
@@ -22,8 +19,6 @@ use crate::{
         reader::{build_model, find_config_file},
     },
 };
-
-use self::commands::execute_command;
 
 /// The entry point of the compilation process
 ///
@@ -186,14 +181,13 @@ mod sources {
     use crate::{
         bounds::{ExecutableTarget, TranslationUnit},
         project_model::{
-            arguments::Argument,
             compiler::CppCompiler,
             modules::{ModuleImplementationModel, ModuleInterfaceModel},
             ZorkModel,
-        },
+        }, cli::output::{commands::Commands, arguments::Argument},
     };
 
-    use super::{commands::Commands, helpers};
+    use super::helpers;
 
     /// Generates the command line arguments for non-module source files, including the one that
     /// holds the main function

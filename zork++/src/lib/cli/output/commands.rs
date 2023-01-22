@@ -3,8 +3,10 @@
 /// by Zork++
 use std::process::Command;
 
-use crate::project_model::{arguments::Argument, compiler::CppCompiler};
+use crate::project_model::compiler::CppCompiler;
 use color_eyre::{eyre::Context, Result};
+
+use super::arguments::Argument;
 
 /// Executes a new [`std::process::Command`] configured according the choosen
 /// compiler and the current operating system

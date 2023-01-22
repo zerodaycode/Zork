@@ -1,6 +1,6 @@
-use crate::bounds::{ExecutableTarget, ExtraArgs};
+use crate::{bounds::{ExecutableTarget, ExtraArgs}, cli::output::arguments::Argument};
 
-use super::{arguments::Argument, sourceset::SourceSet};
+use super::sourceset::SourceSet;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct TestsModel<'a> {

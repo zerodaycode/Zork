@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use color_eyre::{eyre::Context, Result};
 
-use super::arguments::Argument;
+use crate::cli::output::arguments::Argument;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Source<'a> {

@@ -1,3 +1,5 @@
+pub mod output;
+
 use crate::project_model;
 use clap::{Parser, Subcommand, ValueEnum};
 

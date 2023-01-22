@@ -9,7 +9,6 @@ use crate::{
         ZorkConfigFile,
     },
     project_model::{
-        arguments::Argument,
         build::BuildModel,
         compiler::CompilerModel,
         executable::ExecutableModel,
@@ -19,7 +18,7 @@ use crate::{
         tests::TestsModel,
         ZorkModel,
     },
-    utils::constants::CONFIG_FILE_NAME,
+    utils::constants::CONFIG_FILE_NAME, cli::output::arguments::Argument,
 };
 use color_eyre::{eyre::Context, Result};
 use std::{

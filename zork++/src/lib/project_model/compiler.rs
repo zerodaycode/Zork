@@ -1,9 +1,8 @@
 use core::fmt;
 use std::path::Path;
 
-use crate::bounds::ExtraArgs;
+use crate::{bounds::ExtraArgs, cli::output::arguments::Argument};
 
-use super::arguments::Argument;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct CompilerModel<'a> {

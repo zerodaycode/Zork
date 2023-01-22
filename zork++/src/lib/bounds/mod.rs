@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 use std::{fmt::Display, path::Path};
 
-use crate::project_model::{arguments::Argument, sourceset::SourceSet};
+use crate::{project_model::sourceset::SourceSet, cli::output::arguments::Argument};
 
 ///! The higher abstractions of the program
 
