@@ -1,7 +1,9 @@
 use core::fmt;
 use std::path::Path;
 
-use super::{arguments::Argument, ExtraArgs};
+use crate::bounds::ExtraArgs;
+
+use super::arguments::Argument;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct CompilerModel<'a> {
@@ -26,7 +28,7 @@ impl<'a> CompilerModel<'a> {
     pub fn stdlib_arg(&self) -> Option<Argument> {
         self.std_lib
             .as_ref()
-            .map(|lib| Argument::from(format!("-stdlib={}", lib)))
+            .map(|lib| Argument::from(format!("-stdlib={lib}")))
     }
 }
 

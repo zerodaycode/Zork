@@ -1,7 +1,7 @@
 use core::fmt;
 use std::path::Path;
 
-use super::TranslationUnit;
+use crate::bounds::TranslationUnit;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModulesModel<'a> {

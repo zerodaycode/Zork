@@ -1,4 +1,6 @@
-use super::{arguments::Argument, sourceset::SourceSet, ExecutableTarget, ExtraArgs};
+use crate::bounds::{ExecutableTarget, ExtraArgs};
+
+use super::{arguments::Argument, sourceset::SourceSet};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ExecutableModel<'a> {

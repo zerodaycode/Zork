@@ -183,11 +183,14 @@ pub fn create_output_directory(base_path: &Path, model: &ZorkModel) -> Result<()
 mod sources {
     use color_eyre::Result;
 
-    use crate::project_model::{
-        arguments::Argument,
-        compiler::CppCompiler,
-        modules::{ModuleImplementationModel, ModuleInterfaceModel},
-        ExecutableTarget, TranslationUnit, ZorkModel,
+    use crate::{
+        bounds::{ExecutableTarget, TranslationUnit},
+        project_model::{
+            arguments::Argument,
+            compiler::CppCompiler,
+            modules::{ModuleImplementationModel, ModuleInterfaceModel},
+            ZorkModel,
+        },
     };
 
     use super::{commands::Commands, helpers};
@@ -528,9 +531,8 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
+    use crate::bounds::TranslationUnit;
     use std::path::PathBuf;
-
-    use crate::project_model::TranslationUnit;
 
     use super::*;
 

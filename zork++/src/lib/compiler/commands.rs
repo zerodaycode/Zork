@@ -8,7 +8,7 @@ use color_eyre::{eyre::Context, Result};
 
 /// Executes a new [`std::process::Command`] configured according the choosen
 /// compiler and the current operating system
-pub fn execute_command<'a>(compiler: &CppCompiler, arguments: &Vec<Argument<'a>>) -> Result<()> {
+pub fn execute_command(compiler: &CppCompiler, arguments: &Vec<Argument<'_>>) -> Result<()> {
     log::info!(
         "[{compiler}] - Executing command => {:?}",
         format!("{} {}", compiler.get_driver(), arguments.join(" "))
