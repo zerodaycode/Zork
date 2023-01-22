@@ -38,6 +38,37 @@ pub fn execute_command(compiler: &CppCompiler, arguments: &[Argument<'_>]) -> Re
     Ok(())
 }
 
+/// Executes a new [`std::process::Command`] configured according the choosen
+/// compiler and the current operating system composed of multiple prebuilt command
+/// lines joining them in one statement
+pub fn execute_commands(compiler: &CppCompiler, arguments: &[Argument<'_>]) -> Result<()> {
+    log::info!(
+        "[{compiler}] - Executing command => {:?}",
+        format!("{} {}", compiler.get_driver(), arguments.join(" "))
+    );
+
+    let process = if compiler.eq(&CppCompiler::MSVC) {
+        std::process::Command::new( // TODO The initialization process + cache process MUST dynamically get this path and store it in cache
+            "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
+        ).arg("&&")
+            .arg(compiler.get_driver())
+            .args(arguments)
+            .spawn()?
+            .wait()
+            .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
+    } else {
+        std::process::Command::new(compiler.get_driver())
+            .args(arguments)
+            .spawn()?
+            .wait()
+            .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
+    };
+
+    log::info!("[{compiler}] - Result: {:?}", process);
+    Ok(())
+}
+
+
 /// Executes a new [`std::process::Command`] to run the generated binary
 /// after the build process in the specified shell
 pub fn autorun_generated_binary(
@@ -46,14 +77,27 @@ pub fn autorun_generated_binary(
     executable_name: &str
     // arguments: &[Argument<'_>]
 ) -> Result<()> {
-    execute_command(
-        compiler,
-        &[
-            Argument::from(
-                output_dir.join(compiler.as_ref()).join(executable_name)
-            ), 
-        ]
-    )
+    let args = &[
+        Argument::from(
+            output_dir.join(compiler.as_ref()).join(executable_name)
+        ),
+    ];
+
+    log::info!(
+        "\n\n[{compiler}] - Executing the generated binary => {:?}", args.join(" ")
+    );
+
+    // TODO still need to match against OS to launch cmd on Windows 
+
+    let process = std::process::Command::new(
+        Argument::from(
+        output_dir.join(compiler.as_ref()).join(executable_name)
+    )).spawn()?
+    .wait()
+    .with_context(|| format!("[{compiler}] - Command {:?} failed!", args.join(" ")))?;
+
+    log::info!("[{compiler}] - Result: {:?}", process);
+    Ok(())
 }
 
 /// A kind of caché of the generated command lines
