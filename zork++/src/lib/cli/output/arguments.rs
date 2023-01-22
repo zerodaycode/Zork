@@ -25,7 +25,9 @@ impl<'a> From<String> for Argument<'a> {
 
 impl<'a> From<PathBuf> for Argument<'a> {
     fn from(value: PathBuf) -> Self {
-        Self::from(format!("{value:?}"))
+        Self::from(
+            format!("{}", value.display())
+        )
     }
 }
 

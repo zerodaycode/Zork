@@ -3,35 +3,27 @@
 // operating system against the designed compilers in the configuration
 // file.
 
-use color_eyre::{eyre::Context, Result};
+use color_eyre::Result;
 use std::path::Path;
 
 use crate::{
     cli::{input::CliArgs, output::{commands::{Commands, execute_command}, arguments::Argument}},
-    config_file::ZorkConfigFile,
     project_model::{
         compiler::CppCompiler,
         modules::{ModuleImplementationModel, ModuleInterfaceModel},
         ZorkModel,
-    },
-    utils::{
-        self,
-        reader::{build_model, find_config_file},
-    },
+    }, utils
 };
 
 /// The entry point of the compilation process
 ///
 /// Whenever this process gets triggered, the files declared within the
 /// configuration file will be build
-pub fn build_project(base_path: &Path, _cli_args: &CliArgs) -> Result<()> {
-    let config_file: String =
-        find_config_file(base_path).with_context(|| "Failed to read configuration file")?;
-    let config: ZorkConfigFile = toml::from_str(config_file.as_str())
-        .with_context(|| "Could not parse configuration file")?;
-
-    let model = build_model(&config);
-
+pub fn build_project<'a>(
+    base_path: &Path, 
+    model: &ZorkModel<'a>,
+    _cli_args: &CliArgs
+) -> Result<()> {
     // A registry of the generated command lines
     let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
@@ -65,7 +57,6 @@ fn build_executable<'a>(
         &model.executable,
     )?);
 
-    log::info!("Command for the binary: {:?}", args);
     execute_command(&model.compiler.cpp_compiler, &args)?;
 
     Ok(args)
@@ -227,11 +218,12 @@ mod sources {
                 }
 
                 arguments.push(Argument::from(format!(
-                    "-fprebuilt-module-path={:?}",
+                    "-fprebuilt-module-path={}",
                     out_dir
                         .join(compiler.as_ref())
                         .join("modules")
                         .join("interfaces")
+                        .display()
                 )));
 
                 arguments.push(Argument::from("-o"));
@@ -452,13 +444,14 @@ mod sources {
 
                 implementation.dependencies.iter().for_each(|ifc_dep| {
                     arguments.push(Argument::from(format!(
-                        "-fmodule-file={:?}",
+                        "-fmodule-file={}",
                         out_dir
                             .join(compiler.as_ref())
                             .join("modules")
                             .join("interfaces")
                             .join(ifc_dep)
-                            .with_extension(".pcm")
+                            .with_extension(compiler.get_typical_bmi_extension())
+                            .display()
                     )))
                 });
 
@@ -562,7 +555,7 @@ mod helpers {
             .join("modules")
             .join("implementations")
             .join(implementation.filestem())
-            .with_extension(".o")
+            .with_extension("o")
     }
 
     /// GCC specific requirement. System headers as modules must be built before being imported
@@ -571,15 +564,19 @@ mod helpers {
         commands: &mut Commands<'a>,
     ) {
         let language_level = model.compiler.language_level_arg();
-        let sys_modules = model.modules.gcc_sys_headers.iter().map(|sys_module| {
-            vec![
-                language_level.clone(),
-                Argument::from("-fmodules-ts"),
-                Argument::from("-x"),
-                Argument::from("c++-system-header"),
-                Argument::from(sys_module.to_path_buf()),
-            ]
+        let sys_modules = model.modules
+            .gcc_sys_headers
+            .iter()
+            .map(|sys_module| {
+                vec![
+                    language_level.clone(),
+                    Argument::from("-fmodules-ts"),
+                    Argument::from("-x"),
+                    Argument::from("c++-system-header"),
+                    Argument::from(sys_module.to_path_buf()),
+                ]
         });
+
         commands.interfaces.extend(sys_modules);
     }
 }

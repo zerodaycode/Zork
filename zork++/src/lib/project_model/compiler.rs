@@ -81,9 +81,9 @@ impl CppCompiler {
 
     pub fn get_typical_bmi_extension(&self) -> &str {
         match *self {
-            CppCompiler::CLANG => ".pcm",
-            CppCompiler::MSVC => ".ifc",
-            CppCompiler::GCC => ".o",
+            CppCompiler::CLANG => "pcm",
+            CppCompiler::MSVC => "ifc",
+            CppCompiler::GCC => "o",
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::path::Path;
+
 ///! Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
@@ -9,7 +11,7 @@ use super::arguments::Argument;
 
 /// Executes a new [`std::process::Command`] configured according the choosen
 /// compiler and the current operating system
-pub fn execute_command(compiler: &CppCompiler, arguments: &Vec<Argument<'_>>) -> Result<()> {
+pub fn execute_command(compiler: &CppCompiler, arguments: &[Argument<'_>]) -> Result<()> {
     log::info!(
         "[{compiler}] - Executing command => {:?}",
         format!("{} {}", compiler.get_driver(), arguments.join(" "))
@@ -34,6 +36,24 @@ pub fn execute_command(compiler: &CppCompiler, arguments: &Vec<Argument<'_>>) ->
 
     log::info!("[{compiler}] - Result: {:?}", process);
     Ok(())
+}
+
+/// Executes a new [`std::process::Command`] to run the generated binary
+/// after the build process in the specified shell
+pub fn autorun_generated_binary(
+    compiler: &CppCompiler,
+    output_dir: &Path,
+    executable_name: &str
+    // arguments: &[Argument<'_>]
+) -> Result<()> {
+    execute_command(
+        compiler,
+        &[
+            Argument::from(
+                output_dir.join(compiler.as_ref()).join(executable_name)
+            ), 
+        ]
+    )
 }
 
 /// A kind of caché of the generated command lines
