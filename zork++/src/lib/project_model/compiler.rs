@@ -1,22 +1,38 @@
 use core::fmt;
+use std::path::Path;
+
+use super::{arguments::Argument, ExtraArgs};
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct CompilerModel {
+pub struct CompilerModel<'a> {
     pub cpp_compiler: CppCompiler,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
-    pub extra_args: Vec<String>,
-    pub system_headers_path: Option<String>,
+    pub extra_args: Vec<Argument<'a>>,
+    pub system_headers_path: Option<&'a Path>,
 }
 
-impl CompilerModel {
-    pub fn language_level_arg(&self) -> String {
+impl<'a> CompilerModel<'a> {
+    pub fn language_level_arg(&self) -> Argument {
         match self.cpp_compiler {
             CppCompiler::CLANG | CppCompiler::GCC => {
-                format!("-std=c++{}", self.cpp_standard.as_str())
+                Argument::from(format!("-std=c++{}", self.cpp_standard))
             }
-            CppCompiler::MSVC => format!("-std:c++{}", self.cpp_standard.as_str()),
+
+            CppCompiler::MSVC => Argument::from(format!("-std:c++{}", self.cpp_standard)),
         }
+    }
+
+    pub fn stdlib_arg(&self) -> Option<Argument> {
+        self.std_lib
+            .as_ref()
+            .map(|lib| Argument::from(format!("-stdlib={}", lib)))
+    }
+}
+
+impl<'a> ExtraArgs<'a> for CompilerModel<'a> {
+    fn extra_args(&'a self) -> &'a [Argument<'a>] {
+        &self.extra_args
     }
 }
 
@@ -29,10 +45,16 @@ pub enum CppCompiler {
 
 impl fmt::Display for CppCompiler {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_ref())
+    }
+}
+
+impl AsRef<str> for CppCompiler {
+    fn as_ref(&self) -> &str {
         match *self {
-            CppCompiler::CLANG => write!(f, "clang"),
-            CppCompiler::MSVC => write!(f, "msvc"),
-            CppCompiler::GCC => write!(f, "gcc"),
+            CppCompiler::CLANG => "clang",
+            CppCompiler::MSVC => "msvc",
+            CppCompiler::GCC => "gcc",
         }
     }
 }
@@ -74,8 +96,14 @@ pub enum LanguageLevel {
     LATEST,
 }
 
-impl LanguageLevel {
-    pub fn as_str(&self) -> &str {
+impl fmt::Display for LanguageLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_ref())
+    }
+}
+
+impl AsRef<str> for LanguageLevel {
+    fn as_ref(&self) -> &'static str {
         match *self {
             LanguageLevel::CPP20 => "20",
             LanguageLevel::CPP23 => "23",
@@ -92,8 +120,14 @@ pub enum StdLib {
     LIBCPP,
 }
 
-impl StdLib {
-    pub fn as_str(&self) -> &str {
+impl fmt::Display for StdLib {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_ref())
+    }
+}
+
+impl AsRef<str> for StdLib {
+    fn as_ref(&self) -> &str {
         match *self {
             StdLib::STDLIBCPP => "libstdc++",
             StdLib::LIBCPP => "libc++",

@@ -1,9 +1,6 @@
 ///! Specify the execution configuration
 use serde::*;
 
-use crate::bounds::ExtraArgs;
-
-
 /// [`ExecutableAttribute`] -  The core section to instruct the compiler to work with C++20 modules.
 /// The most important are the base path to the interfaces and implementation files
 /// * `executable_name`- The name that the final binary is to be generated with
@@ -53,24 +50,3 @@ pub struct ExecutableAttribute<'a> {
     #[serde(borrow)]
     pub extra_args: Option<Vec<&'a str>>,
 }
-
-impl ExtraArgs for ExecutableAttribute<'_> {
-    fn get_extra_args(&self) -> Option<Vec<&str>> {
-        self.extra_args.clone()
-    }
-
-    fn get_extra_args_alloc(&self) -> Vec<String> {
-        self.extra_args
-            .clone()
-            .unwrap_or_default()
-            .iter()
-            .map(|e| e.to_string())
-            .collect()
-    }
-}
-
-// impl ExtraArgs for &'_ ExecutableAttribute<'_> {
-//     fn get_extra_args(&self) -> Option<Vec<&str>> {
-//         self.extra_args.clone()
-//     }
-// }
