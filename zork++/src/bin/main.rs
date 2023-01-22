@@ -4,7 +4,7 @@ use clap::Parser;
 use color_eyre::{eyre::Context, Result};
 use env_logger::Target;
 use zork::{
-    cli::{CliArgs, Command},
+    cli::input::{CliArgs, Command},
     compiler::build_project,
     utils::{logger::config_logger, template::create_templated_project},
 };
@@ -12,24 +12,7 @@ use zork::{
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    // This line just remains here for debug purposes while integration tests
-    // are not created
-    // let cli_args = CliArgs::parse_from(vec![
-    //     "",
-    //     "-vv",
-    //     "new",
-    //     "example",
-    //     "--git",
-    //     "--compiler",
-    //     "msvc",
-    // ]);
-    // let cli_args = CliArgs::parse_from(vec![
-    //     "",
-    //     "-vv",
-    //     "build",
-    // ]);
     let cli_args = CliArgs::parse();
-
     config_logger(cli_args.verbose, Target::Stdout).expect("Error configuring the logger");
 
     /* TODO We should build the project normally (taking in consideration the implementation

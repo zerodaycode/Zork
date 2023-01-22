@@ -7,7 +7,7 @@ use color_eyre::{eyre::Context, Result};
 use std::path::Path;
 
 use crate::{
-    cli::{CliArgs, output::{commands::{Commands, execute_command}, arguments::Argument}},
+    cli::{input::CliArgs, output::{commands::{Commands, execute_command}, arguments::Argument}},
     config_file::ZorkConfigFile,
     project_model::{
         compiler::CppCompiler,
