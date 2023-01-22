@@ -1,5 +1,5 @@
 use std::{
-    fs::{remove_file, DirBuilder, File},
+    fs::{DirBuilder, File},
     io::{BufReader, Write},
     path::Path,
 };
@@ -23,21 +23,15 @@ pub fn create_directory(path_create: &Path) -> Result<()> {
         .with_context(|| format!("Could not create directory {path_create:?}"))
 }
 
-//TODO require test
 pub fn serialize_object<T>(path: &Path, cache_file: &T) -> Result<(), Report>
 where
     T: Serialize,
 {
-    if path.exists() {
-        remove_file(path).with_context(|| "Error remove cache file")?;
-    }
-
     let file: File = File::create(path).with_context(|| "Error create file")?;
     serde_json::to_writer(file, cache_file).with_context(|| "Error serialize cache")?;
     Ok(())
 }
 
-//TODO required test
 pub fn deserilize_file<T>(path: &Path) -> Result<T, Report>
 where
     T: for<'a> Deserialize<'a>,

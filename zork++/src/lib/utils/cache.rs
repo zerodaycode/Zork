@@ -1,9 +1,13 @@
 //TODO
 
 use chrono::{DateTime, Utc};
+use color_eyre::{
+    eyre::{Context, ContextCompat},
+    Report,
+};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
 
 ///
 /// ### Tests
@@ -44,30 +48,33 @@ pub struct FileInfo {
 }
 
 //TODO require test
-pub fn get_files_info_directories(root_path: &Path, exclusions: Vec<&str>) -> Vec<FileInfo> {
+pub fn get_files_info_directories(root_path: &Path) -> Result<Vec<FileInfo>, Report> {
     let mut file_info: Vec<FileInfo> = vec![];
 
     for e in WalkDir::new(root_path).into_iter().filter_map(|e| e.ok()) {
-        let metadata_file = e.metadata().unwrap();
-        if exclusions
-            .iter()
-            .find(|exclusion| {
-                e.path()
-                    .to_str()
-                    .unwrap() //TODO revise
-                    .contains(*exclusion)
-            })
-            .is_some()
-        {
-            continue;
-        }
-        if metadata_file.is_file() {
-            let date_time: DateTime<Utc> = metadata_file.modified().unwrap().into();
-            file_info.push(FileInfo {
-                path: e.path().to_str().unwrap().to_owned(),
-                last_modificacion: date_time,
-            }); //TODO posible error this field not avalible on al plataforms
+        if e.file_type().is_file() {
+            file_info.push(get_file_info(e).with_context(|| "Cant recover file info")?);
         }
     }
-    file_info
+    Ok(file_info)
+}
+
+fn get_file_info(dir_entry: DirEntry) -> Result<FileInfo, Report> {
+    let path = dir_entry
+        .path()
+        .to_str()
+        .with_context(|| "Error parse path to str")?
+        .to_owned();
+    let metadata_file = dir_entry
+        .metadata()
+        .with_context(|| "Error extract metadata in this plataform")?;
+    let date_time: DateTime<Utc> = metadata_file
+        .modified()
+        .with_context(|| "Error extract time modified in this plataform")?
+        .into();
+
+    Ok(FileInfo {
+        path: path,
+        last_modificacion: date_time,
+    })
 }

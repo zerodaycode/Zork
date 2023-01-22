@@ -6,15 +6,10 @@ use env_logger::Target;
 use zork::{
     cli::{CliArgs, Command},
     compiler::build_project,
-    utils::{
-        cache::get_files_info_directories, logger::config_logger,
-        template::create_templated_project,
-    },
+    utils::{logger::config_logger, template::create_templated_project},
 };
 
 fn main() -> Result<()> {
-    let file_info = get_files_info_directories(Path::new("."), vec!["target"]);
-    println!("{:?}", file_info);
     color_eyre::install()?;
 
     // This line just remains here for debug purposes while integration tests
@@ -62,5 +57,6 @@ fn main() -> Result<()> {
             compiler,
         } => create_templated_project(Path::new("."), &name, git, compiler.into())
             .with_context(|| "Failed to create new project"),
+        Command::Cache { show } => todo!(),
     }
 }

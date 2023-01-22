@@ -48,6 +48,11 @@ pub enum Command {
         #[arg(long, default_value = "clang", help = "Which compiler to use")]
         compiler: CppCompiler,
     },
+    /// Operations with zork cache
+    Cache {
+        #[arg(long, help = "Show cache data")]
+        show: bool,
+    },
 }
 
 /// [`CppCompiler`] The C++ compilers available within Zork++ as a command line argument for the `new` argument

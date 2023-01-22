@@ -22,7 +22,9 @@ use super::ExtraArgs;
 ///     sources = [
 ///         '*.cpp'
 ///     ]
-///     extra_args = 'example'
+///     extra_args = [
+///         'example'
+///     ]
 /// "#;
 ///
 /// let config: ExecutableAttribute = toml::from_str(CONFIG_FILE_MOCK)
