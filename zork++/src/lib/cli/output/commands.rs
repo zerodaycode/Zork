@@ -41,30 +41,39 @@ pub fn execute_command(compiler: &CppCompiler, arguments: &[Argument<'_>]) -> Re
 /// Executes a new [`std::process::Command`] configured according the choosen
 /// compiler and the current operating system composed of multiple prebuilt command
 /// lines joining them in one statement
-pub fn execute_commands(compiler: &CppCompiler, arguments: &[Argument<'_>]) -> Result<()> {
-    log::info!(
-        "[{compiler}] - Executing command => {:?}",
-        format!("{} {}", compiler.get_driver(), arguments.join(" "))
-    );
-
-    let process = if compiler.eq(&CppCompiler::MSVC) {
+/// 
+/// TODO! Probably it would be better only make a big command formed by all the commands
+/// for the MSVC compiler in order to avoid to launch the developers command prompt
+/// for every commmand, but, as observed, generally speaking opening a shell under
+/// Unix using Clang or GCC it's extremily fast, so we can mantain the curren architecture
+/// of opening a shell for command, so the user is able to track better failed commands
+pub fn execute_commands(compiler: &CppCompiler, arguments_for_commands: &[&[Argument<'_>]]) -> Result<()> {
+    let mut commands = if compiler.eq(&CppCompiler::MSVC) {
         std::process::Command::new( // TODO The initialization process + cache process MUST dynamically get this path and store it in cache
             "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
-        ).arg("&&")
-            .arg(compiler.get_driver())
-            .args(arguments)
-            .spawn()?
-            .wait()
-            .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
+        )
     } else {
-        std::process::Command::new(compiler.get_driver())
-            .args(arguments)
-            .spawn()?
-            .wait()
-            .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
+        std::process::Command::new("sh")
     };
 
-    log::info!("[{compiler}] - Result: {:?}", process);
+    // let commands_to_execute = Vec::with_capacity(arguments_for_commands.len());
+    arguments_for_commands.iter().for_each(|args_collection| {
+        log::info!(
+            "[{compiler}] - Generating command => {:?}",
+            format!("{} {}", compiler.get_driver(), args_collection.join(" "))
+        );
+
+        commands.arg("&&")
+            .arg(compiler.get_driver())
+            .args(*args_collection);
+    });
+
+    commands.spawn()?
+        .wait()
+        .with_context(|| format!("[{compiler}] - Command {:?} failed!", commands))?;
+    
+
+    log::info!("[{compiler}] - Result: {:?}", commands);
     Ok(())
 }
 
