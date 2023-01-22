@@ -16,20 +16,18 @@ use serde::*;
 /// const CONFIG_FILE_MOCK: &str = r#"
 ///     #[tests]
 ///     test_executable_name = 'Zork++ tests'
-///     source_base_path = 'path_test'
+///     sources_base_path = 'path_test'
 ///     sources = [ '*.cpp' ]
-///     auto_run_tests = true
-///     extra_args = 'extra_argument to run test'
+///     extra_args = ['extra_argument to run test']
 ///"#;
 ///
 /// let config: TestsAttribute = toml::from_str(CONFIG_FILE_MOCK)
 ///    .expect("A failure happened parsing the Zork toml file");
 ///
 /// assert_eq!(config.test_executable_name, Some("Zork++ tests"));
-/// assert_eq!(config.source_base_path, Some("path_test"));
+/// assert_eq!(config.sources_base_path, Some("path_test"));
 /// assert_eq!(config.sources, Some(vec!["*.cpp"]));
-/// assert_eq!(config.auto_run_tests, Some(true));
-/// assert_eq!(config.extra_args, Some("extra_argument to run test"));
+/// assert_eq!(config.extra_args, Some(vec!["extra_argument to run test"]));
 ///
 /// ```
 ///
@@ -46,10 +44,9 @@ pub struct TestsAttribute<'a> {
     #[serde(borrow)]
     pub test_executable_name: Option<&'a str>,
     #[serde(borrow)]
-    pub source_base_path: Option<&'a str>,
+    pub sources_base_path: Option<&'a str>,
     #[serde(borrow)]
     pub sources: Option<Vec<&'a str>>,
-    pub auto_run_tests: Option<bool>,
     #[serde(borrow)]
-    pub extra_args: Option<&'a str>,
+    pub extra_args: Option<Vec<&'a str>>,
 }

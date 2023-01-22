@@ -3,10 +3,8 @@
 /// by Zork++
 use std::process::Command;
 
-use crate::config_file::compiler::CppCompiler;
+use crate::project_model::{arguments::Argument, compiler::CppCompiler};
 use color_eyre::{eyre::Context, Result};
-
-use super::arguments::Argument;
 
 /// Executes a new [`std::process::Command`] configured according the choosen
 /// compiler and the current operating system
@@ -37,7 +35,6 @@ pub fn execute_command<'a>(compiler: &CppCompiler, arguments: &Vec<Argument<'a>>
     Ok(())
 }
 
-
 /// A kind of caché of the generated command lines
 #[derive(Debug)]
 pub struct Commands<'a> {
@@ -45,14 +42,14 @@ pub struct Commands<'a> {
     pub interfaces: Vec<Vec<Argument<'a>>>,
     pub implementations: Vec<Vec<Argument<'a>>>,
     pub sources: Vec<Argument<'a>>,
-    pub generated_files_paths: Vec<Argument<'a>>
+    pub generated_files_paths: Vec<Argument<'a>>,
 }
 
 impl<'a> Commands<'a> {
     pub fn new(compiler: &'a CppCompiler) -> Self {
         Self {
             compiler,
-            interfaces: Vec::with_capacity(32),
+            interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
             sources: Vec::with_capacity(0),
             generated_files_paths: Vec::with_capacity(0),
