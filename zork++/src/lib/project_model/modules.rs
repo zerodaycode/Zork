@@ -1,53 +1,54 @@
 use core::fmt;
+use std::path::Path;
 
-use crate::bounds::TranslationUnit;
+use super::TranslationUnit;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ModulesModel {
-    pub base_ifcs_dir: String,
-    pub interfaces: Vec<ModuleInterfaceModel>,
-    pub base_impls_dir: String,
-    pub implementations: Vec<ModuleImplementationModel>,
-    pub gcc_sys_headers: Vec<String>,
+pub struct ModulesModel<'a> {
+    pub base_ifcs_dir: &'a Path,
+    pub interfaces: Vec<ModuleInterfaceModel<'a>>,
+    pub base_impls_dir: &'a Path,
+    pub implementations: Vec<ModuleImplementationModel<'a>>,
+    pub gcc_sys_headers: Vec<&'a Path>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ModuleInterfaceModel {
-    pub filename: String,
-    pub module_name: String,
-    pub dependencies: Vec<String>,
+pub struct ModuleInterfaceModel<'a> {
+    pub filename: &'a Path,
+    pub module_name: &'a str,
+    pub dependencies: Vec<&'a str>,
 }
 
-impl fmt::Display for ModuleInterfaceModel {
+impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "({}, {:?}, {:?})",
+            "({:?}, {:?}, {:?})",
             self.filename, self.module_name, self.dependencies
         )
     }
 }
 
-impl TranslationUnit for ModuleInterfaceModel {
-    fn get_filename(&self) -> String {
-        self.filename.to_string()
+impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
+    fn filename(&self) -> &Path {
+        self.filename
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ModuleImplementationModel {
-    pub filename: String,
-    pub dependencies: Vec<String>,
+pub struct ModuleImplementationModel<'a> {
+    pub filename: &'a Path,
+    pub dependencies: Vec<&'a str>,
 }
 
-impl fmt::Display for ModuleImplementationModel {
+impl<'a> fmt::Display for ModuleImplementationModel<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({}, {:?})", self.filename, self.dependencies)
+        write!(f, "({:?}, {:?})", self.filename, self.dependencies)
     }
 }
 
-impl TranslationUnit for ModuleImplementationModel {
-    fn get_filename(&self) -> String {
-        self.filename.to_string()
+impl<'a> TranslationUnit for ModuleImplementationModel<'a> {
+    fn filename(&self) -> &Path {
+        self.filename
     }
 }

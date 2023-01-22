@@ -1,10 +1,10 @@
 //! Types and procedures that represents a command line argument,
 //! or collections of command line arguments
 
-use std::{borrow::Borrow, ffi::OsStr};
+use std::{borrow::Borrow, ffi::OsStr, path::PathBuf};
 
 /// Type for represent a command line argument
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Argument<'a> {
     pub value: &'a str,
 }
@@ -20,6 +20,12 @@ impl<'a> From<String> for Argument<'a> {
         Self {
             value: Box::leak(value.into_boxed_str()),
         }
+    }
+}
+
+impl<'a> From<PathBuf> for Argument<'a> {
+    fn from(value: PathBuf) -> Self {
+        Self::from(format!("{:?}", value))
     }
 }
 

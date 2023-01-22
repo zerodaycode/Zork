@@ -1,19 +1,24 @@
-use crate::bounds::ExtraArgs;
+use super::{arguments::Argument, sourceset::SourceSet, ExecutableTarget, ExtraArgs};
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct ExecutableModel {
-    pub executable_name: String,
-    pub sources_base_path: String,
-    pub sources: Vec<String>,
-    pub extra_args: Vec<String>,
+pub struct ExecutableModel<'a> {
+    pub executable_name: &'a str,
+    pub sourceset: SourceSet<'a>,
+    pub extra_args: Vec<Argument<'a>>,
 }
 
-impl ExtraArgs for ExecutableModel {
-    fn get_extra_args(&self) -> Option<Vec<&str>> {
-        todo!()
+impl<'a> ExtraArgs<'a> for ExecutableModel<'a> {
+    fn extra_args(&'a self) -> &'a [Argument<'a>] {
+        &self.extra_args
+    }
+}
+
+impl<'a> ExecutableTarget<'a> for ExecutableModel<'a> {
+    fn name(&'a self) -> &'a str {
+        self.executable_name
     }
 
-    fn get_extra_args_alloc(&self) -> Vec<String> {
-        self.extra_args.clone()
+    fn sourceset(&'a self) -> &'a SourceSet<'a> {
+        &self.sourceset
     }
 }

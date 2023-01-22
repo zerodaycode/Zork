@@ -9,11 +9,13 @@ use crate::{
         ZorkConfigFile,
     },
     project_model::{
+        arguments::Argument,
         build::BuildModel,
         compiler::CompilerModel,
         executable::ExecutableModel,
         modules::{ModuleImplementationModel, ModuleInterfaceModel, ModulesModel},
         project::ProjectModel,
+        sourceset::{GlobPattern, Source, SourceSet},
         tests::TestsModel,
         ZorkModel,
     },
@@ -48,22 +50,13 @@ pub fn find_config_file(base_path: &Path) -> Result<String> {
     fs::read_to_string(&path).with_context(|| format!("Could not read {path:?}"))
 }
 
-pub fn load_model(base_path: &Path) -> Result<ZorkModel> {
-    let config_file: String =
-        find_config_file(base_path).with_context(|| "Failed to read configuration file")?;
-    let config: ZorkConfigFile = toml::from_str(config_file.as_str())
-        .with_context(|| "Could not parse configuration file")?;
-
-    Ok(build_model(&config))
-}
-
-pub fn build_model(config: &ZorkConfigFile) -> ZorkModel {
+pub fn build_model<'a>(config: &'a ZorkConfigFile) -> ZorkModel<'a> {
     let project = assemble_project_model(&config.project);
     let compiler = assemble_compiler_model(&config.compiler);
     let build = assemble_build_model(&config.build);
-    let executable = assemble_executable_model(&project.name, &config.executable);
+    let executable = assemble_executable_model(project.name, &config.executable);
     let modules = assemble_modules_model(&config.modules);
-    let tests = assemble_tests_model(&project.name, &config.tests);
+    let tests = assemble_tests_model(project.name, &config.tests);
 
     ZorkModel {
         project,
@@ -75,167 +68,383 @@ pub fn build_model(config: &ZorkConfigFile) -> ZorkModel {
     }
 }
 
-fn assemble_project_model(config: &ProjectAttribute) -> ProjectModel {
+fn assemble_project_model<'a>(config: &'a ProjectAttribute) -> ProjectModel<'a> {
     ProjectModel {
-        name: config.name.to_owned(),
-        authors: extract_vec_or_empty(&config.authors.as_ref()),
+        name: config.name,
+        authors: config
+            .authors
+            .as_ref()
+            .map_or_else(|| &[] as &[&str], |auths| auths.as_slice()),
     }
 }
 
-fn assemble_compiler_model(config: &CompilerAttribute) -> CompilerModel {
+fn assemble_compiler_model<'a>(config: &'a CompilerAttribute) -> CompilerModel<'a> {
+    let extra_args = config
+        .extra_args
+        .as_ref()
+        .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
+        .unwrap_or_default();
+
     CompilerModel {
         cpp_compiler: config.cpp_compiler.clone().into(),
         cpp_standard: config.cpp_standard.clone().into(),
         std_lib: config.std_lib.clone().map(|lib| lib.into()),
-        extra_args: extract_vec_or_empty(&config.extra_args.as_ref()),
-        system_headers_path: config.system_headers_path.map(str::to_owned),
+        extra_args,
+        system_headers_path: config.system_headers_path.map(Path::new),
     }
 }
 
-fn assemble_build_model(config: &Option<BuildAttribute>) -> BuildModel {
+fn assemble_build_model<'a>(config: &'a Option<BuildAttribute>) -> BuildModel<'a> {
     let output_dir = config
         .as_ref()
         .and_then(|build| build.output_dir)
-        .unwrap_or(DEFAULT_OUTPUT_DIR)
-        .into();
+        .unwrap_or(DEFAULT_OUTPUT_DIR);
 
-    BuildModel { output_dir }
+    BuildModel {
+        output_dir: Path::new(output_dir),
+    }
 }
 
-fn assemble_executable_model(
-    project_name: &str,
-    config: &Option<ExecutableAttribute>,
-) -> ExecutableModel {
+fn assemble_executable_model<'a>(
+    project_name: &'a str,
+    config: &'a Option<ExecutableAttribute>,
+) -> ExecutableModel<'a> {
     let config = config.as_ref();
 
     let executable_name = config
         .and_then(|exe| exe.executable_name)
-        .unwrap_or(project_name)
-        .into();
+        .unwrap_or(project_name);
 
-    let sources_base_path = config
-        .and_then(|exe| exe.sources_base_path)
-        .unwrap_or(".")
-        .into();
+    let base_path = config.and_then(|exe| exe.sources_base_path).unwrap_or(".");
 
-    let sources = config.and_then(|exe| exe.sources.as_ref());
-    let sources = extract_vec_or_empty(&sources);
+    let sources = config
+        .and_then(|exe| exe.sources.clone())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|source| {
+            if source.contains('.') {
+                Source::Glob(GlobPattern(source))
+            } else {
+                Source::File(Path::new(source))
+            }
+        })
+        .collect();
 
-    let extra_args = config.and_then(|exe| exe.extra_args.as_ref());
-    let extra_args = extract_vec_or_empty(&extra_args);
+    let sourceset = SourceSet {
+        base_path: Path::new(base_path),
+        sources,
+    };
+
+    let extra_args = config
+        .and_then(|exe| exe.extra_args.as_ref())
+        .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
+        .unwrap_or_default();
 
     ExecutableModel {
         executable_name,
-        sources_base_path,
-        sources,
+        sourceset,
         extra_args,
     }
 }
 
-fn assemble_modules_model(config: &Option<ModulesAttribute>) -> ModulesModel {
+fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesModel<'a> {
     let config = config.as_ref();
 
     let base_ifcs_dir = config
         .and_then(|modules| modules.base_ifcs_dir)
-        .unwrap_or(".")
-        .into();
+        .unwrap_or(".");
 
     let interfaces = config
         .and_then(|modules| modules.interfaces.as_ref())
-        .unwrap_or(&Vec::new())
-        .iter()
-        .map(assemble_module_interface_model)
-        .collect();
+        .map(|ifcs| ifcs.iter().map(assemble_module_interface_model).collect())
+        .unwrap_or_default();
 
     let base_impls_dir = config
         .and_then(|modules| modules.base_impls_dir)
-        .unwrap_or(".")
-        .into();
+        .unwrap_or(".");
 
     let implementations = config
         .and_then(|modules| modules.implementations.as_ref())
-        .unwrap_or(&Vec::new())
-        .iter()
-        .map(assemble_module_implementation_model)
-        .collect();
+        .map(|impls| {
+            impls
+                .iter()
+                .map(assemble_module_implementation_model)
+                .collect()
+        })
+        .unwrap_or_default();
 
-    let gcc_sys_headers = config.and_then(|modules| modules.gcc_sys_headers.as_ref());
-    let gcc_sys_headers = extract_vec_or_empty(&gcc_sys_headers);
+    let gcc_sys_headers = config
+        .and_then(|modules| modules.gcc_sys_headers.as_ref())
+        .map_or_else(Default::default, |headers| {
+            headers.iter().map(Path::new).collect()
+        });
 
     ModulesModel {
-        base_ifcs_dir,
+        base_ifcs_dir: Path::new(base_ifcs_dir),
         interfaces,
-        base_impls_dir,
+        base_impls_dir: Path::new(base_impls_dir),
         implementations,
         gcc_sys_headers,
     }
 }
 
-fn assemble_module_interface_model(config: &ModuleInterface) -> ModuleInterfaceModel {
-    let filename: String = config.filename.into();
+fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInterfaceModel<'a> {
+    let filename = config.filename;
 
     let module_name = config
         .module_name
-        .unwrap_or_else(|| filename.split('.').collect::<Vec<_>>()[0])
-        .into();
+        .unwrap_or_else(|| filename.split('.').collect::<Vec<_>>()[0]);
 
-    let dependencies = extract_vec_or_empty(&config.dependencies.as_ref());
+    let dependencies = config.dependencies.clone().unwrap_or_default();
 
     ModuleInterfaceModel {
-        filename,
+        filename: Path::new(filename),
         module_name,
         dependencies,
     }
 }
 
-fn assemble_module_implementation_model(
-    config: &ModuleImplementation,
-) -> ModuleImplementationModel {
-    let filename: String = config.filename.into();
+fn assemble_module_implementation_model<'a>(
+    config: &'a ModuleImplementation,
+) -> ModuleImplementationModel<'a> {
+    let filename = config.filename;
 
-    let mut dependencies = extract_vec_or_empty(&config.dependencies.as_ref());
+    let mut dependencies = config.dependencies.clone().unwrap_or_default();
     if dependencies.is_empty() {
         let implicit_dependency = filename.split('.').collect::<Vec<_>>()[0];
-        dependencies.push(implicit_dependency.into());
+        dependencies.push(implicit_dependency);
     }
 
     ModuleImplementationModel {
-        filename,
+        filename: Path::new(filename),
         dependencies,
     }
 }
 
-fn assemble_tests_model(project_name: &str, config: &Option<TestsAttribute>) -> TestsModel {
+fn assemble_tests_model<'a>(
+    project_name: &'a str,
+    config: &'a Option<TestsAttribute>,
+) -> TestsModel<'a> {
     let config = config.as_ref();
 
-    let test_executable_name = config
-        .and_then(|exe| exe.test_executable_name)
-        .map(|exe_name| exe_name.into())
-        .unwrap_or(format!("{project_name}_test"));
+    let test_executable_name = config.and_then(|exe| exe.test_executable_name).map_or_else(
+        || format!("{project_name}_test"),
+        |exe_name| exe_name.to_owned(),
+    );
 
-    let source_base_path = config
-        .and_then(|exe| exe.source_base_path)
-        .unwrap_or(".")
-        .into();
+    let base_path = config.and_then(|exe| exe.sources_base_path).unwrap_or(".");
 
-    let sources = config.and_then(|exe| exe.sources.as_ref());
-    let sources = extract_vec_or_empty(&sources);
+    let sources = config
+        .and_then(|exe| exe.sources.clone())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|source| {
+            if source.contains('.') {
+                Source::Glob(GlobPattern(source))
+            } else {
+                Source::File(Path::new(source))
+            }
+        })
+        .collect();
+
+    let sourceset = SourceSet {
+        base_path: Path::new(base_path),
+        sources,
+    };
 
     let extra_args = config
-        .and_then(|exe| exe.extra_args)
-        .map(|arg| vec![arg.into()])
-        .unwrap_or_else(Vec::new);
+        .and_then(|test| test.extra_args.as_ref())
+        .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
+        .unwrap_or_default();
 
     TestsModel {
         test_executable_name,
-        source_base_path,
-        sources,
+        sourceset,
         extra_args,
     }
 }
 
-fn extract_vec_or_empty(opt_vec: &Option<&Vec<&str>>) -> Vec<String> {
-    opt_vec
-        .map(|vec| vec.iter().map(|element| (*element).to_owned()).collect())
-        .unwrap_or_default()
+#[cfg(test)]
+mod test {
+    use crate::project_model::compiler::{CppCompiler, LanguageLevel, StdLib};
+
+    use super::*;
+
+    #[test]
+    fn test_project_model_with_minimal_config() -> Result<()> {
+        const CONFIG_FILE_MOCK: &str = r#"
+            [project]
+            name = 'Zork++'
+            authors = ['zerodaycode.gz@gmail.com']
+
+            [compiler]
+            cpp_compiler = 'clang'
+            cpp_standard = '20'
+        "#;
+
+        let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
+        let model = build_model(&config);
+
+        let expected = ZorkModel {
+            project: ProjectModel {
+                name: "Zork++",
+                authors: &["zerodaycode.gz@gmail.com"],
+            },
+            compiler: CompilerModel {
+                cpp_compiler: CppCompiler::CLANG,
+                cpp_standard: LanguageLevel::CPP20,
+                std_lib: None,
+                extra_args: vec![],
+                system_headers_path: None,
+            },
+            build: BuildModel {
+                output_dir: Path::new("./out"),
+            },
+            executable: ExecutableModel {
+                executable_name: "Zork++",
+                sourceset: SourceSet {
+                    base_path: Path::new("."),
+                    sources: vec![],
+                },
+                extra_args: vec![],
+            },
+            modules: ModulesModel {
+                base_ifcs_dir: Path::new("."),
+                interfaces: vec![],
+                base_impls_dir: Path::new("."),
+                implementations: vec![],
+                gcc_sys_headers: vec![],
+            },
+            tests: TestsModel {
+                test_executable_name: "Zork++_test".to_string(),
+                sourceset: SourceSet {
+                    base_path: Path::new("."),
+                    sources: vec![],
+                },
+                extra_args: vec![],
+            },
+        };
+
+        assert_eq!(model, expected);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_project_model_with_full_config() -> Result<()> {
+        const CONFIG_FILE_MOCK: &str = r#"
+            [project]
+            name = "Zork++"
+            authors = ["zerodaycode.gz@gmail.com"]
+
+            [compiler]
+            cpp_compiler = "clang"
+            cpp_standard = "20"
+            std_lib = "libc++"
+            extra_args = [ "-Wall" ]
+            system_headers_path = "/usr/include"
+
+            [build]
+            output_dir = "build"
+
+            [executable]
+            executable_name = "zork"
+            sources_base_path = "bin"
+            sources = [
+                "*.cpp"
+            ]
+            extra_args = [ "-Werr" ]
+
+            [tests]
+            test_executable_name = "zork_check"
+            sources_base_path = "test"
+            sources = [
+                "*.cpp"
+            ]
+            extra_args = [ "-pedantic" ]
+
+            [modules]
+            base_ifcs_dir = "ifc"
+            interfaces = [
+                { filename = "math.cppm" },
+                { filename = 'some_module.cppm', module_name = 'math' }
+            ]
+
+            base_impls_dir = "src"
+            implementations = [
+                { filename = "math.cpp" },
+                { filename = 'some_module_impl.cpp', dependencies = ['iostream'] }
+            ]
+            gcc_sys_headers = [
+                "/usr/include"
+            ]
+        "#;
+
+        let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
+        let model = build_model(&config);
+
+        let expected = ZorkModel {
+            project: ProjectModel {
+                name: "Zork++",
+                authors: &["zerodaycode.gz@gmail.com"],
+            },
+            compiler: CompilerModel {
+                cpp_compiler: CppCompiler::CLANG,
+                cpp_standard: LanguageLevel::CPP20,
+                std_lib: Some(StdLib::LIBCPP),
+                extra_args: vec![Argument::from("-Wall")],
+                system_headers_path: Some(Path::new("/usr/include")),
+            },
+            build: BuildModel {
+                output_dir: Path::new("build"),
+            },
+            executable: ExecutableModel {
+                executable_name: "zork",
+                sourceset: SourceSet {
+                    base_path: Path::new("bin"),
+                    sources: vec![Source::Glob(GlobPattern("*.cpp"))],
+                },
+                extra_args: vec![Argument::from("-Werr")],
+            },
+            modules: ModulesModel {
+                base_ifcs_dir: Path::new("ifc"),
+                interfaces: vec![
+                    ModuleInterfaceModel {
+                        filename: Path::new("math.cppm"),
+                        module_name: "math",
+                        dependencies: vec![],
+                    },
+                    ModuleInterfaceModel {
+                        filename: Path::new("some_module.cppm"),
+                        module_name: "math",
+                        dependencies: vec![],
+                    },
+                ],
+                base_impls_dir: Path::new("src"),
+                implementations: vec![
+                    ModuleImplementationModel {
+                        filename: Path::new("math.cpp"),
+                        dependencies: vec!["math"],
+                    },
+                    ModuleImplementationModel {
+                        filename: Path::new("some_module_impl.cpp"),
+                        dependencies: vec!["iostream"],
+                    },
+                ],
+                gcc_sys_headers: vec![Path::new("/usr/include")],
+            },
+            tests: TestsModel {
+                test_executable_name: "zork_check".to_string(),
+                sourceset: SourceSet {
+                    base_path: Path::new("test"),
+                    sources: vec![Source::Glob(GlobPattern("*.cpp"))],
+                },
+                extra_args: vec![Argument::from("-pedantic")],
+            },
+        };
+
+        assert_eq!(model, expected);
+
+        Ok(())
+    }
 }
