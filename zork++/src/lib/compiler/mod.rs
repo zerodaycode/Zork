@@ -207,11 +207,12 @@ mod sources {
 
                 if cfg!(target_os = "windows") {
                     arguments.push(Argument::from(format!(
-                        "-fmodule-map-file={:?}",
+                        "-fmodule-map-file={}",
                         out_dir
                             .join("zork")
                             .join("intrinsics")
                             .join("zork.modulemap")
+                            .display()
                     )))
                 } else {
                     arguments.push(Argument::from("-fimplicit-module-maps"))
@@ -328,12 +329,12 @@ mod sources {
                         // some MinGW installation or similar.
                         // Should this be handled in another way?
                         Argument::from(format!(
-                            "-fmodule-map-file={:?}",
+                            "-fmodule-map-file={}",
                             out_dir
                                 .join("zork")
                                 .join("intrinsics")
                                 .join("zork.modulemap")
-                        )),
+                                .display()                        )),
                     )
                 } else {
                     arguments.push(Argument::from("-fimplicit-module-maps"))
@@ -422,11 +423,12 @@ mod sources {
 
                 if std::env::consts::OS.eq("windows") {
                     arguments.push(Argument::from(format!(
-                        "-fmodule-map-file={:?}",
+                        "-fmodule-map-file={}",
                         out_dir
                             .join("zork")
                             .join("intrinsics")
                             .join("zork.modulemap")
+                            .display()
                     )))
                 } else {
                     arguments.push(Argument::from("-fimplicit-module-maps"))
