@@ -192,6 +192,8 @@ mod sources {
         let compiler = &model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir;
         let executable_name = target.name();
+        let binary_extension = if cfg!(target_os = "windows") 
+            { ".exe" } else { "" };
 
         let mut arguments = Vec::new();
         arguments.push(model.compiler.language_level_arg());
@@ -229,16 +231,12 @@ mod sources {
 
                 arguments.push(Argument::from("-o"));
                 arguments.push(Argument::from(format!(
-                    "{}{}",
+                    "{}",
                     out_dir
                         .join(compiler.as_ref())
                         .join(executable_name)
-                        .display(),
-                    if cfg!(target_os = "windows") {
-                        ".exe"
-                    } else {
-                        ""
-                    }
+                        .with_extension(binary_extension)
+                        .display()
                 )));
 
                 arguments.extend(commands.generated_files_paths.clone().into_iter());
@@ -269,7 +267,7 @@ mod sources {
                     out_dir
                         .join(compiler.as_ref())
                         .join(executable_name)
-                        .with_extension("exe")
+                        .with_extension(binary_extension)
                         .display()
                 )));
                 arguments.extend(commands.generated_files_paths.clone().into_iter());
@@ -278,16 +276,12 @@ mod sources {
                 arguments.push(Argument::from("-fmodules-ts"));
                 arguments.push(Argument::from("-o"));
                 arguments.push(Argument::from(format!(
-                    "{}{}",
+                    "{}",
                     out_dir
                         .join(compiler.as_ref())
                         .join(executable_name)
-                        .display(),
-                    if cfg!(target_os = "windows") {
-                        ".exe"
-                    } else {
-                        ""
-                    }
+                        .with_extension(binary_extension)
+                        .display()
                 )));
                 arguments.extend(commands.generated_files_paths.clone().into_iter());
             }
@@ -334,7 +328,9 @@ mod sources {
                                 .join("zork")
                                 .join("intrinsics")
                                 .join("zork.modulemap")
-                                .display()                        )),
+                                .display()
+                            )
+                        ),
                     )
                 } else {
                     arguments.push(Argument::from("-fimplicit-module-maps"))

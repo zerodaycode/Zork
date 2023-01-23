@@ -125,21 +125,6 @@ pub enum LanguageLevel {
     LATEST,
 }
 
-// impl LanguageLevel {
-//     pub fn as_str(&self) -> &str {
-//         match *self {
-//             LanguageLevel::CPP20 => "20",
-//             LanguageLevel::CPP23 => "23",
-//             LanguageLevel::CPP2A => "2a",
-//             LanguageLevel::CPP2B => "2b",
-//             LanguageLevel::LATEST => "latest",
-//         }
-//     }
-
-//     pub fn as_cmd_arg(&self, compiler: &CppCompiler) -> String {
-//         match compiler {
-//             CppCompiler::CLANG | CppCompiler::GCC => format!("-std=c++{}", self.as_str()),
-//             CppCompiler::MSVC => format!("/std:c++{}", self.as_str()),
 // Clippy warns to prefer implementing the From trait instead of Into.
 // That would require that the project model know about config_file details, which is ugly.
 #[allow(clippy::from_over_into)]
@@ -154,12 +139,6 @@ impl Into<project_model::compiler::LanguageLevel> for LanguageLevel {
         }
     }
 }
-
-// impl fmt::Display for LanguageLevel {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         write!(f, "{}", self.as_str())
-//     }
-// }
 
 /// The standard library (compiler specific) that the user
 /// desires to link against
