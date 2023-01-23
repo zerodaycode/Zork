@@ -30,8 +30,7 @@ pub fn build_project<'a>(
     // Create the directory for dump the generated files
     create_output_directory(base_path, &model)?;
 
-    if model.compiler.cpp_compiler == CppCompiler::GCC {
-        // Special GCC case
+    if model.compiler.cpp_compiler == CppCompiler::GCC { // Special GCC case
         helpers::process_gcc_system_modules(&model, &mut commands)
     }
 
@@ -175,7 +174,7 @@ mod sources {
             compiler::CppCompiler,
             modules::{ModuleImplementationModel, ModuleInterfaceModel},
             ZorkModel,
-        }, cli::output::{commands::Commands, arguments::Argument},
+        }, cli::output::{commands::Commands, arguments::Argument}, utils::constants,
     };
 
     use super::helpers;
@@ -192,8 +191,6 @@ mod sources {
         let compiler = &model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir;
         let executable_name = target.name();
-        let binary_extension = if cfg!(target_os = "windows") 
-            { ".exe" } else { "" };
 
         let mut arguments = Vec::new();
         arguments.push(model.compiler.language_level_arg());
@@ -235,7 +232,7 @@ mod sources {
                     out_dir
                         .join(compiler.as_ref())
                         .join(executable_name)
-                        .with_extension(binary_extension)
+                        .with_extension(constants::BINARY_EXTENSION)
                         .display()
                 )));
 
@@ -267,7 +264,7 @@ mod sources {
                     out_dir
                         .join(compiler.as_ref())
                         .join(executable_name)
-                        .with_extension(binary_extension)
+                        .with_extension(constants::BINARY_EXTENSION)
                         .display()
                 )));
                 arguments.extend(commands.generated_files_paths.clone().into_iter());
@@ -280,7 +277,7 @@ mod sources {
                     out_dir
                         .join(compiler.as_ref())
                         .join(executable_name)
-                        .with_extension(binary_extension)
+                        .with_extension(constants::BINARY_EXTENSION)
                         .display()
                 )));
                 arguments.extend(commands.generated_files_paths.clone().into_iter());

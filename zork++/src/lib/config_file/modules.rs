@@ -23,7 +23,7 @@ use serde::Deserialize;
 ///     implementations = [
 ///         { filename = 'math.cpp' }, { filename = 'some_module_impl.cpp', dependencies = ['iostream'] }
 ///     ]
-///     gcc_sys_headers = ['iostream', 'vector', 'string', 'type_traits', 'functional']
+///     gcc_sys_modules = ['iostream', 'vector', 'string', 'type_traits', 'functional']
 /// "#;
 ///
 /// let config: ModulesAttribute = toml::from_str(CONFIG_FILE_MOCK)
@@ -69,7 +69,7 @@ pub struct ModulesAttribute<'a> {
     #[serde(borrow)]
     pub implementations: Option<Vec<ModuleImplementation<'a>>>,
     #[serde(borrow)]
-    pub gcc_sys_headers: Option<Vec<&'a str>>,
+    pub gcc_sys_modules: Option<Vec<&'a str>>,
 }
 
 /// [`ModuleInterface`] -  A module interface structure for dealing

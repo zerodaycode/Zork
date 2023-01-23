@@ -4,7 +4,7 @@ use std::path::Path;
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
 
-use crate::project_model::compiler::CppCompiler;
+use crate::{project_model::compiler::CppCompiler, utils::constants};
 use color_eyre::{eyre::Context, Result};
 
 use super::arguments::Argument;
@@ -56,7 +56,6 @@ pub fn execute_commands(compiler: &CppCompiler, arguments_for_commands: &[&[Argu
         std::process::Command::new("sh")
     };
 
-    // let commands_to_execute = Vec::with_capacity(arguments_for_commands.len());
     arguments_for_commands.iter().for_each(|args_collection| {
         log::info!(
             "[{compiler}] - Generating command => {:?}",
@@ -88,7 +87,10 @@ pub fn autorun_generated_binary(
 ) -> Result<()> {
     let args = &[
         Argument::from(
-            output_dir.join(compiler.as_ref()).join(executable_name)
+            output_dir
+                .join(compiler.as_ref())
+                .join(executable_name)
+                .with_extension(constants::BINARY_EXTENSION)
         ),
     ];
 

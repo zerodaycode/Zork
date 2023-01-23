@@ -173,7 +173,7 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
         .unwrap_or_default();
 
     let gcc_sys_headers = config
-        .and_then(|modules| modules.gcc_sys_headers.as_ref())
+        .and_then(|modules| modules.gcc_sys_modules.as_ref())
         .map_or_else(Default::default, |headers| {
             headers.iter().map(Path::new).collect()
         });
