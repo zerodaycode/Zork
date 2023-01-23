@@ -48,3 +48,29 @@ impl<'a> core::fmt::Display for Argument<'a> {
         write!(f, "{}", self.value)
     }
 }
+
+pub mod clang_args {
+    use std::path::Path;
+
+    use super::*;
+
+    /// Generates the correct module mapping command line argument for Clang.
+    /// 
+    // The Windows variant is a Zork++ feature to allow the users to write `import std;`
+    // under -std=c++20 with clang linking against GCC with
+    // some MinGW installation or similar
+    pub fn implicit_module_maps<'a>(out_dir: &Path) -> Argument<'a> {
+        if std::env::consts::OS.eq("windows") {
+            Argument::from(format!(
+                "-fmodule-map-file={}",
+                out_dir
+                    .join("zork")
+                    .join("intrinsics")
+                    .join("zork.modulemap")
+                    .display()
+            ))
+        } else {
+            Argument::from("-fimplicit-module-maps")
+        }
+    } 
+}

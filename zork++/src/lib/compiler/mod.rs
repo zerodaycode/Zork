@@ -174,7 +174,7 @@ mod sources {
             compiler::CppCompiler,
             modules::{ModuleImplementationModel, ModuleInterfaceModel},
             ZorkModel,
-        }, cli::output::{commands::Commands, arguments::Argument}, utils::constants,
+        }, cli::output::{commands::Commands, arguments::{Argument, clang_args}}, utils::constants,
     };
 
     use super::helpers;
@@ -200,22 +200,10 @@ mod sources {
                 if let Some(arg) = model.compiler.stdlib_arg() {
                     arguments.push(arg);
                 }
+
                 arguments.extend_from_slice(target.extra_args());
-
                 arguments.push(Argument::from("-fimplicit-modules"));
-
-                if cfg!(target_os = "windows") {
-                    arguments.push(Argument::from(format!(
-                        "-fmodule-map-file={}",
-                        out_dir
-                            .join("zork")
-                            .join("intrinsics")
-                            .join("zork.modulemap")
-                            .display()
-                    )))
-                } else {
-                    arguments.push(Argument::from("-fimplicit-module-maps"))
-                }
+                arguments.push(clang_args::implicit_module_maps(out_dir));
 
                 arguments.push(Argument::from(format!(
                     "-fprebuilt-module-path={}",
@@ -313,26 +301,7 @@ mod sources {
                 arguments.push(Argument::from("c++-module"));
                 arguments.push(Argument::from("--precompile"));
 
-                if cfg!(target_os = "windows") {
-                    arguments.push(
-                        // This is a Zork++ feature to allow the users to write `import std;`
-                        // under -std=c++20 with clang linking against GCC under Windows with
-                        // some MinGW installation or similar.
-                        // Should this be handled in another way?
-                        Argument::from(format!(
-                            "-fmodule-map-file={}",
-                            out_dir
-                                .join("zork")
-                                .join("intrinsics")
-                                .join("zork.modulemap")
-                                .display()
-                            )
-                        ),
-                    )
-                } else {
-                    arguments.push(Argument::from("-fimplicit-module-maps"))
-                }
-
+                arguments.push(clang_args::implicit_module_maps(out_dir));
                 // The resultant BMI as a .pcm file
                 arguments.push(Argument::from("-o"));
                 // The output file
@@ -348,12 +317,13 @@ mod sources {
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("/EHsc"));
                 arguments.push(Argument::from("/nologo"));
+                arguments.push(Argument::from("/experimental:module"));
+                arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
                 arguments.push(Argument::from("/c"));
                 // The output .ifc file
                 arguments.push(Argument::from("/ifcOutput"));
                 let miu_file_path =
                     Argument::from(helpers::generate_prebuild_miu(compiler, out_dir, interface));
-                // commands.generated_files_paths.push(miu_file_path.clone()); // TODO Review this line MSVC Doesn't need to include .ifc files on the linkage
                 arguments.push(miu_file_path);
                 // The output .obj file
                 arguments.push(Argument::from(format!(
@@ -413,19 +383,7 @@ mod sources {
 
                 arguments.push(Argument::from("-fimplicit-modules"));
                 arguments.push(Argument::from("-c"));
-
-                if std::env::consts::OS.eq("windows") {
-                    arguments.push(Argument::from(format!(
-                        "-fmodule-map-file={}",
-                        out_dir
-                            .join("zork")
-                            .join("intrinsics")
-                            .join("zork.modulemap")
-                            .display()
-                    )))
-                } else {
-                    arguments.push(Argument::from("-fimplicit-module-maps"))
-                }
+                arguments.push(clang_args::implicit_module_maps(out_dir));
 
                 // The resultant object file
                 arguments.push(Argument::from("-o"));
@@ -460,6 +418,8 @@ mod sources {
                 arguments.push(Argument::from("/EHsc"));
                 arguments.push(Argument::from("/nologo"));
                 arguments.push(Argument::from("-c"));
+                arguments.push(Argument::from("/experimental:module"));
+                arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
                 arguments.push(Argument::from("-ifcSearchDir"));
                 arguments.push(Argument::from(
                     out_dir
