@@ -3,7 +3,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-///
+/// [`CacheFile`] It represents the way to store data for later review or use.
+///  
 /// ### Tests
 /// ```rust
 /// use chrono::{DateTime,Utc};
@@ -11,7 +12,7 @@ use serde::{Deserialize, Serialize};
 /// use zork::utils::{
 ///     cache::CacheFile,
 ///     cache::FileInfo,
-///     fs::{serialize_object,deserilize_file}
+///     fs::{serialize_object,deserilize_to_object}
 /// };
 ///
 /// let cache = CacheFile {
@@ -24,7 +25,7 @@ use serde::{Deserialize, Serialize};
 /// let path_file = Path::new("file.txt");
 /// serialize_object(path_file, &cache).unwrap();
 ///
-/// let cache_deserialize: CacheFile = deserilize_file(path_file).unwrap();
+/// let cache_deserialize: CacheFile = deserilize_to_object(path_file).unwrap();
 /// assert_eq!(cache,cache_deserialize);
 ///
 /// std::fs::remove_file(path_file);
@@ -35,6 +36,9 @@ pub struct CacheFile {
     pub last_date_execution: DateTime<Utc>,
 }
 
+///
+/// [`FileInfo`] It represents the information that will be saved from the files.
+///
 #[derive(Deserialize, Serialize, Debug, PartialEq, Eq)]
 pub struct FileInfo {
     pub path: String,
@@ -90,6 +94,7 @@ pub mod builder {
         Ok(files_info)
     }
 
+    /// [`get_file_info`] allows to get [`FileInfo`] in base directory with multiple files
     fn get_file_info(base_path: &str, files: Vec<&str>) -> Result<Vec<FileInfo>, Report> {
         let mut files_info: Vec<FileInfo> = vec![];
 
@@ -105,10 +110,12 @@ pub mod builder {
         Ok(files_info)
     }
 
+    /// [`make_path`] Create [`PathBuf`] with base directory and file name
     fn make_path(base: &str, file: &str) -> PathBuf {
         Path::new(base).join(file)
     }
 
+    /// [`make_file_info`] Scans a path and outputs the information as a structure [`FileInfo`]
     fn make_file_info(path: &PathBuf) -> Result<FileInfo, Report> {
         let path_string = path
             .to_str()
