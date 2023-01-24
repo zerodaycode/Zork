@@ -6,6 +6,7 @@ use std::path::Path;
 
 use crate::{project_model::compiler::CppCompiler, utils::constants};
 use color_eyre::{eyre::Context, Result};
+use serde::{Serialize, Deserialize};
 
 use super::arguments::Argument;
 
@@ -111,10 +112,10 @@ pub fn autorun_generated_binary(
     Ok(())
 }
 
-/// A kind of caché of the generated command lines
-#[derive(Debug)]
+/// Holds the generated command line arguments for a concrete compiler
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Commands<'a> {
-    pub compiler: &'a CppCompiler,
+    pub compiler: CppCompiler,
     pub interfaces: Vec<Vec<Argument<'a>>>,
     pub implementations: Vec<Vec<Argument<'a>>>,
     pub sources: Vec<Argument<'a>>,
@@ -122,9 +123,9 @@ pub struct Commands<'a> {
 }
 
 impl<'a> Commands<'a> {
-    pub fn new(compiler: &'a CppCompiler) -> Self {
+    pub fn new(compiler: CppCompiler) -> Self {
         Self {
-            compiler,
+            compiler: compiler,
             interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
             sources: Vec::with_capacity(0),

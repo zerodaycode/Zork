@@ -3,8 +3,10 @@
 
 use std::{borrow::Borrow, ffi::OsStr, path::PathBuf};
 
+use serde::{Serialize, Deserialize};
+
 /// Type for represent a command line argument
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Argument<'a> {
     pub value: &'a str,
 }

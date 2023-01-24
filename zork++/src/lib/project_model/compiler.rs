@@ -1,6 +1,8 @@
 use core::fmt;
 use std::path::Path;
 
+use serde::{Serialize, Deserialize};
+
 use crate::{bounds::ExtraArgs, cli::output::arguments::Argument};
 
 
@@ -37,7 +39,7 @@ impl<'a> ExtraArgs<'a> for CompilerModel<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CppCompiler {
     CLANG,
     MSVC,

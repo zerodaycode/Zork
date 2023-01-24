@@ -25,7 +25,7 @@ pub fn build_project<'a>(
     _cli_args: &CliArgs
 ) -> Result<()> {
     // A registry of the generated command lines
-    let mut commands = Commands::new(&model.compiler.cpp_compiler);
+    let mut commands = Commands::new(model.compiler.cpp_compiler);
 
     // Create the directory for dump the generated files
     create_output_directory(base_path, &model)?;
@@ -74,14 +74,14 @@ fn build_modules<'a>(model: &'a ZorkModel, commands: &mut Commands<'a>) -> Resul
     prebuild_module_interfaces(model, &model.modules.interfaces, commands);
 
     for miu in &commands.interfaces {
-        execute_command(commands.compiler, miu)?
+        execute_command(&commands.compiler, miu)?
     }
 
     log::info!("\n\nBuilding the module implementations");
     compile_module_implementations(model, &model.modules.implementations, commands);
 
     for impls in &commands.implementations {
-        execute_command(commands.compiler, impls)?
+        execute_command(&commands.compiler, impls)?
     }
 
     Ok(())
