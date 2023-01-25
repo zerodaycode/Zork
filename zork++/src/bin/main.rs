@@ -45,5 +45,6 @@ fn main() -> Result<()> {
             compiler,
         } => create_templated_project(base_path, &name, git, compiler.into())
             .with_context(|| "Failed to create new project"),
+        Command::Cache => todo!(),
     }
 }

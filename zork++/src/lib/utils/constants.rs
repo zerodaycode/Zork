@@ -5,3 +5,4 @@ pub const DEFAULT_OUTPUT_DIR: &str = "./out";
 
 pub const BINARY_EXTENSION: &str = 
     if cfg!(target_os = "windows") { "exe" } else { "" };
+pub const CACHE_FILE: &str = "cache.toml";
