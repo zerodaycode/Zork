@@ -4,7 +4,7 @@ use clap::Parser;
 use color_eyre::{eyre::Context, Result};
 use env_logger::Target;
 use zork::{
-    cli::{input::{CliArgs, Command}, output::commands::autorun_generated_binary},
+    cli::{input::{CliArgs, Command}, output::commands::{autorun_generated_binary, self}},
     compiler::build_project,
     utils::{logger::config_logger, template::create_templated_project, reader::{find_config_file, build_model}}, config_file::ZorkConfigFile
 };
@@ -23,15 +23,20 @@ fn main() -> Result<()> {
 
     let program_data = build_model(&config);
 
+
     match cli_args.command {
         Command::Build => {
-            build_project(base_path, &program_data, &cli_args)
-                .with_context(|| "Failed to build project")
-                .map(|_| Ok(()))?
+            let commands = build_project(base_path, &program_data)
+                .with_context(|| "Failed to build project")?;
+            commands::run_generated_commands(&commands)?;
+            Ok(())
         },
         Command::Run => {
-            build_project(base_path, &program_data, &cli_args)
+            let commands = build_project(base_path, &program_data)
                 .with_context(|| "Failed to build project")?;
+
+            commands::run_generated_commands(&commands)?;
+
             autorun_generated_binary(
                 &program_data.compiler.cpp_compiler,
                 program_data.build.output_dir,

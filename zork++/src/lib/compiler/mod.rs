@@ -7,7 +7,7 @@ use color_eyre::Result;
 use std::path::Path;
 
 use crate::{
-    cli::{input::CliArgs, output::{commands::{Commands, execute_command}, arguments::Argument}},
+    cli::output::{commands::Commands, arguments::Argument},
     project_model::{
         compiler::CppCompiler,
         modules::{ModuleImplementationModel, ModuleInterfaceModel},
@@ -19,11 +19,10 @@ use crate::{
 ///
 /// Whenever this process gets triggered, the files declared within the
 /// configuration file will be build
-pub fn build_project(
-    base_path: &Path, 
-    model: &ZorkModel<'_>,
-    _cli_args: &CliArgs
-) -> Result<()> {
+pub fn build_project<'a>(
+    base_path: &'a Path, 
+    model: &'a ZorkModel<'a>
+) -> Result<Commands<'a>> {
     // A registry of the generated command lines
     let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
@@ -39,26 +38,22 @@ pub fn build_project(
     // 2st - Build the executable or the tests
     build_executable(model, &mut commands)?;
 
-    Ok(())
+    Ok(commands)
 }
 
 /// Triggers the build process for compile the source files declared for the project
 /// and the
 fn build_executable<'a>(
-    model: &'a ZorkModel,
-    commands: &'a mut Commands<'a>,
-) -> Result<Vec<Argument<'a>>> {
-    let mut args = Vec::new();
-
-    args.extend(sources::generate_main_command_line_args(
+    model: &'a ZorkModel<'_>,
+    commands: &'_ mut Commands<'a>,
+) -> Result<()> {
+    sources::generate_main_command_line_args(
         model,
         commands,
         &model.executable,
-    )?);
+    )?;
 
-    execute_command(&model.compiler.cpp_compiler, &args)?;
-
-    Ok(args)
+    Ok(())
 }
 
 /// Triggers the build process for compile the declared modules in the project
@@ -67,22 +62,11 @@ fn build_executable<'a>(
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses>
 fn build_modules<'a>(model: &'a ZorkModel, commands: &mut Commands<'a>) -> Result<()> {
-    // TODO Dev todo's!
-    // Change the string types for strong types (ie, unit structs with strong typing)
-    // Also, can we check first is modules and interfaces .is_some() and then lauch this process?
     log::info!("\n\nBuilding the module interfaces");
     prebuild_module_interfaces(model, &model.modules.interfaces, commands);
 
-    for miu in &commands.interfaces {
-        execute_command(&commands.compiler, miu)?
-    }
-
     log::info!("\n\nBuilding the module implementations");
     compile_module_implementations(model, &model.modules.implementations, commands);
-
-    for impls in &commands.implementations {
-        execute_command(&commands.compiler, impls)?
-    }
 
     Ok(())
 }
@@ -90,7 +74,7 @@ fn build_modules<'a>(model: &'a ZorkModel, commands: &mut Commands<'a>) -> Resul
 /// Parses the configuration in order to build the BMIs declared for the project,
 /// by precompiling the module interface units
 fn prebuild_module_interfaces<'a>(
-    model: &'a ZorkModel,
+    model: &'a ZorkModel<'_>,
     interfaces: &'a [ModuleInterfaceModel],
     commands: &mut Commands<'a>,
 ) {
