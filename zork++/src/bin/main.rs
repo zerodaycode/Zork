@@ -34,8 +34,8 @@ fn main() -> Result<()> {
                 .with_context(|| "Failed to build project")?;
             autorun_generated_binary(
                 &program_data.compiler.cpp_compiler,
-                &program_data.build.output_dir,
-                &program_data.executable.executable_name // TODO if tests then other logic way around
+                program_data.build.output_dir,
+                program_data.executable.executable_name // TODO if tests then other logic way around
             )
         },
         Command::Test => todo!("Implement test routine"),

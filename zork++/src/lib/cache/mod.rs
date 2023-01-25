@@ -4,12 +4,13 @@ use std::path::Path;
 
 use toml::value::Datetime;
 
-use crate::{cli::output::commands::Commands, bounds::TranslationUnit};
+use crate::cli::output::commands::Commands;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ZorkCache<'a> {
     pub last_program_execution: Datetime,
+    #[serde(borrow)]
     pub last_generated_commands: Commands<'a>,
     pub config_files: Vec<ZorkConfigFile<'a>>,
     pub compilers_metadata: CompilersMetadata<'a>, 
@@ -24,6 +25,7 @@ pub struct ZorkCache<'a> {
 /// by compiler, and/or by environment...
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ZorkConfigFile<'a> {
+    #[serde(borrow)]
     pub path: &'a Path,
     pub modified: Option<Datetime>
 }
@@ -31,6 +33,7 @@ pub struct ZorkConfigFile<'a> {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct CompilersMetadata<'a> {
     // pub clang: ClangMetadata<'a>, // NOT yet!
+    #[serde(borrow)]
     pub msvc: MsvcMetadata<'a>,
     pub gcc: GccMetadata<'a>
 }
@@ -42,12 +45,13 @@ pub struct CompilersMetadata<'a> {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct MsvcMetadata<'a> {
+    #[serde(borrow)]
     pub dev_commands_prompt: &'a Path
 }
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct GccMetadata<'a> {
-    pub 
+    pub test: &'a str
 }
 
 #[derive(Deserialize, Serialize, Debug)]

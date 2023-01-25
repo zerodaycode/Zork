@@ -19,25 +19,25 @@ use crate::{
 ///
 /// Whenever this process gets triggered, the files declared within the
 /// configuration file will be build
-pub fn build_project<'a>(
+pub fn build_project(
     base_path: &Path, 
-    model: &ZorkModel<'a>,
+    model: &ZorkModel<'_>,
     _cli_args: &CliArgs
 ) -> Result<()> {
     // A registry of the generated command lines
-    let mut commands = Commands::new(model.compiler.cpp_compiler);
+    let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
     // Create the directory for dump the generated files
-    create_output_directory(base_path, &model)?;
+    create_output_directory(base_path, model)?;
 
     if model.compiler.cpp_compiler == CppCompiler::GCC { // Special GCC case
-        helpers::process_gcc_system_modules(&model, &mut commands)
+        helpers::process_gcc_system_modules(model, &mut commands)
     }
 
     // 1st - Build the modules
-    build_modules(&model, &mut commands)?;
+    build_modules(model, &mut commands)?;
     // 2st - Build the executable or the tests
-    build_executable(&model, &mut commands)?;
+    build_executable(model, &mut commands)?;
 
     Ok(())
 }
@@ -438,7 +438,7 @@ mod sources {
                     .join("modules")
                     .join("implementations")
                     .join(implementation.filestem())
-                    .with_extension(".obj");
+                    .with_extension("obj");
 
                 commands
                     .generated_files_paths
