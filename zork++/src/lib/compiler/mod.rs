@@ -403,7 +403,7 @@ mod sources {
                             .join("modules")
                             .join("interfaces")
                             .join(ifc_dep)
-                            .with_extension(compiler.get_typical_bmi_extension())
+                            .with_extension(compiler.get_obj_file_extension())
                             .display()
                     )))
                 });
@@ -438,7 +438,7 @@ mod sources {
                     .join("modules")
                     .join("implementations")
                     .join(implementation.filestem())
-                    .with_extension("obj");
+                    .with_extension(compiler.get_obj_file_extension());
 
                 commands
                     .generated_files_paths
@@ -510,7 +510,7 @@ mod helpers {
             .join("modules")
             .join("implementations")
             .join(implementation.filestem())
-            .with_extension("o")
+            .with_extension(compiler.get_obj_file_extension())
     }
 
     /// GCC specific requirement. System headers as modules must be built before being imported

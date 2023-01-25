@@ -88,6 +88,8 @@ impl CppCompiler {
             CppCompiler::GCC => "o",
         }
     }
+
+    #[inline (always)] pub fn get_obj_file_extension(&self) -> &str { "o" }
 }
 
 #[derive(Debug, PartialEq, Eq)]
