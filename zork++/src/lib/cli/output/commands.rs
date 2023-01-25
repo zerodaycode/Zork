@@ -70,7 +70,7 @@ pub fn execute_commands(compiler: &CppCompiler, arguments_for_commands: &[&[Argu
 
     commands.spawn()?
         .wait()
-        .with_context(|| format!("[{compiler}] - Command {:?} failed!", commands))?;
+        .with_context(|| format!("[{compiler}] - Command {commands:?} failed!"))?;
     
 
     log::info!("[{compiler}] - Result: {:?}", commands);
@@ -116,6 +116,7 @@ pub fn autorun_generated_binary(
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Commands<'a> {
     pub compiler: CppCompiler,
+    #[serde(borrow)]
     pub interfaces: Vec<Vec<Argument<'a>>>,
     pub implementations: Vec<Vec<Argument<'a>>>,
     pub sources: Vec<Argument<'a>>,
@@ -123,9 +124,9 @@ pub struct Commands<'a> {
 }
 
 impl<'a> Commands<'a> {
-    pub fn new(compiler: CppCompiler) -> Self {
+    pub fn new(compiler: &'a CppCompiler) -> Self {
         Self {
-            compiler: compiler,
+            compiler: *compiler,
             interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
             sources: Vec::with_capacity(0),
