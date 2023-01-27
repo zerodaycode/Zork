@@ -169,7 +169,7 @@ mod sources {
         model: &'a ZorkModel,
         commands: &mut Commands<'a>,
         target: &'a impl ExecutableTarget<'a>,
-    ) -> Result<Vec<Argument<'a>>> {
+    ) -> Result<()> {
         log::info!("\n\nGenerating the main command line");
 
         let compiler = &model.compiler.cpp_compiler;
@@ -257,8 +257,9 @@ mod sources {
         };
 
         target.sourceset().as_args_to(&mut arguments)?;
+        commands.sources.extend(arguments.into_iter());
 
-        Ok(arguments)
+        Ok(())
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
