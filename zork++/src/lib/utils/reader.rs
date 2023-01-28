@@ -88,8 +88,7 @@ fn assemble_compiler_model<'a>(config: &'a CompilerAttribute) -> CompilerModel<'
         cpp_compiler: config.cpp_compiler.clone().into(),
         cpp_standard: config.cpp_standard.clone().into(),
         std_lib: config.std_lib.clone().map(|lib| lib.into()),
-        extra_args,
-        system_headers_path: config.system_headers_path.map(Path::new),
+        extra_args
     }
 }
 
@@ -187,16 +186,14 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
 }
 
 fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInterfaceModel<'a> {
-    let filename = config.filename;
-
     let module_name = config
         .module_name
-        .unwrap_or_else(|| filename.split('.').collect::<Vec<_>>()[0]);
+        .unwrap_or_else(|| config.file.split('.').collect::<Vec<_>>()[0]);
 
     let dependencies = config.dependencies.clone().unwrap_or_default();
 
     ModuleInterfaceModel {
-        filename: Path::new(filename),
+        file: Path::new(config.file),
         module_name,
         dependencies,
     }
@@ -205,16 +202,14 @@ fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInt
 fn assemble_module_implementation_model<'a>(
     config: &'a ModuleImplementation,
 ) -> ModuleImplementationModel<'a> {
-    let filename = config.filename;
-
     let mut dependencies = config.dependencies.clone().unwrap_or_default();
     if dependencies.is_empty() {
-        let implicit_dependency = filename.split('.').collect::<Vec<_>>()[0];
+        let implicit_dependency = config.file.split('.').collect::<Vec<_>>()[0];
         dependencies.push(implicit_dependency);
     }
 
     ModuleImplementationModel {
-        filename: Path::new(filename),
+        file: Path::new(config.file),
         dependencies,
     }
 }
@@ -292,8 +287,7 @@ mod test {
                 cpp_compiler: CppCompiler::CLANG,
                 cpp_standard: LanguageLevel::CPP20,
                 std_lib: None,
-                extra_args: vec![],
-                system_headers_path: None,
+                extra_args: vec![]
             },
             build: BuildModel {
                 output_dir: Path::new("./out"),
@@ -340,7 +334,6 @@ mod test {
             cpp_standard = "20"
             std_lib = "libc++"
             extra_args = [ "-Wall" ]
-            system_headers_path = "/usr/include"
 
             [build]
             output_dir = "build"
@@ -364,18 +357,16 @@ mod test {
             [modules]
             base_ifcs_dir = "ifc"
             interfaces = [
-                { filename = "math.cppm" },
-                { filename = 'some_module.cppm', module_name = 'math' }
+                { file = "math.cppm" },
+                { file = 'some_module.cppm', module_name = 'math' }
             ]
 
             base_impls_dir = "src"
             implementations = [
-                { filename = "math.cpp" },
-                { filename = 'some_module_impl.cpp', dependencies = ['iostream'] }
+                { file = "math.cpp" },
+                { file = 'some_module_impl.cpp', dependencies = ['iostream'] }
             ]
-            gcc_sys_headers = [
-                "/usr/include"
-            ]
+            gcc_sys_modules = [ "iostream" ]
         "#;
 
         let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
@@ -390,8 +381,7 @@ mod test {
                 cpp_compiler: CppCompiler::CLANG,
                 cpp_standard: LanguageLevel::CPP20,
                 std_lib: Some(StdLib::LIBCPP),
-                extra_args: vec![Argument::from("-Wall")],
-                system_headers_path: Some(Path::new("/usr/include")),
+                extra_args: vec![Argument::from("-Wall")]
             },
             build: BuildModel {
                 output_dir: Path::new("build"),
@@ -408,12 +398,12 @@ mod test {
                 base_ifcs_dir: Path::new("ifc"),
                 interfaces: vec![
                     ModuleInterfaceModel {
-                        filename: Path::new("math.cppm"),
+                        file: Path::new("math.cppm"),
                         module_name: "math",
                         dependencies: vec![],
                     },
                     ModuleInterfaceModel {
-                        filename: Path::new("some_module.cppm"),
+                        file: Path::new("some_module.cppm"),
                         module_name: "math",
                         dependencies: vec![],
                     },
@@ -421,15 +411,15 @@ mod test {
                 base_impls_dir: Path::new("src"),
                 implementations: vec![
                     ModuleImplementationModel {
-                        filename: Path::new("math.cpp"),
+                        file: Path::new("math.cpp"),
                         dependencies: vec!["math"],
                     },
                     ModuleImplementationModel {
-                        filename: Path::new("some_module_impl.cpp"),
+                        file: Path::new("some_module_impl.cpp"),
                         dependencies: vec!["iostream"],
                     },
                 ],
-                gcc_sys_modules: vec![Path::new("/usr/include")],
+                gcc_sys_modules: vec![&Path::new("iostream")],
             },
             tests: TestsModel {
                 test_executable_name: "zork_check".to_string(),

@@ -17,27 +17,29 @@ pub trait ExecutableTarget<'a>: ExtraArgs<'a> {
 /// Represents any kind of translation unit and the generic operations
 /// applicable to all the implementors
 pub trait TranslationUnit: Display + Debug {
-    /// Outputs the declared filename for `self` being the translation unit
-    fn filename(&self) -> &Path;
+    /// Outputs the declared path for `self` being the translation unit
+    fn file(&self) -> &Path;
 
     fn filestem(&self) -> &str {
-        self.filename()
+        self.file()
             .file_stem()
             .expect(
-                &format!("Unexpected error getting the filename of {:?}",
-                self.filename().as_os_str())
+                &format!(
+                    "Unexpected error getting the filename of {:?}",
+                    self.file().as_os_str()
+                )
             ).to_str().unwrap()
     }
 }
 
 impl TranslationUnit for &str {
-    fn filename(&self) -> &Path {
+    fn file(&self) -> &Path {
         Path::new(self)
     }
 }
 
 impl TranslationUnit for String {
-    fn filename(&self) -> &Path {
+    fn file(&self) -> &Path {
         Path::new(self)
     }
 }

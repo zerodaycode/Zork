@@ -66,7 +66,7 @@ pub mod builder {
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|interface| interface.filename)
+                .map(|interface| interface.file)
                 .collect();
             files_info.append(
                 &mut get_file_info(module_attribute.base_ifcs_dir.unwrap(), interface_in_str)
@@ -80,7 +80,7 @@ pub mod builder {
                 .as_ref()
                 .unwrap()
                 .iter()
-                .map(|implementation| implementation.filename)
+                .map(|implementation| implementation.file)
                 .collect();
             files_info.append(
                 &mut get_file_info(

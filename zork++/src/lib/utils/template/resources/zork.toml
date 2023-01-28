@@ -27,10 +27,10 @@ auto_run_tests = true
 [modules]
 base_ifcs_dir = "./<project_name>/ifc"
 interfaces = [ 
-    { filename = 'math.cppm' }    
+    { file = 'math.cppm' }    
 ]
 base_impls_dir = "<project_name>/src"
 implementations = [
-    { filename = 'math.cpp' },
-    { filename = 'math2.cpp', dependencies = ['math'] }
+    { file = 'math.cpp' },
+    { file = 'math2.cpp', dependencies = ['math'] }
 ]

@@ -424,7 +424,7 @@ mod helpers {
         translation_unit: &T,
         base_path: &Path,
     ) -> PathBuf {
-        base_path.join(translation_unit.filename())
+        base_path.join(translation_unit.file())
     }
 
     pub(crate) fn generate_prebuild_miu(

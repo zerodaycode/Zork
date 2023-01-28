@@ -1,5 +1,4 @@
 use core::fmt;
-use std::path::Path;
 
 use serde::{Serialize, Deserialize};
 
@@ -11,8 +10,7 @@ pub struct CompilerModel<'a> {
     pub cpp_compiler: CppCompiler,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
-    pub extra_args: Vec<Argument<'a>>,
-    pub system_headers_path: Option<&'a Path>,
+    pub extra_args: Vec<Argument<'a>>
 }
 
 impl<'a> CompilerModel<'a> {
