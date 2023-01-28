@@ -15,7 +15,6 @@ use super::arguments::Argument;
 /// build_project(...) function for dealing with the generated
 /// command lines
 pub fn run_generated_commands(commands: &Commands<'_>) -> Result<()> {
-    log::info!("Commands: {commands:?}");
     for miu in &commands.interfaces {
         execute_command(&commands.compiler, miu)?
     }
@@ -36,7 +35,6 @@ pub fn autorun_generated_binary(
     compiler: &CppCompiler,
     output_dir: &Path,
     executable_name: &str
-    // arguments: &[Argument<'_>]
 ) -> Result<()> {
     let args = &[
         Argument::from(

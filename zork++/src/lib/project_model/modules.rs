@@ -9,7 +9,7 @@ pub struct ModulesModel<'a> {
     pub interfaces: Vec<ModuleInterfaceModel<'a>>,
     pub base_impls_dir: &'a Path,
     pub implementations: Vec<ModuleImplementationModel<'a>>,
-    pub gcc_sys_headers: Vec<&'a Path>,
+    pub gcc_sys_modules: Vec<&'a Path>,
 }
 
 #[derive(Debug, PartialEq, Eq)]

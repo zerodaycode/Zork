@@ -505,7 +505,7 @@ mod helpers {
     ) {
         let language_level = model.compiler.language_level_arg();
         let sys_modules = model.modules
-            .gcc_sys_headers
+            .gcc_sys_modules
             .iter()
             .map(|sys_module| {
                 vec![
@@ -517,7 +517,9 @@ mod helpers {
                 ]
         });
 
+        
         commands.interfaces.extend(sys_modules);
+        log::info!("Adding the GCC module interfaces: {:?}", &commands.interfaces);
     }
 }
 
