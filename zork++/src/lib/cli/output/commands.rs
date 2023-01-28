@@ -15,14 +15,17 @@ use super::arguments::Argument;
 /// build_project(...) function for dealing with the generated
 /// command lines
 pub fn run_generated_commands(commands: &Commands<'_>) -> Result<()> {
+    log::info!("Executing the commands for the modules interfaces");
     for miu in &commands.interfaces {
         execute_command(&commands.compiler, miu)?
     }
 
+    log::info!("Executing the commands for the module implementations");
     for impls in &commands.implementations {
         execute_command(&commands.compiler, impls)?
     }
 
+    log::info!("Executing the main command line");
     execute_command(&commands.compiler, &commands.sources)?;
 
     Ok(())

@@ -74,10 +74,10 @@ fn build_executable<'a>(
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses>
 fn build_modules<'a>(model: &'a ZorkModel, commands: &mut Commands<'a>) -> Result<()> {
-    log::info!("\n\nBuilding the module interfaces");
+    log::info!("Building the module interfaces");
     prebuild_module_interfaces(model, &model.modules.interfaces, commands);
 
-    log::info!("\n\nBuilding the module implementations");
+    log::info!("Building the module implementations");
     compile_module_implementations(model, &model.modules.implementations, commands);
 
     Ok(())
@@ -129,7 +129,7 @@ mod sources {
         commands: &mut Commands<'a>,
         target: &'a impl ExecutableTarget<'a>,
     ) -> Result<()> {
-        log::info!("\n\nGenerating the main command line");
+        log::info!("Generating the main command line\n");
 
         let compiler = &model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir;
