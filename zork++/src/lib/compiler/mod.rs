@@ -21,13 +21,14 @@ use crate::{
 /// configuration file will be build
 pub fn build_project<'a>(
     base_path: &'a Path, 
-    model: &'a ZorkModel<'a>
+    model: &'a ZorkModel<'a>,
+    tests: bool
 ) -> Result<Commands<'a>> {
     // A registry of the generated command lines
     let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
     // Create the directory for dump the generated files
-    create_output_directory(base_path, model)?;
+    helpers::create_output_directory(base_path, model)?;
 
     if model.compiler.cpp_compiler == CppCompiler::GCC { // Special GCC case
         helpers::process_gcc_system_modules(model, &mut commands)
@@ -43,24 +44,28 @@ pub fn build_project<'a>(
     // 1st - Build the modules
     build_modules(model, &mut commands)?;
     // 2st - Build the executable or the tests
-    build_executable(model, &mut commands)?;
+    build_executable(model, &mut commands, tests)?;
 
     Ok(commands)
 }
 
 /// Triggers the build process for compile the source files declared for the project
-/// and the
+/// If this flow is enabled by the Cli arg `Tests`, then the executable will be generated
+/// for the files and properties declared for the tests section in the configuration file
 fn build_executable<'a>(
     model: &'a ZorkModel<'_>,
     commands: &'_ mut Commands<'a>,
+    tests: bool
 ) -> Result<()> {
-    sources::generate_main_command_line_args(
-        model,
-        commands,
-        &model.executable,
-    )?;
-
-    Ok(())
+    if tests { 
+        sources::generate_main_command_line_args(
+            model, commands, &model.tests
+        )    
+    } else { 
+        sources::generate_main_command_line_args(
+            model, commands, &model.executable
+        )     
+    }
 }
 
 /// Triggers the build process for compile the declared modules in the project
@@ -100,59 +105,6 @@ fn compile_module_implementations<'a>(
     impls.iter().for_each(|module_impl| {
         sources::generate_module_implementation_args(model, module_impl, commands);
     });
-}
-
-/// Creates the directory for output the elements generated
-/// during the build process. Also, it will generate the
-/// ['output_build_dir'/zork], which is a subfolder
-/// where Zork dumps the things that needs to work correctly
-/// under different conditions.
-///
-/// Under /zork, some new folders are created:
-/// - a /intrinsics folder in created as well,
-/// where different specific details of Zork++ are stored
-/// related with the C++ compilers
-///
-/// - a /cache folder, where lives the metadata cached by Zork++
-/// in order to track different aspects of the program (last time
-/// modified files, last process build time...)
-///  
-/// TODO Generate the caché process, like last time project build,
-/// and only rebuild files that is metadata contains a newer last
-/// time modified date that the last Zork++ process
-pub fn create_output_directory(base_path: &Path, model: &ZorkModel) -> Result<()> {
-    let out_dir = &model.build.output_dir;
-    let compiler = &model.compiler.cpp_compiler;
-
-    // Recursively create a directory and all of its parent components if they are missing
-    let modules_path = Path::new(base_path)
-        .join(out_dir)
-        .join(compiler.to_string())
-        .join("modules");
-    let zork_path = base_path.join(out_dir).join("zork");
-    let zork_cache_path = zork_path.join("cache");
-    let zork_intrinsics_path = zork_path.join("intrinsics");
-
-    utils::fs::create_directory(&modules_path.join("interfaces"))?;
-    utils::fs::create_directory(&modules_path.join("implementations"))?;
-    utils::fs::create_directory(&zork_cache_path)?;
-    utils::fs::create_directory(&zork_intrinsics_path)?;
-
-    // TODO This possibly would be temporary
-    if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
-        utils::fs::create_file(
-            &zork_intrinsics_path,
-            "std.h",
-            utils::template::resources::STD_HEADER.as_bytes(),
-        )?;
-        utils::fs::create_file(
-            &zork_intrinsics_path,
-            "zork.modulemap",
-            utils::template::resources::ZORK_MODULEMAP.as_bytes(),
-        )?;
-    }
-
-    Ok(())
 }
 
 /// Specific operations over source files
@@ -505,6 +457,55 @@ mod helpers {
             .with_extension(compiler.get_obj_file_extension())
     }
 
+    /// Creates the directory for output the elements generated
+    /// during the build process. Also, it will generate the
+    /// ['output_build_dir'/zork], which is a subfolder
+    /// where Zork dumps the things that needs to work correctly
+    /// under different conditions.
+    ///
+    /// Under /zork, some new folders are created:
+    /// - a /intrinsics folder in created as well,
+    /// where different specific details of Zork++ are stored
+    /// related with the C++ compilers
+    ///
+    /// - a /cache folder, where lives the metadata cached by Zork++
+    /// in order to track different aspects of the program (last time
+    /// modified files, last process build time...)
+    pub(crate) fn create_output_directory(base_path: &Path, model: &ZorkModel) -> Result<()> {
+        let out_dir = &model.build.output_dir;
+        let compiler = &model.compiler.cpp_compiler;
+
+        // Recursively create a directory and all of its parent components if they are missing
+        let modules_path = Path::new(base_path)
+            .join(out_dir)
+            .join(compiler.to_string())
+            .join("modules");
+        let zork_path = base_path.join(out_dir).join("zork");
+        let zork_cache_path = zork_path.join("cache");
+        let zork_intrinsics_path = zork_path.join("intrinsics");
+
+        utils::fs::create_directory(&modules_path.join("interfaces"))?;
+        utils::fs::create_directory(&modules_path.join("implementations"))?;
+        utils::fs::create_directory(&zork_cache_path)?;
+        utils::fs::create_directory(&zork_intrinsics_path)?;
+
+        // TODO This possibly would be temporary
+        if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
+            utils::fs::create_file(
+                &zork_intrinsics_path,
+                "std.h",
+                utils::template::resources::STD_HEADER.as_bytes(),
+            )?;
+            utils::fs::create_file(
+                &zork_intrinsics_path,
+                "zork.modulemap",
+                utils::template::resources::ZORK_MODULEMAP.as_bytes(),
+            )?;
+        }
+
+        Ok(())
+    }
+
     /// GCC specific requirement. System headers as modules must be built before being imported
     pub(crate) fn process_gcc_system_modules<'a>(
         model: &'a ZorkModel,
@@ -556,7 +557,7 @@ mod tests {
         let model = build_model(&zcf);
 
         // This should create and out/ directory in the ./zork++ folder at the root of this project
-        create_output_directory(temp.path(), &model)?;
+        helpers::create_output_directory(temp.path(), &model)?;
 
         assert!(temp.path().join("out").exists());
         assert!(temp.path().join("out/zork").exists());

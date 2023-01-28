@@ -38,7 +38,10 @@ pub struct SourceSet<'a> {
 
 impl<'a> SourceSet<'a> {
     pub fn as_args_to(&'a self, dst: &mut Vec<Argument<'a>>) -> Result<()> {
-        let paths: Result<Vec<Vec<PathBuf>>> = self.sources.iter().map(Source::paths).collect();
+        let paths: Result<Vec<Vec<PathBuf>>> = self.sources
+            .iter()
+            .map(Source::paths)
+            .collect();
 
         let paths = paths?
             .into_iter()

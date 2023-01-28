@@ -20,8 +20,7 @@ impl<'a> CompilerModel<'a> {
         match self.cpp_compiler {
             CppCompiler::CLANG | CppCompiler::GCC => {
                 Argument::from(format!("-std=c++{}", self.cpp_standard))
-            }
-
+            },
             CppCompiler::MSVC => Argument::from(format!("-std:c++{}", self.cpp_standard)),
         }
     }

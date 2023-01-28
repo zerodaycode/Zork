@@ -26,13 +26,13 @@ fn main() -> Result<()> {
 
     match cli_args.command {
         Command::Build => {
-            let commands = build_project(base_path, &program_data)
+            let commands = build_project(base_path, &program_data, false)
                 .with_context(|| "Failed to build project")?;
             commands::run_generated_commands(&commands)?;
             Ok(())
         },
         Command::Run => {
-            let commands = build_project(base_path, &program_data)
+            let commands = build_project(base_path, &program_data, false)
                 .with_context(|| "Failed to build project")?;
 
             commands::run_generated_commands(&commands)?;
@@ -40,10 +40,21 @@ fn main() -> Result<()> {
             autorun_generated_binary(
                 &program_data.compiler.cpp_compiler,
                 program_data.build.output_dir,
-                program_data.executable.executable_name // TODO if tests then other logic way around
+                program_data.executable.executable_name
             )
         },
-        Command::Test => todo!("Implement test routine"),
+        Command::Test => {
+            let commands = build_project(base_path, &program_data, true)
+                .with_context(|| "Failed to build project")?;
+
+            commands::run_generated_commands(&commands)?;
+
+            autorun_generated_binary(
+                &program_data.compiler.cpp_compiler,
+                program_data.build.output_dir,
+                &program_data.tests.test_executable_name
+            )
+        },
         Command::New {
             name,
             git,
