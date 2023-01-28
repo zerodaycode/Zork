@@ -32,6 +32,13 @@ pub fn build_project<'a>(
     if model.compiler.cpp_compiler == CppCompiler::GCC { // Special GCC case
         helpers::process_gcc_system_modules(model, &mut commands)
     }
+    if cfg!(taget_os = "windows")
+        && model.compiler.cpp_compiler == CppCompiler::MSVC
+        // && !not_in_cache waiting for the cache impl
+    {
+        // TODO There's no implementation yet
+        helpers::find_developers_command_prompt_path()
+    }
 
     // 1st - Build the modules
     build_modules(model, &mut commands)?;
@@ -519,7 +526,13 @@ mod helpers {
 
         
         commands.interfaces.extend(sys_modules);
-        log::info!("Adding the GCC module interfaces: {:?}", &commands.interfaces);
+    }
+
+    /// If Windows is the current OS, and the compiler is MSVC, then we will try
+    /// to locate the path os the vcvrsall.bat scripts that launches the
+    /// Developers Command Prompt
+    pub (crate) fn find_developers_command_prompt_path() {
+
     }
 }
 

@@ -330,7 +330,7 @@ mod test {
     }
 
     #[test]
-    fn test_project_model_with_full_config() {
+    fn test_project_model_with_full_config() -> Result<()> {
         const CONFIG_FILE_MOCK: &str = r#"
             [project]
             name = "Zork++"
@@ -379,5 +379,71 @@ mod test {
             ]
         "#;
 
+        let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
+        let model = build_model(&config);
+
+        let expected = ZorkModel {
+            project: ProjectModel {
+                name: "Zork++",
+                authors: &["zerodaycode.gz@gmail.com"],
+            },
+            compiler: CompilerModel {
+                cpp_compiler: CppCompiler::CLANG,
+                cpp_standard: LanguageLevel::CPP20,
+                std_lib: Some(StdLib::LIBCPP),
+                extra_args: vec![Argument::from("-Wall")],
+                system_headers_path: Some(Path::new("/usr/include")),
+            },
+            build: BuildModel {
+                output_dir: Path::new("build"),
+            },
+            executable: ExecutableModel {
+                executable_name: "zork",
+                sourceset: SourceSet {
+                    base_path: Path::new("bin"),
+                    sources: vec![Source::Glob(GlobPattern("*.cpp"))],
+                },
+                extra_args: vec![Argument::from("-Werr")],
+            },
+            modules: ModulesModel {
+                base_ifcs_dir: Path::new("ifc"),
+                interfaces: vec![
+                    ModuleInterfaceModel {
+                        filename: Path::new("math.cppm"),
+                        module_name: "math",
+                        dependencies: vec![],
+                    },
+                    ModuleInterfaceModel {
+                        filename: Path::new("some_module.cppm"),
+                        module_name: "math",
+                        dependencies: vec![],
+                    },
+                ],
+                base_impls_dir: Path::new("src"),
+                implementations: vec![
+                    ModuleImplementationModel {
+                        filename: Path::new("math.cpp"),
+                        dependencies: vec!["math"],
+                    },
+                    ModuleImplementationModel {
+                        filename: Path::new("some_module_impl.cpp"),
+                        dependencies: vec!["iostream"],
+                    },
+                ],
+                gcc_sys_modules: vec![Path::new("/usr/include")],
+            },
+            tests: TestsModel {
+                test_executable_name: "zork_check".to_string(),
+                sourceset: SourceSet {
+                    base_path: Path::new("test"),
+                    sources: vec![Source::Glob(GlobPattern("*.cpp"))],
+                },
+                extra_args: vec![Argument::from("-pedantic")],
+            },
+        };
+
+        assert_eq!(model, expected);
+
+        Ok(())
     }
 }
