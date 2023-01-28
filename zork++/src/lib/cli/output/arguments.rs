@@ -54,6 +54,8 @@ impl<'a> core::fmt::Display for Argument<'a> {
 pub mod clang_args {
     use std::path::Path;
 
+    use crate::project_model::compiler::CppCompiler;
+
     use super::*;
 
     
@@ -76,5 +78,25 @@ pub mod clang_args {
         } else {
             Argument::from("-fimplicit-module-maps")
         }
+    }
+
+    pub(crate) fn add_direct_module_interfafces_dependencies(
+        dependencies: &Vec<&str>,
+        compiler: &CppCompiler,
+        out_dir: &Path,
+        arguments: &mut Vec<Argument>
+    ) {
+        dependencies.iter().for_each(|ifc_dep| {
+            arguments.push(Argument::from(format!(
+                "-fmodule-file={}",
+                out_dir
+                    .join(compiler.as_ref())
+                    .join("modules")
+                    .join("interfaces")
+                    .join(ifc_dep)
+                    .with_extension(compiler.get_typical_bmi_extension())
+                    .display()
+            )))
+        });
     } 
 }

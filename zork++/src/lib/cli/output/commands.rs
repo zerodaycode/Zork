@@ -15,17 +15,23 @@ use super::arguments::Argument;
 /// build_project(...) function for dealing with the generated
 /// command lines
 pub fn run_generated_commands(commands: &Commands<'_>) -> Result<()> {
-    log::info!("Executing the commands for the modules interfaces");
+    if &commands.interfaces.len() > &(0 as usize) {
+        log::info!("Executing the commands for the module interfaces");
+    }
     for miu in &commands.interfaces {
         execute_command(&commands.compiler, miu)?
     }
 
-    log::info!("Executing the commands for the module implementations");
+    if &commands.interfaces.len() > &(0 as usize) {
+        log::info!("Executing the commands for the module implementations");
+    }
     for impls in &commands.implementations {
         execute_command(&commands.compiler, impls)?
     }
 
-    log::info!("Executing the main command line");
+    if &commands.interfaces.len() > &(0 as usize) {
+        log::info!("Executing the main command line");
+    }
     execute_command(&commands.compiler, &commands.sources)?;
 
     Ok(())
@@ -49,17 +55,17 @@ pub fn autorun_generated_binary(
     ];
 
     log::info!(
-        "\n\n[{compiler}] - Executing the generated binary => {:?}", args.join(" ")
+        "[{compiler}] - Executing the generated binary => {:?}\n", args.join(" ")
     );
 
-    let process = std::process::Command::new(
+    std::process::Command::new(
         Argument::from(
         output_dir.join(compiler.as_ref()).join(executable_name)
-    )).spawn()?
+    ))
+    .spawn()?
     .wait()
     .with_context(|| format!("[{compiler}] - Command {:?} failed!", args.join(" ")))?;
 
-    log::info!("[{compiler}] - Result: {:?}", process);
     Ok(())
 }
 
@@ -89,7 +95,7 @@ fn execute_command(compiler: &CppCompiler, arguments: &[Argument<'_>]) -> Result
             .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
     };
 
-    log::info!("[{compiler}] - Result: {:?}", process);
+    log::info!("[{compiler}] - Result: {:?}\n", process);
     Ok(())
 }
 

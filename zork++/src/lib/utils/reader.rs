@@ -126,8 +126,7 @@ fn assemble_executable_model<'a>(
             } else {
                 Source::File(Path::new(source))
             }
-        })
-        .collect();
+        }).collect();
 
     let sourceset = SourceSet {
         base_path: Path::new(base_path),

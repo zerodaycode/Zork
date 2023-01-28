@@ -246,6 +246,11 @@ mod sources {
                 arguments.push(Argument::from("--precompile"));
 
                 arguments.push(clang_args::implicit_module_maps(out_dir));
+
+                clang_args::add_direct_module_interfafces_dependencies(
+                    &interface.dependencies, compiler, out_dir, &mut arguments
+                );
+
                 // The resultant BMI as a .pcm file
                 arguments.push(Argument::from("-o"));
                 // The output file
@@ -339,18 +344,9 @@ mod sources {
                 commands.generated_files_paths.push(obj_file_path.clone());
                 arguments.push(obj_file_path);
 
-                implementation.dependencies.iter().for_each(|ifc_dep| {
-                    arguments.push(Argument::from(format!(
-                        "-fmodule-file={}",
-                        out_dir
-                            .join(compiler.as_ref())
-                            .join("modules")
-                            .join("interfaces")
-                            .join(ifc_dep)
-                            .with_extension(compiler.get_obj_file_extension())
-                            .display()
-                    )))
-                });
+                clang_args::add_direct_module_interfafces_dependencies(
+                    &implementation.dependencies, compiler, out_dir, &mut arguments
+                );
 
                 // The input file
                 arguments.push(Argument::from(helpers::add_input_file(
@@ -440,7 +436,7 @@ mod helpers {
             .join(compiler.as_ref())
             .join("modules")
             .join("interfaces")
-            .join(interface.module_name)
+            .join(interface.filestem())
             .with_extension(compiler.get_typical_bmi_extension())
     }
 

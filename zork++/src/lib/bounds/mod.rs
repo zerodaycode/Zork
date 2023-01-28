@@ -21,7 +21,12 @@ pub trait TranslationUnit: Display + Debug {
     fn filename(&self) -> &Path;
 
     fn filestem(&self) -> &str {
-        self.filename().file_stem().unwrap().to_str().unwrap()
+        self.filename()
+            .file_stem()
+            .expect(
+                &format!("Unexpected error getting the filename of {:?}",
+                self.filename().as_os_str())
+            ).to_str().unwrap()
     }
 }
 
