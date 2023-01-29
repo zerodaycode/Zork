@@ -7,6 +7,8 @@ use std::{
 use color_eyre::{eyre::Context, Result};
 use serde::{Deserialize, Serialize};
 
+use super::constants;
+
 pub fn create_file<'a>(path: &Path, filename: &'a str, buff_write: &'a [u8]) -> Result<()> {
     let file_path = path.join(filename);
 
@@ -23,21 +25,21 @@ pub fn create_directory(path_create: &Path) -> Result<()> {
         .with_context(|| format!("Could not create directory {path_create:?}"))
 }
 
-pub fn serialize_object<T>(path: &Path, cache_file: &T) -> Result<()>
-where
-    T: Serialize,
-{
-    serde_json::to_writer(
-        File::create(path).with_context(|| "Error create file")?,
-        cache_file,
-    )
-    .with_context(|| "Error serialize cache")
+pub fn serialize_object_to_file<T>(path: &Path, data: &T) -> Result<()>
+where T: Serialize {
+    serde_json::to_writer_pretty(
+        File::create(path).with_context(|| "Error creating the cache file")?,
+        data,
+    ).with_context(|| "Error serializing data to the cache")
 }
 
-pub fn deserilize_to_object<T>(path: &Path) -> Result<T>
+pub fn load_and_deserialize<T, P>(path: &P) -> Result<T>
 where
-    T: for<'a> Deserialize<'a>,
+    T: for<'a> Deserialize<'a> + Default,
+    P: AsRef<Path>
 {
-    let buffer = BufReader::new(File::open(path).with_context(|| "Error open file cache")?);
-    serde_json::from_reader(buffer).with_context(|| "Error deserilize cache file")
+    let buffer = BufReader::new(File::open(path.as_ref().join(constants::ZORK_CACHE_FILENAME))
+        .with_context(|| "Error opening the cache file")?);
+    Ok(serde_json::from_reader(buffer)
+        .unwrap_or(T::default()))
 }

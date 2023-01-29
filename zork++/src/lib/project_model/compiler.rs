@@ -36,9 +36,9 @@ impl<'a> ExtraArgs<'a> for CompilerModel<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Default)]
 pub enum CppCompiler {
-    CLANG,
+    #[default] CLANG,
     MSVC,
     GCC,
 }

@@ -173,7 +173,7 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
     let gcc_sys_modules = config
         .and_then(|modules| modules.gcc_sys_modules.as_ref())
         .map_or_else(Default::default, |headers| {
-            headers.iter().map(Path::new).collect()
+            headers.clone()
         });
 
     ModulesModel {
@@ -419,7 +419,7 @@ mod test {
                         dependencies: vec!["iostream"],
                     },
                 ],
-                gcc_sys_modules: vec![&Path::new("iostream")],
+                gcc_sys_modules: vec!["iostream"],
             },
             tests: TestsModel {
                 test_executable_name: "zork_check".to_string(),

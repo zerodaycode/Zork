@@ -1,60 +1,129 @@
 //! The implementation of the Zork++ cache, for persisting data in between process
 
-use std::path::Path;
+use std::{path::Path, fs::File};
+use chrono::{DateTime, Utc};
+use color_eyre::{Result, eyre::Context};
+use walkdir::WalkDir;
 
-use toml::value::Datetime;
-
-use crate::cli::output::commands::Commands;
+use crate::{utils::{self, constants::{GCC_CACHE_DIR, self}}, project_model::{compiler::CppCompiler, ZorkModel}};
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ZorkCache<'a> {
-    pub last_program_execution: Datetime,
-    #[serde(borrow)]
-    pub last_generated_commands: Commands<'a>,
-    pub config_files: Vec<ZorkConfigFile<'a>>,
-    pub compilers_metadata: CompilersMetadata<'a>, 
+/// Standalone utility for retrieve the Zork++ cache file
+pub fn load<'a>(program_data: &ZorkModel<'_>) -> Result<ZorkCache> {
+    let cache_path = &Path::new(program_data.build.output_dir)
+        .join("zork")
+        .join("cache");
+
+    let cache_file_path = cache_path.join(constants::ZORK_CACHE_FILENAME);
+    
+    if !Path::new(&cache_file_path).exists() {
+        File::create(cache_file_path)
+            .with_context(|| "Error creating the cache file")?;
+    }
+
+    let mut cache: ZorkCache = utils::fs::load_and_deserialize(&cache_path)
+        .with_context(|| "Error loading the Zork++ cache")?;
+
+    cache.run_tasks(program_data);
+
+    Ok(cache)
 }
 
-/// The metadata for a valid an recognized configuration
-/// file for the project.
-/// 
-/// TODO! Currently, we are only supporting one config file, but
-/// the idea is support multiple ones, and make them run concurrently,
-/// with different options, like having a suffix to distinguish them
-/// by compiler, and/or by environment...
-#[derive(Deserialize, Serialize, Debug)]
-pub struct ZorkConfigFile<'a> {
-    #[serde(borrow)]
-    pub path: &'a Path,
-    pub modified: Option<Datetime>
+/// Standalone utility for persist the cache to the file system
+pub fn save<'a>(program_data: &ZorkModel<'_>, mut cache: ZorkCache) -> Result<()> {
+    let cache_path = &Path::new(program_data.build.output_dir)
+        .join("zork")
+        .join("cache")
+        .join(constants::ZORK_CACHE_FILENAME);
+
+    cache.run_final_tasks(program_data);
+    cache.last_program_execution = DateTime::from(Utc::now());
+
+    utils::fs::serialize_object_to_file(cache_path, &cache)
+        .with_context(|| "Error saving data to the Zork++ cache")
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct CompilersMetadata<'a> {
-    // pub clang: ClangMetadata<'a>, // NOT yet!
-    #[serde(borrow)]
-    pub msvc: MsvcMetadata<'a>,
-    pub gcc: GccMetadata<'a>
+#[derive(Deserialize, Serialize, Debug, Default)]
+pub struct ZorkCache {
+    pub last_program_execution: DateTime<Utc>,
+    pub last_generated_commands: CachedCommands,
+    pub compilers_metadata: CompilersMetadata,
 }
 
-// #[derive(Deserialize, Serialize, Debug)]
-// pub struct ClangMetadata<'a> {
+impl ZorkCache {
+    pub fn run_tasks(&mut self, program_data: &ZorkModel<'_>) {
+        let compiler = program_data.compiler.cpp_compiler;
+        if cfg!(target_os = "windows") && compiler == CppCompiler::MSVC {
+            self.load_msvc_metadata()
+        }
+        if compiler == CppCompiler::GCC {
+            let i = Self::track_gcc_system_modules(program_data);
+            self.compilers_metadata.gcc.system_modules.clear();
+            self.compilers_metadata.gcc.system_modules.extend(i);
+        }
+    }
 
-// }
+    pub fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>) {
+        if program_data.compiler.cpp_compiler == CppCompiler::GCC {
+            self.compilers_metadata.gcc.system_modules = 
+                program_data.modules.gcc_sys_modules
+                    .iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>();
+        }
+    }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct MsvcMetadata<'a> {
-    #[serde(borrow)]
-    pub dev_commands_prompt: &'a Path
+    /// If Windows is the current OS, and the compiler is MSVC, then we will try
+    /// to locate the path os the vcvrsall.bat scripts that launches the
+    /// Developers Command Prompt
+    fn load_msvc_metadata(&self) {
+        if self.compilers_metadata.msvc.dev_commands_prompt.is_none() {
+
+        }
+    }
+
+    fn track_gcc_system_modules<'a>(program_data: &'a ZorkModel<'a>) -> impl Iterator<Item = String> + 'a {        
+        WalkDir::new(GCC_CACHE_DIR)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|file| {
+                if file.metadata().expect("Error retrieving metadata").is_file() {
+                    program_data.modules.gcc_sys_modules.iter().any(|sys_mod|
+                        file.file_name().to_str().unwrap().starts_with(sys_mod)
+                    )
+                } else {false}
+            }).map(|dir_entry| 
+                dir_entry
+                    .file_name()
+                    .to_str()
+                    .unwrap()
+                    .split('.')
+                    .collect::<Vec<_>>()[0]
+                    .to_string()
+            )
+    }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct GccMetadata<'a> {
-    pub test: &'a str
+#[derive(Deserialize, Serialize, Debug, Default)]
+pub struct CachedCommands {
+    compiler: CppCompiler,
+    interfaces: Vec<String>,
+    implementations: Vec<String>,
+    main: String
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct CachedProjectFiles {
-    // pub modules: TranslationUnit 
+#[derive(Deserialize, Serialize, Debug, Default)]
+pub struct CompilersMetadata {
+    pub msvc: MsvcMetadata,
+    pub gcc: GccMetadata
+}
+
+#[derive(Deserialize, Serialize, Debug, Default)]
+pub struct MsvcMetadata {
+    pub dev_commands_prompt: Option<String>
+}
+
+#[derive(Deserialize, Serialize, Debug, Default)]
+pub struct GccMetadata {
+    pub system_modules: Vec<String>
 }

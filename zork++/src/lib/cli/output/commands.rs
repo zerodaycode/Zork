@@ -142,6 +142,7 @@ fn _execute_commands(compiler: &CppCompiler, arguments_for_commands: &Vec<Vec<Ar
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Commands<'a> {
     pub compiler: CppCompiler,
+    pub system_modules: Vec<Vec<Argument<'a>>>,
     #[serde(borrow)]
     pub interfaces: Vec<Vec<Argument<'a>>>,
     pub implementations: Vec<Vec<Argument<'a>>>,
@@ -153,6 +154,7 @@ impl<'a> Commands<'a> {
     pub fn new(compiler: &'a CppCompiler) -> Self {
         Self {
             compiler: *compiler,
+            system_modules: Vec::with_capacity(0),
             interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
             sources: Vec::with_capacity(0),
