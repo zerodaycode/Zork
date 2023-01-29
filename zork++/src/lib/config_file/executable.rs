@@ -1,8 +1,6 @@
 ///! Specify the execution configuration
 use serde::*;
 
-use super::ExtraArgs;
-
 /// [`ExecutableAttribute`] -  The core section to instruct the compiler to work with C++20 modules.
 /// The most important are the base path to the interfaces and implementation files
 /// * `executable_name`- The name that the final binary is to be generated with
@@ -22,7 +20,7 @@ use super::ExtraArgs;
 ///     sources = [
 ///         '*.cpp'
 ///     ]
-///     extra_args = 'example'
+///     extra_args = ['example']
 /// "#;
 ///
 /// let config: ExecutableAttribute = toml::from_str(CONFIG_FILE_MOCK)
@@ -51,16 +49,4 @@ pub struct ExecutableAttribute<'a> {
     pub sources: Option<Vec<&'a str>>,
     #[serde(borrow)]
     pub extra_args: Option<Vec<&'a str>>,
-}
-
-impl ExtraArgs for ExecutableAttribute<'_> {
-    fn get_extra_args(&self) -> Option<Vec<&str>> {
-        self.extra_args.clone()
-    }
-}
-
-impl ExtraArgs for &'_ ExecutableAttribute<'_> {
-    fn get_extra_args(&self) -> Option<Vec<&str>> {
-        self.extra_args.clone()
-    }
 }

@@ -1,5 +1,3 @@
-use core::fmt;
-
 ///! file for represent the available configuration properties within Zork++
 ///! for setting up the target compiler
 ///
@@ -8,6 +6,8 @@ use core::fmt;
 /// allowing Zork++ to compile one project for multiple compilers
 /// at the same time
 use serde::Deserialize;
+
+use crate::project_model;
 
 /// [`CompilerAttribute`] - Configuration properties for
 /// targeting one of the available compilers within Zork++
@@ -90,40 +90,15 @@ pub enum CppCompiler {
     GCC, // Possible future interesting on support the Intel's C++ compiler?
 }
 
-impl fmt::Display for CppCompiler {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            CppCompiler::CLANG => write!(f, "clang"),
-            CppCompiler::MSVC => write!(f, "msvc"),
-            CppCompiler::GCC => write!(f, "gcc"),
-        }
-    }
-}
-
-impl CppCompiler {
-    /// Returns an &str representing the compiler driver that will be called
-    /// in the command line to generate the build events
-    pub fn get_driver(&self) -> &str {
-        match *self {
-            CppCompiler::CLANG => "clang++",
-            CppCompiler::MSVC => "cl",
-            CppCompiler::GCC => "g++",
-        }
-    }
-
-    pub fn get_default_module_extension(&self) -> &str {
-        match *self {
-            CppCompiler::CLANG => "cppm",
-            CppCompiler::MSVC => "ixx",
-            CppCompiler::GCC => "cc",
-        }
-    }
-
-    pub fn get_typical_bmi_extension(&self) -> &str {
-        match *self {
-            CppCompiler::CLANG => ".pcm",
-            CppCompiler::MSVC => ".ifc",
-            CppCompiler::GCC => ".o",
+// Clippy warns to prefer implementing the From trait instead of Into.
+// That would require that the project model know about config_file details, which is ugly.
+#[allow(clippy::from_over_into)]
+impl Into<project_model::compiler::CppCompiler> for CppCompiler {
+    fn into(self) -> project_model::compiler::CppCompiler {
+        match self {
+            CppCompiler::CLANG => project_model::compiler::CppCompiler::CLANG,
+            CppCompiler::MSVC => project_model::compiler::CppCompiler::MSVC,
+            CppCompiler::GCC => project_model::compiler::CppCompiler::GCC,
         }
     }
 }
@@ -150,28 +125,18 @@ pub enum LanguageLevel {
     LATEST,
 }
 
-impl LanguageLevel {
-    pub fn as_str(&self) -> &str {
-        match *self {
-            LanguageLevel::CPP20 => "20",
-            LanguageLevel::CPP23 => "23",
-            LanguageLevel::CPP2A => "2a",
-            LanguageLevel::CPP2B => "2b",
-            LanguageLevel::LATEST => "latest",
+// Clippy warns to prefer implementing the From trait instead of Into.
+// That would require that the project model know about config_file details, which is ugly.
+#[allow(clippy::from_over_into)]
+impl Into<project_model::compiler::LanguageLevel> for LanguageLevel {
+    fn into(self) -> project_model::compiler::LanguageLevel {
+        match self {
+            LanguageLevel::CPP20 => project_model::compiler::LanguageLevel::CPP20,
+            LanguageLevel::CPP23 => project_model::compiler::LanguageLevel::CPP23,
+            LanguageLevel::CPP2A => project_model::compiler::LanguageLevel::CPP2A,
+            LanguageLevel::CPP2B => project_model::compiler::LanguageLevel::CPP2B,
+            LanguageLevel::LATEST => project_model::compiler::LanguageLevel::LATEST,
         }
-    }
-
-    pub fn as_cmd_arg(&self, compiler: &CppCompiler) -> String {
-        match compiler {
-            CppCompiler::CLANG | CppCompiler::GCC => format!("-std=c++{}", self.as_str()),
-            CppCompiler::MSVC => format!("/std:c++{}", self.as_str()),
-        }
-    }
-}
-
-impl fmt::Display for LanguageLevel {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_str())
     }
 }
 
@@ -185,11 +150,14 @@ pub enum StdLib {
     LIBCPP,
 }
 
-impl StdLib {
-    pub fn as_str(&self) -> &str {
-        match *self {
-            StdLib::STDLIBCPP => "libstdc++",
-            StdLib::LIBCPP => "libc++",
+// Clippy warns to prefer implementing the From trait instead of Into.
+// That would require that the project model know about config_file details, which is ugly.
+#[allow(clippy::from_over_into)]
+impl Into<project_model::compiler::StdLib> for StdLib {
+    fn into(self) -> project_model::compiler::StdLib {
+        match self {
+            StdLib::STDLIBCPP => project_model::compiler::StdLib::STDLIBCPP,
+            StdLib::LIBCPP => project_model::compiler::StdLib::LIBCPP,
         }
     }
 }
