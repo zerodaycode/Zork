@@ -1,0 +1,32 @@
+[package]
+name = "zork"
+version = "0.5.0"
+edition = "2021"
+
+[lib]
+name = "zork"
+path = "src/lib/lib.rs"
+
+[[bin]]
+name = "zork"
+path = "src/bin/main.rs"
+
+[dependencies]
+toml = "0.5.10"
+glob = "0.3.1"
+serde = { version = "1.0.138", features = ["derive"] }
+clap = { version = "4.0.32", features = ["derive"] }
+log = "0.4.17"
+env_logger = "0.10.0"
+walkdir = "2"
+color-eyre = { version = "0.6.2", default-features = false }
+chrono = { version = "0.4.23", features = ["serde","clock"]}
+serde_json = "1.0"
+
+[dev-dependencies]
+tempfile = "3.0.0"
+criterion = "0.3"
+
+[[bench]]
+name = "zork++_benchmarks"
+harness = false
