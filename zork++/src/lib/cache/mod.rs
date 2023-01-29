@@ -51,6 +51,7 @@ pub struct ZorkCache {
 }
 
 impl ZorkCache {
+    /// The tasks associated with the cache after load it from the file system
     pub fn run_tasks(&mut self, program_data: &ZorkModel<'_>) {
         let compiler = program_data.compiler.cpp_compiler;
         if cfg!(target_os = "windows") && compiler == CppCompiler::MSVC {
@@ -63,6 +64,7 @@ impl ZorkCache {
         }
     }
 
+    /// Runs the tasks just before end the program and save the cache
     pub fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>) {
         if program_data.compiler.cpp_compiler == CppCompiler::GCC {
             self.compilers_metadata.gcc.system_modules = 
@@ -74,14 +76,26 @@ impl ZorkCache {
     }
 
     /// If Windows is the current OS, and the compiler is MSVC, then we will try
-    /// to locate the path os the vcvrsall.bat scripts that launches the
+    /// to locate the path os the vcvars64.bat scripts that launches the
     /// Developers Command Prompt
-    fn load_msvc_metadata(&self) {
+    fn load_msvc_metadata(&mut self) {
         if self.compilers_metadata.msvc.dev_commands_prompt.is_none() {
-
+            self.compilers_metadata.msvc.dev_commands_prompt = 
+                WalkDir::new(constants::MSVC_BASE_PATH)
+                    .into_iter()
+                    .filter_map(Result::ok)
+                    .find(|file| {
+                        file
+                            .file_name()
+                            .to_str()
+                            .map(|filename| filename.eq(constants::MS_DEVS_PROMPT_BAT))
+                            .unwrap_or(false)
+                    }).map(|e| e.path().display().to_string());
         }
     }
 
+    /// Looks for the already precompiled GCC system headers, to avoid recompiling
+    /// them on every process
     fn track_gcc_system_modules<'a>(program_data: &'a ZorkModel<'a>) -> impl Iterator<Item = String> + 'a {        
         WalkDir::new(GCC_CACHE_DIR)
             .into_iter()
