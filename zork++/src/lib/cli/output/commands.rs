@@ -3,13 +3,11 @@ use std::path::Path;
 ///! Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
-
 use crate::{project_model::compiler::CppCompiler, utils::constants};
 use color_eyre::{eyre::Context, Result};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use super::arguments::Argument;
-
 
 /// TODO this is just a provisional impl, in order to free the
 /// build_project(...) function for dealing with the generated
@@ -37,30 +35,27 @@ pub fn run_generated_commands(commands: &Commands<'_>) -> Result<()> {
     Ok(())
 }
 
-
 /// Executes a new [`std::process::Command`] to run the generated binary
 /// after the build process in the specified shell
 pub fn autorun_generated_binary(
     compiler: &CppCompiler,
     output_dir: &Path,
-    executable_name: &str
+    executable_name: &str,
 ) -> Result<()> {
-    let args = &[
-        Argument::from(
-            output_dir
-                .join(compiler.as_ref())
-                .join(executable_name)
-                .with_extension(constants::BINARY_EXTENSION)
-        ),
-    ];
+    let args = &[Argument::from(
+        output_dir
+            .join(compiler.as_ref())
+            .join(executable_name)
+            .with_extension(constants::BINARY_EXTENSION),
+    )];
 
     log::info!(
-        "[{compiler}] - Executing the generated binary => {:?}\n", args.join(" ")
+        "[{compiler}] - Executing the generated binary => {:?}\n",
+        args.join(" ")
     );
 
-    std::process::Command::new(
-        Argument::from(
-        output_dir.join(compiler.as_ref()).join(executable_name)
+    std::process::Command::new(Argument::from(
+        output_dir.join(compiler.as_ref()).join(executable_name),
     ))
     .spawn()?
     .wait()
@@ -68,7 +63,6 @@ pub fn autorun_generated_binary(
 
     Ok(())
 }
-
 
 /// Executes a new [`std::process::Command`] configured according the choosen
 /// compiler and the current operating system
@@ -102,13 +96,16 @@ fn execute_command(compiler: &CppCompiler, arguments: &[Argument<'_>]) -> Result
 /// Executes a new [`std::process::Command`] configured according the choosen
 /// compiler and the current operating system composed of multiple prebuilt command
 /// lines joining them in one statement
-/// 
+///
 /// TODO! Probably it would be better only make a big command formed by all the commands
 /// for the MSVC compiler in order to avoid to launch the developers command prompt
 /// for every commmand, but, as observed, generally speaking opening a shell under
 /// Unix using Clang or GCC it's extremily fast, so we can mantain the curren architecture
 /// of opening a shell for command, so the user is able to track better failed commands
-fn _execute_commands(compiler: &CppCompiler, arguments_for_commands: &Vec<Vec<Argument<'_>>>) -> Result<()> {
+fn _execute_commands(
+    compiler: &CppCompiler,
+    arguments_for_commands: &Vec<Vec<Argument<'_>>>,
+) -> Result<()> {
     let mut commands = if compiler.eq(&CppCompiler::MSVC) {
         std::process::Command::new( // TODO The initialization process + cache process MUST dynamically get this path and store it in cache
             "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
@@ -123,20 +120,20 @@ fn _execute_commands(compiler: &CppCompiler, arguments_for_commands: &Vec<Vec<Ar
             format!("{} {}", compiler.get_driver(), args_collection.join(" "))
         );
 
-        commands.arg("&&")
+        commands
+            .arg("&&")
             .arg(compiler.get_driver())
             .args(args_collection);
     });
 
-    commands.spawn()?
+    commands
+        .spawn()?
         .wait()
         .with_context(|| format!("[{compiler}] - Command {commands:?} failed!"))?;
-    
 
     log::info!("[{compiler}] - Result: {:?}", commands);
     Ok(())
 }
-
 
 /// Holds the generated command line arguments for a concrete compiler
 #[derive(Debug, Serialize, Deserialize, Clone)]

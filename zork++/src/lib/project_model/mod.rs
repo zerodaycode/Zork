@@ -6,12 +6,11 @@ pub mod project;
 pub mod sourceset;
 pub mod tests;
 
-
 use std::fmt::Debug;
 
 use self::{
-    build::BuildModel, compiler::CompilerModel, executable::ExecutableModel,
-    modules::ModulesModel, project::ProjectModel, tests::TestsModel,
+    build::BuildModel, compiler::CompilerModel, executable::ExecutableModel, modules::ModulesModel,
+    project::ProjectModel, tests::TestsModel,
 };
 
 #[derive(Debug, PartialEq, Eq)]

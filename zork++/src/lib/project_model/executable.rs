@@ -1,4 +1,7 @@
-use crate::{bounds::{ExecutableTarget, ExtraArgs}, cli::output::arguments::Argument};
+use crate::{
+    bounds::{ExecutableTarget, ExtraArgs},
+    cli::output::arguments::Argument,
+};
 
 use super::sourceset::SourceSet;
 

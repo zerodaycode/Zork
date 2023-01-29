@@ -3,7 +3,7 @@
 
 use std::{borrow::Borrow, ffi::OsStr, path::PathBuf};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Type for represent a command line argument
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,9 +27,7 @@ impl<'a> From<String> for Argument<'a> {
 
 impl<'a> From<PathBuf> for Argument<'a> {
     fn from(value: PathBuf) -> Self {
-        Self::from(
-            format!("{}", value.display())
-        )
+        Self::from(format!("{}", value.display()))
     }
 }
 
@@ -58,10 +56,8 @@ pub mod clang_args {
 
     use super::*;
 
-    
-
     /// Generates the correct module mapping command line argument for Clang.
-    /// 
+    ///
     // The Windows variant is a Zork++ feature to allow the users to write `import std;`
     // under -std=c++20 with clang linking against GCC with
     // some MinGW installation or similar
@@ -84,7 +80,7 @@ pub mod clang_args {
         dependencies: &Vec<&str>,
         compiler: &CppCompiler,
         out_dir: &Path,
-        arguments: &mut Vec<Argument>
+        arguments: &mut Vec<Argument>,
     ) {
         dependencies.iter().for_each(|ifc_dep| {
             arguments.push(Argument::from(format!(
@@ -98,5 +94,5 @@ pub mod clang_args {
                     .display()
             )))
         });
-    } 
+    }
 }

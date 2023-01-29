@@ -1,16 +1,15 @@
 use core::fmt;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{bounds::ExtraArgs, cli::output::arguments::Argument};
-
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct CompilerModel<'a> {
     pub cpp_compiler: CppCompiler,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
-    pub extra_args: Vec<Argument<'a>>
+    pub extra_args: Vec<Argument<'a>>,
 }
 
 impl<'a> CompilerModel<'a> {
@@ -18,7 +17,7 @@ impl<'a> CompilerModel<'a> {
         match self.cpp_compiler {
             CppCompiler::CLANG | CppCompiler::GCC => {
                 Argument::from(format!("-std=c++{}", self.cpp_standard))
-            },
+            }
             CppCompiler::MSVC => Argument::from(format!("-std:c++{}", self.cpp_standard)),
         }
     }
@@ -38,7 +37,8 @@ impl<'a> ExtraArgs<'a> for CompilerModel<'a> {
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize, Default)]
 pub enum CppCompiler {
-    #[default] CLANG,
+    #[default]
+    CLANG,
     MSVC,
     GCC,
 }
@@ -86,7 +86,10 @@ impl CppCompiler {
         }
     }
 
-    #[inline (always)] pub fn get_obj_file_extension(&self) -> &str { "o" }
+    #[inline(always)]
+    pub fn get_obj_file_extension(&self) -> &str {
+        "o"
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]

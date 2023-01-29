@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 use std::{fmt::Display, path::Path};
 
-use crate::{project_model::sourceset::SourceSet, cli::output::arguments::Argument};
+use crate::{cli::output::arguments::Argument, project_model::sourceset::SourceSet};
 
 ///! The higher abstractions of the program
 
@@ -23,12 +23,12 @@ pub trait TranslationUnit: Display + Debug {
     fn filestem(&self) -> &str {
         self.file()
             .file_stem()
-            .expect(
-                &format!(
-                    "Unexpected error getting the filename of {:?}",
-                    self.file().as_os_str()
-                )
-            ).to_str().unwrap()
+            .expect(&format!(
+                "Unexpected error getting the filename of {:?}",
+                self.file().as_os_str()
+            ))
+            .to_str()
+            .unwrap()
     }
 }
 

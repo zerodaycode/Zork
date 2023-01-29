@@ -1,4 +1,5 @@
 use crate::{
+    cli::output::arguments::Argument,
     config_file::{
         build::BuildAttribute,
         compiler::CompilerAttribute,
@@ -18,7 +19,7 @@ use crate::{
         tests::TestsModel,
         ZorkModel,
     },
-    utils::constants::CONFIG_FILE_NAME, cli::output::arguments::Argument,
+    utils::constants::CONFIG_FILE_NAME,
 };
 use color_eyre::{eyre::Context, Result};
 use std::{
@@ -88,7 +89,7 @@ fn assemble_compiler_model<'a>(config: &'a CompilerAttribute) -> CompilerModel<'
         cpp_compiler: config.cpp_compiler.clone().into(),
         cpp_standard: config.cpp_standard.clone().into(),
         std_lib: config.std_lib.clone().map(|lib| lib.into()),
-        extra_args
+        extra_args,
     }
 }
 
@@ -125,7 +126,8 @@ fn assemble_executable_model<'a>(
             } else {
                 Source::File(Path::new(source))
             }
-        }).collect();
+        })
+        .collect();
 
     let sourceset = SourceSet {
         base_path: Path::new(base_path),
@@ -172,9 +174,7 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
 
     let gcc_sys_modules = config
         .and_then(|modules| modules.gcc_sys_modules.as_ref())
-        .map_or_else(Default::default, |headers| {
-            headers.clone()
-        });
+        .map_or_else(Default::default, |headers| headers.clone());
 
     ModulesModel {
         base_ifcs_dir: Path::new(base_ifcs_dir),
@@ -287,7 +287,7 @@ mod test {
                 cpp_compiler: CppCompiler::CLANG,
                 cpp_standard: LanguageLevel::CPP20,
                 std_lib: None,
-                extra_args: vec![]
+                extra_args: vec![],
             },
             build: BuildModel {
                 output_dir: Path::new("./out"),
@@ -381,7 +381,7 @@ mod test {
                 cpp_compiler: CppCompiler::CLANG,
                 cpp_standard: LanguageLevel::CPP20,
                 std_lib: Some(StdLib::LIBCPP),
-                extra_args: vec![Argument::from("-Wall")]
+                extra_args: vec![Argument::from("-Wall")],
             },
             build: BuildModel {
                 output_dir: Path::new("build"),

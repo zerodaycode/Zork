@@ -7,13 +7,13 @@ use color_eyre::Result;
 use std::path::Path;
 
 use crate::{
-    cli::output::{commands::Commands, arguments::Argument},
+    cache::ZorkCache,
+    cli::output::{arguments::Argument, commands::Commands},
     project_model::{
         compiler::CppCompiler,
         modules::{ModuleImplementationModel, ModuleInterfaceModel},
         ZorkModel,
     },
-    cache::ZorkCache
 };
 
 /// The entry point of the compilation process
@@ -23,12 +23,13 @@ use crate::{
 pub fn build_project<'a>(
     model: &'a ZorkModel<'a>,
     cache: &ZorkCache,
-    tests: bool
+    tests: bool,
 ) -> Result<Commands<'a>> {
     // A registry of the generated command lines
     let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
-    if model.compiler.cpp_compiler == CppCompiler::GCC { // Special GCC case
+    if model.compiler.cpp_compiler == CppCompiler::GCC {
+        // Special GCC case
         helpers::process_gcc_system_modules(model, &mut commands, cache)
     }
 
@@ -46,16 +47,12 @@ pub fn build_project<'a>(
 fn build_executable<'a>(
     model: &'a ZorkModel<'_>,
     commands: &'_ mut Commands<'a>,
-    tests: bool
+    tests: bool,
 ) -> Result<()> {
-    if tests { 
-        sources::generate_main_command_line_args(
-            model, commands, &model.tests
-        )    
-    } else { 
-        sources::generate_main_command_line_args(
-            model, commands, &model.executable
-        )     
+    if tests {
+        sources::generate_main_command_line_args(model, commands, &model.tests)
+    } else {
+        sources::generate_main_command_line_args(model, commands, &model.executable)
     }
 }
 
@@ -104,11 +101,16 @@ mod sources {
 
     use crate::{
         bounds::{ExecutableTarget, TranslationUnit},
+        cli::output::{
+            arguments::{clang_args, Argument},
+            commands::Commands,
+        },
         project_model::{
             compiler::CppCompiler,
             modules::{ModuleImplementationModel, ModuleInterfaceModel},
             ZorkModel,
-        }, cli::output::{commands::Commands, arguments::{Argument, clang_args}}, utils::constants,
+        },
+        utils::constants,
     };
 
     use super::helpers;
@@ -239,7 +241,10 @@ mod sources {
                 arguments.push(clang_args::implicit_module_maps(out_dir));
 
                 clang_args::add_direct_module_interfafces_dependencies(
-                    &interface.dependencies, compiler, out_dir, &mut arguments
+                    &interface.dependencies,
+                    compiler,
+                    out_dir,
+                    &mut arguments,
                 );
 
                 // The resultant BMI as a .pcm file
@@ -336,7 +341,10 @@ mod sources {
                 arguments.push(obj_file_path);
 
                 clang_args::add_direct_module_interfafces_dependencies(
-                    &implementation.dependencies, compiler, out_dir, &mut arguments
+                    &implementation.dependencies,
+                    compiler,
+                    out_dir,
+                    &mut arguments,
                 );
 
                 // The input file
@@ -444,33 +452,35 @@ mod helpers {
             .with_extension(compiler.get_obj_file_extension())
     }
 
-
     /// GCC specific requirement. System headers as modules must be built before being imported.
     /// First it will compare with the elements stored in the caché, and only will generate
     /// commands for the non matching elements
     pub(crate) fn process_gcc_system_modules<'a>(
         model: &'a ZorkModel,
         commands: &mut Commands<'a>,
-        cache: &ZorkCache
+        cache: &ZorkCache,
     ) {
         if !cache.compilers_metadata.gcc.system_modules.is_empty() {
             log::info!(
-                "GCC system modules already build: {:?}. They will be skipped!", 
+                "GCC system modules already build: {:?}. They will be skipped!",
                 cache.compilers_metadata.gcc.system_modules
             );
         }
-        
+
         let language_level = model.compiler.language_level_arg();
-        let sys_modules = model.modules
+        let sys_modules = model
+            .modules
             .gcc_sys_modules
             .iter()
-            .filter(|sys_module| 
-                !cache.compilers_metadata
+            .filter(|sys_module| {
+                !cache
+                    .compilers_metadata
                     .gcc
                     .system_modules
                     .iter()
                     .any(|s| s.eq(**sys_module))
-            ).map(|sys_module| {
+            })
+            .map(|sys_module| {
                 vec![
                     language_level.clone(),
                     Argument::from("-fmodules-ts"),
@@ -478,9 +488,8 @@ mod helpers {
                     Argument::from("c++-system-header"),
                     Argument::from(*sys_module),
                 ]
-        });
-        
+            });
+
         commands.interfaces.extend(sys_modules);
     }
 }
-

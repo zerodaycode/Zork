@@ -1,11 +1,17 @@
 //! The implementation of the Zork++ cache, for persisting data in between process
 
-use std::{path::Path, fs::File};
 use chrono::{DateTime, Utc};
-use color_eyre::{Result, eyre::Context};
+use color_eyre::{eyre::Context, Result};
+use std::{fs::File, path::Path};
 use walkdir::WalkDir;
 
-use crate::{utils::{self, constants::{GCC_CACHE_DIR, self}}, project_model::{compiler::CppCompiler, ZorkModel}};
+use crate::{
+    project_model::{compiler::CppCompiler, ZorkModel},
+    utils::{
+        self,
+        constants::{self, GCC_CACHE_DIR},
+    },
+};
 use serde::{Deserialize, Serialize};
 
 /// Standalone utility for retrieve the Zork++ cache file
@@ -15,10 +21,9 @@ pub fn load<'a>(program_data: &ZorkModel<'_>) -> Result<ZorkCache> {
         .join("cache");
 
     let cache_file_path = cache_path.join(constants::ZORK_CACHE_FILENAME);
-    
+
     if !Path::new(&cache_file_path).exists() {
-        File::create(cache_file_path)
-            .with_context(|| "Error creating the cache file")?;
+        File::create(cache_file_path).with_context(|| "Error creating the cache file")?;
     }
 
     let mut cache: ZorkCache = utils::fs::load_and_deserialize(&cache_path)
@@ -67,11 +72,12 @@ impl ZorkCache {
     /// Runs the tasks just before end the program and save the cache
     pub fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>) {
         if program_data.compiler.cpp_compiler == CppCompiler::GCC {
-            self.compilers_metadata.gcc.system_modules = 
-                program_data.modules.gcc_sys_modules
-                    .iter()
-                    .map(|e| e.to_string())
-                    .collect::<Vec<_>>();
+            self.compilers_metadata.gcc.system_modules = program_data
+                .modules
+                .gcc_sys_modules
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>();
         }
     }
 
@@ -80,33 +86,44 @@ impl ZorkCache {
     /// Developers Command Prompt
     fn load_msvc_metadata(&mut self) {
         if self.compilers_metadata.msvc.dev_commands_prompt.is_none() {
-            self.compilers_metadata.msvc.dev_commands_prompt = 
+            self.compilers_metadata.msvc.dev_commands_prompt =
                 WalkDir::new(constants::MSVC_BASE_PATH)
                     .into_iter()
                     .filter_map(Result::ok)
                     .find(|file| {
-                        file
-                            .file_name()
+                        file.file_name()
                             .to_str()
                             .map(|filename| filename.eq(constants::MS_DEVS_PROMPT_BAT))
                             .unwrap_or(false)
-                    }).map(|e| e.path().display().to_string());
+                    })
+                    .map(|e| e.path().display().to_string());
         }
     }
 
     /// Looks for the already precompiled GCC system headers, to avoid recompiling
     /// them on every process
-    fn track_gcc_system_modules<'a>(program_data: &'a ZorkModel<'a>) -> impl Iterator<Item = String> + 'a {        
+    fn track_gcc_system_modules<'a>(
+        program_data: &'a ZorkModel<'a>,
+    ) -> impl Iterator<Item = String> + 'a {
         WalkDir::new(GCC_CACHE_DIR)
             .into_iter()
             .filter_map(Result::ok)
             .filter(|file| {
-                if file.metadata().expect("Error retrieving metadata").is_file() {
-                    program_data.modules.gcc_sys_modules.iter().any(|sys_mod|
-                        file.file_name().to_str().unwrap().starts_with(sys_mod)
-                    )
-                } else {false}
-            }).map(|dir_entry| 
+                if file
+                    .metadata()
+                    .expect("Error retrieving metadata")
+                    .is_file()
+                {
+                    program_data
+                        .modules
+                        .gcc_sys_modules
+                        .iter()
+                        .any(|sys_mod| file.file_name().to_str().unwrap().starts_with(sys_mod))
+                } else {
+                    false
+                }
+            })
+            .map(|dir_entry| {
                 dir_entry
                     .file_name()
                     .to_str()
@@ -114,7 +131,7 @@ impl ZorkCache {
                     .split('.')
                     .collect::<Vec<_>>()[0]
                     .to_string()
-            )
+            })
     }
 }
 
@@ -123,21 +140,21 @@ pub struct CachedCommands {
     compiler: CppCompiler,
     interfaces: Vec<String>,
     implementations: Vec<String>,
-    main: String
+    main: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default)]
 pub struct CompilersMetadata {
     pub msvc: MsvcMetadata,
-    pub gcc: GccMetadata
+    pub gcc: GccMetadata,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default)]
 pub struct MsvcMetadata {
-    pub dev_commands_prompt: Option<String>
+    pub dev_commands_prompt: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default)]
 pub struct GccMetadata {
-    pub system_modules: Vec<String>
+    pub system_modules: Vec<String>,
 }

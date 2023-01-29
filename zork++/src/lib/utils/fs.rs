@@ -26,20 +26,24 @@ pub fn create_directory(path_create: &Path) -> Result<()> {
 }
 
 pub fn serialize_object_to_file<T>(path: &Path, data: &T) -> Result<()>
-where T: Serialize {
+where
+    T: Serialize,
+{
     serde_json::to_writer_pretty(
         File::create(path).with_context(|| "Error creating the cache file")?,
         data,
-    ).with_context(|| "Error serializing data to the cache")
+    )
+    .with_context(|| "Error serializing data to the cache")
 }
 
 pub fn load_and_deserialize<T, P>(path: &P) -> Result<T>
 where
     T: for<'a> Deserialize<'a> + Default,
-    P: AsRef<Path>
+    P: AsRef<Path>,
 {
-    let buffer = BufReader::new(File::open(path.as_ref().join(constants::ZORK_CACHE_FILENAME))
-        .with_context(|| "Error opening the cache file")?);
-    Ok(serde_json::from_reader(buffer)
-        .unwrap_or(T::default()))
+    let buffer = BufReader::new(
+        File::open(path.as_ref().join(constants::ZORK_CACHE_FILENAME))
+            .with_context(|| "Error opening the cache file")?,
+    );
+    Ok(serde_json::from_reader(buffer).unwrap_or(T::default()))
 }

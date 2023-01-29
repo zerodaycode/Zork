@@ -4,9 +4,20 @@ use clap::Parser;
 use color_eyre::{eyre::Context, Result};
 use env_logger::Target;
 use zork::{
-    cli::{input::{CliArgs, Command}, output::commands::{autorun_generated_binary, self}},
+    cache,
+    cli::{
+        input::{CliArgs, Command},
+        output::commands::{self, autorun_generated_binary},
+    },
     compiler::build_project,
-    utils::{logger::config_logger, template::create_templated_project, reader::{find_config_file, build_model}, self}, config_file::ZorkConfigFile, cache, project_model::{compiler::CppCompiler, ZorkModel}
+    config_file::ZorkConfigFile,
+    project_model::{compiler::CppCompiler, ZorkModel},
+    utils::{
+        self,
+        logger::config_logger,
+        reader::{build_model, find_config_file},
+        template::create_templated_project,
+    },
 };
 
 fn main() -> Result<()> {
@@ -22,17 +33,16 @@ fn main() -> Result<()> {
         .with_context(|| "Could not parse configuration file")?;
 
     let program_data = build_model(&config);
-    create_output_directory(base_path,  &program_data)?;
-    
-    let cache = cache::load(&program_data)
-        .with_context(|| "Unable to load the Zork++ caché")?;
+    create_output_directory(base_path, &program_data)?;
+
+    let cache = cache::load(&program_data).with_context(|| "Unable to load the Zork++ caché")?;
 
     match cli_args.command {
         Command::Build => {
-            let commands = build_project(&program_data,  &cache, false)
+            let commands = build_project(&program_data, &cache, false)
                 .with_context(|| "Failed to build project")?;
             commands::run_generated_commands(&commands)?;
-        },
+        }
         Command::Run => {
             let commands = build_project(&program_data, &cache, false)
                 .with_context(|| "Failed to build project")?;
@@ -42,11 +52,11 @@ fn main() -> Result<()> {
             autorun_generated_binary(
                 &program_data.compiler.cpp_compiler,
                 program_data.build.output_dir,
-                program_data.executable.executable_name
+                program_data.executable.executable_name,
             )?
-        },
+        }
         Command::Test => {
-            let commands = build_project(&program_data,  &cache, true)
+            let commands = build_project(&program_data, &cache, true)
                 .with_context(|| "Failed to build project")?;
 
             commands::run_generated_commands(&commands)?;
@@ -54,9 +64,9 @@ fn main() -> Result<()> {
             autorun_generated_binary(
                 &program_data.compiler.cpp_compiler,
                 program_data.build.output_dir,
-                &program_data.tests.test_executable_name
+                &program_data.tests.test_executable_name,
             )?
-        },
+        }
         Command::New {
             name,
             git,
@@ -68,7 +78,6 @@ fn main() -> Result<()> {
 
     cache::save(&program_data, cache)
 }
-
 
 /// Creates the directory for output the elements generated
 /// during the build process. Also, it will generate the
@@ -124,9 +133,7 @@ mod tests {
     use color_eyre::Result;
     use tempfile::tempdir;
 
-    use crate::{
-        utils::{reader::build_model, template::resources::CONFIG_FILE},
-    };
+    use crate::utils::{reader::build_model, template::resources::CONFIG_FILE};
     use zork::config_file::ZorkConfigFile;
 
     #[test]
