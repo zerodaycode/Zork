@@ -2,8 +2,13 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Zork++"
+<<<<<<< HEAD
 #define MyAppVersion "0.4.2"
 #define MyAppPublisher "ZeroDayCode"
+=======
+#define MyAppVersion "0.5.0"
+#define MyAppPublisher "Zero Day Code"
+>>>>>>> feature/GH-45-rewrite-zork++-from-scratch-in-rust
 #define MyAppURL "https://github.com/zerodaycode/Zork"
 #define MyAppExeName "zork++.exe"
 #define MyAppAssocName MyAppName + " File"
@@ -31,7 +36,7 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 ChangesEnvironment=true
-SetupIconFile=..\assets\instalador_logo.ico
+SetupIconFile=..\assets\installer_logo.ico
 
 
 [Languages]
