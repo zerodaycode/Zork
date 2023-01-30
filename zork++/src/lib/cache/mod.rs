@@ -15,7 +15,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 /// Standalone utility for retrieve the Zork++ cache file
-pub fn load<'a>(program_data: &ZorkModel<'_>) -> Result<ZorkCache> {
+pub fn load(program_data: &ZorkModel<'_>) -> Result<ZorkCache> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
         .join("cache");
@@ -35,14 +35,14 @@ pub fn load<'a>(program_data: &ZorkModel<'_>) -> Result<ZorkCache> {
 }
 
 /// Standalone utility for persist the cache to the file system
-pub fn save<'a>(program_data: &ZorkModel<'_>, mut cache: ZorkCache) -> Result<()> {
+pub fn save(program_data: &ZorkModel<'_>, mut cache: ZorkCache) -> Result<()> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
         .join("cache")
         .join(constants::ZORK_CACHE_FILENAME);
 
     cache.run_final_tasks(program_data);
-    cache.last_program_execution = DateTime::from(Utc::now());
+    cache.last_program_execution = Utc::now();
 
     utils::fs::serialize_object_to_file(cache_path, &cache)
         .with_context(|| "Error saving data to the Zork++ cache")

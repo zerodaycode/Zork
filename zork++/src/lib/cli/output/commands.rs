@@ -13,21 +13,21 @@ use super::arguments::Argument;
 /// build_project(...) function for dealing with the generated
 /// command lines
 pub fn run_generated_commands(commands: &Commands<'_>) -> Result<()> {
-    if &commands.interfaces.len() > &(0 as usize) {
+    if !commands.interfaces.is_empty() {
         log::info!("Executing the commands for the module interfaces");
     }
     for miu in &commands.interfaces {
         execute_command(&commands.compiler, miu)?
     }
 
-    if &commands.interfaces.len() > &(0 as usize) {
+    if !commands.interfaces.is_empty() {
         log::info!("Executing the commands for the module implementations");
     }
     for impls in &commands.implementations {
         execute_command(&commands.compiler, impls)?
     }
 
-    if &commands.interfaces.len() > &(0 as usize) {
+    if !commands.interfaces.is_empty() {
         log::info!("Executing the main command line");
     }
     execute_command(&commands.compiler, &commands.sources)?;
@@ -104,7 +104,7 @@ fn execute_command(compiler: &CppCompiler, arguments: &[Argument<'_>]) -> Result
 /// of opening a shell for command, so the user is able to track better failed commands
 fn _execute_commands(
     compiler: &CppCompiler,
-    arguments_for_commands: &Vec<Vec<Argument<'_>>>,
+    arguments_for_commands: &[Vec<Argument<'_>>],
 ) -> Result<()> {
     let mut commands = if compiler.eq(&CppCompiler::MSVC) {
         std::process::Command::new( // TODO The initialization process + cache process MUST dynamically get this path and store it in cache

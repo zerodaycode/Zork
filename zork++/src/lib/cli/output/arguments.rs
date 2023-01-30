@@ -77,7 +77,7 @@ pub mod clang_args {
     }
 
     pub(crate) fn add_direct_module_interfafces_dependencies(
-        dependencies: &Vec<&str>,
+        dependencies: &[&str],
         compiler: &CppCompiler,
         out_dir: &Path,
         arguments: &mut Vec<Argument>,

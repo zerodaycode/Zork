@@ -22,7 +22,6 @@ tests_executable_name = "zork_proj_tests"
 sources = [
     "./example/*.cpp"
 ]
-auto_run_tests = true
 
 [modules]
 base_ifcs_dir = "./<project_name>/ifc"

@@ -28,5 +28,5 @@ tempfile = "3.0.0"
 criterion = "0.3"
 
 [[bench]]
-name = "zork++_benchmarks"
+name = "benchmarks"
 harness = false
