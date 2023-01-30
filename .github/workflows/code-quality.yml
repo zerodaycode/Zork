@@ -22,7 +22,9 @@ jobs:
       - uses: hecrj/setup-rust-action@v1
         with:
           components: clippy
-      - run: cargo clippy --all-targets --verbose --all-features
+      - run: |
+          cd zork++
+          cargo clippy --all-targets --verbose --all-features
   
   rustfmt:
     name: Verify code formatting
@@ -38,7 +40,9 @@ jobs:
         with:
           components: rustfmt
 
-      - run: cargo fmt --all -- --check
+      - run: |
+          cd zork++
+          cargo fmt --all -- --check
 
   tests:
     name: Run the tests for the projects
@@ -50,4 +54,8 @@ jobs:
         id: project-cache
         uses: Swatinem/rust-cache@v2
 
-      - run: cargo test
+      - run: |
+          cd zork++
+          cargo install cargo-criterion
+          cargo test
+          cargo criterion
