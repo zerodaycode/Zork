@@ -23,11 +23,12 @@ pub trait TranslationUnit: Display + Debug {
     fn filestem(&self) -> &str {
         self.file()
             .file_stem()
-            .unwrap_or_else(|| 
+            .unwrap_or_else(|| {
                 panic!(
-                    "Unexpected error getting the filename of {:?}", 
+                    "Unexpected error getting the filename of {:?}",
                     self.file().as_os_str()
-                ))
+                )
+            })
             .to_str()
             .unwrap()
     }
