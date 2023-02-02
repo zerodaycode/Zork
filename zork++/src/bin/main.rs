@@ -1,10 +1,10 @@
-use std::path::Path;
+use std::{fs, path::Path};
 
 use clap::Parser;
 use color_eyre::{eyre::Context, Result};
 use env_logger::Target;
 use zork::{
-    cache,
+    cache::{self, ZorkCache},
     cli::{
         input::{CliArgs, Command},
         output::commands::{self, autorun_generated_binary},
@@ -15,7 +15,7 @@ use zork::{
     utils::{
         self,
         logger::config_logger,
-        reader::{build_model, find_config_file},
+        reader::{build_model, find_config_files, ConfigFile},
         template::create_templated_project,
     },
 };
@@ -23,28 +23,68 @@ use zork::{
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let base_path = Path::new(".");
     let cli_args = CliArgs::parse();
     config_logger(cli_args.verbose, Target::Stdout).expect("Error configuring the logger");
 
-    let config_file: String =
-        find_config_file(base_path).with_context(|| "Failed to read configuration file")?;
-    let config: ZorkConfigFile = toml::from_str(config_file.as_str())
-        .with_context(|| "Could not parse configuration file")?;
+    let config_files: Vec<ConfigFile> = find_config_files(Path::new("."))
+        .with_context(|| "We didn't found a `zork.toml` configuration file")?;
 
-    let program_data = build_model(&config);
-    create_output_directory(base_path, &program_data)?;
+    for config_file in config_files {
+        log::info!(
+            "Launching a Zork++ work event for the configuration file: {:?}, located at: {:?}\n",
+            config_file.dir_entry.file_name(),
+            config_file.path
+        );
+        let raw_file = fs::read_to_string(config_file.path)
+            .with_context(|| {
+                format!(
+                    "An error happened parsing the configuration file: {:?}",
+                    config_file.dir_entry.file_name()
+                )
+            })
+            .unwrap();
 
-    let cache = cache::load(&program_data).with_context(|| "Unable to load the Zork++ caché")?;
+        let config: ZorkConfigFile = toml::from_str(raw_file.as_str())
+            .with_context(|| "Could not parse configuration file")?;
 
+        let program_data = build_model(&config);
+        create_output_directory(Path::new("."), &program_data)?;
+
+        let cache =
+            cache::load(&program_data).with_context(|| "Unable to load the Zork++ caché")?;
+
+        do_main_work_based_on_cli_input(&cli_args, &program_data, &cache).with_context(|| {
+            format!(
+                "Failed to build the project for the config file: {:?}",
+                config_file.dir_entry.file_name()
+            )
+        })?;
+
+        // TODO cache file per configuration file 
+        cache::save(&program_data, cache)?;
+    }
+
+    Ok(())
+}
+
+/// Helper for reduce the cyclomatic complextity of the main fn.
+///
+/// Contains the main calls to the generation of the compilers commands lines,
+/// the calls to the process that runs those ones, the autorun the generated
+/// binaries, the tests declared for the projects...
+fn do_main_work_based_on_cli_input(
+    cli_args: &CliArgs,
+    program_data: &ZorkModel,
+    cache: &ZorkCache,
+) -> Result<()> {
     match cli_args.command {
         Command::Build => {
-            let commands = build_project(&program_data, &cache, false)
+            let commands = build_project(program_data, cache, false)
                 .with_context(|| "Failed to build project")?;
-            commands::run_generated_commands(&commands)?;
+            commands::run_generated_commands(&commands)
         }
         Command::Run => {
-            let commands = build_project(&program_data, &cache, false)
+            let commands = build_project(program_data, cache, false)
                 .with_context(|| "Failed to build project")?;
 
             commands::run_generated_commands(&commands)?;
@@ -53,10 +93,10 @@ fn main() -> Result<()> {
                 &program_data.compiler.cpp_compiler,
                 program_data.build.output_dir,
                 program_data.executable.executable_name,
-            )?
+            )
         }
         Command::Test => {
-            let commands = build_project(&program_data, &cache, true)
+            let commands = build_project(program_data, cache, true)
                 .with_context(|| "Failed to build project")?;
 
             commands::run_generated_commands(&commands)?;
@@ -65,18 +105,16 @@ fn main() -> Result<()> {
                 &program_data.compiler.cpp_compiler,
                 program_data.build.output_dir,
                 &program_data.tests.test_executable_name,
-            )?
+            )
         }
         Command::New {
-            name,
+            ref name,
             git,
             compiler,
-        } => create_templated_project(base_path, &name, git, compiler.into())
-            .with_context(|| "Failed to create new project")?,
+        } => create_templated_project(Path::new("."), &name, git, compiler.into())
+            .with_context(|| "Failed to create new project"),
         Command::Cache => todo!(),
     }
-
-    cache::save(&program_data, cache)
 }
 
 /// Creates the directory for output the elements generated
