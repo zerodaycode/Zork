@@ -20,8 +20,8 @@ use crate::{
         ZorkModel,
     }
 };
-use color_eyre::Result;
-use std::path::{Path, PathBuf};
+use color_eyre::{eyre::eyre, Result};
+use std::{path::{Path, PathBuf}};
 use walkdir::{DirEntry, WalkDir};
 
 use super::constants::DEFAULT_OUTPUT_DIR;
@@ -30,6 +30,7 @@ use super::constants::DEFAULT_OUTPUT_DIR;
 ///
 /// This is just a configuration file with a valid name found
 /// at a valid path in some subdirectory
+#[derive(Debug)]
 pub struct ConfigFile {
     pub dir_entry: DirEntry,
     pub path: PathBuf,
@@ -46,24 +47,26 @@ pub struct ConfigFile {
 /// This function fails if there's no configuration file
 /// (or isn't present in any directory of the project)
 pub fn find_config_files(base_path: &Path) -> Result<Vec<ConfigFile>> {
+    log::info!("Searching for Zork++ configuration files...");
     let mut files = vec![];
 
     for e in WalkDir::new(base_path)
-        .max_depth(0)
+        .max_depth(2)
         .into_iter()
         .filter_map(|e| e.ok()) 
     {
         if e.metadata().unwrap().is_file() 
-            && e.path().starts_with("zork")
-            && e.path().ends_with(".toml")
+            && e.file_name().to_str().unwrap().starts_with("zork")
+            && e.file_name().to_str().unwrap().ends_with(".toml")
         {
-            let mut path: PathBuf = base_path.into();
-            path.push(e.path());
-            files.push(ConfigFile { dir_entry: e, path })
+            log::info!("Config file found!: {:?}", e.file_name());
+            files.push(ConfigFile { dir_entry: e.clone(), path: e.path().to_path_buf() })
         }
     }
 
-    Ok(files)
+    if files.len() < 1 {
+        Err(eyre!("No configuration files found for the project"))
+    } else { Ok(files) }
 }
 
 pub fn build_model<'a>(config: &'a ZorkConfigFile) -> ZorkModel<'a> {
