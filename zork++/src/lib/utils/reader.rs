@@ -54,7 +54,7 @@ pub fn find_config_files(base_path: &Path) -> Result<Vec<ConfigFile>> {
         .filter_map(|e| e.ok()) 
     {
         if e.metadata().unwrap().is_file() 
-            && e.path().ends_with("zork_")
+            && e.path().starts_with("zork")
             && e.path().ends_with(".toml")
         {
             let mut path: PathBuf = base_path.into();
