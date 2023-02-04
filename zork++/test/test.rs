@@ -126,9 +126,11 @@ fn test_full_program_with_multi_config_files() -> Result<()> {
     );
 
     // Clearing the GCC dirs
-    fs::remove_dir_all("./gcc_example")?;
-    fs::remove_dir_all("./gcm.cache")?;
-    fs::remove_dir_all("./out")?;
+    if cfg!(target_os = "windows") {
+        fs::remove_dir_all("./gcc_example")?;
+        fs::remove_dir_all("./gcm.cache")?;
+        fs::remove_dir_all("./out")?;
+    }
 
     Ok(temp.close()?)
 }
