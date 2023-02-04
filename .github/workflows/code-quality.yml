@@ -1,0 +1,63 @@
+name: Code quality and sanity
+
+on:
+  push:
+    branches: '*'
+  pull_request:
+    branches: '*'
+
+jobs:
+  clippy:
+    name: Lint with Clippy
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -Dwarnings
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Caching project dependencies
+        id: project-cache
+        uses: Swatinem/rust-cache@v2
+
+      - uses: hecrj/setup-rust-action@v1
+        with:
+          components: clippy
+      
+      - name: Verifiying the code quality with Clippy 
+        run: |
+          cd zork++
+          cargo clippy --all-targets --all-features
+  
+  rustfmt:
+    name: Verify code formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Caching project dependencies
+        id: project-cache
+        uses: Swatinem/rust-cache@v2
+
+      - uses: hecrj/setup-rust-action@v1
+        with:
+          components: rustfmt
+      
+      - name: Checking the format sanity of the project
+        run: |
+          cd zork++
+          cargo fmt --all -- --check
+
+  tests:
+    name: Run the tests for the projects
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Caching project dependencies
+        id: project-cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Running the tests for the project
+        run: |
+          cd zork++
+          cargo test --all

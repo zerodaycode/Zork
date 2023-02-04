@@ -12,3 +12,8 @@ alias CompileZork='rm -rf examples && mkdir examples/ && pyinstaller ./zork/zork
 
 # Runs the tests with pytest, showing the results and the code coverage on the terminal
 alias RunTests='python -m pytest --emoji -vv --cov zork --cov-branch --cov-report term-missing'
+
+# Quick way of compile Zork++, and see a Zork++ build process for an example project (if it's already created)
+alias TestZorkBuild='cargo build && cp ./target/debug/zork.exe . && ./zork.exe -vv build'
+# Same as above, but with the 'run' command
+alias TestZorkRun='cargo build && cp ./target/debug/zork.exe . && ./zork.exe -vv run'
