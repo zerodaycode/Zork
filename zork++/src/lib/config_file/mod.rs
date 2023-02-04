@@ -42,7 +42,7 @@ use self::{
 /// The [`ZorkConfigFile`] is the type that holds
 /// the whole hierarchy of Zork++ config file attributes
 /// and properties
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 pub struct ZorkConfigFile<'a> {
     #[serde(borrow)]
     pub project: ProjectAttribute<'a>,

@@ -195,7 +195,10 @@ pub mod worker {
         fn test_creation_directories() -> Result<()> {
             let temp = tempdir()?;
 
-            let zcf: ZorkConfigFile = toml::from_str(CONFIG_FILE)?;
+            let normalized_cfg_file = CONFIG_FILE
+                .replace("<base_path>", temp.path().to_str().unwrap())
+                .replace("\\", "/");
+            let zcf: ZorkConfigFile = toml::from_str(&normalized_cfg_file)?;
             let model = build_model(&zcf);
 
             // This should create and out/ directory in the ./zork++ folder at the root of this project
