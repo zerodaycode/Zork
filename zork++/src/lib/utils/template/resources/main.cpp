@@ -1,8 +1,8 @@
 const char* compiler = 
-#ifdef __clang__
+#if defined(__clang__)
     "Clang";
     import std;
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) || defined(__GNUG__)
     "GCC"
     import <iostream>;
 #elif defined(_MSC_VER)
