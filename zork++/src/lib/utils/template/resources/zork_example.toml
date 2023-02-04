@@ -34,3 +34,4 @@ implementations = [
     { file = 'math.cpp' },
     { file = 'math2.cpp', dependencies = ['math'] }
 ]
+gcc_sys_modules = ['iostream']

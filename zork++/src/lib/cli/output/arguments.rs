@@ -52,7 +52,7 @@ impl<'a> core::fmt::Display for Argument<'a> {
 pub mod clang_args {
     use std::path::Path;
 
-    use crate::project_model::compiler::CppCompiler;
+    use crate::project_model::{compiler::CppCompiler, ZorkModel};
 
     use super::*;
 
@@ -61,7 +61,7 @@ pub mod clang_args {
     // The Windows variant is a Zork++ feature to allow the users to write `import std;`
     // under -std=c++20 with clang linking against GCC with
     // some MinGW installation or similar
-    pub fn implicit_module_maps<'a>(out_dir: &Path) -> Argument<'a> {
+    pub(crate) fn implicit_module_maps<'a>(out_dir: &Path) -> Argument<'a> {
         if std::env::consts::OS.eq("windows") {
             Argument::from(format!(
                 "-fmodule-map-file={}",
@@ -74,6 +74,16 @@ pub mod clang_args {
         } else {
             Argument::from("-fimplicit-module-maps")
         }
+    }
+
+    pub fn add_std_lib<'a>(model: &'a ZorkModel) -> Option<Argument<'a>> {
+        if !cfg!(target_os = "windows") {
+            if let Some(arg) = model.compiler.stdlib_arg() {
+                return Some(arg);
+            }
+        }
+
+        None
     }
 
     pub(crate) fn add_direct_module_interfafces_dependencies(

@@ -133,10 +133,7 @@ mod sources {
 
         match compiler {
             CppCompiler::CLANG => {
-                if let Some(arg) = model.compiler.stdlib_arg() {
-                    arguments.push(arg);
-                }
-
+                arguments.extend(clang_args::add_std_lib(model));
                 arguments.extend_from_slice(target.extra_args());
                 arguments.push(Argument::from("-fimplicit-modules"));
                 arguments.push(clang_args::implicit_module_maps(out_dir));

@@ -200,6 +200,7 @@ pub mod worker {
 
             let normalized_cfg_file = CONFIG_FILE
                 .replace("<base_path>", temp.path().to_str().unwrap())
+                .replace("<compiler>", "clang")
                 .replace('\\', "/");
             let zcf: ZorkConfigFile = toml::from_str(&normalized_cfg_file)?;
             let model = build_model(&zcf);
