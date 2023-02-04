@@ -18,10 +18,10 @@ use crate::{
         sourceset::{GlobPattern, Source, SourceSet},
         tests::TestsModel,
         ZorkModel,
-    }
+    },
 };
 use color_eyre::{eyre::eyre, Result};
-use std::{path::{Path, PathBuf}};
+use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
 use super::constants::DEFAULT_OUTPUT_DIR;
@@ -39,7 +39,7 @@ pub struct ConfigFile {
 /// Checks for the existence of the `zork_<any>.toml` configuration files
 /// present in the same directory when the binary is called, and
 /// returns a collection of the ones found.
-/// 
+///
 /// *base_path* - A parameter for receive an input via command line
 /// parameter to indicate where the configuration files lives in
 /// the client's project. Defaults to `.`
@@ -53,20 +53,25 @@ pub fn find_config_files(base_path: &Path) -> Result<Vec<ConfigFile>> {
     for e in WalkDir::new(base_path)
         .max_depth(2)
         .into_iter()
-        .filter_map(|e| e.ok()) 
+        .filter_map(|e| e.ok())
     {
-        if e.metadata().unwrap().is_file() 
+        if e.metadata().unwrap().is_file()
             && e.file_name().to_str().unwrap().starts_with("zork")
             && e.file_name().to_str().unwrap().ends_with(".toml")
         {
             log::info!("Config file found!: {:?}", e.file_name());
-            files.push(ConfigFile { dir_entry: e.clone(), path: e.path().to_path_buf() })
+            files.push(ConfigFile {
+                dir_entry: e.clone(),
+                path: e.path().to_path_buf(),
+            })
         }
     }
 
     if files.len() < 1 {
         Err(eyre!("No configuration files found for the project"))
-    } else { Ok(files) }
+    } else {
+        Ok(files)
+    }
 }
 
 pub fn build_model<'a>(config: &'a ZorkConfigFile) -> ZorkModel<'a> {

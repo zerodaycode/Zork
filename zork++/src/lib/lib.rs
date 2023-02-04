@@ -7,7 +7,7 @@ pub mod project_model;
 pub mod utils;
 
 /// The entry point for the execution of the program.
-/// 
+///
 /// This module existence is motivated to let us run
 /// integration tests for the whole operations of the program
 /// without having to do fancy work about checking the
@@ -15,7 +15,6 @@ pub mod utils;
 pub mod worker {
     use std::{fs, path::Path};
 
-    use color_eyre::{eyre::Context, Result};
     use crate::{
         cache::{self, ZorkCache},
         cli::{
@@ -31,16 +30,18 @@ pub mod worker {
             template::create_templated_project,
         },
     };
+    use color_eyre::{eyre::Context, Result};
 
     /// The main work of the project. Runs the tasks
     /// inputted in the CLI
     pub fn run_zork(cli_args: &CliArgs, path: &Path) -> Result<()> {
         if let Command::New {
-                        ref name,
-                        git,
-                        compiler,
-                    } = cli_args.command {
-            return create_templated_project(path, &name, git, compiler.into())
+            ref name,
+            git,
+            compiler,
+        } = cli_args.command
+        {
+            return create_templated_project(path, &name, git, compiler.into());
         };
 
         let config_files: Vec<ConfigFile> = find_config_files(path)
@@ -70,14 +71,16 @@ pub mod worker {
             let cache =
                 cache::load(&program_data).with_context(|| "Unable to load the Zork++ caché")?;
 
-            do_main_work_based_on_cli_input(&cli_args, path, &program_data, &cache).with_context(|| {
-                format!(
-                    "Failed to build the project for the config file: {:?}",
-                    config_file.dir_entry.file_name()
-                )
-            })?;
+            do_main_work_based_on_cli_input(&cli_args, path, &program_data, &cache).with_context(
+                || {
+                    format!(
+                        "Failed to build the project for the config file: {:?}",
+                        config_file.dir_entry.file_name()
+                    )
+                },
+            )?;
 
-            // TODO cache file per configuration file 
+            // TODO cache file per configuration file
             cache::save(&program_data, cache)?;
         }
 
@@ -188,8 +191,8 @@ pub mod worker {
         use color_eyre::Result;
         use tempfile::tempdir;
 
-        use crate::utils::{reader::build_model, template::resources::CONFIG_FILE};
         use crate::config_file::ZorkConfigFile;
+        use crate::utils::{reader::build_model, template::resources::CONFIG_FILE};
 
         #[test]
         fn test_creation_directories() -> Result<()> {
