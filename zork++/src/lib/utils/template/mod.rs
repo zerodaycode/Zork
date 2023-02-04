@@ -55,6 +55,7 @@ pub fn create_templated_project(
     utils::fs::create_file(&path_src, "math2.cpp", resources::SRC_MOD_FILE_2.as_bytes())?;
 
     let zork_conf = resources::CONFIG_FILE
+        .replace("<compiler>", compiler.as_ref())
         .replace(
             "<base_path>",
             &base_path.to_str().unwrap().replace('\\', "/"),
