@@ -226,10 +226,7 @@ mod sources {
 
         match *compiler {
             CppCompiler::CLANG => {
-                if let Some(arg) = model.compiler.stdlib_arg() {
-                    arguments.push(arg);
-                }
-
+                arguments.extend(clang_args::add_std_lib(model));
                 arguments.push(Argument::from("-fimplicit-modules"));
                 arguments.push(Argument::from("-x"));
                 arguments.push(Argument::from("c++-module"));
@@ -319,10 +316,7 @@ mod sources {
 
         match *compiler {
             CppCompiler::CLANG => {
-                if let Some(arg) = model.compiler.stdlib_arg() {
-                    arguments.push(arg);
-                }
-
+                arguments.extend(clang_args::add_std_lib(model));
                 arguments.push(Argument::from("-fimplicit-modules"));
                 arguments.push(Argument::from("-c"));
                 arguments.push(clang_args::implicit_module_maps(out_dir));

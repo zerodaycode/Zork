@@ -76,6 +76,7 @@ pub mod clang_args {
         }
     }
 
+    #[inline(always)]
     pub fn add_std_lib<'a>(model: &'a ZorkModel) -> Option<Argument<'a>> {
         if !cfg!(target_os = "windows") {
             if let Some(arg) = model.compiler.stdlib_arg() {
