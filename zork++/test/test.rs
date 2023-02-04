@@ -13,11 +13,13 @@ fn test_full_program_with_three_config_files() -> Result<()> {
         Path::new(temp.path())
     )
     .is_ok());
+
     assert!(zork::worker::run_zork(
         &CliArgs::parse_from(["", "new", "gcc_example", "--compiler", "gcc"]),
         Path::new(temp.path())
     )
     .is_ok());
+
     if cfg!(target_os = "windows") {
         assert!(zork::worker::run_zork(
             &CliArgs::parse_from(["", "new", "msvc_example", "--compiler", "msvc"]),

@@ -24,7 +24,7 @@ jobs:
           components: clippy
       - run: |
           cd zork++
-          cargo clippy --all-targets --verbose --all-features
+          cargo clippy --all-targets --all-features
   
   rustfmt:
     name: Verify code formatting
