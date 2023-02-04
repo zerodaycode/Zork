@@ -58,7 +58,7 @@ pub fn create_templated_project(
     let zork_conf = resources::CONFIG_FILE
         .replace(
             "<base_path>",
-            &base_path.to_str().unwrap().replace("\\", "/"),
+            &base_path.to_str().unwrap().replace('\\', "/"),
         )
         .replace("<project_name>", project_name)
         .replace("<autog_test>", project_name)

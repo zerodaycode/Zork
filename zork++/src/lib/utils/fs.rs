@@ -45,5 +45,5 @@ where
         File::open(path.as_ref().join(constants::ZORK_CACHE_FILENAME))
             .with_context(|| "Error opening the cache file")?,
     );
-    Ok(serde_json::from_reader(buffer).unwrap_or(T::default()))
+    Ok(serde_json::from_reader(buffer).unwrap_or_default())
 }

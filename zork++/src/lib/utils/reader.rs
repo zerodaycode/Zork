@@ -67,7 +67,7 @@ pub fn find_config_files(base_path: &Path) -> Result<Vec<ConfigFile>> {
         }
     }
 
-    if files.len() < 1 {
+    if files.is_empty() {
         Err(eyre!("No configuration files found for the project"))
     } else {
         Ok(files)

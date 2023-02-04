@@ -41,7 +41,7 @@ pub mod worker {
             compiler,
         } = cli_args.command
         {
-            return create_templated_project(path, &name, git, compiler.into());
+            return create_templated_project(path, name, git, compiler.into());
         };
 
         let config_files: Vec<ConfigFile> = find_config_files(path)
@@ -71,7 +71,7 @@ pub mod worker {
             let cache =
                 cache::load(&program_data).with_context(|| "Unable to load the Zork++ caché")?;
 
-            do_main_work_based_on_cli_input(&cli_args, path, &program_data, &cache).with_context(
+            do_main_work_based_on_cli_input(cli_args, path, &program_data, &cache).with_context(
                 || {
                     format!(
                         "Failed to build the project for the config file: {:?}",
@@ -132,7 +132,7 @@ pub mod worker {
                 ref name,
                 git,
                 compiler,
-            } => create_templated_project(path, &name, git, compiler.into())
+            } => create_templated_project(path, name, git, compiler.into())
                 .with_context(|| "Failed to create new project"),
             Command::Cache => todo!(),
         }
@@ -200,7 +200,7 @@ pub mod worker {
 
             let normalized_cfg_file = CONFIG_FILE
                 .replace("<base_path>", temp.path().to_str().unwrap())
-                .replace("\\", "/");
+                .replace('\\', "/");
             let zcf: ZorkConfigFile = toml::from_str(&normalized_cfg_file)?;
             let model = build_model(&zcf);
 

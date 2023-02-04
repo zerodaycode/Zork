@@ -1,5 +1,3 @@
-use std::default;
-
 ///! file for represent the available configuration properties within Zork++
 ///! for setting up the target compiler
 ///
