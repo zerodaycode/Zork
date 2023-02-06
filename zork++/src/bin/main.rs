@@ -9,11 +9,26 @@ use zork::{cli::input::CliArgs, utils::logger::config_logger, worker::run_zork};
 /// for the program
 fn main() -> Result<()> {
     color_eyre::install()?;
+    let process_start_time = std::time::Instant::now();
+
     let cli_args = CliArgs::parse();
     config_logger(cli_args.verbose, Target::Stdout).expect("Error configuring the logger");
+    
     log::info!("Lanuching a new Zork++ program");
-    run_zork(&cli_args, Path::new("."))?;
-    log::info!("Tasks succesfully finished");
-
-    Ok(())
+    match run_zork(&cli_args, Path::new(".")) {
+        Ok(_) => {
+            log::info!(
+                "[SUCCESS] - The process ended succesfully, taking a total time in complete of: {:?} ms",
+                process_start_time.elapsed().as_millis()
+            );
+            Ok(())
+        },
+        Err(err) => {
+            log::error!(
+                "[FAILED] - The process failed, taking a total time in complete of: {:?} ms\n{err:?}",
+                process_start_time.elapsed().as_millis()
+            );
+            Err(err)
+        }
+    }
 }

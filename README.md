@@ -11,7 +11,7 @@
 
 <div align="center">
 
-[![Pylint](https://github.com/zerodaycode/Zork/actions/workflows/pylint.yml/badge.svg?branch=main)](https://github.com/zerodaycode/Zork/actions/workflows/pylint.yml)
+[![Code Quality](https://github.com/zerodaycode/Zork/actions/workflows/pylint.yml/badge.svg?branch=main)](https://github.com/zerodaycode/Zork/actions/workflows/code-quality.yml)
 [![GitHub Issues](https://img.shields.io/github/issues/zerodaycode/Zork.svg)](https://github.com/zerodaycode/Zork/issues) </br>
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/zerodaycode/Zork.svg)](https://github.com/zerodaycode/Zork/pulls)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
@@ -56,21 +56,18 @@ available](https://github.com/zerodaycode/Zork/releases) for your current operat
 
 `Zork++` is available for:
 
-- Linux (tested on Arch and Debian systems)
-- Windows (there's some limitations)
+- Linux
+- Windows
 - MacOS (still not complete support)
 
 ## -  Prerequisites
 
 In order to work with `Zork++`, you will need a `C++` toolchain and a compiler in your system.
+Currently, we are supporting the major three compilers in the ecosystem:
 
 - Clang
 - GNU GCC
 - Microsoft MSVC
-
-Currently, `Zork++` it's only working with `LLVM's Clang`, but is ready to implement the other two major compilers. Please see the [contributing guide](CONTRIBUTING.md) if you're ready to help us!
-
-> NOTE: If you are using Windows, you will need to install Clang via `Msys2`. See [Windows special requeriments](#windows_special_requeriments) entry for more info
 
 ## - Generating a new C++ project
 
