@@ -53,9 +53,7 @@ pub enum Command {
         git: bool,
         #[arg(long, default_value = "clang", help = "Which compiler to use")]
         compiler: CppCompiler,
-    },
-    /// TODO @TheHiddenOnSystem document this
-    Cache,
+    }
 }
 
 /// [`CppCompiler`] The C++ compilers available within Zork++ as a command line argument for the `new` argument

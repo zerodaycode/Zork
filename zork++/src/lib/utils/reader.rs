@@ -283,7 +283,7 @@ fn assemble_tests_model<'a>(
 
 #[cfg(test)]
 mod test {
-    use crate::project_model::compiler::{CppCompiler, LanguageLevel, StdLib};
+    use crate::{project_model::compiler::{CppCompiler, LanguageLevel, StdLib}, utils};
 
     use super::*;
 
@@ -348,52 +348,7 @@ mod test {
 
     #[test]
     fn test_project_model_with_full_config() -> Result<()> {
-        const CONFIG_FILE_MOCK: &str = r#"
-            [project]
-            name = "Zork++"
-            authors = ["zerodaycode.gz@gmail.com"]
-
-            [compiler]
-            cpp_compiler = "clang"
-            cpp_standard = "20"
-            std_lib = "libc++"
-            extra_args = [ "-Wall" ]
-
-            [build]
-            output_dir = "build"
-
-            [executable]
-            executable_name = "zork"
-            sources_base_path = "bin"
-            sources = [
-                "*.cpp"
-            ]
-            extra_args = [ "-Werr" ]
-
-            [tests]
-            test_executable_name = "zork_check"
-            sources_base_path = "test"
-            sources = [
-                "*.cpp"
-            ]
-            extra_args = [ "-pedantic" ]
-
-            [modules]
-            base_ifcs_dir = "ifc"
-            interfaces = [
-                { file = "math.cppm" },
-                { file = 'some_module.cppm', module_name = 'math' }
-            ]
-
-            base_impls_dir = "src"
-            implementations = [
-                { file = "math.cpp" },
-                { file = 'some_module_impl.cpp', dependencies = ['iostream'] }
-            ]
-            gcc_sys_modules = [ "iostream" ]
-        "#;
-
-        let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
+        let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK)?;
         let model = build_model(&config);
 
         let expected = ZorkModel {
