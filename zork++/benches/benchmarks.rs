@@ -5,7 +5,7 @@ use zork::{
     cache::{self, ZorkCache},
     compiler::build_project,
     config_file::ZorkConfigFile,
-    utils::{reader::build_model, self}
+    utils::{self, reader::build_model},
 };
 
 pub fn build_project_benchmark(c: &mut Criterion) {

@@ -2,15 +2,16 @@
 
 use chrono::{DateTime, Utc};
 use color_eyre::{eyre::Context, Result};
-use std::{path::Path, fs::File};
+use std::{fs::File, path::Path};
 use walkdir::WalkDir;
 
 use crate::{
+    cli::output::commands::Commands,
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::{
         self,
         constants::{self, GCC_CACHE_DIR},
-    }, cli::output::commands::Commands,
+    },
 };
 use serde::{Deserialize, Serialize};
 
@@ -36,7 +37,11 @@ pub fn load(program_data: &ZorkModel<'_>) -> Result<ZorkCache> {
 }
 
 /// Standalone utility for persist the cache to the file system
-pub fn save(program_data: &ZorkModel<'_>, mut cache: ZorkCache, commands: &Commands<'_>) -> Result<()> {
+pub fn save(
+    program_data: &ZorkModel<'_>,
+    mut cache: ZorkCache,
+    commands: &Commands<'_>,
+) -> Result<()> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
         .join("cache")
@@ -74,7 +79,7 @@ impl ZorkCache {
     /// Runs the tasks just before end the program and save the cache
     pub fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>, commands: &Commands<'_>) {
         self.save_generated_commands(commands);
-        
+
         if program_data.compiler.cpp_compiler == CppCompiler::GCC {
             self.compilers_metadata.gcc.system_modules = program_data
                 .modules
@@ -87,20 +92,19 @@ impl ZorkCache {
 
     fn save_generated_commands(&mut self, commands: &Commands<'_>) {
         self.last_generated_commands.compiler = commands.compiler;
-        self.last_generated_commands.interfaces = commands.interfaces
+        self.last_generated_commands.interfaces = commands
+            .interfaces
             .iter()
             .flatten()
             .map(|arg| arg.value.to_string())
             .collect();
-        self.last_generated_commands.implementations = commands.implementations
+        self.last_generated_commands.implementations = commands
+            .implementations
             .iter()
             .flatten()
             .map(|arg| arg.value.to_string())
             .collect();
-        self.last_generated_commands.main = commands.sources
-            .iter()
-            .map(|arg| arg.value)
-            .collect();
+        self.last_generated_commands.main = commands.sources.iter().map(|arg| arg.value).collect();
     }
 
     /// If Windows is the current OS, and the compiler is MSVC, then we will try

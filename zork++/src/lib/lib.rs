@@ -71,14 +71,14 @@ pub mod worker {
             let cache =
                 cache::load(&program_data).with_context(|| "Unable to load the Zork++ caché")?;
 
-            let generated_commands = do_main_work_based_on_cli_input(cli_args, &program_data, cache.clone())
-                .with_context(|| {
-                    format!(
-                        "Failed to build the project for the config file: {:?}",
-                        config_file.dir_entry.file_name()
-                    )
-                },
-            )?;
+            let generated_commands =
+                do_main_work_based_on_cli_input(cli_args, &program_data, cache.clone())
+                    .with_context(|| {
+                        format!(
+                            "Failed to build the project for the config file: {:?}",
+                            config_file.dir_entry.file_name()
+                        )
+                    })?;
 
             cache::save(&program_data, cache, &generated_commands)?;
         }
@@ -93,7 +93,7 @@ pub mod worker {
     /// binaries, the tests declared for the projects...
     fn do_main_work_based_on_cli_input<'a>(
         cli_args: &'a CliArgs,
-        program_data:  &'a ZorkModel,
+        program_data: &'a ZorkModel,
         cache: ZorkCache,
     ) -> Result<Commands<'a>> {
         match cli_args.command {

@@ -138,7 +138,8 @@ fn test_full_program_with_multi_config_files() -> Result<()> {
         )
         .is_ok());
         assert!(
-            zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]), Path::new(".")).is_ok()
+            zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]), Path::new("."))
+                .is_ok()
         );
 
         fs::remove_dir_all("./gcc_example")?;

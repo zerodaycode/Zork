@@ -283,7 +283,10 @@ fn assemble_tests_model<'a>(
 
 #[cfg(test)]
 mod test {
-    use crate::{project_model::compiler::{CppCompiler, LanguageLevel, StdLib}, utils};
+    use crate::{
+        project_model::compiler::{CppCompiler, LanguageLevel, StdLib},
+        utils,
+    };
 
     use super::*;
 
