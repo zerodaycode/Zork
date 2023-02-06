@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use color_eyre::{eyre::Context, Result};
-use std::{fs::File, path::Path};
+use std::{path::Path, fs::File};
 use walkdir::WalkDir;
 
 use crate::{
@@ -18,7 +18,8 @@ use serde::{Deserialize, Serialize};
 pub fn load(program_data: &ZorkModel<'_>) -> Result<ZorkCache> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
-        .join("cache");
+        .join("cache")
+        .join(program_data.compiler.cpp_compiler.as_ref());
 
     let cache_file_path = cache_path.join(constants::ZORK_CACHE_FILENAME);
 
@@ -39,6 +40,7 @@ pub fn save(program_data: &ZorkModel<'_>, mut cache: ZorkCache) -> Result<()> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
         .join("cache")
+        .join(program_data.compiler.cpp_compiler.as_ref())
         .join(constants::ZORK_CACHE_FILENAME);
 
     cache.run_final_tasks(program_data);

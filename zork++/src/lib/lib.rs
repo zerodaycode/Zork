@@ -80,7 +80,6 @@ pub mod worker {
                 },
             )?;
 
-            // TODO cache file per configuration file
             cache::save(&program_data, cache)?;
         }
 
@@ -166,7 +165,7 @@ pub mod worker {
 
         utils::fs::create_directory(&modules_path.join("interfaces"))?;
         utils::fs::create_directory(&modules_path.join("implementations"))?;
-        utils::fs::create_directory(&zork_cache_path)?;
+        utils::fs::create_directory(&zork_cache_path.join(model.compiler.cpp_compiler.as_ref()))?;
         utils::fs::create_directory(&zork_intrinsics_path)?;
 
         // TODO This possibly would be temporary
