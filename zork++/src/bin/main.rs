@@ -13,7 +13,7 @@ fn main() -> Result<()> {
 
     let cli_args = CliArgs::parse();
     config_logger(cli_args.verbose, Target::Stdout).expect("Error configuring the logger");
-    
+
     log::info!("Launching a new Zork++ program");
     match run_zork(&cli_args, Path::new(".")) {
         Ok(_) => {
@@ -22,7 +22,7 @@ fn main() -> Result<()> {
                 process_start_time.elapsed().as_millis()
             );
             Ok(())
-        },
+        }
         Err(err) => {
             log::error!(
                 "[FAILED] - The process failed, taking a total time in complete of: {:?} ms\n{err:?}",
