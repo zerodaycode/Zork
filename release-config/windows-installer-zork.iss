@@ -2,13 +2,8 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Zork++"
-<<<<<<< HEAD
-#define MyAppVersion "0.4.2"
-#define MyAppPublisher "ZeroDayCode"
-=======
 #define MyAppVersion "0.5.0"
 #define MyAppPublisher "Zero Day Code"
->>>>>>> feature/GH-45-rewrite-zork++-from-scratch-in-rust
 #define MyAppURL "https://github.com/zerodaycode/Zork"
 #define MyAppExeName "zork++.exe"
 #define MyAppAssocName MyAppName + " File"
@@ -45,8 +40,7 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Files]
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\dist\zork++.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\target\release\zork++.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
