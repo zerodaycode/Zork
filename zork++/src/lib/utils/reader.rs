@@ -220,6 +220,7 @@ fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInt
         file: Path::new(config.file),
         module_name,
         dependencies,
+        is_partition: config.is_partition.unwrap_or_default()
     }
 }
 
@@ -235,6 +236,7 @@ fn assemble_module_implementation_model<'a>(
     ModuleImplementationModel {
         file: Path::new(config.file),
         dependencies,
+        is_partition: config.is_partition.unwrap_or_default()
     }
 }
 
@@ -383,11 +385,13 @@ mod test {
                         file: Path::new("math.cppm"),
                         module_name: "math",
                         dependencies: vec![],
+                        is_partition: false
                     },
                     ModuleInterfaceModel {
                         file: Path::new("some_module.cppm"),
                         module_name: "math",
                         dependencies: vec![],
+                        is_partition: false
                     },
                 ],
                 base_impls_dir: Path::new("src"),
@@ -395,10 +399,12 @@ mod test {
                     ModuleImplementationModel {
                         file: Path::new("math.cpp"),
                         dependencies: vec!["math"],
+                        is_partition: false
                     },
                     ModuleImplementationModel {
                         file: Path::new("some_module_impl.cpp"),
                         dependencies: vec!["iostream"],
+                        is_partition: false
                     },
                 ],
                 sys_modules: vec!["iostream"],

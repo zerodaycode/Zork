@@ -422,11 +422,17 @@ mod helpers {
         out_dir: &Path,
         interface: &ModuleInterfaceModel,
     ) -> PathBuf {
+        let miu_name = if interface.is_partition && compiler.eq(&CppCompiler::CLANG) {
+            format!("M-{}", interface.filestem())
+        } else {
+            interface.filestem().to_string()
+        };
+
         out_dir
             .join(compiler.as_ref())
             .join("modules")
             .join("interfaces")
-            .join(interface.filestem())
+            .join(miu_name)
             .with_extension(compiler.get_typical_bmi_extension())
     }
 

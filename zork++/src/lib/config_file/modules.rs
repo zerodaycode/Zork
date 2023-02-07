@@ -6,9 +6,8 @@ use serde::Deserialize;
 /// * `interfaces` - A list to define the module interface translation units for the project
 /// * `base_impls_dir` - Base directory to shorcut the path of the implementation files
 /// * `implementations` - A list to define the module interface translation units for the project
-/// * `gcc_sys_headers` - An array field explicitly declare which system headers
-/// must be precompiled and cached in order to make a module mapper server
-/// following the `GCC` specifications
+/// * `sys_modules` - An array field explicitly declare which system headers
+/// must be precompiled in order to make the importable translation units
 ///
 /// ### Tests
 ///
@@ -82,6 +81,7 @@ pub struct ModulesAttribute<'a> {
 /// C++ module declared within this file is equls to the filename
 /// * `dependencies` - An optional array field for declare the module interfaces
 /// in which this file is dependent on
+/// * `is_partition` - Optional field for declare that the interface is actually an interface partition
 ///
 /// ### Tests
 /// ```rust
@@ -91,7 +91,8 @@ pub struct ModulesAttribute<'a> {
 ///     interfaces = [
 ///         { file = 'math.cppm' },
 ///         { file = 'some_module.cppm', module_name = 'math' },
-///         { file = 'a.cppm', module_name = 'module', dependencies = ['math', 'type_traits', 'iostream'] }
+///         { file = 'a.cppm', module_name = 'module', dependencies = ['math', 'type_traits', 'iostream'] },
+///         { file = 'some_module_part.cppm', module_name = 'math_part', is_partition = true, dependecies = ['math'] }
 ///     ]
 /// "#;
 ///
@@ -103,6 +104,7 @@ pub struct ModulesAttribute<'a> {
 /// let ifc_0 = &ifcs[0];
 /// assert_eq!(ifc_0.file, "math.cppm");
 /// assert_eq!(ifc_0.module_name, None);
+/// assert_eq!(ifc_0.is_partition, None);
 ///
 /// let ifc_1 = &ifcs[1];
 /// assert_eq!(ifc_1.file, "some_module.cppm");
@@ -112,10 +114,16 @@ pub struct ModulesAttribute<'a> {
 /// assert_eq!(ifc_2.file, "a.cppm");
 /// assert_eq!(ifc_2.module_name, Some("module"));
 /// let deps = ifc_2.dependencies.as_ref().unwrap();
-///
-/// assert_eq!(deps[0], "math");
-/// assert_eq!(deps[1], "type_traits");
-/// assert_eq!(deps[2], "iostream");
+/// 
+/// let deps_ifc2 = ifc_2.dependencies.as_ref().unwrap();
+/// assert_eq!(deps_ifc2[0], "math");
+/// assert_eq!(deps_ifc2[1], "type_traits");
+/// assert_eq!(deps_ifc2[2], "iostream");
+/// 
+/// let ifc_3 = &ifcs[3];
+/// assert_eq!(ifc_3.file, "some_module_part.cppm");
+/// assert_eq!(ifc_3.module_name, Some("math_part"));
+/// assert_eq!(ifc_3.is_partition, Some(true));
 /// ```
 #[derive(Deserialize, Debug, PartialEq)]
 pub struct ModuleInterface<'a> {
@@ -125,6 +133,7 @@ pub struct ModuleInterface<'a> {
     pub module_name: Option<&'a str>,
     #[serde(borrow)]
     pub dependencies: Option<Vec<&'a str>>,
+    pub is_partition: Option<bool>
 }
 
 /// [`ModuleImplementation`] -  Type for dealing with the parse work
@@ -133,14 +142,16 @@ pub struct ModuleInterface<'a> {
 /// * `file`- The path of a primary module interface (relative to base_ifcs_path)
 /// * `dependencies` - An optional array field for declare the module interfaces
 /// in which this file is dependent on
-///
+/// * `is_partition` - Optional field for declare that the translation unit is
+/// actually a module implementation partition
+/// 
 /// ### Tests
 /// ```rust
 /// use zork::config_file::modules::ModulesAttribute;
 /// use zork::config_file::modules::ModuleImplementation;
 /// const CONFIG_FILE_MOCK: &str = r#"
 ///     implementations = [
-///         { file = 'math.cppm' },
+///         { file = 'math.cppm', is_partition = false },
 ///         { file = 'a.cppm', dependencies = ['math', 'type_traits', 'iostream'] }
 ///     ]
 /// "#;
@@ -152,6 +163,7 @@ pub struct ModuleInterface<'a> {
 ///
 /// let impl_0 = &impls[0];
 /// assert_eq!(impl_0.file, "math.cppm");
+/// assert_eq!(impl_0.is_partition, Some(false));
 ///
 /// let impl_1 = &impls[1];
 /// assert_eq!(impl_1.file, "a.cppm");
@@ -166,4 +178,5 @@ pub struct ModuleImplementation<'a> {
     pub file: &'a str,
     #[serde(borrow)]
     pub dependencies: Option<Vec<&'a str>>,
+    pub is_partition: Option<bool>
 }

@@ -17,14 +17,15 @@ pub struct ModuleInterfaceModel<'a> {
     pub file: &'a Path,
     pub module_name: &'a str,
     pub dependencies: Vec<&'a str>,
+    pub is_partition: bool
 }
 
 impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "({:?}, {:?}, {:?})",
-            self.file, self.module_name, self.dependencies
+            "({:?}, {:?}, {:?}), is_partition: {}",
+            self.file, self.module_name, self.dependencies, self.is_partition
         )
     }
 }
@@ -39,11 +40,12 @@ impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
 pub struct ModuleImplementationModel<'a> {
     pub file: &'a Path,
     pub dependencies: Vec<&'a str>,
+    pub is_partition: bool
 }
 
 impl<'a> fmt::Display for ModuleImplementationModel<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({:?}, {:?})", self.file, self.dependencies)
+        write!(f, "({:?}, {:?}, is partition: {})", self.file, self.dependencies, self.is_partition)
     }
 }
 

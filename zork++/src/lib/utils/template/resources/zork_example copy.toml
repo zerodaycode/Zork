@@ -27,14 +27,11 @@ sources = [
 [modules]
 base_ifcs_dir = "<base_path>/<project_name>/ifc"
 interfaces = [ 
-    { file = 'math.cppm' },   
-    { file = 'show_interface_partition.cppm', is_partition = true },
-    { file = 'show_partitions.cppm', dependencies = ['M-show_interface_partition'] },
+    { file = 'math.cppm'}  
 ]
 base_impls_dir = "<base_path>/<project_name>/src"
 implementations = [
     { file = 'math.cpp' },
-    { file = 'math2.cpp', dependencies = ['math'] },
-    # { file = 'show_interface-partition_impl.cppm', dependencies = ['M-show_interface-partition'] },
+    { file = 'math2.cpp', dependencies = ['math'] }
 ]
 sys_modules = ['iostream']
