@@ -43,12 +43,12 @@ pub fn create_templated_project(
 
     utils::fs::create_file(
         &path_ifc,
-        &format!("{}.{}", "show_partitions", compiler.get_default_module_extension()),
+        &format!("{}.{}", "partitions", compiler.get_default_module_extension()),
         resources::IFC_PART_FILE.as_bytes(),
     )?;
     utils::fs::create_file(
         &path_ifc,
-        &format!("{}.{}", "show_interface_partition", compiler.get_default_module_extension()),
+        &format!("{}.{}", "interface_partition", compiler.get_default_module_extension()),
         resources::IFC_PART_PARTITION_FILE.as_bytes(),
     )?;
     utils::fs::create_file(
