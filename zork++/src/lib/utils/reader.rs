@@ -196,8 +196,8 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
         })
         .unwrap_or_default();
 
-    let gcc_sys_modules = config
-        .and_then(|modules| modules.gcc_sys_modules.as_ref())
+    let sys_modules = config
+        .and_then(|modules| modules.sys_modules.as_ref())
         .map_or_else(Default::default, |headers| headers.clone());
 
     ModulesModel {
@@ -205,7 +205,7 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
         interfaces,
         base_impls_dir: Path::new(base_impls_dir),
         implementations,
-        gcc_sys_modules,
+        sys_modules,
     }
 }
 
@@ -332,7 +332,7 @@ mod test {
                 interfaces: vec![],
                 base_impls_dir: Path::new("."),
                 implementations: vec![],
-                gcc_sys_modules: vec![],
+                sys_modules: vec![],
             },
             tests: TestsModel {
                 test_executable_name: "Zork++_test".to_string(),
@@ -401,7 +401,7 @@ mod test {
                         dependencies: vec!["iostream"],
                     },
                 ],
-                gcc_sys_modules: vec!["iostream"],
+                sys_modules: vec!["iostream"],
             },
             tests: TestsModel {
                 test_executable_name: "zork_check".to_string(),

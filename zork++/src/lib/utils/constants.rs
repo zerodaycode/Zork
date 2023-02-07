@@ -59,5 +59,5 @@ implementations = [
     { file = "math.cpp" },
     { file = 'some_module_impl.cpp', dependencies = ['iostream'] }
 ]
-gcc_sys_modules = [ "iostream" ]
+sys_modules = [ "iostream" ]
 "#;

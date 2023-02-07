@@ -83,7 +83,7 @@ impl ZorkCache {
         if program_data.compiler.cpp_compiler == CppCompiler::GCC {
             self.compilers_metadata.gcc.system_modules = program_data
                 .modules
-                .gcc_sys_modules
+                .sys_modules
                 .iter()
                 .map(|e| e.to_string())
                 .collect::<Vec<_>>();
@@ -142,7 +142,7 @@ impl ZorkCache {
                 {
                     program_data
                         .modules
-                        .gcc_sys_modules
+                        .sys_modules
                         .iter()
                         .any(|sys_mod| file.file_name().to_str().unwrap().starts_with(sys_mod))
                 } else {

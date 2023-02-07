@@ -461,7 +461,7 @@ mod helpers {
         let language_level = model.compiler.language_level_arg();
         let sys_modules = model
             .modules
-            .gcc_sys_modules
+            .sys_modules
             .iter()
             .filter(|sys_module| {
                 !cache

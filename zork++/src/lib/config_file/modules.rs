@@ -23,7 +23,7 @@ use serde::Deserialize;
 ///     implementations = [
 ///         { file = 'math.cpp' }, { file = 'some_module_impl.cpp', dependencies = ['iostream'] }
 ///     ]
-///     gcc_sys_modules = ['iostream', 'vector', 'string', 'type_traits', 'functional']
+///     sys_modules = ['iostream', 'vector', 'string', 'type_traits', 'functional']
 /// "#;
 ///
 /// let config: ModulesAttribute = toml::from_str(CONFIG_FILE_MOCK)
@@ -51,7 +51,7 @@ use serde::Deserialize;
 /// assert_eq!(impl_1.dependencies, Some(vec!["iostream"]));
 ///
 ///
-/// let gcc_sys_headers = config.gcc_sys_modules.unwrap();
+/// let gcc_sys_headers = config.sys_modules.unwrap();
 /// assert_eq!(&gcc_sys_headers[0], &"iostream");
 /// assert_eq!(&gcc_sys_headers[1], &"vector");
 /// assert_eq!(&gcc_sys_headers[2], &"string");
@@ -69,7 +69,7 @@ pub struct ModulesAttribute<'a> {
     #[serde(borrow)]
     pub implementations: Option<Vec<ModuleImplementation<'a>>>,
     #[serde(borrow)]
-    pub gcc_sys_modules: Option<Vec<&'a str>>,
+    pub sys_modules: Option<Vec<&'a str>>,
 }
 
 /// [`ModuleInterface`] -  A module interface structure for dealing
