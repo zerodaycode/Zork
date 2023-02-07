@@ -274,7 +274,11 @@ mod sources {
                         .display()
                 )));
                 // The input file
-                arguments.push(Argument::from("/interface"));
+                if interface.is_partition {
+                    arguments.push(Argument::from("/internalPartition"));
+                } else {
+                    arguments.push(Argument::from("/interface"));
+                }
                 arguments.push(Argument::from("/TP"));
                 arguments.push(Argument::from(helpers::add_input_file(
                     interface, base_path,

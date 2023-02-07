@@ -53,7 +53,7 @@ pub fn create_templated_project(
     )?;
     utils::fs::create_file(
         &path_ifc,
-        &format!("{}.{}", "internal_partition", compiler.get_default_module_extension()),
+        &format!("{}.{}", "internal_partition", "cpp"),
         resources::PARTITIONS_INTERNAL_PARTITION_FILE.as_bytes(),
     )?;
     utils::fs::create_file(
