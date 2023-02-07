@@ -39,13 +39,12 @@ impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleImplementationModel<'a> {
     pub file: &'a Path,
-    pub dependencies: Vec<&'a str>,
-    pub is_partition: bool
+    pub dependencies: Vec<&'a str>
 }
 
 impl<'a> fmt::Display for ModuleImplementationModel<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({:?}, {:?}, is partition: {})", self.file, self.dependencies, self.is_partition)
+        write!(f, "({:?}, {:?})", self.file, self.dependencies)
     }
 }
 

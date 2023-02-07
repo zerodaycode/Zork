@@ -235,8 +235,7 @@ fn assemble_module_implementation_model<'a>(
 
     ModuleImplementationModel {
         file: Path::new(config.file),
-        dependencies,
-        is_partition: config.is_partition.unwrap_or_default()
+        dependencies
     }
 }
 
@@ -398,13 +397,11 @@ mod test {
                 implementations: vec![
                     ModuleImplementationModel {
                         file: Path::new("math.cpp"),
-                        dependencies: vec!["math"],
-                        is_partition: false
+                        dependencies: vec!["math"]
                     },
                     ModuleImplementationModel {
                         file: Path::new("some_module_impl.cpp"),
-                        dependencies: vec!["iostream"],
-                        is_partition: false
+                        dependencies: vec!["iostream"]
                     },
                 ],
                 sys_modules: vec!["iostream"],

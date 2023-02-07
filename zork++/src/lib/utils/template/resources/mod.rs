@@ -2,6 +2,7 @@
 
 pub const IFC_PART_FILE: &str = include_str!("partitions.cppm");
 pub const IFC_PART_PARTITION_FILE: &str = include_str!("interface_partition.cppm");
+pub const PARTITIONS_INTERNAL_PARTITION_FILE: &str = include_str!("internal_partition.cppm");
 pub const IFC_MOD_FILE: &str = include_str!("math.cppm");
 pub const SRC_MOD_FILE: &str = include_str!("math.cpp");
 pub const SRC_MOD_FILE_2: &str = include_str!("math2.cpp");

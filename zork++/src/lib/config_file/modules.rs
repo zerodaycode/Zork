@@ -142,8 +142,6 @@ pub struct ModuleInterface<'a> {
 /// * `file`- The path of a primary module interface (relative to base_ifcs_path)
 /// * `dependencies` - An optional array field for declare the module interfaces
 /// in which this file is dependent on
-/// * `is_partition` - Optional field for declare that the translation unit is
-/// actually a module implementation partition
 /// 
 /// ### Tests
 /// ```rust
@@ -163,7 +161,6 @@ pub struct ModuleInterface<'a> {
 ///
 /// let impl_0 = &impls[0];
 /// assert_eq!(impl_0.file, "math.cppm");
-/// assert_eq!(impl_0.is_partition, Some(false));
 ///
 /// let impl_1 = &impls[1];
 /// assert_eq!(impl_1.file, "a.cppm");
@@ -177,6 +174,5 @@ pub struct ModuleImplementation<'a> {
     #[serde(borrow)]
     pub file: &'a str,
     #[serde(borrow)]
-    pub dependencies: Option<Vec<&'a str>>,
-    pub is_partition: Option<bool>
+    pub dependencies: Option<Vec<&'a str>>
 }

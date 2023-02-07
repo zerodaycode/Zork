@@ -53,6 +53,11 @@ pub fn create_templated_project(
     )?;
     utils::fs::create_file(
         &path_ifc,
+        &format!("{}.{}", "internal_partition", compiler.get_default_module_extension()),
+        resources::PARTITIONS_INTERNAL_PARTITION_FILE.as_bytes(),
+    )?;
+    utils::fs::create_file(
+        &path_ifc,
         &format!("{}.{}", "math", compiler.get_default_module_extension()),
         resources::IFC_MOD_FILE.as_bytes(),
     )?;
