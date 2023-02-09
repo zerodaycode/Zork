@@ -28,9 +28,9 @@ sources = [
 base_ifcs_dir = "<base_path>/<project_name>/ifc"
 interfaces = [ 
     { file = 'math.cppm' },   
-    { file = 'interface_partition.cppm' },
-    { file = 'internal_partition.cpp', is_partition = true, dependencies = ['M-interface_partition'] },
-    { file = 'partitions.cppm', dependencies = ['M-interface_partition'] }
+    { file = 'interface_partition.cppm', is_partition = true },
+    { file = 'internal_partition.cpp', is_partition = true, dependencies = ['interface_partition'] },
+    { file = 'partitions.cppm', dependencies = ['interface_partition'] }
 ]
 base_impls_dir = "<base_path>/<project_name>/src"
 implementations = [
