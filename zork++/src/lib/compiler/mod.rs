@@ -236,12 +236,10 @@ mod sources {
 
                 arguments.push(clang_args::implicit_module_maps(out_dir));
 
-                arguments.push(Argument::from(
-                    format!(
-                        "-fprebuilt-module-path={}/clang/modules/interfaces",
-                        out_dir.display()
-                    )
-                ));
+                arguments.push(Argument::from(format!(
+                    "-fprebuilt-module-path={}/clang/modules/interfaces",
+                    out_dir.display()
+                )));
                 clang_args::add_direct_module_interfafces_dependencies(
                     &interface.dependencies,
                     compiler,
@@ -275,20 +273,20 @@ mod sources {
                     .display()
                     .to_string();
                 arguments.push(Argument::from("/ifcSearchDir"));
-                arguments.push(format!("{}", implicit_lookup_mius_path.clone()).into());
+                arguments.push(implicit_lookup_mius_path.clone().into());
                 arguments.push(Argument::from("/ifcOutput"));
-                arguments.push(format!("{}", implicit_lookup_mius_path.clone()).into());
+                arguments.push(implicit_lookup_mius_path.clone().into());
 
                 // The output .obj file
                 let obj_file = format!(
-                    "{}", 
-                    Path::new(&implicit_lookup_mius_path.clone())
+                    "{}",
+                    Path::new(&implicit_lookup_mius_path)
                         .join(interface.filestem())
                         .with_extension(compiler.get_obj_file_extension())
                         .display()
                 );
                 commands.generated_files_paths.push(obj_file.clone().into());
-                arguments.push(Argument::from(format!("/Fo{}", obj_file)));
+                arguments.push(Argument::from(format!("/Fo{obj_file}")));
 
                 if let Some(partition) = &interface.partition {
                     if partition.is_internal_partition {
@@ -455,7 +453,7 @@ mod helpers {
                 if !partition.partition_name.is_empty() {
                     temp.push_str(partition.partition_name)
                 } else {
-                    temp.push_str(interface.filestem())        
+                    temp.push_str(interface.filestem())
                 }
             } else {
                 temp.push_str(interface.module_name)

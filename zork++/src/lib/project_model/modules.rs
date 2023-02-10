@@ -17,7 +17,7 @@ pub struct ModuleInterfaceModel<'a> {
     pub file: &'a Path,
     pub module_name: &'a str,
     pub partition: Option<ModulePartitionModel<'a>>,
-    pub dependencies: Vec<&'a str>
+    pub dependencies: Vec<&'a str>,
 }
 
 impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
@@ -40,15 +40,15 @@ impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
 pub struct ModulePartitionModel<'a> {
     pub module: &'a str,
     pub partition_name: &'a str,
-    pub is_internal_partition: bool
+    pub is_internal_partition: bool,
 }
 
 impl<'a> From<&ModulePartition<'a>> for ModulePartitionModel<'a> {
     fn from(value: &ModulePartition<'a>) -> Self {
-        Self { 
+        Self {
             module: value.module,
             partition_name: value.partition_name.unwrap_or_default(),
-            is_internal_partition: value.is_internal_partition.unwrap_or_default()
+            is_internal_partition: value.is_internal_partition.unwrap_or_default(),
         }
     }
 }
@@ -56,7 +56,7 @@ impl<'a> From<&ModulePartition<'a>> for ModulePartitionModel<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleImplementationModel<'a> {
     pub file: &'a Path,
-    pub dependencies: Vec<&'a str>
+    pub dependencies: Vec<&'a str>,
 }
 
 impl<'a> fmt::Display for ModuleImplementationModel<'a> {

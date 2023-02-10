@@ -90,7 +90,7 @@ impl CppCompiler {
     pub fn get_obj_file_extension(&self) -> &str {
         match *self {
             CppCompiler::CLANG | CppCompiler::GCC => "o",
-            CppCompiler::MSVC => "obj"
+            CppCompiler::MSVC => "obj",
         }
     }
 }

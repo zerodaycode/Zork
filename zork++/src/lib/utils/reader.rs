@@ -13,7 +13,9 @@ use crate::{
         build::BuildModel,
         compiler::CompilerModel,
         executable::ExecutableModel,
-        modules::{ModuleImplementationModel, ModuleInterfaceModel, ModulesModel, ModulePartitionModel},
+        modules::{
+            ModuleImplementationModel, ModuleInterfaceModel, ModulePartitionModel, ModulesModel,
+        },
         project::ProjectModel,
         sourceset::{GlobPattern, Source, SourceSet},
         tests::TestsModel,
@@ -218,14 +220,16 @@ fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInt
     let partition = if config.partition.is_none() {
         None
     } else {
-        Some(ModulePartitionModel::from(config.partition.as_ref().unwrap()))
+        Some(ModulePartitionModel::from(
+            config.partition.as_ref().unwrap(),
+        ))
     };
 
     ModuleInterfaceModel {
         file: Path::new(config.file),
         module_name,
         partition,
-        dependencies
+        dependencies,
     }
 }
 
@@ -240,7 +244,7 @@ fn assemble_module_implementation_model<'a>(
 
     ModuleImplementationModel {
         file: Path::new(config.file),
-        dependencies
+        dependencies,
     }
 }
 
@@ -389,24 +393,24 @@ mod test {
                         file: Path::new("math.cppm"),
                         module_name: "math",
                         partition: None,
-                        dependencies: vec![]
+                        dependencies: vec![],
                     },
                     ModuleInterfaceModel {
                         file: Path::new("some_module.cppm"),
                         module_name: "math",
                         partition: None,
-                        dependencies: vec![]
+                        dependencies: vec![],
                     },
                 ],
                 base_impls_dir: Path::new("src"),
                 implementations: vec![
                     ModuleImplementationModel {
                         file: Path::new("math.cpp"),
-                        dependencies: vec!["math"]
+                        dependencies: vec!["math"],
                     },
                     ModuleImplementationModel {
                         file: Path::new("some_module_impl.cpp"),
-                        dependencies: vec!["iostream"]
+                        dependencies: vec!["iostream"],
                     },
                 ],
                 sys_modules: vec!["iostream"],

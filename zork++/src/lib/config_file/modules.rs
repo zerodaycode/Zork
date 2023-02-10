@@ -75,16 +75,16 @@ pub struct ModulesAttribute<'a> {
 /// with the parse work of prebuild module interface units
 ///
 /// * `file`- The path of a primary module interface (relative to base_ifcs_path if applies)
-/// 
+///
 /// * `module_name` - An optional field for make an explicit declaration of the
 /// C++ module declared on this module interface with the `export module 'module_name'
 /// statement. If this attribute isn't present, Zork++ will assume that the
 /// C++ module declared within this file is equals to the filename
-/// 
+///
 /// * `partition` - Whenever this attribute is present, we are telling Zork++ that the
 /// actual translation unit is a partition, either an interface partition or an implementation
 /// partition unit
-/// 
+///
 /// * `dependencies` - An optional array field for declare the module interfaces
 /// in which this file is dependent on
 /// ### Tests
@@ -118,12 +118,12 @@ pub struct ModulesAttribute<'a> {
 /// assert_eq!(ifc_2.file, "a.cppm");
 /// assert_eq!(ifc_2.module_name, Some("module"));
 /// let deps = ifc_2.dependencies.as_ref().unwrap();
-/// 
+///
 /// let deps_ifc2 = ifc_2.dependencies.as_ref().unwrap();
 /// assert_eq!(deps_ifc2[0], "math");
 /// assert_eq!(deps_ifc2[1], "type_traits");
 /// assert_eq!(deps_ifc2[2], "iostream");
-/// 
+///
 /// let ifc_3 = &ifcs[3];
 /// assert_eq!(ifc_3.file, "some_module_part.cppm");
 /// assert_eq!(ifc_3.module_name, Some("math_part"));
@@ -137,19 +137,19 @@ pub struct ModuleInterface<'a> {
     #[serde(borrow)]
     pub partition: Option<ModulePartition<'a>>,
     #[serde(borrow)]
-    pub dependencies: Option<Vec<&'a str>>
+    pub dependencies: Option<Vec<&'a str>>,
 }
 
 /// [`ModulePartition`] - Type for dealing with the parse work
 /// of module partitions, either interfaces or implementations
 ///
 /// * `module`- The interface module unit that this partitions belongs to
-/// 
+///
 /// * `partition_name` - An optional field for explicitly declare the name of a module interface
 /// partition, or a module implementation partition.
 /// Currently this requirement is only needed if your partitions file names aren't
 /// declared as the modules convention, that is `module_name-partition_name.extension`
-/// 
+///
 /// * `is_internal_partition` - Optional field for declare that the module is actually
 /// a module for hold implementation details, known as module implementation partitions.
 /// This option only takes effect with MSVC
@@ -159,9 +159,8 @@ pub struct ModulePartition<'a> {
     pub module: &'a str,
     #[serde(borrow)]
     pub partition_name: Option<&'a str>,
-    pub is_internal_partition: Option<bool>
+    pub is_internal_partition: Option<bool>,
 }
-
 
 /// [`ModuleImplementation`] -  Type for dealing with the parse work
 /// of module implementation translation units
@@ -169,7 +168,7 @@ pub struct ModulePartition<'a> {
 /// * `file`- The path of a primary module interface (relative to base_ifcs_path)
 /// * `dependencies` - An optional array field for declare the module interfaces
 /// in which this file is dependent on
-/// 
+///
 /// ### Tests
 /// ```rust
 /// use zork::config_file::modules::ModulesAttribute;
@@ -201,5 +200,5 @@ pub struct ModuleImplementation<'a> {
     #[serde(borrow)]
     pub file: &'a str,
     #[serde(borrow)]
-    pub dependencies: Option<Vec<&'a str>>
+    pub dependencies: Option<Vec<&'a str>>,
 }
