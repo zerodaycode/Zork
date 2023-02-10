@@ -219,8 +219,9 @@ fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInt
     ModuleInterfaceModel {
         file: Path::new(config.file),
         module_name,
+        partition_name: config.partition_name.unwrap_or_default(),
         dependencies,
-        is_partition: config.is_partition.unwrap_or_default()
+        is_internal_partition: config.is_internal_partition.unwrap_or_default()
     }
 }
 
@@ -383,14 +384,16 @@ mod test {
                     ModuleInterfaceModel {
                         file: Path::new("math.cppm"),
                         module_name: "math",
+                        partition_name: "",
                         dependencies: vec![],
-                        is_partition: false
+                        is_internal_partition: false
                     },
                     ModuleInterfaceModel {
                         file: Path::new("some_module.cppm"),
                         module_name: "math",
+                        partition_name: "",
                         dependencies: vec![],
-                        is_partition: false
+                        is_internal_partition: false
                     },
                 ],
                 base_impls_dir: Path::new("src"),

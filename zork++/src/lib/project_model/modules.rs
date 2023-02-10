@@ -16,16 +16,17 @@ pub struct ModulesModel<'a> {
 pub struct ModuleInterfaceModel<'a> {
     pub file: &'a Path,
     pub module_name: &'a str,
+    pub partition_name: &'a str,
     pub dependencies: Vec<&'a str>,
-    pub is_partition: bool
+    pub is_internal_partition: bool
 }
 
 impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "({:?}, {:?}, {:?}), is_partition: {}",
-            self.file, self.module_name, self.dependencies, self.is_partition
+            "({:?}, {:?}, {:?}, {:?}), is_partition: {}",
+            self.file, self.module_name, self.partition_name, self.dependencies, self.is_internal_partition
         )
     }
 }
