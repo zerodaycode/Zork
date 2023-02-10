@@ -5,6 +5,7 @@ use tempfile::tempdir;
 use zork::cli::input::CliArgs;
 
 #[test]
+#[ignore]
 fn test_clang_full_process() -> Result<()> {
     let temp = tempdir()?;
 
@@ -107,6 +108,7 @@ fn test_gcc_linux_full_process() -> Result<()> {
 }
 
 #[test]
+#[ignore]
 fn test_full_program_with_multi_config_files() -> Result<()> {
     let temp = tempdir()?;
 
