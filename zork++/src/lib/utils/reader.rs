@@ -13,7 +13,9 @@ use crate::{
         build::BuildModel,
         compiler::CompilerModel,
         executable::ExecutableModel,
-        modules::{ModuleImplementationModel, ModuleInterfaceModel, ModulesModel},
+        modules::{
+            ModuleImplementationModel, ModuleInterfaceModel, ModulePartitionModel, ModulesModel,
+        },
         project::ProjectModel,
         sourceset::{GlobPattern, Source, SourceSet},
         tests::TestsModel,
@@ -215,10 +217,18 @@ fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInt
         .unwrap_or_else(|| config.file.split('.').collect::<Vec<_>>()[0]);
 
     let dependencies = config.dependencies.clone().unwrap_or_default();
+    let partition = if config.partition.is_none() {
+        None
+    } else {
+        Some(ModulePartitionModel::from(
+            config.partition.as_ref().unwrap(),
+        ))
+    };
 
     ModuleInterfaceModel {
         file: Path::new(config.file),
         module_name,
+        partition,
         dependencies,
     }
 }
@@ -382,11 +392,13 @@ mod test {
                     ModuleInterfaceModel {
                         file: Path::new("math.cppm"),
                         module_name: "math",
+                        partition: None,
                         dependencies: vec![],
                     },
                     ModuleInterfaceModel {
                         file: Path::new("some_module.cppm"),
                         module_name: "math",
+                        partition: None,
                         dependencies: vec![],
                     },
                 ],

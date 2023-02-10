@@ -6,9 +6,8 @@ use serde::Deserialize;
 /// * `interfaces` - A list to define the module interface translation units for the project
 /// * `base_impls_dir` - Base directory to shorcut the path of the implementation files
 /// * `implementations` - A list to define the module interface translation units for the project
-/// * `gcc_sys_headers` - An array field explicitly declare which system headers
-/// must be precompiled and cached in order to make a module mapper server
-/// following the `GCC` specifications
+/// * `sys_modules` - An array field explicitly declare which system headers
+/// must be precompiled in order to make the importable translation units
 ///
 /// ### Tests
 ///
@@ -76,13 +75,18 @@ pub struct ModulesAttribute<'a> {
 /// with the parse work of prebuild module interface units
 ///
 /// * `file`- The path of a primary module interface (relative to base_ifcs_path if applies)
+///
 /// * `module_name` - An optional field for make an explicit declaration of the
 /// C++ module declared on this module interface with the `export module 'module_name'
 /// statement. If this attribute isn't present, Zork++ will assume that the
-/// C++ module declared within this file is equls to the filename
+/// C++ module declared within this file is equals to the filename
+///
+/// * `partition` - Whenever this attribute is present, we are telling Zork++ that the
+/// actual translation unit is a partition, either an interface partition or an implementation
+/// partition unit
+///
 /// * `dependencies` - An optional array field for declare the module interfaces
 /// in which this file is dependent on
-///
 /// ### Tests
 /// ```rust
 /// use zork::config_file::modules::ModulesAttribute;
@@ -91,7 +95,8 @@ pub struct ModulesAttribute<'a> {
 ///     interfaces = [
 ///         { file = 'math.cppm' },
 ///         { file = 'some_module.cppm', module_name = 'math' },
-///         { file = 'a.cppm', module_name = 'module', dependencies = ['math', 'type_traits', 'iostream'] }
+///         { file = 'a.cppm', module_name = 'module', dependencies = ['math', 'type_traits', 'iostream'] },
+///         { file = 'some_module_part.cppm', module_name = 'math_part', dependecies = ['math'] }
 ///     ]
 /// "#;
 ///
@@ -103,6 +108,7 @@ pub struct ModulesAttribute<'a> {
 /// let ifc_0 = &ifcs[0];
 /// assert_eq!(ifc_0.file, "math.cppm");
 /// assert_eq!(ifc_0.module_name, None);
+/// assert_eq!(ifc_0.partition, None);
 ///
 /// let ifc_1 = &ifcs[1];
 /// assert_eq!(ifc_1.file, "some_module.cppm");
@@ -113,9 +119,14 @@ pub struct ModulesAttribute<'a> {
 /// assert_eq!(ifc_2.module_name, Some("module"));
 /// let deps = ifc_2.dependencies.as_ref().unwrap();
 ///
-/// assert_eq!(deps[0], "math");
-/// assert_eq!(deps[1], "type_traits");
-/// assert_eq!(deps[2], "iostream");
+/// let deps_ifc2 = ifc_2.dependencies.as_ref().unwrap();
+/// assert_eq!(deps_ifc2[0], "math");
+/// assert_eq!(deps_ifc2[1], "type_traits");
+/// assert_eq!(deps_ifc2[2], "iostream");
+///
+/// let ifc_3 = &ifcs[3];
+/// assert_eq!(ifc_3.file, "some_module_part.cppm");
+/// assert_eq!(ifc_3.module_name, Some("math_part"));
 /// ```
 #[derive(Deserialize, Debug, PartialEq)]
 pub struct ModuleInterface<'a> {
@@ -124,11 +135,35 @@ pub struct ModuleInterface<'a> {
     #[serde(borrow)]
     pub module_name: Option<&'a str>,
     #[serde(borrow)]
+    pub partition: Option<ModulePartition<'a>>,
+    #[serde(borrow)]
     pub dependencies: Option<Vec<&'a str>>,
 }
 
+/// [`ModulePartition`] - Type for dealing with the parse work
+/// of module partitions, either interfaces or implementations
+///
+/// * `module`- The interface module unit that this partitions belongs to
+///
+/// * `partition_name` - An optional field for explicitly declare the name of a module interface
+/// partition, or a module implementation partition.
+/// Currently this requirement is only needed if your partitions file names aren't
+/// declared as the modules convention, that is `module_name-partition_name.extension`
+///
+/// * `is_internal_partition` - Optional field for declare that the module is actually
+/// a module for hold implementation details, known as module implementation partitions.
+/// This option only takes effect with MSVC
+#[derive(Deserialize, Debug, PartialEq)]
+pub struct ModulePartition<'a> {
+    #[serde(borrow)]
+    pub module: &'a str,
+    #[serde(borrow)]
+    pub partition_name: Option<&'a str>,
+    pub is_internal_partition: Option<bool>,
+}
+
 /// [`ModuleImplementation`] -  Type for dealing with the parse work
-/// of compile module implementation translation units
+/// of module implementation translation units
 ///
 /// * `file`- The path of a primary module interface (relative to base_ifcs_path)
 /// * `dependencies` - An optional array field for declare the module interfaces
@@ -140,7 +175,7 @@ pub struct ModuleInterface<'a> {
 /// use zork::config_file::modules::ModuleImplementation;
 /// const CONFIG_FILE_MOCK: &str = r#"
 ///     implementations = [
-///         { file = 'math.cppm' },
+///         { file = 'math.cppm', is_partition = false },
 ///         { file = 'a.cppm', dependencies = ['math', 'type_traits', 'iostream'] }
 ///     ]
 /// "#;
