@@ -8,6 +8,8 @@ use zork::{
     utils::{self, reader::build_model},
 };
 
+/// To succesfully run the benchmarks, change the filename of the
+/// [deactivated]zork_clang.toml under the github-example folder
 pub fn build_project_benchmark(c: &mut Criterion) {
     let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK).unwrap();
     let program_data = build_model(&config);
