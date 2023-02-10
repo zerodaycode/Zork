@@ -234,6 +234,12 @@ mod sources {
 
                 arguments.push(clang_args::implicit_module_maps(out_dir));
 
+                arguments.push(Argument::from(
+                    format!(
+                        "-fprebuilt-module-path={}/clang/modules/interfaces",
+                        out_dir.display()
+                    )
+                ));
                 clang_args::add_direct_module_interfafces_dependencies(
                     &interface.dependencies,
                     compiler,
@@ -274,7 +280,7 @@ mod sources {
                         .display()
                 )));
                 // The input file
-                if interface.is_partition {
+                if interface.is_internal_partition {
                     arguments.push(Argument::from("/internalPartition"));
                 } else {
                     arguments.push(Argument::from("/interface"));
@@ -426,11 +432,24 @@ mod helpers {
         out_dir: &Path,
         interface: &ModuleInterfaceModel,
     ) -> PathBuf {
+        let fs = if compiler.eq(&CppCompiler::CLANG) {
+            let mut temp = String::new();
+            if !interface.module_name.is_empty() {
+                temp.push_str(interface.module_name)
+            }
+            if !interface.partition_name.is_empty() {
+                temp.push('-');
+                temp.push_str(interface.partition_name)
+            }
+            temp
+        } else {
+            interface.filestem().to_owned()
+        };
         out_dir
             .join(compiler.as_ref())
             .join("modules")
             .join("interfaces")
-            .join(interface.filestem())
+            .join(fs)
             .with_extension(compiler.get_typical_bmi_extension())
     }
 

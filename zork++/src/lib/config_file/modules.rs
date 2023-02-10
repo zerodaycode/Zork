@@ -75,13 +75,24 @@ pub struct ModulesAttribute<'a> {
 /// with the parse work of prebuild module interface units
 ///
 /// * `file`- The path of a primary module interface (relative to base_ifcs_path if applies)
+/// 
 /// * `module_name` - An optional field for make an explicit declaration of the
 /// C++ module declared on this module interface with the `export module 'module_name'
 /// statement. If this attribute isn't present, Zork++ will assume that the
 /// C++ module declared within this file is equls to the filename
+/// 
+/// * `partition_name` - An optional field for explicitly declare the name of a module interface
+/// partition, or a module implementation partition. Module partitions must be declared always
+/// using this property, as is the main identifier to determine if is a module partition.
+/// Currently this requirement is only needed with Clang if your partitions file names aren't
+/// used in the way that Clang expects, that is `module_name-partition_name.extension`
+/// 
 /// * `dependencies` - An optional array field for declare the module interfaces
 /// in which this file is dependent on
-/// * `is_partition` - Optional field for declare that the interface is actually an interface partition
+/// 
+/// * `is_internal_partition` - Optional field for declare that the module is actually
+/// a module for hold implementation details, known as module implementation partitions.
+/// This option only takes effect with MSVC
 ///
 /// ### Tests
 /// ```rust
@@ -92,7 +103,7 @@ pub struct ModulesAttribute<'a> {
 ///         { file = 'math.cppm' },
 ///         { file = 'some_module.cppm', module_name = 'math' },
 ///         { file = 'a.cppm', module_name = 'module', dependencies = ['math', 'type_traits', 'iostream'] },
-///         { file = 'some_module_part.cppm', module_name = 'math_part', is_partition = true, dependecies = ['math'] }
+///         { file = 'some_module_part.cppm', module_name = 'math_part', partition_name = 'partitions', is_internal_partition = true, dependecies = ['math'] }
 ///     ]
 /// "#;
 ///
@@ -104,7 +115,7 @@ pub struct ModulesAttribute<'a> {
 /// let ifc_0 = &ifcs[0];
 /// assert_eq!(ifc_0.file, "math.cppm");
 /// assert_eq!(ifc_0.module_name, None);
-/// assert_eq!(ifc_0.is_partition, None);
+/// assert_eq!(ifc_0.is_internal_partition, None);
 ///
 /// let ifc_1 = &ifcs[1];
 /// assert_eq!(ifc_1.file, "some_module.cppm");
@@ -123,7 +134,8 @@ pub struct ModulesAttribute<'a> {
 /// let ifc_3 = &ifcs[3];
 /// assert_eq!(ifc_3.file, "some_module_part.cppm");
 /// assert_eq!(ifc_3.module_name, Some("math_part"));
-/// assert_eq!(ifc_3.is_partition, Some(true));
+/// assert_eq!(ifc_3.partition_name, Some("partitions"));
+/// assert_eq!(ifc_3.is_internal_partition, Some(true));
 /// ```
 #[derive(Deserialize, Debug, PartialEq)]
 pub struct ModuleInterface<'a> {
@@ -132,8 +144,10 @@ pub struct ModuleInterface<'a> {
     #[serde(borrow)]
     pub module_name: Option<&'a str>,
     #[serde(borrow)]
+    pub partition_name: Option<&'a str>,
+    #[serde(borrow)]
     pub dependencies: Option<Vec<&'a str>>,
-    pub is_partition: Option<bool>
+    pub is_internal_partition: Option<bool>
 }
 
 /// [`ModuleImplementation`] -  Type for dealing with the parse work
