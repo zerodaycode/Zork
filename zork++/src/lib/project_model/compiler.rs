@@ -18,7 +18,7 @@ impl<'a> CompilerModel<'a> {
             CppCompiler::CLANG | CppCompiler::GCC => {
                 Argument::from(format!("-std=c++{}", self.cpp_standard))
             }
-            CppCompiler::MSVC => Argument::from(format!("-std:c++{}", self.cpp_standard)),
+            CppCompiler::MSVC => Argument::from(format!("/std:c++{}", self.cpp_standard)),
         }
     }
 
@@ -88,7 +88,10 @@ impl CppCompiler {
 
     #[inline(always)]
     pub fn get_obj_file_extension(&self) -> &str {
-        "o"
+        match *self {
+            CppCompiler::CLANG | CppCompiler::GCC => "o",
+            CppCompiler::MSVC => "obj"
+        }
     }
 }
 

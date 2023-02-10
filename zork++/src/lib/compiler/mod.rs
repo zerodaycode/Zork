@@ -97,6 +97,8 @@ fn compile_module_implementations<'a>(
 
 /// Specific operations over source files
 mod sources {
+    use std::path::Path;
+
     use color_eyre::Result;
 
     use crate::{
@@ -265,29 +267,40 @@ mod sources {
                 arguments.push(Argument::from("/experimental:module"));
                 arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
                 arguments.push(Argument::from("/c"));
-                // The output .ifc file
+
+                let implicit_lookup_mius_path = out_dir
+                    .join(compiler.as_ref())
+                    .join("modules")
+                    .join("interfaces")
+                    .display()
+                    .to_string();
+                arguments.push(Argument::from("/ifcSearchDir"));
+                arguments.push(format!("{}", implicit_lookup_mius_path.clone()).into());
                 arguments.push(Argument::from("/ifcOutput"));
-                let miu_file_path =
-                    Argument::from(helpers::generate_prebuild_miu(compiler, out_dir, interface));
-                arguments.push(miu_file_path);
+                arguments.push(format!("{}", implicit_lookup_mius_path.clone()).into());
+
                 // The output .obj file
-                arguments.push(Argument::from(format!(
-                    "/Fo{}",
-                    out_dir
-                        .join(compiler.as_ref())
-                        .join("modules")
-                        .join("interfaces")
+                let obj_file = format!(
+                    "{}", 
+                    Path::new(&implicit_lookup_mius_path.clone())
+                        .join(interface.filestem())
+                        .with_extension(compiler.get_obj_file_extension())
                         .display()
-                )));
-                // The input file
+                );
+                commands.generated_files_paths.push(obj_file.clone().into());
+                arguments.push(Argument::from(format!("/Fo{}", obj_file)));
+
                 if let Some(partition) = &interface.partition {
                     if partition.is_internal_partition {
                         arguments.push(Argument::from("/internalPartition"));
                     } else {
                         arguments.push(Argument::from("/interface"));
                     }
+                } else {
+                    arguments.push(Argument::from("/interface"));
                 }
                 arguments.push(Argument::from("/TP"));
+                // The input file
                 arguments.push(Argument::from(helpers::add_input_file(
                     interface, base_path,
                 )))
@@ -362,7 +375,7 @@ mod sources {
                 arguments.push(Argument::from("-c"));
                 arguments.push(Argument::from("/experimental:module"));
                 arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
-                arguments.push(Argument::from("-ifcSearchDir"));
+                arguments.push(Argument::from("/ifcSearchDir"));
                 arguments.push(Argument::from(
                     out_dir
                         .join(compiler.as_ref())
