@@ -280,10 +280,12 @@ mod sources {
                         .display()
                 )));
                 // The input file
-                if interface.is_internal_partition {
-                    arguments.push(Argument::from("/internalPartition"));
-                } else {
-                    arguments.push(Argument::from("/interface"));
+                if let Some(partition) = &interface.partition {
+                    if partition.is_internal_partition {
+                        arguments.push(Argument::from("/internalPartition"));
+                    } else {
+                        arguments.push(Argument::from("/interface"));
+                    }
                 }
                 arguments.push(Argument::from("/TP"));
                 arguments.push(Argument::from(helpers::add_input_file(
@@ -432,24 +434,29 @@ mod helpers {
         out_dir: &Path,
         interface: &ModuleInterfaceModel,
     ) -> PathBuf {
-        let fs = if compiler.eq(&CppCompiler::CLANG) {
+        let mod_unit = if compiler.eq(&CppCompiler::CLANG) {
             let mut temp = String::new();
-            if !interface.module_name.is_empty() {
-                temp.push_str(interface.module_name)
-            }
-            if !interface.partition_name.is_empty() {
+            if let Some(partition) = &interface.partition {
+                temp.push_str(partition.module);
                 temp.push('-');
-                temp.push_str(interface.partition_name)
+                if !partition.partition_name.is_empty() {
+                    temp.push_str(partition.partition_name)
+                } else {
+                    temp.push_str(interface.filestem())        
+                }
+            } else {
+                temp.push_str(interface.module_name)
             }
             temp
         } else {
-            interface.filestem().to_owned()
+            interface.module_name.to_string()
         };
+
         out_dir
             .join(compiler.as_ref())
             .join("modules")
             .join("interfaces")
-            .join(fs)
+            .join(mod_unit)
             .with_extension(compiler.get_typical_bmi_extension())
     }
 
