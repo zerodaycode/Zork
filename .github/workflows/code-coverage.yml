@@ -50,17 +50,15 @@ jobs:
           grcov . -s . --binary-path ./target/debug/ -t cobertura --branch --ignore-not-existing -o ./target/debug/coverage/code_cov.xml
 
       - name: Publish Test Results
-        working-directory: zork++
         uses: actions/upload-artifact@v3
         with:
           name: Unit Test Results
           path: |
-            ./target/debug/coverage/code_cov.xml
-            ./target/debug/coverage/index.html
+            ./zork++/target/debug/coverage/code_cov.xml
+            ./zork++/target/debug/coverage/index.html
       
       - name: Publish coverage report to GitHub Pages
-        working-directory: zork++
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: ./target/debug/coverage
+          folder: ./zork++/target/debug/coverage
           token: ${{ secrets.GITHUB_TOKEN }}
