@@ -96,6 +96,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Linux tar archive
+        working-directory: ./zork++
         if: ${{ matrix.os == 'ubuntu-latest' }}
         uses: actions/upload-release-asset@v1
         env:
