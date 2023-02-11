@@ -63,8 +63,8 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
         working-directory: ./zork++
         run: |
-          mv ./target/debian/zork.deb ./target/debian/zork++.deb
           cargo deb --no-build --output ./target/debian/zork.deb
+          mv ./target/debian/zork.deb ./target/debian/zork++.deb
 
       - name: Building the installer with Inno Setup
         if: ${{ matrix.os == 'windows-latest' }}
