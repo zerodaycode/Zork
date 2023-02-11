@@ -14,10 +14,10 @@ fn main() -> Result<()> {
     let cli_args = CliArgs::parse();
     config_logger(cli_args.verbose, Target::Stdout).expect("Error configuring the logger");
 
-    log::debug!("Launching a new Zork++ program");
+    log::info!("Launching a new Zork++ program");
     match run_zork(&cli_args, Path::new(".")) {
         Ok(_) => {
-            log::debug!(
+            log::info!(
                 "[SUCCESS] - The process ended succesfully, taking a total time in complete of: {:?} ms",
                 process_start_time.elapsed().as_millis()
             );

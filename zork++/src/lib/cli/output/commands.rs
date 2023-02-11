@@ -49,8 +49,8 @@ pub fn autorun_generated_binary(
             .with_extension(constants::BINARY_EXTENSION),
     )];
 
-    log::debug!(
-        "[{compiler}] - Executing the generated binary => {:?}\n",
+    log::info!(
+        "[{compiler}] - Executing the generated binary => {:?}",
         args.join(" ")
     );
 
@@ -67,7 +67,7 @@ pub fn autorun_generated_binary(
 /// Executes a new [`std::process::Command`] configured according the choosen
 /// compiler and the current operating system
 fn execute_command(compiler: &CppCompiler, arguments: &[Argument<'_>]) -> Result<()> {
-    log::info!(
+    log::debug!(
         "[{compiler}] - Executing command => {:?}",
         format!("{} {}", compiler.get_driver(), arguments.join(" "))
     );
@@ -89,7 +89,7 @@ fn execute_command(compiler: &CppCompiler, arguments: &[Argument<'_>]) -> Result
             .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
     };
 
-    log::info!("[{compiler}] - Result: {:?}\n", process);
+    log::debug!("[{compiler}] - Result: {:?}\n", process);
     Ok(())
 }
 
@@ -115,7 +115,7 @@ fn _execute_commands(
     };
 
     arguments_for_commands.iter().for_each(|args_collection| {
-        log::info!(
+        log::debug!(
             "[{compiler}] - Generating command => {:?}",
             format!("{} {}", compiler.get_driver(), args_collection.join(" "))
         );

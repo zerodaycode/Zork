@@ -46,10 +46,10 @@ pub mod worker {
 
         let config_files: Vec<ConfigFile> = find_config_files(path)
             .with_context(|| "We didn't found a valid Zork++ configuration file")?;
-        log::info!("Config files found: {config_files:?}");
+        log::debug!("Config files found: {config_files:?}");
 
         for config_file in config_files {
-            log::info!(
+            log::debug!(
                 "Launching a Zork++ work event for the configuration file: {:?}, located at: {:?}\n",
                 config_file.dir_entry.file_name(),
                 config_file.path

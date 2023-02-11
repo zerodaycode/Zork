@@ -61,7 +61,7 @@ pub fn find_config_files(base_path: &Path) -> Result<Vec<ConfigFile>> {
             && e.file_name().to_str().unwrap().starts_with("zork")
             && e.file_name().to_str().unwrap().ends_with(".toml")
         {
-            log::info!("Config file found!: {:?}", e.file_name());
+            log::debug!("Config file found!: {:?}", e.file_name());
             files.push(ConfigFile {
                 dir_entry: e.clone(),
                 path: e.path().to_path_buf(),

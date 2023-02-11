@@ -1,6 +1,5 @@
 use env_logger::{Builder, Target};
 use log::LevelFilter;
-use std::io::Write;
 use color_eyre::{Result, eyre::{eyre, Context}};
 
 /// [`config_logger`] The configuration for `env_logger`
@@ -9,9 +8,10 @@ pub fn config_logger(verbose_level: u8, target: Target) -> Result<()> {
 
     builder
         .target(target)
-        .format(|buf, record| {
-            writeln!(buf, "[{:?} - {}]: {}", chrono::offset::Local::now(), record.level(), record.args())
-        })
+        .default_format()
+        .format_indent(Some(4))
+        .format_module_path(false)
+        .format_timestamp_millis()
         .write_style(env_logger::WriteStyle::Always);
 
     if verbose_level == 1 {
