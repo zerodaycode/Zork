@@ -14,21 +14,21 @@ use super::arguments::Argument;
 /// command lines
 pub fn run_generated_commands(commands: &Commands<'_>) -> Result<()> {
     if !commands.interfaces.is_empty() {
-        log::info!("Executing the commands for the module interfaces");
+        log::debug!("Executing the commands for the module interfaces...");
     }
     for miu in &commands.interfaces {
         execute_command(&commands.compiler, miu)?
     }
 
     if !commands.interfaces.is_empty() {
-        log::info!("Executing the commands for the module implementations");
+        log::debug!("Executing the commands for the module implementations...");
     }
     for impls in &commands.implementations {
         execute_command(&commands.compiler, impls)?
     }
 
     if !commands.interfaces.is_empty() {
-        log::info!("Executing the main command line");
+        log::debug!("Executing the main command line...");
     }
     execute_command(&commands.compiler, &commands.sources)?;
 
@@ -49,7 +49,7 @@ pub fn autorun_generated_binary(
             .with_extension(constants::BINARY_EXTENSION),
     )];
 
-    log::info!(
+    log::debug!(
         "[{compiler}] - Executing the generated binary => {:?}\n",
         args.join(" ")
     );

@@ -49,7 +49,7 @@ pub struct ConfigFile {
 /// This function fails if there's no configuration file
 /// (or isn't present in any directory of the project)
 pub fn find_config_files(base_path: &Path) -> Result<Vec<ConfigFile>> {
-    log::info!("Searching for Zork++ configuration files...");
+    log::debug!("Searching for Zork++ configuration files...");
     let mut files = vec![];
 
     for e in WalkDir::new(base_path)
