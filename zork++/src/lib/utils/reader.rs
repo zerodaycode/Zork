@@ -214,7 +214,12 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
 fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInterfaceModel<'a> {
     let module_name = config
         .module_name
-        .unwrap_or_else(|| config.file.split('.').collect::<Vec<_>>()[0]);
+        .unwrap_or_else(|| 
+            Path::new(config.file)
+                .file_name()
+                .map(|f| f.to_str().expect(&format!("Found ill-formed path on: {}", config.file)))
+                .unwrap()
+        );
 
     let dependencies = config.dependencies.clone().unwrap_or_default();
     let partition = if config.partition.is_none() {
