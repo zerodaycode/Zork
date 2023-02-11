@@ -3,6 +3,7 @@ notes.txt
 example/
 out/
 gcm.cache/
+github-example/
 
 # out/
 .coverage
