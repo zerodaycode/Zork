@@ -95,14 +95,20 @@ impl ZorkCache {
         self.last_generated_commands.interfaces = commands
             .interfaces
             .iter()
-            .flatten()
-            .map(|arg| arg.value.to_string())
+            .map(|arg| {
+                arg.iter()
+                    .map(|argument| argument.value.to_string())
+                    .collect()
+            })
             .collect();
         self.last_generated_commands.implementations = commands
             .implementations
             .iter()
-            .flatten()
-            .map(|arg| arg.value.to_string())
+            .map(|arg| {
+                arg.iter()
+                    .map(|argument| argument.value.to_string())
+                    .collect()
+            })
             .collect();
         self.last_generated_commands.main = commands.sources.iter().map(|arg| arg.value).collect();
     }
@@ -164,8 +170,8 @@ impl ZorkCache {
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CachedCommands {
     compiler: CppCompiler,
-    interfaces: Vec<String>,
-    implementations: Vec<String>,
+    interfaces: Vec<Vec<String>>,
+    implementations: Vec<Vec<String>>,
     main: String,
 }
 
