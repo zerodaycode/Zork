@@ -40,7 +40,7 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 
 [Files]
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\target\release\zork++.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\zork++\target\release\zork.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 

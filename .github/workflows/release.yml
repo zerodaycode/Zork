@@ -45,21 +45,25 @@ jobs:
         id: project-cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Install stable toolchain
+      - name: Make Rust environment
         uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
           toolchain: stable
-          override: true
 
-      - name: Make the USER own the working directory
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: sudo chown -R $USER:$USER ${{ github.workspace }}
-
-      - name: Generate the binary
+      - name: Building Zork's exe
+        working-directory: ./zork++
         run: |
-          cd zork++
           cargo build --release
+
+      - name: Install cargo-deb
+        run: |
+          cargo install cargo-deb
+
+      - name: Generate .deb package for Linux
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        working-directory: ./zork++
+        run: |
+          cargo deb --no-build --output ./target/debian/zork.deb
 
       - name: Building the installer with Inno Setup
         if: ${{ matrix.os == 'windows-latest' }}
@@ -72,10 +76,10 @@ jobs:
         run: |
           7z a windows-installer.zip zork-installer.exe
 
-      - name: Generate compressed file for Linux
+      - name: Generate compressed tar archive for Linux
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
-          tar -czvf zork-linux.tar.gz ./target/release/zork++ ./LICENSE ./README.md
+          tar -czvf zork-linux.tar.gz ./zork++/target/release/zork ./LICENSE
 
       - name: Upload Windows artifact
         if: ${{ matrix.os == 'windows-latest' }}
@@ -88,7 +92,7 @@ jobs:
           asset_name: windows-installer.zip
           asset_content_type: application/zip
 
-      - name: Upload Linux artifact
+      - name: Upload Linux tar archive
         if: ${{ matrix.os == 'ubuntu-latest' }}
         uses: actions/upload-release-asset@v1
         env:
@@ -98,3 +102,14 @@ jobs:
           asset_path: zork-linux.tar.gz
           asset_name: zork-linux.tar.gz
           asset_content_type: application/tar+gzip
+
+      - name: Upload Linux .deb package
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          upload_url: ${{ needs.generate-release.outputs.upload_url }}
+          asset_path: zork++/target/debian/zork.deb
+          asset_name: zork.deb
+          asset_content_type: application/vnd.debian.binary-package

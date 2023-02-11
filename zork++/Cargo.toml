@@ -1,7 +1,10 @@
 [package]
 name = "zork"
 version = "0.5.0"
+authors = ["Zero Day Code"]
 edition = "2021"
+description = "A modern C++ project manager and build system for modern C++"
+license-file = "../LICENSE"
 
 [lib]
 name = "zork"
