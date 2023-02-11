@@ -79,6 +79,7 @@ jobs:
 
       - name: Generate compressed tar archive for Linux
         if: ${{ matrix.os == 'ubuntu-latest' }}
+        working-directory: ./zork++
         run: |
           mv ./target/release/zork ./target/release/zork++
           tar -czvf zork-linux.tar.gz ./zork++/target/release/zork++ ./LICENSE
@@ -101,8 +102,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ needs.generate-release.outputs.upload_url }}
-          asset_path: zork-linux.tar.gz
-          asset_name: zork-linux.tar.gz
+          asset_path: zork++.tar.gz
+          asset_name: zork++.tar.gz
           asset_content_type: application/tar+gzip
 
       - name: Upload Linux .deb package
@@ -112,6 +113,6 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ needs.generate-release.outputs.upload_url }}
-          asset_path: zork++/target/debian/zork.deb
-          asset_name: zork.deb
+          asset_path: zork++/target/debian/zork++.deb
+          asset_name: zork++.deb
           asset_content_type: application/vnd.debian.binary-package
