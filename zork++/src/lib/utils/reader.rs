@@ -13,7 +13,9 @@ use crate::{
         build::BuildModel,
         compiler::CompilerModel,
         executable::ExecutableModel,
-        modules::{ModuleImplementationModel, ModuleInterfaceModel, ModulesModel},
+        modules::{
+            ModuleImplementationModel, ModuleInterfaceModel, ModulePartitionModel, ModulesModel,
+        },
         project::ProjectModel,
         sourceset::{GlobPattern, Source, SourceSet},
         tests::TestsModel,
@@ -47,7 +49,7 @@ pub struct ConfigFile {
 /// This function fails if there's no configuration file
 /// (or isn't present in any directory of the project)
 pub fn find_config_files(base_path: &Path) -> Result<Vec<ConfigFile>> {
-    log::info!("Searching for Zork++ configuration files...");
+    log::debug!("Searching for Zork++ configuration files...");
     let mut files = vec![];
 
     for e in WalkDir::new(base_path)
@@ -59,7 +61,7 @@ pub fn find_config_files(base_path: &Path) -> Result<Vec<ConfigFile>> {
             && e.file_name().to_str().unwrap().starts_with("zork")
             && e.file_name().to_str().unwrap().ends_with(".toml")
         {
-            log::info!("Config file found!: {:?}", e.file_name());
+            log::debug!("Config file found!: {:?}", e.file_name());
             files.push(ConfigFile {
                 dir_entry: e.clone(),
                 path: e.path().to_path_buf(),
@@ -196,8 +198,8 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
         })
         .unwrap_or_default();
 
-    let gcc_sys_modules = config
-        .and_then(|modules| modules.gcc_sys_modules.as_ref())
+    let sys_modules = config
+        .and_then(|modules| modules.sys_modules.as_ref())
         .map_or_else(Default::default, |headers| headers.clone());
 
     ModulesModel {
@@ -205,7 +207,7 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
         interfaces,
         base_impls_dir: Path::new(base_impls_dir),
         implementations,
-        gcc_sys_modules,
+        sys_modules,
     }
 }
 
@@ -215,10 +217,18 @@ fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInt
         .unwrap_or_else(|| config.file.split('.').collect::<Vec<_>>()[0]);
 
     let dependencies = config.dependencies.clone().unwrap_or_default();
+    let partition = if config.partition.is_none() {
+        None
+    } else {
+        Some(ModulePartitionModel::from(
+            config.partition.as_ref().unwrap(),
+        ))
+    };
 
     ModuleInterfaceModel {
         file: Path::new(config.file),
         module_name,
+        partition,
         dependencies,
     }
 }
@@ -283,7 +293,10 @@ fn assemble_tests_model<'a>(
 
 #[cfg(test)]
 mod test {
-    use crate::project_model::compiler::{CppCompiler, LanguageLevel, StdLib};
+    use crate::{
+        project_model::compiler::{CppCompiler, LanguageLevel, StdLib},
+        utils,
+    };
 
     use super::*;
 
@@ -329,7 +342,7 @@ mod test {
                 interfaces: vec![],
                 base_impls_dir: Path::new("."),
                 implementations: vec![],
-                gcc_sys_modules: vec![],
+                sys_modules: vec![],
             },
             tests: TestsModel {
                 test_executable_name: "Zork++_test".to_string(),
@@ -348,52 +361,7 @@ mod test {
 
     #[test]
     fn test_project_model_with_full_config() -> Result<()> {
-        const CONFIG_FILE_MOCK: &str = r#"
-            [project]
-            name = "Zork++"
-            authors = ["zerodaycode.gz@gmail.com"]
-
-            [compiler]
-            cpp_compiler = "clang"
-            cpp_standard = "20"
-            std_lib = "libc++"
-            extra_args = [ "-Wall" ]
-
-            [build]
-            output_dir = "build"
-
-            [executable]
-            executable_name = "zork"
-            sources_base_path = "bin"
-            sources = [
-                "*.cpp"
-            ]
-            extra_args = [ "-Werr" ]
-
-            [tests]
-            test_executable_name = "zork_check"
-            sources_base_path = "test"
-            sources = [
-                "*.cpp"
-            ]
-            extra_args = [ "-pedantic" ]
-
-            [modules]
-            base_ifcs_dir = "ifc"
-            interfaces = [
-                { file = "math.cppm" },
-                { file = 'some_module.cppm', module_name = 'math' }
-            ]
-
-            base_impls_dir = "src"
-            implementations = [
-                { file = "math.cpp" },
-                { file = 'some_module_impl.cpp', dependencies = ['iostream'] }
-            ]
-            gcc_sys_modules = [ "iostream" ]
-        "#;
-
-        let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
+        let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK)?;
         let model = build_model(&config);
 
         let expected = ZorkModel {
@@ -424,11 +392,13 @@ mod test {
                     ModuleInterfaceModel {
                         file: Path::new("math.cppm"),
                         module_name: "math",
+                        partition: None,
                         dependencies: vec![],
                     },
                     ModuleInterfaceModel {
                         file: Path::new("some_module.cppm"),
                         module_name: "math",
+                        partition: None,
                         dependencies: vec![],
                     },
                 ],
@@ -443,7 +413,7 @@ mod test {
                         dependencies: vec!["iostream"],
                     },
                 ],
-                gcc_sys_modules: vec!["iostream"],
+                sys_modules: vec!["iostream"],
             },
             tests: TestsModel {
                 test_executable_name: "zork_check".to_string(),

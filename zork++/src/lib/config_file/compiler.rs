@@ -88,7 +88,8 @@ pub enum CppCompiler {
     #[serde(alias = "MSVC", alias = "Msvc", alias = "msvc")]
     MSVC,
     #[serde(alias = "GCC", alias = "Gcc", alias = "gcc")]
-    GCC, // Possible future interesting on support the Intel's C++ compiler?
+    GCC,
+    // Possible future interesting on support the Intel's C++ compiler?
 }
 
 // Clippy warns to prefer implementing the From trait instead of Into.

@@ -62,10 +62,10 @@ fn build_executable<'a>(
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses>
 fn build_modules<'a>(model: &'a ZorkModel, commands: &mut Commands<'a>) -> Result<()> {
-    log::info!("Building the module interfaces");
+    log::info!("Building the module interfaces and partitions...");
     prebuild_module_interfaces(model, &model.modules.interfaces, commands);
 
-    log::info!("Building the module implementations");
+    log::info!("Building the module implementations...");
     compile_module_implementations(model, &model.modules.implementations, commands);
 
     Ok(())
@@ -97,6 +97,8 @@ fn compile_module_implementations<'a>(
 
 /// Specific operations over source files
 mod sources {
+    use std::path::Path;
+
     use color_eyre::Result;
 
     use crate::{
@@ -122,7 +124,7 @@ mod sources {
         commands: &mut Commands<'a>,
         target: &'a impl ExecutableTarget<'a>,
     ) -> Result<()> {
-        log::info!("Generating the main command line\n");
+        log::info!("Generating the main command line...");
 
         let compiler = &model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir;
@@ -226,10 +228,7 @@ mod sources {
 
         match *compiler {
             CppCompiler::CLANG => {
-                if let Some(arg) = model.compiler.stdlib_arg() {
-                    arguments.push(arg);
-                }
-
+                arguments.extend(clang_args::add_std_lib(model));
                 arguments.push(Argument::from("-fimplicit-modules"));
                 arguments.push(Argument::from("-x"));
                 arguments.push(Argument::from("c++-module"));
@@ -237,6 +236,10 @@ mod sources {
 
                 arguments.push(clang_args::implicit_module_maps(out_dir));
 
+                arguments.push(Argument::from(format!(
+                    "-fprebuilt-module-path={}/clang/modules/interfaces",
+                    out_dir.display()
+                )));
                 clang_args::add_direct_module_interfafces_dependencies(
                     &interface.dependencies,
                     compiler,
@@ -262,23 +265,40 @@ mod sources {
                 arguments.push(Argument::from("/experimental:module"));
                 arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
                 arguments.push(Argument::from("/c"));
-                // The output .ifc file
+
+                let implicit_lookup_mius_path = out_dir
+                    .join(compiler.as_ref())
+                    .join("modules")
+                    .join("interfaces")
+                    .display()
+                    .to_string();
+                arguments.push(Argument::from("/ifcSearchDir"));
+                arguments.push(implicit_lookup_mius_path.clone().into());
                 arguments.push(Argument::from("/ifcOutput"));
-                let miu_file_path =
-                    Argument::from(helpers::generate_prebuild_miu(compiler, out_dir, interface));
-                arguments.push(miu_file_path);
+                arguments.push(implicit_lookup_mius_path.clone().into());
+
                 // The output .obj file
-                arguments.push(Argument::from(format!(
-                    "/Fo{}",
-                    out_dir
-                        .join(compiler.as_ref())
-                        .join("modules")
-                        .join("interfaces")
+                let obj_file = format!(
+                    "{}",
+                    Path::new(&implicit_lookup_mius_path)
+                        .join(interface.filestem())
+                        .with_extension(compiler.get_obj_file_extension())
                         .display()
-                )));
-                // The input file
-                arguments.push(Argument::from("/interface"));
+                );
+                commands.generated_files_paths.push(obj_file.clone().into());
+                arguments.push(Argument::from(format!("/Fo{obj_file}")));
+
+                if let Some(partition) = &interface.partition {
+                    if partition.is_internal_partition {
+                        arguments.push(Argument::from("/internalPartition"));
+                    } else {
+                        arguments.push(Argument::from("/interface"));
+                    }
+                } else {
+                    arguments.push(Argument::from("/interface"));
+                }
                 arguments.push(Argument::from("/TP"));
+                // The input file
                 arguments.push(Argument::from(helpers::add_input_file(
                     interface, base_path,
                 )))
@@ -319,10 +339,7 @@ mod sources {
 
         match *compiler {
             CppCompiler::CLANG => {
-                if let Some(arg) = model.compiler.stdlib_arg() {
-                    arguments.push(arg);
-                }
-
+                arguments.extend(clang_args::add_std_lib(model));
                 arguments.push(Argument::from("-fimplicit-modules"));
                 arguments.push(Argument::from("-c"));
                 arguments.push(clang_args::implicit_module_maps(out_dir));
@@ -356,7 +373,7 @@ mod sources {
                 arguments.push(Argument::from("-c"));
                 arguments.push(Argument::from("/experimental:module"));
                 arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
-                arguments.push(Argument::from("-ifcSearchDir"));
+                arguments.push(Argument::from("/ifcSearchDir"));
                 arguments.push(Argument::from(
                     out_dir
                         .join(compiler.as_ref())
@@ -428,11 +445,29 @@ mod helpers {
         out_dir: &Path,
         interface: &ModuleInterfaceModel,
     ) -> PathBuf {
+        let mod_unit = if compiler.eq(&CppCompiler::CLANG) {
+            let mut temp = String::new();
+            if let Some(partition) = &interface.partition {
+                temp.push_str(partition.module);
+                temp.push('-');
+                if !partition.partition_name.is_empty() {
+                    temp.push_str(partition.partition_name)
+                } else {
+                    temp.push_str(interface.filestem())
+                }
+            } else {
+                temp.push_str(interface.module_name)
+            }
+            temp
+        } else {
+            interface.module_name.to_string()
+        };
+
         out_dir
             .join(compiler.as_ref())
             .join("modules")
             .join("interfaces")
-            .join(interface.filestem())
+            .join(mod_unit)
             .with_extension(compiler.get_typical_bmi_extension())
     }
 
@@ -467,7 +502,7 @@ mod helpers {
         let language_level = model.compiler.language_level_arg();
         let sys_modules = model
             .modules
-            .gcc_sys_modules
+            .sys_modules
             .iter()
             .filter(|sys_module| {
                 !cache

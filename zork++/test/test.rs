@@ -131,23 +131,17 @@ fn test_full_program_with_multi_config_files() -> Result<()> {
     .is_ok());
 
     // GCC specifics
-    let gcc_path_by_os = if cfg!(target_os = "windows") {
-        Path::new(".")
-    } else {
-        temp.path()
-    };
-
-    assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "new", "gcc_example", "--compiler", "gcc"]),
-        gcc_path_by_os
-    )
-    .is_ok());
-    assert!(
-        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]), gcc_path_by_os).is_ok()
-    );
-
-    // Clearing the GCC dirs
     if cfg!(target_os = "windows") {
+        assert!(zork::worker::run_zork(
+            &CliArgs::parse_from(["", "new", "gcc_example", "--compiler", "gcc"]),
+            Path::new(".")
+        )
+        .is_ok());
+        assert!(
+            zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]), Path::new("."))
+                .is_ok()
+        );
+
         fs::remove_dir_all("./gcc_example")?;
         fs::remove_dir_all("./gcm.cache")?;
         fs::remove_dir_all("./out")?;

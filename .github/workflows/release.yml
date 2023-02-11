@@ -40,6 +40,10 @@ jobs:
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.ref }}
+      
+      - name: Caching cargo dependencies
+        id: project-cache
+        uses: Swatinem/rust-cache@v2
 
       - name: Make Rust environment
         uses: actions-rs/toolchain@v1
@@ -59,6 +63,7 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
         working-directory: ./zork++
         run: |
+          mv ./target/debian/zork.deb ./target/debian/zork++.deb
           cargo deb --no-build --output ./target/debian/zork.deb
 
       - name: Building the installer with Inno Setup
@@ -75,7 +80,8 @@ jobs:
       - name: Generate compressed tar archive for Linux
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
-          tar -czvf zork-linux.tar.gz ./zork++/target/release/zork ./LICENSE
+          mv ./target/release/zork ./target/release/zork++
+          tar -czvf zork-linux.tar.gz ./zork++/target/release/zork++ ./LICENSE
 
       - name: Upload Windows artifact
         if: ${{ matrix.os == 'windows-latest' }}
@@ -88,7 +94,7 @@ jobs:
           asset_name: windows-installer.zip
           asset_content_type: application/zip
 
-      - name: Upload Linux .deb package
+      - name: Upload Linux tar archive
         if: ${{ matrix.os == 'ubuntu-latest' }}
         uses: actions/upload-release-asset@v1
         env:
@@ -99,7 +105,7 @@ jobs:
           asset_name: zork-linux.tar.gz
           asset_content_type: application/tar+gzip
 
-      - name: Upload Linux tar archive
+      - name: Upload Linux .deb package
         if: ${{ matrix.os == 'ubuntu-latest' }}
         uses: actions/upload-release-asset@v1
         env:

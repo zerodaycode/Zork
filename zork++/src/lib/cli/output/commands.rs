@@ -3,7 +3,7 @@ use std::path::Path;
 ///! Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
-use crate::{project_model::compiler::CppCompiler, utils::constants};
+use crate::{cache::ZorkCache, project_model::compiler::CppCompiler, utils::constants};
 use color_eyre::{eyre::Context, Result};
 use serde::{Deserialize, Serialize};
 
@@ -12,25 +12,25 @@ use super::arguments::Argument;
 /// TODO this is just a provisional impl, in order to free the
 /// build_project(...) function for dealing with the generated
 /// command lines
-pub fn run_generated_commands(commands: &Commands<'_>) -> Result<()> {
+pub fn run_generated_commands(commands: &Commands<'_>, cache: &ZorkCache) -> Result<()> {
     if !commands.interfaces.is_empty() {
-        log::info!("Executing the commands for the module interfaces");
+        log::debug!("Executing the commands for the module interfaces...");
     }
     for miu in &commands.interfaces {
-        execute_command(&commands.compiler, miu)?
+        execute_command(&commands.compiler, miu, cache)?
     }
 
     if !commands.interfaces.is_empty() {
-        log::info!("Executing the commands for the module implementations");
+        log::debug!("Executing the commands for the module implementations...");
     }
     for impls in &commands.implementations {
-        execute_command(&commands.compiler, impls)?
+        execute_command(&commands.compiler, impls, cache)?
     }
 
     if !commands.interfaces.is_empty() {
-        log::info!("Executing the main command line");
+        log::debug!("Executing the main command line...");
     }
-    execute_command(&commands.compiler, &commands.sources)?;
+    execute_command(&commands.compiler, &commands.sources, cache)?;
 
     Ok(())
 }
@@ -50,7 +50,7 @@ pub fn autorun_generated_binary(
     )];
 
     log::info!(
-        "[{compiler}] - Executing the generated binary => {:?}\n",
+        "[{compiler}] - Executing the generated binary => {:?}",
         args.join(" ")
     );
 
@@ -66,21 +66,31 @@ pub fn autorun_generated_binary(
 
 /// Executes a new [`std::process::Command`] configured according the choosen
 /// compiler and the current operating system
-fn execute_command(compiler: &CppCompiler, arguments: &[Argument<'_>]) -> Result<()> {
-    log::info!(
+fn execute_command(
+    compiler: &CppCompiler,
+    arguments: &[Argument<'_>],
+    cache: &ZorkCache,
+) -> Result<()> {
+    log::debug!(
         "[{compiler}] - Executing command => {:?}",
         format!("{} {}", compiler.get_driver(), arguments.join(" "))
     );
 
     let process = if compiler.eq(&CppCompiler::MSVC) {
-        std::process::Command::new( // TODO The initialization process + cache process MUST dynamically get this path and store it in cache
-            "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
-        ).arg("&&")
-            .arg(compiler.get_driver())
-            .args(arguments)
-            .spawn()?
-            .wait()
-            .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
+        std::process::Command::new(
+            cache
+                .compilers_metadata
+                .msvc
+                .dev_commands_prompt
+                .as_ref()
+                .expect("Zork++ wasn't able to found a correct installation of MSVC"),
+        )
+        .arg("&&")
+        .arg(compiler.get_driver())
+        .args(arguments)
+        .spawn()?
+        .wait()
+        .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
     } else {
         std::process::Command::new(compiler.get_driver())
             .args(arguments)
@@ -89,7 +99,7 @@ fn execute_command(compiler: &CppCompiler, arguments: &[Argument<'_>]) -> Result
             .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
     };
 
-    log::info!("[{compiler}] - Result: {:?}\n", process);
+    log::debug!("[{compiler}] - Result: {:?}\n", process);
     Ok(())
 }
 
@@ -115,7 +125,7 @@ fn _execute_commands(
     };
 
     arguments_for_commands.iter().for_each(|args_collection| {
-        log::info!(
+        log::debug!(
             "[{compiler}] - Generating command => {:?}",
             format!("{} {}", compiler.get_driver(), args_collection.join(" "))
         );

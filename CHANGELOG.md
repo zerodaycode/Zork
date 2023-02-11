@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2022 - 02 - 08
+
+### Feature
+
+- The project is full rewritten in Rust
+- We included full support for working with C++ module for the three major compilers
+- We started to work in a caché, to track data and posibily, speed up big projects
+
 ## [0.4.2] - 2022 - 12 - 28
 
 ### Fix

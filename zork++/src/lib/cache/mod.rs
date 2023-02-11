@@ -6,6 +6,7 @@ use std::{fs::File, path::Path};
 use walkdir::WalkDir;
 
 use crate::{
+    cli::output::commands::Commands,
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::{
         self,
@@ -18,7 +19,8 @@ use serde::{Deserialize, Serialize};
 pub fn load(program_data: &ZorkModel<'_>) -> Result<ZorkCache> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
-        .join("cache");
+        .join("cache")
+        .join(program_data.compiler.cpp_compiler.as_ref());
 
     let cache_file_path = cache_path.join(constants::ZORK_CACHE_FILENAME);
 
@@ -35,20 +37,25 @@ pub fn load(program_data: &ZorkModel<'_>) -> Result<ZorkCache> {
 }
 
 /// Standalone utility for persist the cache to the file system
-pub fn save(program_data: &ZorkModel<'_>, mut cache: ZorkCache) -> Result<()> {
+pub fn save(
+    program_data: &ZorkModel<'_>,
+    mut cache: ZorkCache,
+    commands: &Commands<'_>,
+) -> Result<()> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
         .join("cache")
+        .join(program_data.compiler.cpp_compiler.as_ref())
         .join(constants::ZORK_CACHE_FILENAME);
 
-    cache.run_final_tasks(program_data);
+    cache.run_final_tasks(program_data, commands);
     cache.last_program_execution = Utc::now();
 
     utils::fs::serialize_object_to_file(cache_path, &cache)
         .with_context(|| "Error saving data to the Zork++ cache")
 }
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct ZorkCache {
     pub last_program_execution: DateTime<Utc>,
     pub last_generated_commands: CachedCommands,
@@ -70,15 +77,40 @@ impl ZorkCache {
     }
 
     /// Runs the tasks just before end the program and save the cache
-    pub fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>) {
+    pub fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>, commands: &Commands<'_>) {
+        self.save_generated_commands(commands);
+
         if program_data.compiler.cpp_compiler == CppCompiler::GCC {
             self.compilers_metadata.gcc.system_modules = program_data
                 .modules
-                .gcc_sys_modules
+                .sys_modules
                 .iter()
                 .map(|e| e.to_string())
                 .collect::<Vec<_>>();
         }
+    }
+
+    fn save_generated_commands(&mut self, commands: &Commands<'_>) {
+        self.last_generated_commands.compiler = commands.compiler;
+        self.last_generated_commands.interfaces = commands
+            .interfaces
+            .iter()
+            .map(|arg| {
+                arg.iter()
+                    .map(|argument| argument.value.to_string())
+                    .collect()
+            })
+            .collect();
+        self.last_generated_commands.implementations = commands
+            .implementations
+            .iter()
+            .map(|arg| {
+                arg.iter()
+                    .map(|argument| argument.value.to_string())
+                    .collect()
+            })
+            .collect();
+        self.last_generated_commands.main = commands.sources.iter().map(|arg| arg.value).collect();
     }
 
     /// If Windows is the current OS, and the compiler is MSVC, then we will try
@@ -116,7 +148,7 @@ impl ZorkCache {
                 {
                     program_data
                         .modules
-                        .gcc_sys_modules
+                        .sys_modules
                         .iter()
                         .any(|sys_mod| file.file_name().to_str().unwrap().starts_with(sys_mod))
                 } else {
@@ -135,26 +167,26 @@ impl ZorkCache {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CachedCommands {
     compiler: CppCompiler,
-    interfaces: Vec<String>,
-    implementations: Vec<String>,
+    interfaces: Vec<Vec<String>>,
+    implementations: Vec<Vec<String>>,
     main: String,
 }
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CompilersMetadata {
     pub msvc: MsvcMetadata,
     pub gcc: GccMetadata,
 }
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct MsvcMetadata {
     pub dev_commands_prompt: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct GccMetadata {
     pub system_modules: Vec<String>,
 }
