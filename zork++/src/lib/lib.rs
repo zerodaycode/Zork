@@ -100,14 +100,14 @@ pub mod worker {
             Command::Build => {
                 let commands = build_project(program_data, &cache, false)
                     .with_context(|| "Failed to build project")?;
-                commands::run_generated_commands(&commands)?;
+                commands::run_generated_commands(&commands, &cache)?;
                 Ok(commands)
             }
             Command::Run => {
                 let commands = build_project(program_data, &cache, false)
                     .with_context(|| "Failed to build project")?;
 
-                commands::run_generated_commands(&commands)?;
+                commands::run_generated_commands(&commands, &cache)?;
 
                 autorun_generated_binary(
                     &program_data.compiler.cpp_compiler,
@@ -121,7 +121,7 @@ pub mod worker {
                 let commands = build_project(program_data, &cache, true)
                     .with_context(|| "Failed to build project")?;
 
-                commands::run_generated_commands(&commands)?;
+                commands::run_generated_commands(&commands, &cache)?;
 
                 autorun_generated_binary(
                     &program_data.compiler.cpp_compiler,
