@@ -53,7 +53,11 @@ pub enum Command {
         git: bool,
         #[arg(long, default_value = "clang", help = "Which compiler to use")]
         compiler: CppCompiler,
-        #[arg(long, default_value = "basic", help = "What configuration file template to use")]
+        #[arg(
+            long,
+            default_value = "basic",
+            help = "What configuration file template to use"
+        )]
         template: String,
     },
 }

@@ -3,7 +3,7 @@ use std::path::Path;
 ///! Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
-use crate::{project_model::compiler::CppCompiler, utils::constants, cache::ZorkCache};
+use crate::{cache::ZorkCache, project_model::compiler::CppCompiler, utils::constants};
 use color_eyre::{eyre::Context, Result};
 use serde::{Deserialize, Serialize};
 
@@ -66,7 +66,11 @@ pub fn autorun_generated_binary(
 
 /// Executes a new [`std::process::Command`] configured according the choosen
 /// compiler and the current operating system
-fn execute_command(compiler: &CppCompiler, arguments: &[Argument<'_>], cache: &ZorkCache) -> Result<()> {
+fn execute_command(
+    compiler: &CppCompiler,
+    arguments: &[Argument<'_>],
+    cache: &ZorkCache,
+) -> Result<()> {
     log::debug!(
         "[{compiler}] - Executing command => {:?}",
         format!("{} {}", compiler.get_driver(), arguments.join(" "))
@@ -74,14 +78,19 @@ fn execute_command(compiler: &CppCompiler, arguments: &[Argument<'_>], cache: &Z
 
     let process = if compiler.eq(&CppCompiler::MSVC) {
         std::process::Command::new(
-            cache.compilers_metadata.msvc.dev_commands_prompt.as_ref()
-                .expect("Zork++ wasn't able to found a correct installation of MSVC")
-        ).arg("&&")
-            .arg(compiler.get_driver())
-            .args(arguments)
-            .spawn()?
-            .wait()
-            .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
+            cache
+                .compilers_metadata
+                .msvc
+                .dev_commands_prompt
+                .as_ref()
+                .expect("Zork++ wasn't able to found a correct installation of MSVC"),
+        )
+        .arg("&&")
+        .arg(compiler.get_driver())
+        .args(arguments)
+        .spawn()?
+        .wait()
+        .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
     } else {
         std::process::Command::new(compiler.get_driver())
             .args(arguments)

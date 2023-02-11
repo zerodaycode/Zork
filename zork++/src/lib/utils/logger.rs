@@ -1,7 +1,11 @@
+use color_eyre::{
+    eyre::{eyre, Context},
+    Result,
+};
 use env_logger::{Builder, Target};
 use log::LevelFilter;
-use color_eyre::{Result, eyre::{eyre, Context}};
 
+#[allow(clippy::comparison_chain)]
 /// [`config_logger`] The configuration for `env_logger`
 pub fn config_logger(verbose_level: u8, target: Target) -> Result<()> {
     let mut builder = Builder::from_default_env();
@@ -22,5 +26,7 @@ pub fn config_logger(verbose_level: u8, target: Target) -> Result<()> {
         builder.filter(None, LevelFilter::Info);
     }
 
-    builder.try_init().with_context(|| "Zork++ wasn't unable to set up the logger")
+    builder
+        .try_init()
+        .with_context(|| "Zork++ wasn't unable to set up the logger")
 }
