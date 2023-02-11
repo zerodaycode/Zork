@@ -82,7 +82,7 @@ jobs:
         working-directory: ./zork++
         run: |
           mv ./target/release/zork ./target/release/zork++
-          tar -czvf zork++.tar.gz ./target/release/zork++ ./LICENSE
+          tar -czvf zork++.tar.gz ./target/release/zork++ ../LICENSE
 
       - name: Upload Windows artifact
         if: ${{ matrix.os == 'windows-latest' }}
