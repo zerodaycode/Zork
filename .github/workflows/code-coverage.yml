@@ -39,11 +39,12 @@ jobs:
         run: sudo chown -R $USER:$USER ${{ github.workspace }}
 
       - name: Run tests
+        working-directory: zork++
         run: |
-          cd zork++
           cargo test --all-features --no-fail-fast --target=x86_64-unknown-linux-gnu -- --show-output --test-threads=1
 
       - name: Generate code coverage report
+        working-directory: zork++
         run: |
           grcov . -s . --binary-path ./target/debug/ -t html --branch --ignore-not-existing -o ./target/debug/coverage
           grcov . -s . --binary-path ./target/debug/ -t cobertura --branch --ignore-not-existing -o ./target/debug/coverage/code_cov.xml
