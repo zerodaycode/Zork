@@ -96,15 +96,14 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Linux tar archive
-        working-directory: ./zork++
         if: ${{ matrix.os == 'ubuntu-latest' }}
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           upload_url: ${{ needs.generate-release.outputs.upload_url }}
-          asset_path: zork++.tar.gz
-          asset_name: zork++.tar.gz
+          asset_path: ./zork++/zork++.tar.gz
+          asset_name: ./zork++/zork++.tar.gz
           asset_content_type: application/tar+gzip
 
       - name: Upload Linux .deb package
