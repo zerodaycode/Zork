@@ -63,6 +63,7 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' }}
         working-directory: ./zork++
         run: |
+          mv ./target/debian/zork.deb ./target/debian/zork++.deb
           cargo deb --no-build --output ./target/debian/zork.deb
 
       - name: Building the installer with Inno Setup
@@ -79,7 +80,8 @@ jobs:
       - name: Generate compressed tar archive for Linux
         if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
-          tar -czvf zork-linux.tar.gz ./zork++/target/release/zork ./LICENSE
+          mv ./target/release/zork ./target/release/zork++
+          tar -czvf zork-linux.tar.gz ./zork++/target/release/zork++ ./LICENSE
 
       - name: Upload Windows artifact
         if: ${{ matrix.os == 'windows-latest' }}
