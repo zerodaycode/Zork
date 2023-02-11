@@ -39,9 +39,12 @@ pub mod worker {
             ref name,
             git,
             compiler,
+            ref template
         } = cli_args.command
         {
-            return create_templated_project(path, name, git, compiler.into());
+            return create_templated_project(
+                path, name, git, compiler.into(), template
+            );
         };
 
         let config_files: Vec<ConfigFile> = find_config_files(path)

@@ -25,6 +25,7 @@ pub fn create_templated_project(
     project_name: &str,
     git: bool,
     compiler: CppCompiler,
+    template: &String
 ) -> Result<()> {
     let project_root = base_path.join(project_name);
 
@@ -70,12 +71,19 @@ pub fn create_templated_project(
         resources::IFC_MOD_FILE.as_bytes(),
     )?;
 
-    utils::fs::create_file(&project_root, "main.cpp", resources::MAIN.as_bytes())?;
-
+    if template.eq("partitions") {
+        utils::fs::create_file(&project_root, "main.cpp", resources::MAIN.as_bytes())?;
+    } else {
+        utils::fs::create_file(&project_root, "main.cpp", resources::MAIN_BASIC.as_bytes())?;
+    }
     utils::fs::create_file(&path_src, "math.cpp", resources::SRC_MOD_FILE.as_bytes())?;
     utils::fs::create_file(&path_src, "math2.cpp", resources::SRC_MOD_FILE_2.as_bytes())?;
 
-    let zork_conf = resources::CONFIG_FILE
+    let zork_conf = if template.eq("partitions") {
+        resources::CONFIG_FILE
+    } else {
+        resources::CONFIG_FILE_BASIC
+    }
         .replace("<compiler>", compiler.as_ref())
         .replace(
             "<base_path>",
@@ -168,7 +176,7 @@ mod tests {
         std::fs::create_dir(project_path)?;
         std::fs::File::create(dummy_path)?;
 
-        let result = create_templated_project(temp.path(), PROJECT_NAME, false, CppCompiler::CLANG);
+        let result = create_templated_project(temp.path(), PROJECT_NAME, false, CppCompiler::CLANG, &String::from("basic"));
         assert!(
             result.is_err(),
             "The project was created, even though the project root is not empty"
