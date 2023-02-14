@@ -11,7 +11,7 @@
 
 <div align="center">
 
-[![Code Quality](https://github.com/zerodaycode/Zork/actions/workflows/pylint.yml/badge.svg?branch=main)](https://github.com/zerodaycode/Zork/actions/workflows/code-quality.yml)
+[![Code Quality](https://github.com/zerodaycode/Zork/actions/workflows/code-quality.yml/badge.svg?branch=main)](https://github.com/zerodaycode/Zork/actions/workflows/code-quality.yml)
 [![GitHub Issues](https://img.shields.io/github/issues/zerodaycode/Zork.svg)](https://github.com/zerodaycode/Zork/issues)</br>
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/zerodaycode/Zork.svg)](https://github.com/zerodaycode/Zork/pulls)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
@@ -515,7 +515,7 @@ In `Zork++`, you have this feature enabled for any OS supported and even using `
   - `import <system_header_name>;` // individually import some specific system header as a module. Needs an explicit precompilation process.
 
 - You're working with `MSVC`, you are able to use `import std.core`, as a compiler specific
-feature. But this will allow you to use import statements instead of `#include` directives. 
+feature. But this will allow you to use import statements instead of `#include` directives.
 
 # 🎈 Developers Guide <a name="dev_guide"></a>
 
@@ -560,7 +560,7 @@ third party test frameworks directly in `Zork++`
 # ⛏️ Built Using <a name = "built_using"></a>
 
 - [Rust](https://www.rust-lang.org/) - The full code is written on Rust
-- [TOML](https://www.python.org/) - We are using `toml` for the program configuration files
+- [TOML](https://www.toml.io/) - We are using `toml` for the program configuration files
 
 ## TODO - Motivations for the style, etc
 
