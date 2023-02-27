@@ -20,14 +20,14 @@ pub fn run_generated_commands(commands: &Commands<'_>, cache: &ZorkCache) -> Res
         execute_command(&commands.compiler, miu, cache)?
     }
 
-    if !commands.interfaces.is_empty() {
+    if !commands.implementations.is_empty() {
         log::debug!("Executing the commands for the module implementations...");
     }
     for impls in &commands.implementations {
         execute_command(&commands.compiler, impls, cache)?
     }
 
-    if !commands.interfaces.is_empty() {
+    if !commands.sources.is_empty() {
         log::debug!("Executing the main command line...");
     }
     execute_command(&commands.compiler, &commands.sources, cache)?;

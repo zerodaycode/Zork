@@ -2,7 +2,7 @@
 const char* compiler =
 #if defined(__clang__)
     "Clang";
-    import <iostream>;
+    import std;
 #elif (defined(__GNUC__) || defined(__GNUG__)) && !defined(__clang__)
     "GCC";
     import <iostream>;

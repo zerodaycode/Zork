@@ -513,13 +513,26 @@ mod helpers {
                     .any(|s| s.eq(**sys_module))
             })
             .map(|sys_module| {
-                vec![
+                let mut v = vec![
                     language_level.clone(),
                     Argument::from("-fmodules-ts"),
                     Argument::from("-x"),
                     Argument::from("c++-system-header"),
-                    Argument::from(*sys_module),
-                ]
+                    Argument::from(*sys_module)
+                ];
+
+                if model.compiler.cpp_compiler.eq(&CppCompiler::CLANG) {
+                    v.push(Argument::from("-o"));
+                    v.push(
+                        Argument::from(
+                            Path::new(model.build.output_dir)
+                                .join(model.compiler.cpp_compiler.as_ref())
+                                .join("interfaces")
+                        )
+                    );
+                }
+
+                v
             });
 
         commands.interfaces.extend(sys_modules);
