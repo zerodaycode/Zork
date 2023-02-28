@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2022 - 02 - 28
+
+### Feature
+
+- A module cache has been implemented, in order to bump up the time needed between iterations when
+the translation units aren't modified.
+Currently works as expected in all the compilers, but not in `Clang` under `Windows`, due to
+the manual usage of the module map for featuring the `import std;`
+
 ## [0.6.0] - 2022 - 02 - 28
 
 ### Feature

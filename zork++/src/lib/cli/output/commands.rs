@@ -160,7 +160,7 @@ fn _execute_commands(
 }
 
 /// Holds a collection of heap allocated arguments. This is introduced in the
-/// v0.6.0, for just wrapping the vector that holds the arguments, and for hold
+/// v0.7.0, for just wrapping the vector that holds the arguments, and for hold
 /// a flag that will indicate us that this command line will be used in a module,
 /// and that module was already built, and the module source file didn't change
 /// since the last iteration of Zork++
