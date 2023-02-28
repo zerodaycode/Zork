@@ -69,10 +69,10 @@ impl ZorkCache {
         if cfg!(target_os = "windows") && compiler == CppCompiler::MSVC {
             self.load_msvc_metadata()
         }
-        if compiler == CppCompiler::GCC {
-            let i = Self::track_gcc_system_modules(program_data);
-            self.compilers_metadata.gcc.system_modules.clear();
-            self.compilers_metadata.gcc.system_modules.extend(i);
+        if compiler != CppCompiler::MSVC {
+            let i = Self::track_system_modules(program_data);
+            self.compilers_metadata.system_modules.clear();
+            self.compilers_metadata.system_modules.extend(i);
         }
     }
 
@@ -81,7 +81,7 @@ impl ZorkCache {
         self.save_generated_commands(commands);
 
         if program_data.compiler.cpp_compiler == CppCompiler::GCC {
-            self.compilers_metadata.gcc.system_modules = program_data
+            self.compilers_metadata.system_modules = program_data
                 .modules
                 .sys_modules
                 .iter()
@@ -132,12 +132,17 @@ impl ZorkCache {
         }
     }
 
-    /// Looks for the already precompiled GCC system headers, to avoid recompiling
+    /// Looks for the already precompiled GCC or Clang system headers, to avoid recompiling
     /// them on every process
-    fn track_gcc_system_modules<'a>(
+    fn track_system_modules<'a>(
         program_data: &'a ZorkModel<'a>,
     ) -> impl Iterator<Item = String> + 'a {
-        WalkDir::new(GCC_CACHE_DIR)
+        let root = if program_data.compiler.cpp_compiler == CppCompiler::GCC {
+            Path::new(GCC_CACHE_DIR).to_path_buf()
+        } else {
+            program_data.build.output_dir.join("clang").join("modules")
+        };
+        WalkDir::new(root)
             .into_iter()
             .filter_map(Result::ok)
             .filter(|file| {
@@ -178,15 +183,10 @@ pub struct CachedCommands {
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CompilersMetadata {
     pub msvc: MsvcMetadata,
-    pub gcc: GccMetadata,
+    pub system_modules: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct MsvcMetadata {
     pub dev_commands_prompt: Option<String>,
-}
-
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-pub struct GccMetadata {
-    pub system_modules: Vec<String>,
 }

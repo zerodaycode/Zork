@@ -20,14 +20,14 @@ pub fn run_generated_commands(commands: &Commands<'_>, cache: &ZorkCache) -> Res
         execute_command(&commands.compiler, miu, cache)?
     }
 
-    if !commands.interfaces.is_empty() {
+    if !commands.implementations.is_empty() {
         log::debug!("Executing the commands for the module implementations...");
     }
     for impls in &commands.implementations {
         execute_command(&commands.compiler, impls, cache)?
     }
 
-    if !commands.interfaces.is_empty() {
+    if !commands.sources.is_empty() {
         log::debug!("Executing the main command line...");
     }
     execute_command(&commands.compiler, &commands.sources, cache)?;
@@ -115,10 +115,16 @@ fn execute_command(
 fn _execute_commands(
     compiler: &CppCompiler,
     arguments_for_commands: &[Vec<Argument<'_>>],
+    cache: &ZorkCache,
 ) -> Result<()> {
     let mut commands = if compiler.eq(&CppCompiler::MSVC) {
-        std::process::Command::new( // TODO The initialization process + cache process MUST dynamically get this path and store it in cache
-            "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat"
+        std::process::Command::new(
+            cache
+                .compilers_metadata
+                .msvc
+                .dev_commands_prompt
+                .as_ref()
+                .expect("Zork++ wasn't able to found a correct installation of MSVC"),
         )
     } else {
         std::process::Command::new("sh")

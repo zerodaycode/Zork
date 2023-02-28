@@ -28,9 +28,8 @@ pub fn build_project<'a>(
     // A registry of the generated command lines
     let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
-    if model.compiler.cpp_compiler == CppCompiler::GCC {
-        // Special GCC case
-        helpers::process_gcc_system_modules(model, &mut commands, cache)
+    if model.compiler.cpp_compiler != CppCompiler::MSVC {
+        helpers::prebuild_sys_modules(model, &mut commands, cache)
     }
 
     // 1st - Build the modules
@@ -484,18 +483,20 @@ mod helpers {
             .with_extension(compiler.get_obj_file_extension())
     }
 
-    /// GCC specific requirement. System headers as modules must be built before being imported.
-    /// First it will compare with the elements stored in the caché, and only will generate
-    /// commands for the non matching elements
-    pub(crate) fn process_gcc_system_modules<'a>(
+    /// System headers as can be imported as modules must be built before being imported.
+    /// First it will compare with the elements stored in the caché, and only we will
+    /// generate commands for the non processed elements yet.
+    ///
+    /// This is for `GCC` and `Clang`
+    pub(crate) fn prebuild_sys_modules<'a>(
         model: &'a ZorkModel,
         commands: &mut Commands<'a>,
         cache: &ZorkCache,
     ) {
-        if !cache.compilers_metadata.gcc.system_modules.is_empty() {
+        if !cache.compilers_metadata.system_modules.is_empty() {
             log::info!(
-                "GCC system modules already build: {:?}. They will be skipped!",
-                cache.compilers_metadata.gcc.system_modules
+                "System modules already build: {:?}. They will be skipped!",
+                cache.compilers_metadata.system_modules
             );
         }
 
@@ -507,19 +508,29 @@ mod helpers {
             .filter(|sys_module| {
                 !cache
                     .compilers_metadata
-                    .gcc
                     .system_modules
                     .iter()
                     .any(|s| s.eq(**sys_module))
             })
             .map(|sys_module| {
-                vec![
+                let mut v = vec![
                     language_level.clone(),
                     Argument::from("-fmodules-ts"),
                     Argument::from("-x"),
                     Argument::from("c++-system-header"),
                     Argument::from(*sys_module),
-                ]
+                ];
+
+                if model.compiler.cpp_compiler.eq(&CppCompiler::CLANG) {
+                    v.push(Argument::from("-o"));
+                    v.push(Argument::from(
+                        Path::new(model.build.output_dir)
+                            .join(model.compiler.cpp_compiler.as_ref())
+                            .join("interfaces"),
+                    ));
+                }
+
+                v
             });
 
         commands.interfaces.extend(sys_modules);

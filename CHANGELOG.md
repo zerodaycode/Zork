@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2022 - 02 - 28
+
+### Feature
+
+- Allowing the usage of `import <system_module>` with `Clang`, by precompiling
+the declared system modules required, just as we were doing with `GCC`
+
 ## [0.5.0] - 2022 - 02 - 08
 
 ### Feature

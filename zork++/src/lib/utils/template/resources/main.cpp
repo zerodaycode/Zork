@@ -6,7 +6,7 @@ const char* compiler =
 #elif (defined(__GNUC__) || defined(__GNUG__)) && !defined(__clang__)
     "GCC";
     import <iostream>;
-#elif defined(_MSC_VER)
+#elif defined
     "MSVC";
     import std.core;
 #endif
