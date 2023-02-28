@@ -58,8 +58,8 @@ pub fn save(
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct ZorkCache {
     pub last_program_execution: DateTime<Utc>,
-    pub last_generated_commands: CachedCommands,
     pub compilers_metadata: CompilersMetadata,
+    pub generated_commands: CachedCommands,
 }
 
 impl ZorkCache {
@@ -80,7 +80,7 @@ impl ZorkCache {
     pub fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>, commands: &Commands<'_>) {
         self.save_generated_commands(commands);
 
-        if program_data.compiler.cpp_compiler == CppCompiler::GCC {
+        if !(program_data.compiler.cpp_compiler == CppCompiler::MSVC) {
             self.compilers_metadata.system_modules = program_data
                 .modules
                 .sys_modules
@@ -91,26 +91,50 @@ impl ZorkCache {
     }
 
     fn save_generated_commands(&mut self, commands: &Commands<'_>) {
-        self.last_generated_commands.compiler = commands.compiler;
-        self.last_generated_commands.interfaces = commands
+        self.generated_commands.compiler = commands.compiler;
+        let process_no = if !self.generated_commands.details.is_empty() {
+            self.generated_commands
+                .details
+                .last()
+                .unwrap()
+                .cached_process_num
+                + 1
+        } else {
+            1
+        };
+        let mut commands_details = CommandsDetails {
+            cached_process_num: process_no,
+            generated_at: Utc::now(),
+            interfaces: Vec::with_capacity(commands.interfaces.len()),
+            implementations: Vec::with_capacity(commands.implementations.len()),
+            main: String::new(),
+        };
+        commands_details
             .interfaces
-            .iter()
-            .map(|arg| {
-                arg.iter()
+            .extend(commands.interfaces.iter().map(|module_command_line| {
+                module_command_line
+                    .args
+                    .iter()
                     .map(|argument| argument.value.to_string())
                     .collect()
-            })
-            .collect();
-        self.last_generated_commands.implementations = commands
+            }));
+        commands_details
             .implementations
-            .iter()
-            .map(|arg| {
-                arg.iter()
+            .extend(commands.implementations.iter().map(|module_command_line| {
+                module_command_line
+                    .args
+                    .iter()
                     .map(|argument| argument.value.to_string())
                     .collect()
-            })
-            .collect();
-        self.last_generated_commands.main = commands.sources.iter().map(|arg| arg.value).collect();
+            }));
+        commands_details.main = commands
+            .sources
+            .iter()
+            .map(|arg| arg.value.to_string())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        self.generated_commands.details.push(commands_details)
     }
 
     /// If Windows is the current OS, and the compiler is MSVC, then we will try
@@ -140,8 +164,14 @@ impl ZorkCache {
         let root = if program_data.compiler.cpp_compiler == CppCompiler::GCC {
             Path::new(GCC_CACHE_DIR).to_path_buf()
         } else {
-            program_data.build.output_dir.join("clang").join("modules")
+            program_data
+                .build
+                .output_dir
+                .join("clang")
+                .join("modules")
+                .join("interfaces")
         };
+
         WalkDir::new(root)
             .into_iter()
             .filter_map(Result::ok)
@@ -175,6 +205,13 @@ impl ZorkCache {
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CachedCommands {
     compiler: CppCompiler,
+    details: Vec<CommandsDetails>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct CommandsDetails {
+    cached_process_num: i32,
+    generated_at: DateTime<Utc>,
     interfaces: Vec<Vec<String>>,
     implementations: Vec<Vec<String>>,
     main: String,

@@ -22,7 +22,7 @@ use crate::{
 /// configuration file will be build
 pub fn build_project<'a>(
     model: &'a ZorkModel<'a>,
-    cache: &ZorkCache,
+    cache: &'a ZorkCache,
     tests: bool,
 ) -> Result<Commands<'a>> {
     // A registry of the generated command lines
@@ -33,7 +33,7 @@ pub fn build_project<'a>(
     }
 
     // 1st - Build the modules
-    build_modules(model, &mut commands)?;
+    build_modules(model, cache, &mut commands)?;
     // 2st - Build the executable or the tests
     build_executable(model, &mut commands, tests)?;
 
@@ -60,12 +60,16 @@ fn build_executable<'a>(
 /// This function acts like a operation result processor, by running instances
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses>
-fn build_modules<'a>(model: &'a ZorkModel, commands: &mut Commands<'a>) -> Result<()> {
+fn build_modules<'a>(
+    model: &'a ZorkModel,
+    cache: &'a ZorkCache,
+    commands: &mut Commands<'a>,
+) -> Result<()> {
     log::info!("Building the module interfaces and partitions...");
-    prebuild_module_interfaces(model, &model.modules.interfaces, commands);
+    prebuild_module_interfaces(model, cache, &model.modules.interfaces, commands);
 
     log::info!("Building the module implementations...");
-    compile_module_implementations(model, &model.modules.implementations, commands);
+    compile_module_implementations(model, cache, &model.modules.implementations, commands);
 
     Ok(())
 }
@@ -74,11 +78,12 @@ fn build_modules<'a>(model: &'a ZorkModel, commands: &mut Commands<'a>) -> Resul
 /// by precompiling the module interface units
 fn prebuild_module_interfaces<'a>(
     model: &'a ZorkModel<'_>,
+    cache: &'a ZorkCache,
     interfaces: &'a [ModuleInterfaceModel],
     commands: &mut Commands<'a>,
 ) {
     interfaces.iter().for_each(|module_interface| {
-        sources::generate_module_interfaces_args(model, module_interface, commands);
+        sources::generate_module_interfaces_args(model, cache, module_interface, commands);
     });
 }
 
@@ -86,25 +91,27 @@ fn prebuild_module_interfaces<'a>(
 /// translation units declared for the project
 fn compile_module_implementations<'a>(
     model: &'a ZorkModel,
+    cache: &'a ZorkCache,
     impls: &'a [ModuleImplementationModel],
     commands: &mut Commands<'a>,
 ) {
     impls.iter().for_each(|module_impl| {
-        sources::generate_module_implementation_args(model, module_impl, commands);
+        sources::generate_module_implementation_args(model, cache, module_impl, commands);
     });
 }
 
 /// Specific operations over source files
 mod sources {
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use color_eyre::Result;
 
     use crate::{
         bounds::{ExecutableTarget, TranslationUnit},
+        cache::ZorkCache,
         cli::output::{
             arguments::{clang_args, Argument},
-            commands::Commands,
+            commands::{Commands, ModuleCommandLine},
         },
         project_model::{
             compiler::CppCompiler,
@@ -215,12 +222,14 @@ mod sources {
     /// Generates the expected arguments for precompile the BMIs depending on self
     pub fn generate_module_interfaces_args<'a>(
         model: &'a ZorkModel,
+        cache: &'a ZorkCache,
         interface: &'a ModuleInterfaceModel,
         commands: &mut Commands<'a>,
     ) {
         let compiler = &model.compiler.cpp_compiler;
         let base_path = model.modules.base_ifcs_dir;
         let out_dir = model.build.output_dir;
+        let input_file = helpers::add_input_file(interface, base_path);
 
         let mut arguments = Vec::with_capacity(8);
         arguments.push(model.compiler.language_level_arg());
@@ -254,9 +263,7 @@ mod sources {
                 commands.generated_files_paths.push(miu_file_path.clone());
                 arguments.push(miu_file_path);
                 // The input file
-                arguments.push(Argument::from(helpers::add_input_file(
-                    interface, base_path,
-                )));
+                arguments.push(Argument::from(&input_file));
             }
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("/EHsc"));
@@ -298,9 +305,7 @@ mod sources {
                 }
                 arguments.push(Argument::from("/TP"));
                 // The input file
-                arguments.push(Argument::from(helpers::add_input_file(
-                    interface, base_path,
-                )))
+                arguments.push(Argument::from(&input_file))
             }
             CppCompiler::GCC => {
                 arguments.push(Argument::from("-fmodules-ts"));
@@ -308,9 +313,7 @@ mod sources {
                 arguments.push(Argument::from("c++"));
                 arguments.push(Argument::from("-c"));
                 // The input file
-                arguments.push(Argument::from(helpers::add_input_file(
-                    interface, base_path,
-                )));
+                arguments.push(Argument::from(&input_file));
                 // The output file
                 arguments.push(Argument::from("-o"));
                 let miu_file_path =
@@ -320,20 +323,34 @@ mod sources {
             }
         }
 
-        commands.interfaces.push(arguments);
+        let processed_cache = if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
+            log::debug!("Module unit {:?} will be rebuilt since we've detected that you are using Clang on Windows", interface.module_name);
+            false
+        } else {
+            helpers::flag_modules_without_changes(cache, &input_file)
+        };
+
+        let command_line = ModuleCommandLine {
+            path: PathBuf::from(interface.file),
+            args: arguments,
+            processed: processed_cache,
+        };
+        commands.interfaces.push(command_line);
     }
 
     /// Generates the expected arguments for compile the implementation module files
     pub fn generate_module_implementation_args<'a>(
         model: &'a ZorkModel,
+        cache: &'a ZorkCache,
         implementation: &'a ModuleImplementationModel,
         commands: &mut Commands<'a>,
     ) {
         let compiler = &model.compiler.cpp_compiler;
         let base_path = model.modules.base_impls_dir;
         let out_dir = model.build.output_dir;
+        let input_file = helpers::add_input_file(implementation, base_path);
 
-        let mut arguments = Vec::with_capacity(8);
+        let mut arguments = Vec::with_capacity(12);
         arguments.push(model.compiler.language_level_arg());
 
         match *compiler {
@@ -361,10 +378,7 @@ mod sources {
                 );
 
                 // The input file
-                arguments.push(Argument::from(helpers::add_input_file(
-                    implementation,
-                    base_path,
-                )))
+                arguments.push(Argument::from(&input_file))
             }
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("/EHsc"));
@@ -380,10 +394,7 @@ mod sources {
                         .join("interfaces"),
                 ));
                 // The input file
-                arguments.push(Argument::from(helpers::add_input_file(
-                    implementation,
-                    base_path,
-                )));
+                arguments.push(Argument::from(&input_file));
                 // The output .obj file
                 let obj_file_path = out_dir
                     .join(compiler.as_ref())
@@ -401,10 +412,7 @@ mod sources {
                 arguments.push(Argument::from("-fmodules-ts"));
                 arguments.push(Argument::from("-c"));
                 // The input file
-                arguments.push(Argument::from(helpers::add_input_file(
-                    implementation,
-                    base_path,
-                )));
+                arguments.push(Argument::from(&input_file));
                 // The output file
                 arguments.push(Argument::from("-o"));
                 let obj_file_path = Argument::from(helpers::generate_impl_obj_file(
@@ -417,7 +425,12 @@ mod sources {
             }
         }
 
-        commands.implementations.push(arguments);
+        let command_line = ModuleCommandLine {
+            path: PathBuf::from(implementation.file),
+            args: arguments,
+            processed: helpers::flag_modules_without_changes(cache, &input_file),
+        };
+        commands.implementations.push(command_line);
     }
 }
 
@@ -425,7 +438,11 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
-    use crate::{bounds::TranslationUnit, cache::ZorkCache};
+    use chrono::{DateTime, Utc};
+
+    use crate::{
+        bounds::TranslationUnit, cache::ZorkCache, cli::output::commands::ModuleCommandLine,
+    };
     use std::path::PathBuf;
 
     use super::*;
@@ -526,13 +543,48 @@ mod helpers {
                     v.push(Argument::from(
                         Path::new(model.build.output_dir)
                             .join(model.compiler.cpp_compiler.as_ref())
-                            .join("interfaces"),
+                            .join("modules")
+                            .join("interfaces")
+                            .join(sys_module)
+                            .with_extension(
+                                model.compiler.cpp_compiler.get_typical_bmi_extension(),
+                            ),
                     ));
                 }
 
                 v
-            });
+            })
+            .collect::<Vec<_>>();
 
-        commands.interfaces.extend(sys_modules);
+        for collection_args in sys_modules {
+            commands.interfaces.push(ModuleCommandLine {
+                path: PathBuf::new(),
+                args: collection_args,
+                processed: false,
+            });
+        }
+    }
+
+    ///  Marks the given module translation unit as already processed
+    /// to avoid losing time rebuilding that module if the source file
+    /// hans't been modified since the last build process iteration
+    pub(crate) fn flag_modules_without_changes(cache: &ZorkCache, file: &PathBuf) -> bool {
+        // TODO if not previous iteration success, return false
+
+        let last_process_timestamp = cache.last_program_execution;
+        let file_metadata = file.metadata();
+        match file_metadata {
+            Ok(m) => {
+                match m.modified() {
+                    Ok(modified) => return DateTime::<Utc>::from(modified) < last_process_timestamp,
+                    Err(e) =>
+                        log::error!("An error happened trying to get the last time that the {file:?} was modified. Processing it anyway because {e:?}")
+                }
+            },
+            Err(e) =>
+                log::error!("An error happened trying to retrieve the metadata of {file:?}. Processing it anyway because {e:?}")
+        }
+
+        false
     }
 }

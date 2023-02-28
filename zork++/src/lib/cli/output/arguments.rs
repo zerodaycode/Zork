@@ -31,6 +31,12 @@ impl<'a> From<PathBuf> for Argument<'a> {
     }
 }
 
+impl<'a> From<&PathBuf> for Argument<'a> {
+    fn from(value: &PathBuf) -> Self {
+        Self::from(format!("{}", value.display()))
+    }
+}
+
 impl<'a> Borrow<str> for Argument<'a> {
     fn borrow(&self) -> &str {
         self.value
