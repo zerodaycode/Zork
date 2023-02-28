@@ -4,6 +4,7 @@ example/
 out/
 gcm.cache/
 github-example/
+cached_mods/
 
 # out/
 .coverage
@@ -43,10 +44,10 @@ target/
 # Compiled Static libraries
 *.lai
 *.la
-# *.a
+*.a
 *.lib
 
 # Executables
-# *.exe
-# *.out
+*.exe
+*.out
 *.app

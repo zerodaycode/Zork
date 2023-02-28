@@ -71,9 +71,10 @@ pub mod worker {
 
             let cache =
                 cache::load(&program_data).with_context(|| "Unable to load the Zork++ caché")?;
+            let read_only_cache = cache.clone();
 
             let generated_commands =
-                do_main_work_based_on_cli_input(cli_args, &program_data, cache.clone())
+                do_main_work_based_on_cli_input(cli_args, &program_data, &read_only_cache)
                     .with_context(|| {
                         format!(
                             "Failed to build the project for the config file: {:?}",
@@ -95,7 +96,7 @@ pub mod worker {
     fn do_main_work_based_on_cli_input<'a>(
         cli_args: &'a CliArgs,
         program_data: &'a ZorkModel,
-        cache: ZorkCache,
+        cache: &'a ZorkCache,
     ) -> Result<Commands<'a>> {
         match cli_args.command {
             Command::Build => {
@@ -200,8 +201,8 @@ pub mod worker {
                 .replace("<base_path>", temp.path().to_str().unwrap())
                 .replace("<compiler>", "clang")
                 .replace('\\', "/");
-            let zcf: ZorkConfigFile = toml::from_str(&normalized_cfg_file)?;
-            let model = build_model(&zcf);
+            let mut zcf: ZorkConfigFile = toml::from_str(&normalized_cfg_file)?;
+            let model = build_model(&mut zcf);
 
             // This should create and out/ directory in the ./zork++ folder at the root of this project
             super::create_output_directory(&model)?;

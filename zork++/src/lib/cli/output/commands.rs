@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 ///! Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
@@ -17,14 +17,22 @@ pub fn run_generated_commands(commands: &Commands<'_>, cache: &ZorkCache) -> Res
         log::debug!("Executing the commands for the module interfaces...");
     }
     for miu in &commands.interfaces {
-        execute_command(&commands.compiler, miu, cache)?
+        if !miu.processed {
+            execute_command(&commands.compiler, &miu.args, cache)?
+        } else {
+            log::debug!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again", miu.path);
+        }
     }
 
     if !commands.implementations.is_empty() {
         log::debug!("Executing the commands for the module implementations...");
     }
-    for impls in &commands.implementations {
-        execute_command(&commands.compiler, impls, cache)?
+    for implm in &commands.implementations {
+        if !implm.processed {
+            execute_command(&commands.compiler, &implm.args, cache)?
+        } else {
+            log::debug!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again", implm.path);
+        }
     }
 
     if !commands.sources.is_empty() {
@@ -150,14 +158,62 @@ fn _execute_commands(
     Ok(())
 }
 
+/// Holds a collection of heap allocated arguments. This is introduced in the
+/// v0.6.0, for just wrapping the vector that holds the arguments, and for hold
+/// a flag that will indicate us that this command line will be used in a module,
+/// and that module was already built, and the module source file didn't change
+/// since the last iteration of Zork++
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ModuleCommandLine<'a> {
+    pub path: PathBuf,
+    #[serde(borrow)] pub args: Vec<Argument<'a>>,
+    pub processed: bool
+}
+
+impl<'a> From<Vec<Argument<'a>>> for ModuleCommandLine<'a> {
+    fn from(value: Vec<Argument<'a>>) -> Self {
+        Self {
+            path: PathBuf::new(),
+            args: value,
+            processed: false
+        }
+    }
+}
+
+impl<'a> IntoIterator for ModuleCommandLine<'a> {
+    type Item = Argument<'a>;
+
+    type IntoIter = std::vec::IntoIter<Argument<'a>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.args.into_iter()
+    }
+}
+
+impl<'a> FromIterator<Argument<'a>> for ModuleCommandLine<'a> {
+    fn from_iter<T: IntoIterator<Item = Argument<'a>>>(iter: T) -> Self {
+        let mut m = ModuleCommandLine {
+            path: PathBuf::new(),
+            args: Vec::new(),
+            processed: false
+        };
+        
+        for arg in iter {
+            m.args.push(arg)
+        }  
+        
+        m
+    }
+}
+
 /// Holds the generated command line arguments for a concrete compiler
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Commands<'a> {
     pub compiler: CppCompiler,
     pub system_modules: Vec<Vec<Argument<'a>>>,
     #[serde(borrow)]
-    pub interfaces: Vec<Vec<Argument<'a>>>,
-    pub implementations: Vec<Vec<Argument<'a>>>,
+    pub interfaces: Vec<ModuleCommandLine<'a>>,
+    pub implementations: Vec<ModuleCommandLine<'a>>,
     pub sources: Vec<Argument<'a>>,
     pub generated_files_paths: Vec<Argument<'a>>,
 }
@@ -181,8 +237,8 @@ impl<'a> core::fmt::Display for Commands<'a> {
             f,
             "Commands for [{}]:\n- Interfaces: {:?},\n- Implementations: {:?},\n- Main command line: {:?}",
             self.compiler,
-            self.interfaces.iter().map(|vec| { vec.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
-            self.implementations.iter().map(|vec| { vec.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
+            self.interfaces.iter().map(|vec| { vec.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
+            self.implementations.iter().map(|vec| { vec.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
             self.sources.iter().map(|e| e.value).collect::<Vec<_>>().join(" ")
         )
     }
