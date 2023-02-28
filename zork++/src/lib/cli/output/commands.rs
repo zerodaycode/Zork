@@ -1,24 +1,28 @@
-use std::path::{Path, PathBuf};
+use std::{path::{Path, PathBuf}, process::{ExitCode, ExitStatus}, os::windows::process::ExitStatusExt};
 
 ///! Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
 use crate::{cache::ZorkCache, project_model::compiler::CppCompiler, utils::constants};
-use color_eyre::{eyre::Context, Result};
-use serde::{Deserialize, Serialize};
+use color_eyre::{eyre::Context, Result, Report};
 
 use super::arguments::Argument;
 
-/// TODO this is just a provisional impl, in order to free the
-/// build_project(...) function for dealing with the generated
-/// command lines
-pub fn run_generated_commands(commands: &Commands<'_>, cache: &ZorkCache) -> Result<()> {
+
+pub fn run_generated_commands(commands: &mut Commands<'_>, cache: &ZorkCache) -> Result<ExitStatus> {
     if !commands.interfaces.is_empty() {
         log::debug!("Executing the commands for the module interfaces...");
     }
-    for miu in &commands.interfaces {
+    for miu in &mut commands.interfaces {
         if !miu.processed {
-            execute_command(&commands.compiler, &miu.args, cache)?
+            let res = execute_command(&commands.compiler, &miu.args, cache);
+            match res {
+                Ok(r) => {
+                    miu.execution_result = Ok(r);
+                    if !r.success() { return Ok(r); }
+                },
+                Err(e) => return Err(e),
+            }
         } else {
             log::debug!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again", miu.path);
         }
@@ -27,9 +31,16 @@ pub fn run_generated_commands(commands: &Commands<'_>, cache: &ZorkCache) -> Res
     if !commands.implementations.is_empty() {
         log::debug!("Executing the commands for the module implementations...");
     }
-    for implm in &commands.implementations {
+    for implm in &mut commands.implementations {
         if !implm.processed {
-            execute_command(&commands.compiler, &implm.args, cache)?
+            let res = execute_command(&commands.compiler, &implm.args, cache);
+            match res {
+                Ok(r) => {
+                    implm.execution_result = Ok(r);
+                    if !r.success() { return Ok(r); }
+                },
+                Err(e) => return Err(e),
+            }
         } else {
             log::debug!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again", implm.path);
         }
@@ -37,10 +48,10 @@ pub fn run_generated_commands(commands: &Commands<'_>, cache: &ZorkCache) -> Res
 
     if !commands.sources.is_empty() {
         log::debug!("Executing the main command line...");
+        execute_command(&commands.compiler, &commands.sources, cache)?;
     }
-    execute_command(&commands.compiler, &commands.sources, cache)?;
 
-    Ok(())
+    Ok(ExitStatus::from_raw(0))
 }
 
 /// Executes a new [`std::process::Command`] to run the generated binary
@@ -78,7 +89,7 @@ fn execute_command(
     compiler: &CppCompiler,
     arguments: &[Argument<'_>],
     cache: &ZorkCache,
-) -> Result<()> {
+) -> Result<ExitStatus, Report> {
     log::debug!(
         "[{compiler}] - Executing command => {:?}",
         format!("{} {}", compiler.get_driver(), arguments.join(" "))
@@ -98,17 +109,17 @@ fn execute_command(
         .args(arguments)
         .spawn()?
         .wait()
-        .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
+        .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
     } else {
         std::process::Command::new(compiler.get_driver())
             .args(arguments)
             .spawn()?
             .wait()
-            .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))?
+            .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
     };
 
     log::debug!("[{compiler}] - Result: {:?}\n", process);
-    Ok(())
+    process
 }
 
 /// Executes a new [`std::process::Command`] configured according the choosen
@@ -164,12 +175,12 @@ fn _execute_commands(
 /// a flag that will indicate us that this command line will be used in a module,
 /// and that module was already built, and the module source file didn't change
 /// since the last iteration of Zork++
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug)]
 pub struct ModuleCommandLine<'a> {
     pub path: PathBuf,
-    #[serde(borrow)]
     pub args: Vec<Argument<'a>>,
     pub processed: bool,
+    pub execution_result: Result<ExitStatus, Report>
 }
 
 impl<'a> From<Vec<Argument<'a>>> for ModuleCommandLine<'a> {
@@ -178,6 +189,7 @@ impl<'a> From<Vec<Argument<'a>>> for ModuleCommandLine<'a> {
             path: PathBuf::new(),
             args: value,
             processed: false,
+            execution_result: Ok(ExitStatus::from_raw(0))
         }
     }
 }
@@ -198,6 +210,7 @@ impl<'a> FromIterator<Argument<'a>> for ModuleCommandLine<'a> {
             path: PathBuf::new(),
             args: Vec::new(),
             processed: false,
+            execution_result: Ok(ExitStatus::from_raw(0))
         };
 
         for arg in iter {
@@ -209,11 +222,10 @@ impl<'a> FromIterator<Argument<'a>> for ModuleCommandLine<'a> {
 }
 
 /// Holds the generated command line arguments for a concrete compiler
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug)]
 pub struct Commands<'a> {
     pub compiler: CppCompiler,
     pub system_modules: Vec<Vec<Argument<'a>>>,
-    #[serde(borrow)]
     pub interfaces: Vec<ModuleCommandLine<'a>>,
     pub implementations: Vec<ModuleCommandLine<'a>>,
     pub sources: Vec<Argument<'a>>,

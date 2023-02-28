@@ -102,37 +102,67 @@ impl ZorkCache {
         } else {
             1
         };
+
         let mut commands_details = CommandsDetails {
             cached_process_num: process_no,
             generated_at: Utc::now(),
             interfaces: Vec::with_capacity(commands.interfaces.len()),
             implementations: Vec::with_capacity(commands.implementations.len()),
-            main: String::new(),
+            main: MainCommandLineDetail::default(),
         };
+
         commands_details
             .interfaces
             .extend(commands.interfaces.iter().map(|module_command_line| {
-                module_command_line
-                    .args
-                    .iter()
-                    .map(|argument| argument.value.to_string())
-                    .collect()
+                let details = CommandDetail {
+                    translation_unit: String::from(module_command_line.path.as_os_str().to_str().unwrap_or_default()),
+                    execution_result: match &module_command_line.execution_result {
+                        Ok(_) => String::from("Success"),
+                        Err(e) => e.to_string()
+                    },
+                    command: if module_command_line.processed {
+                        vec![]
+                    } else { module_command_line
+                        .args
+                        .iter()
+                        .map(|argument| argument.value.to_string())
+                        .collect()
+                    }
+                };
+                details
             }));
+
         commands_details
             .implementations
-            .extend(commands.implementations.iter().map(|module_command_line| {
-                module_command_line
-                    .args
-                    .iter()
-                    .map(|argument| argument.value.to_string())
-                    .collect()
+            .extend(commands.interfaces.iter().map(|module_command_line| {
+                let details = CommandDetail {
+                    translation_unit: String::from(module_command_line.path.as_os_str().to_str().unwrap_or_default()),
+                    execution_result: match &module_command_line.execution_result {
+                        Ok(_) => String::from("Success"),
+                        Err(e) => e.to_string()
+                    },
+                    command: if module_command_line.processed {
+                        vec![]
+                    } else { module_command_line
+                        .args
+                        .iter()
+                        .map(|argument| argument.value.to_string())
+                        .collect()
+                    }
+                };
+                details
             }));
-        commands_details.main = commands
-            .sources
-            .iter()
-            .map(|arg| arg.value.to_string())
-            .collect::<Vec<_>>()
-            .join(" ");
+
+        commands_details.main = MainCommandLineDetail {
+            files: Vec::with_capacity(0),
+            execution_result: String::from("main command line"),
+            command: commands
+                .sources
+                .iter()
+                .map(|arg| arg.value.to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
 
         self.generated_commands.details.push(commands_details)
     }
@@ -212,9 +242,23 @@ pub struct CachedCommands {
 pub struct CommandsDetails {
     cached_process_num: i32,
     generated_at: DateTime<Utc>,
-    interfaces: Vec<Vec<String>>,
-    implementations: Vec<Vec<String>>,
-    main: String,
+    interfaces: Vec<CommandDetail>,
+    implementations: Vec<CommandDetail>,
+    main: MainCommandLineDetail,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct CommandDetail {
+    translation_unit: String,
+    execution_result: String,
+    command: Vec<String>
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct MainCommandLineDetail {
+    files: Vec<String>,
+    execution_result: String,
+    command: String
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]

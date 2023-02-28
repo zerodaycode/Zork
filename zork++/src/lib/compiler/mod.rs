@@ -102,7 +102,7 @@ fn compile_module_implementations<'a>(
 
 /// Specific operations over source files
 mod sources {
-    use std::path::{Path, PathBuf};
+    use std::{path::{Path, PathBuf}, process::{ExitCode, ExitStatus}, os::windows::process::ExitStatusExt};
 
     use color_eyre::Result;
 
@@ -334,6 +334,7 @@ mod sources {
             path: PathBuf::from(interface.file),
             args: arguments,
             processed: processed_cache,
+            execution_result: Ok(ExitStatus::from_raw(0))
         };
         commands.interfaces.push(command_line);
     }
@@ -429,6 +430,7 @@ mod sources {
             path: PathBuf::from(implementation.file),
             args: arguments,
             processed: helpers::flag_modules_without_changes(cache, &input_file),
+            execution_result: Ok(ExitStatus::from_raw(0)),
         };
         commands.implementations.push(command_line);
     }
@@ -443,7 +445,7 @@ mod helpers {
     use crate::{
         bounds::TranslationUnit, cache::ZorkCache, cli::output::commands::ModuleCommandLine,
     };
-    use std::path::PathBuf;
+    use std::{path::PathBuf, process::ExitStatus, os::windows::process::ExitStatusExt};
 
     use super::*;
 
@@ -561,6 +563,7 @@ mod helpers {
                 path: PathBuf::new(),
                 args: collection_args,
                 processed: false,
+                execution_result: Ok(ExitStatus::from_raw(0))
             });
         }
     }
