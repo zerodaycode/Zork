@@ -4,11 +4,11 @@
 // file.
 
 use color_eyre::Result;
-use std::{path::Path};
+use std::path::Path;
 
 use crate::{
     cache::ZorkCache,
-    cli::output::{arguments::Argument, commands::{Commands}},
+    cli::output::{arguments::Argument, commands::Commands},
     project_model::{
         compiler::CppCompiler,
         modules::{ModuleImplementationModel, ModuleInterfaceModel},
@@ -29,7 +29,7 @@ pub fn build_project<'a>(
     let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
     if model.compiler.cpp_compiler != CppCompiler::MSVC {
-        helpers::prebuild_sys_modules(model, &mut commands, &cache)
+        helpers::prebuild_sys_modules(model, &mut commands, cache)
     }
 
     // 1st - Build the modules
@@ -61,12 +61,12 @@ fn build_executable<'a>(
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses>
 fn build_modules<'a>(
-    model: &'a ZorkModel, 
+    model: &'a ZorkModel,
     cache: &'a ZorkCache,
-    commands: &mut Commands<'a>
+    commands: &mut Commands<'a>,
 ) -> Result<()> {
     log::info!("Building the module interfaces and partitions...");
-    prebuild_module_interfaces(model, &cache, &model.modules.interfaces, commands);
+    prebuild_module_interfaces(model, cache, &model.modules.interfaces, commands);
 
     log::info!("Building the module implementations...");
     compile_module_implementations(model, cache, &model.modules.implementations, commands);
@@ -102,12 +102,13 @@ fn compile_module_implementations<'a>(
 
 /// Specific operations over source files
 mod sources {
-    use std::{path::{Path, PathBuf}};
+    use std::path::{Path, PathBuf};
 
     use color_eyre::Result;
 
     use crate::{
         bounds::{ExecutableTarget, TranslationUnit},
+        cache::ZorkCache,
         cli::output::{
             arguments::{clang_args, Argument},
             commands::{Commands, ModuleCommandLine},
@@ -117,7 +118,7 @@ mod sources {
             modules::{ModuleImplementationModel, ModuleInterfaceModel},
             ZorkModel,
         },
-        utils::constants, cache::ZorkCache,
+        utils::constants,
     };
 
     use super::helpers;
@@ -223,14 +224,12 @@ mod sources {
         model: &'a ZorkModel,
         cache: &'a ZorkCache,
         interface: &'a ModuleInterfaceModel,
-        commands: &mut Commands<'a>
+        commands: &mut Commands<'a>,
     ) {
         let compiler = &model.compiler.cpp_compiler;
         let base_path = model.modules.base_ifcs_dir;
         let out_dir = model.build.output_dir;
-        let input_file = helpers::add_input_file(
-            interface, base_path,
-        );
+        let input_file = helpers::add_input_file(interface, base_path);
 
         let mut arguments = Vec::with_capacity(8);
         arguments.push(model.compiler.language_level_arg());
@@ -325,10 +324,10 @@ mod sources {
         }
 
         let processed_cache = if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
-            log::debug!("Module unit {:?} will be rebuilt since we've detected that you are using Clang on Windows", interface.module_name); 
+            log::debug!("Module unit {:?} will be rebuilt since we've detected that you are using Clang on Windows", interface.module_name);
             false
-        } else { 
-            helpers::flag_modules_without_changes(&cache, &input_file)
+        } else {
+            helpers::flag_modules_without_changes(cache, &input_file)
         };
 
         let command_line = ModuleCommandLine {
@@ -349,10 +348,7 @@ mod sources {
         let compiler = &model.compiler.cpp_compiler;
         let base_path = model.modules.base_impls_dir;
         let out_dir = model.build.output_dir;
-        let input_file = helpers::add_input_file(
-            implementation,
-            base_path,
-        );
+        let input_file = helpers::add_input_file(implementation, base_path);
 
         let mut arguments = Vec::with_capacity(12);
         arguments.push(model.compiler.language_level_arg());
@@ -432,7 +428,7 @@ mod sources {
         let command_line = ModuleCommandLine {
             path: PathBuf::from(implementation.file),
             args: arguments,
-            processed: helpers::flag_modules_without_changes(&cache, &input_file),
+            processed: helpers::flag_modules_without_changes(cache, &input_file),
         };
         commands.implementations.push(command_line);
     }
@@ -442,9 +438,11 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
-    use chrono::{Utc, DateTime};
+    use chrono::{DateTime, Utc};
 
-    use crate::{bounds::TranslationUnit, cache::ZorkCache, cli::output::{commands::ModuleCommandLine}};
+    use crate::{
+        bounds::TranslationUnit, cache::ZorkCache, cli::output::commands::ModuleCommandLine,
+    };
     use std::path::PathBuf;
 
     use super::*;
@@ -510,7 +508,7 @@ mod helpers {
     pub(crate) fn prebuild_sys_modules<'a>(
         model: &'a ZorkModel,
         commands: &mut Commands<'a>,
-        cache: &ZorkCache
+        cache: &ZorkCache,
     ) {
         if !cache.compilers_metadata.system_modules.is_empty() {
             log::info!(
@@ -537,64 +535,55 @@ mod helpers {
                     Argument::from("-fmodules-ts"),
                     Argument::from("-x"),
                     Argument::from("c++-system-header"),
-                    Argument::from(*sys_module)
+                    Argument::from(*sys_module),
                 ];
 
                 if model.compiler.cpp_compiler.eq(&CppCompiler::CLANG) {
                     v.push(Argument::from("-o"));
-                    v.push(
-                        Argument::from(
-                            Path::new(model.build.output_dir)
-                                .join(model.compiler.cpp_compiler.as_ref())
-                                .join("modules")
-                                .join("interfaces")
-                                .join(sys_module)
-                                .with_extension(model.compiler.cpp_compiler.get_typical_bmi_extension())
-                        )
-                    );
+                    v.push(Argument::from(
+                        Path::new(model.build.output_dir)
+                            .join(model.compiler.cpp_compiler.as_ref())
+                            .join("modules")
+                            .join("interfaces")
+                            .join(sys_module)
+                            .with_extension(
+                                model.compiler.cpp_compiler.get_typical_bmi_extension(),
+                            ),
+                    ));
                 }
 
                 v
-            }).collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
 
         for collection_args in sys_modules {
-            commands.interfaces.push(
-                ModuleCommandLine {
-                    path: PathBuf::new(),
-                    args: collection_args,
-                    processed: false
-                }
-            );
+            commands.interfaces.push(ModuleCommandLine {
+                path: PathBuf::new(),
+                args: collection_args,
+                processed: false,
+            });
         }
     }
 
     ///  Marks the given module translation unit as already processed
     /// to avoid losing time rebuilding that module if the source file
     /// hans't been modified since the last build process iteration
-    pub (crate) fn flag_modules_without_changes<'a>(
-        cache: &ZorkCache,
-        file: &PathBuf
-    ) -> bool {
+    pub(crate) fn flag_modules_without_changes(cache: &ZorkCache, file: &PathBuf) -> bool {
         // TODO if not previous iteration success, return false
-        
+
         let last_process_timestamp = cache.last_program_execution;
         let file_metadata = file.metadata();
         match file_metadata {
             Ok(m) => {
                 match m.modified() {
-                    Ok(modified) => {
-                        if DateTime::<Utc>::from(modified) < last_process_timestamp {
-                            return true;
-                        } else { return false; }
-                    },
-                    Err(e) => {
+                    Ok(modified) => return DateTime::<Utc>::from(modified) < last_process_timestamp,
+                    Err(e) =>
                         log::error!("An error happened trying to get the last time that the {file:?} was modified. Processing it anyway because {e:?}")
-                    },
                 }
             },
-            Err(e) => 
+            Err(e) =>
                 log::error!("An error happened trying to retrieve the metadata of {file:?}. Processing it anyway because {e:?}")
-        } 
+        }
 
         false
     }

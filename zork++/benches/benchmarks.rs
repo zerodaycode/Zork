@@ -16,13 +16,7 @@ pub fn build_project_benchmark(c: &mut Criterion) {
     let cache = ZorkCache::default();
 
     c.bench_function("Build project", |b| {
-        b.iter(|| {
-            build_project(
-                black_box(&program_data),
-                black_box(&cache),
-                false,
-            )
-        })
+        b.iter(|| build_project(black_box(&program_data), black_box(&cache), false))
     });
 
     c.bench_function("Cache loading time", |b| {

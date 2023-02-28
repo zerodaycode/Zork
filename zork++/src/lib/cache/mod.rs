@@ -93,8 +93,15 @@ impl ZorkCache {
     fn save_generated_commands(&mut self, commands: &Commands<'_>) {
         self.generated_commands.compiler = commands.compiler;
         let process_no = if !self.generated_commands.details.is_empty() {
-            self.generated_commands.details.last().unwrap().cached_process_num + 1
-        } else { 1 };
+            self.generated_commands
+                .details
+                .last()
+                .unwrap()
+                .cached_process_num
+                + 1
+        } else {
+            1
+        };
         let mut commands_details = CommandsDetails {
             cached_process_num: process_no,
             generated_at: Utc::now(),
@@ -102,34 +109,30 @@ impl ZorkCache {
             implementations: Vec::with_capacity(commands.implementations.len()),
             main: String::new(),
         };
-        commands_details.interfaces.extend(
-            commands
-                .interfaces
-                .iter()
-                .map(|module_command_line| {
-                    module_command_line.args
-                        .iter()
-                        .map(|argument| argument.value.to_string())
-                        .collect()
-                })
-        );
-        commands_details.implementations.extend(
-            commands
-                .implementations
-                .iter()
-                .map(|module_command_line| {
-                    module_command_line.args
-                        .iter()
-                        .map(|argument| argument.value.to_string())
-                        .collect()
-            })
-        );
-        commands_details.main =
-            commands.sources
-                .iter()
-                .map(|arg| arg.value.to_string())
-                .collect::<Vec<_>>()
-                .join(" ");
+        commands_details
+            .interfaces
+            .extend(commands.interfaces.iter().map(|module_command_line| {
+                module_command_line
+                    .args
+                    .iter()
+                    .map(|argument| argument.value.to_string())
+                    .collect()
+            }));
+        commands_details
+            .implementations
+            .extend(commands.implementations.iter().map(|module_command_line| {
+                module_command_line
+                    .args
+                    .iter()
+                    .map(|argument| argument.value.to_string())
+                    .collect()
+            }));
+        commands_details.main = commands
+            .sources
+            .iter()
+            .map(|arg| arg.value.to_string())
+            .collect::<Vec<_>>()
+            .join(" ");
 
         self.generated_commands.details.push(commands_details)
     }
@@ -161,7 +164,9 @@ impl ZorkCache {
         let root = if program_data.compiler.cpp_compiler == CppCompiler::GCC {
             Path::new(GCC_CACHE_DIR).to_path_buf()
         } else {
-            program_data.build.output_dir
+            program_data
+                .build
+                .output_dir
                 .join("clang")
                 .join("modules")
                 .join("interfaces")
@@ -200,7 +205,7 @@ impl ZorkCache {
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CachedCommands {
     compiler: CppCompiler,
-    details: Vec<CommandsDetails>
+    details: Vec<CommandsDetails>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]

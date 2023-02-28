@@ -123,7 +123,7 @@ fn execute_command(
 fn _execute_commands(
     compiler: &CppCompiler,
     arguments_for_commands: &[Vec<Argument<'_>>],
-    cache: &ZorkCache
+    cache: &ZorkCache,
 ) -> Result<()> {
     let mut commands = if compiler.eq(&CppCompiler::MSVC) {
         std::process::Command::new(
@@ -132,7 +132,8 @@ fn _execute_commands(
                 .msvc
                 .dev_commands_prompt
                 .as_ref()
-                .expect("Zork++ wasn't able to found a correct installation of MSVC"))
+                .expect("Zork++ wasn't able to found a correct installation of MSVC"),
+        )
     } else {
         std::process::Command::new("sh")
     };
@@ -166,8 +167,9 @@ fn _execute_commands(
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ModuleCommandLine<'a> {
     pub path: PathBuf,
-    #[serde(borrow)] pub args: Vec<Argument<'a>>,
-    pub processed: bool
+    #[serde(borrow)]
+    pub args: Vec<Argument<'a>>,
+    pub processed: bool,
 }
 
 impl<'a> From<Vec<Argument<'a>>> for ModuleCommandLine<'a> {
@@ -175,7 +177,7 @@ impl<'a> From<Vec<Argument<'a>>> for ModuleCommandLine<'a> {
         Self {
             path: PathBuf::new(),
             args: value,
-            processed: false
+            processed: false,
         }
     }
 }
@@ -195,13 +197,13 @@ impl<'a> FromIterator<Argument<'a>> for ModuleCommandLine<'a> {
         let mut m = ModuleCommandLine {
             path: PathBuf::new(),
             args: Vec::new(),
-            processed: false
+            processed: false,
         };
-        
+
         for arg in iter {
             m.args.push(arg)
-        }  
-        
+        }
+
         m
     }
 }
