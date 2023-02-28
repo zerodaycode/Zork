@@ -4,11 +4,11 @@
 // file.
 
 use color_eyre::Result;
-use std::{path::Path, cell::RefCell, rc::Rc, borrow::BorrowMut};
+use std::{path::Path};
 
 use crate::{
     cache::ZorkCache,
-    cli::output::{arguments::Argument, commands::{Commands, ModuleCommandLine}},
+    cli::output::{arguments::Argument, commands::{Commands}},
     project_model::{
         compiler::CppCompiler,
         modules::{ModuleImplementationModel, ModuleInterfaceModel},
@@ -82,15 +82,8 @@ fn prebuild_module_interfaces<'a>(
     interfaces: &'a [ModuleInterfaceModel],
     commands: &mut Commands<'a>,
 ) {
-    let cc = Rc::new(RefCell::new(commands));
-    // let b1 = cc.borrow_mut();
-    if model.compiler.cpp_compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
-        // commands.interfaces.push(
-            helpers::prebuild_clang_std_module(model, cache, cc.clone());
-        // );
-    }
     interfaces.iter().for_each(|module_interface| {
-        sources::generate_module_interfaces_args(model, cache, module_interface, cc.clone());
+        sources::generate_module_interfaces_args(model, cache, module_interface, commands);
     });
 }
 
@@ -109,7 +102,7 @@ fn compile_module_implementations<'a>(
 
 /// Specific operations over source files
 mod sources {
-    use std::{path::{Path, PathBuf}, cell::RefCell, rc::Rc};
+    use std::{path::{Path, PathBuf}};
 
     use color_eyre::Result;
 
@@ -230,7 +223,7 @@ mod sources {
         model: &'a ZorkModel,
         cache: &'a ZorkCache,
         interface: &'a ModuleInterfaceModel,
-        commands: Rc<RefCell<&mut Commands<'a>>>,
+        commands: &mut Commands<'a>
     ) {
         let compiler = &model.compiler.cpp_compiler;
         let base_path = model.modules.base_ifcs_dir;
@@ -245,14 +238,12 @@ mod sources {
         match *compiler {
             CppCompiler::CLANG => {
                 arguments.extend(clang_args::add_std_lib(model));
-                // arguments.push(Argument::from("-fmodules"));
                 arguments.push(Argument::from("-fimplicit-modules"));
-                arguments.push(Argument::from("-fimplicit-module-maps"));
                 arguments.push(Argument::from("-x"));
                 arguments.push(Argument::from("c++-module"));
                 arguments.push(Argument::from("--precompile"));
 
-                // arguments.push(clang_args::implicit_module_maps(out_dir));
+                arguments.push(clang_args::implicit_module_maps(out_dir));
 
                 arguments.push(Argument::from(format!(
                     "-fprebuilt-module-path={}/clang/modules/interfaces",
@@ -270,7 +261,7 @@ mod sources {
                 // The output file
                 let miu_file_path =
                     Argument::from(helpers::generate_prebuild_miu(compiler, out_dir, interface));
-                (*commands).borrow_mut().generated_files_paths.push(miu_file_path.clone());
+                commands.generated_files_paths.push(miu_file_path.clone());
                 arguments.push(miu_file_path);
                 // The input file
                 arguments.push(Argument::from(&input_file));
@@ -301,7 +292,7 @@ mod sources {
                         .with_extension(compiler.get_obj_file_extension())
                         .display()
                 );
-                (*commands).borrow_mut().generated_files_paths.push(obj_file.clone().into());
+                commands.generated_files_paths.push(obj_file.clone().into());
                 arguments.push(Argument::from(format!("/Fo{obj_file}")));
 
                 if let Some(partition) = &interface.partition {
@@ -328,17 +319,24 @@ mod sources {
                 arguments.push(Argument::from("-o"));
                 let miu_file_path =
                     Argument::from(helpers::generate_prebuild_miu(compiler, out_dir, interface));
-                (*commands).borrow_mut().generated_files_paths.push(miu_file_path.clone());
+                commands.generated_files_paths.push(miu_file_path.clone());
                 arguments.push(miu_file_path);
             }
         }
 
+        let processed_cache = if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
+            log::debug!("Module unit {:?} will be rebuilt since we've detected that you are using Clang on Windows", interface.module_name); 
+            false
+        } else { 
+            helpers::flag_modules_without_changes(&cache, &input_file)
+        };
+
         let command_line = ModuleCommandLine {
             path: PathBuf::from(interface.file),
             args: arguments,
-            processed: helpers::flag_modules_without_changes(&cache, &input_file),
+            processed: processed_cache,
         };
-        (*commands).borrow_mut().interfaces.push(command_line);
+        commands.interfaces.push(command_line);
     }
 
     /// Generates the expected arguments for compile the implementation module files
@@ -446,7 +444,7 @@ mod sources {
 mod helpers {
     use chrono::{Utc, DateTime};
 
-    use crate::{bounds::TranslationUnit, cache::ZorkCache, cli::output::{commands::ModuleCommandLine, arguments::clang_args}};
+    use crate::{bounds::TranslationUnit, cache::ZorkCache, cli::output::{commands::ModuleCommandLine}};
     use std::path::PathBuf;
 
     use super::*;
@@ -577,6 +575,8 @@ mod helpers {
         cache: &ZorkCache,
         file: &PathBuf
     ) -> bool {
+        // TODO if not previous iteration success, return false
+        
         let last_process_timestamp = cache.last_program_execution;
         let file_metadata = file.metadata();
         match file_metadata {
@@ -597,50 +597,5 @@ mod helpers {
         } 
 
         false
-    }
-
-    pub(crate) fn prebuild_clang_std_module<'a>(
-        model: &'a ZorkModel,
-        cache: &'a ZorkCache,
-        // commands: &mut Commands<'a>
-        commands: Rc<RefCell<&mut Commands<'a>>>
-    ) {
-        let out_dir = model.build.output_dir;
-
-        let mut arguments = Vec::with_capacity(11);
-        arguments.push(model.compiler.language_level_arg());
-        arguments.extend(clang_args::add_std_lib(model));
-        arguments.push(Argument::from("-fimplicit-modules"));
-        arguments.push(Argument::from("-fimplicit-module-maps"));
-        arguments.push(Argument::from("-x"));
-        arguments.push(Argument::from("c++-module"));
-        arguments.push(Argument::from("--precompile"));
-
-        arguments.push(Argument::from(format!(
-            "-fprebuilt-module-path={}/clang/modules/interfaces",
-            out_dir.display()
-        )));
-        // The resultant BMI as a .pcm file
-        arguments.push(Argument::from("-o"));
-        // The output file
-        let std_file_path = Path::new(out_dir)
-            .join("clang")
-            .join("modules")
-            .join("interfaces")
-            .join("std")
-            .with_extension("pcm");
-        let std_out_file_as_args = Argument::from(&std_file_path);
-        (*commands).borrow_mut().generated_files_paths.push(std_out_file_as_args.clone());
-        arguments.push(std_out_file_as_args);
-        // The input file
-        arguments.push(Argument::from(Path::new(out_dir).join("zork").join("intrinsics").join("std").with_extension("cppm")));
-        let command_line = ModuleCommandLine {
-            path: PathBuf::from(&std_file_path),
-            args: arguments,
-            processed: helpers::flag_modules_without_changes(&cache, &std_file_path),
-        };
-        (*commands).borrow_mut().interfaces.push(command_line);
-
-        // command_line
     }
 }
