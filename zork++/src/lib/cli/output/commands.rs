@@ -115,7 +115,7 @@ fn execute_command(
 fn _execute_commands(
     compiler: &CppCompiler,
     arguments_for_commands: &[Vec<Argument<'_>>],
-    cache: &ZorkCache
+    cache: &ZorkCache,
 ) -> Result<()> {
     let mut commands = if compiler.eq(&CppCompiler::MSVC) {
         std::process::Command::new(
@@ -124,7 +124,8 @@ fn _execute_commands(
                 .msvc
                 .dev_commands_prompt
                 .as_ref()
-                .expect("Zork++ wasn't able to found a correct installation of MSVC"))
+                .expect("Zork++ wasn't able to found a correct installation of MSVC"),
+        )
     } else {
         std::process::Command::new("sh")
     };

@@ -96,7 +96,7 @@ You can generally put the executable anywhere you like.
 Be sure that the installation directory is found in the `PATH` environment variable, else it cannot be directly called from the command line without its installation path.
 We recommend installing it in `/usr/bin`.
 
-### macOS and another platforms:
+### macOS and another platforms
 
 We currently don't provide installers or precompiled binaries for other operating systems. 
 
