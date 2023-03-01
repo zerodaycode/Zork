@@ -587,7 +587,7 @@ mod helpers {
             if cached_file.execution_result != CommandExecutionResult::Success
                 && cached_file.execution_result != CommandExecutionResult::Cached
             {
-                log::debug!(
+                log::trace!(
                     "File {file:?} with status: {:?}. Marked to reprocess",
                     cached_file.execution_result
                 );

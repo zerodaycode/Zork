@@ -20,8 +20,10 @@ pub fn config_logger(verbose_level: u8, target: Target) -> Result<()> {
 
     if verbose_level == 1 {
         builder.filter(None, LevelFilter::Debug);
-    } else if verbose_level > 1 {
-        return Err(eyre!("Zork++ maximum allowed verbosity level is: '-v'"));
+    } else if verbose_level == 2 {
+        builder.filter(None, LevelFilter::Trace);
+    } else if verbose_level > 2 {
+        return Err(eyre!("Zork++ maximum allowed verbosity level is: '-vv'"));
     } else {
         builder.filter(None, LevelFilter::Info);
     }

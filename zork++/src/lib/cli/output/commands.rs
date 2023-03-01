@@ -45,7 +45,7 @@ pub fn run_generated_commands(
             }
         } else {
             miu.execution_result = CommandExecutionResult::Cached;
-            log::debug!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again", &miu.path);
+            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &miu.path);
         }
     }
 
@@ -69,7 +69,7 @@ pub fn run_generated_commands(
             }
         } else {
             implm.execution_result = CommandExecutionResult::Cached;
-            log::debug!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again", implm.path);
+            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", implm.path);
         }
     }
 
