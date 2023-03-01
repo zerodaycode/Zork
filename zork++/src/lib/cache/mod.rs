@@ -2,11 +2,14 @@
 
 use chrono::{DateTime, Utc};
 use color_eyre::{eyre::Context, Result};
-use std::{fs::File, path::{Path, PathBuf}, borrow::Cow};
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+};
 use walkdir::WalkDir;
 
 use crate::{
-    cli::output::commands::{Commands, CommandExecutionResult},
+    cli::output::commands::{CommandExecutionResult, Commands},
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::{
         self,
@@ -16,7 +19,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 /// Standalone utility for retrieve the Zork++ cache file
-pub fn load<'a>(program_data: &'a ZorkModel<'_>) -> Result<ZorkCache> {
+pub fn load(program_data: &ZorkModel<'_>) -> Result<ZorkCache> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
         .join("cache")
@@ -37,10 +40,10 @@ pub fn load<'a>(program_data: &'a ZorkModel<'_>) -> Result<ZorkCache> {
 }
 
 /// Standalone utility for persist the cache to the file system
-pub fn save<'a>(
+pub fn save(
     program_data: &ZorkModel<'_>,
     mut cache: ZorkCache,
-    commands: Commands<'a>,
+    commands: Commands<'_>,
 ) -> Result<()> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
@@ -65,15 +68,24 @@ pub struct ZorkCache {
 impl ZorkCache {
     /// Returns a [`Option`] of [`CommandDetails`] if the file is persisted already in the cache
     pub fn is_file_cached(&self, path: &Path) -> Option<&CommandDetail> {
-        let last_iteration_details = self.generated_commands
-            .details.last();
+        let last_iteration_details = self.generated_commands.details.last();
         if let Some(last_iteration) = last_iteration_details {
-            let found_as_ifc = last_iteration.interfaces.iter()
-                .find(|f| path.to_str().unwrap_or_default().contains(&f.translation_unit));
-            let found_as_impl = last_iteration.implementations.iter()
-                .find(|f| path.to_str().unwrap_or_default().contains(&f.translation_unit));
-            if found_as_ifc.is_some() { return found_as_ifc; }
-            if found_as_impl.is_some() { return found_as_impl; }
+            let found_as_ifc = last_iteration.interfaces.iter().find(|f| {
+                path.to_str()
+                    .unwrap_or_default()
+                    .contains(&f.translation_unit)
+            });
+            let found_as_impl = last_iteration.implementations.iter().find(|f| {
+                path.to_str()
+                    .unwrap_or_default()
+                    .contains(&f.translation_unit)
+            });
+            if found_as_ifc.is_some() {
+                return found_as_ifc;
+            }
+            if found_as_impl.is_some() {
+                return found_as_impl;
+            }
         }
         None
     }
@@ -92,7 +104,7 @@ impl ZorkCache {
     }
 
     /// Runs the tasks just before end the program and save the cache
-    pub fn run_final_tasks<'a>(&mut self, program_data: &ZorkModel<'_>, commands: Commands<'a>) {
+    pub fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>, commands: Commands<'_>) {
         self.save_generated_commands(commands);
 
         if !(program_data.compiler.cpp_compiler == CppCompiler::MSVC) {
@@ -105,7 +117,7 @@ impl ZorkCache {
         }
     }
 
-    fn save_generated_commands<'b>(&mut self, commands: Commands<'b>) {
+    fn save_generated_commands(&mut self, commands: Commands<'_>) {
         self.generated_commands.compiler = commands.compiler;
         let process_no = if !self.generated_commands.details.is_empty() {
             self.generated_commands
@@ -130,16 +142,23 @@ impl ZorkCache {
             .interfaces
             .extend(commands.interfaces.iter().map(|module_command_line| {
                 let details = CommandDetail {
-                    translation_unit: String::from(module_command_line.path.as_os_str().to_str().unwrap_or_default()),
+                    translation_unit: String::from(
+                        module_command_line
+                            .path
+                            .as_os_str()
+                            .to_str()
+                            .unwrap_or_default(),
+                    ),
                     execution_result: module_command_line.execution_result.clone(),
                     command: if module_command_line.processed {
                         Vec::with_capacity(0)
-                    } else { module_command_line
-                        .args
-                        .iter()
-                        .map(|argument| argument.value.to_string())
-                        .collect()
-                    }
+                    } else {
+                        module_command_line
+                            .args
+                            .iter()
+                            .map(|argument| argument.value.to_string())
+                            .collect()
+                    },
                 };
                 details
             }));
@@ -148,16 +167,23 @@ impl ZorkCache {
             .implementations
             .extend(commands.implementations.iter().map(|module_command_line| {
                 let details = CommandDetail {
-                    translation_unit: String::from(module_command_line.path.as_os_str().to_str().unwrap_or_default()),
+                    translation_unit: String::from(
+                        module_command_line
+                            .path
+                            .as_os_str()
+                            .to_str()
+                            .unwrap_or_default(),
+                    ),
                     execution_result: module_command_line.execution_result.clone(),
                     command: if module_command_line.processed {
                         Vec::with_capacity(0)
-                    } else { module_command_line
-                        .args
-                        .iter()
-                        .map(|argument| argument.value.to_string())
-                        .collect()
-                    }
+                    } else {
+                        module_command_line
+                            .args
+                            .iter()
+                            .map(|argument| argument.value.to_string())
+                            .collect()
+                    },
                 };
                 details
             }));
@@ -171,7 +197,7 @@ impl ZorkCache {
                 .iter()
                 .map(|arg| arg.value.to_string())
                 .collect::<Vec<_>>()
-                .join(" ")
+                .join(" "),
         };
 
         self.generated_commands.details.push(commands_details)
@@ -261,14 +287,14 @@ pub struct CommandsDetails {
 pub struct CommandDetail {
     translation_unit: String,
     pub execution_result: CommandExecutionResult,
-    command: Vec<String>
+    command: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct MainCommandLineDetail {
     files: Vec<PathBuf>,
     execution_result: CommandExecutionResult,
-    command: String
+    command: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]

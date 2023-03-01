@@ -1,41 +1,48 @@
-use std::{path::{Path, PathBuf}, process::ExitStatus};
+use std::{
+    path::{Path, PathBuf},
+    process::ExitStatus,
+};
 
 ///! Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
-use crate::{cache::{ZorkCache, self}, project_model::{compiler::CppCompiler, ZorkModel}, utils::constants};
-use color_eyre::{eyre::{Context, eyre}, Result, Report};
+use crate::{
+    cache::{self, ZorkCache},
+    project_model::{compiler::CppCompiler, ZorkModel},
+    utils::constants,
+};
+use color_eyre::{
+    eyre::{eyre, Context},
+    Report, Result,
+};
 use serde::{Deserialize, Serialize};
 
 use super::arguments::Argument;
 
-
-pub fn run_generated_commands<'a>(
+pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
     mut commands: Commands<'_>,
-    cache: ZorkCache
+    cache: ZorkCache,
 ) -> Result<()> {
     if !commands.interfaces.is_empty() {
         log::debug!("Executing the commands for the module interfaces...");
     }
 
-    let compiler = commands.compiler;
-
     for miu in commands.interfaces.iter_mut() {
         if !miu.processed {
-            let r = execute_command(&compiler, &miu.args, &cache);
-            if r.is_err() {
+            let r = execute_command(&commands.compiler, &miu.args, &cache);
+            miu.execution_result = CommandExecutionResult::from(&r);
+            if let Err(e) = r {
                 cache::save(program_data, cache, commands)?;
-                return Err(r.unwrap_err()) 
-            };
-            if r.is_ok() { 
-                if !r.as_ref().unwrap().success() {
-                    let c_miu = miu.clone();
-                    cache::save(program_data, cache, commands)?;
-                    return Err(eyre!("Ending the program, because the build of: {:?} wasn't ended successfully", c_miu.path));
-                }
+                return Err(e);
+            } else if !r.as_ref().unwrap().success() {
+                let c_miu = miu.clone();
+                cache::save(program_data, cache, commands)?;
+                return Err(eyre!(
+                    "Ending the program, because the build of: {:?} wasn't ended successfully",
+                    c_miu.path
+                ));
             }
-            miu.execution_result = CommandExecutionResult::from(r);
         } else {
             miu.execution_result = CommandExecutionResult::Cached;
             log::debug!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again", &miu.path);
@@ -48,18 +55,18 @@ pub fn run_generated_commands<'a>(
     for implm in &mut commands.implementations {
         if !implm.processed {
             let r = execute_command(&commands.compiler, &implm.args, &cache);
-            if r.is_err() {
+            implm.execution_result = CommandExecutionResult::from(&r);
+            if let Err(e) = r {
                 cache::save(program_data, cache, commands)?;
-                return Err(r.unwrap_err())
-            };
-            if r.is_ok() {
-                if !r.as_ref().unwrap().success() {
-                    let c_impl = implm.clone();
-                    cache::save(program_data, cache, commands)?;
-                    return Err(eyre!("Ending the program, because the build of: {:?} wasn't ended successfully", c_impl.path))
-                }
+                return Err(e);
+            } else if !r.as_ref().unwrap().success() {
+                let c_miu = implm.clone();
+                cache::save(program_data, cache, commands)?;
+                return Err(eyre!(
+                    "Ending the program, because the build of: {:?} wasn't ended successfully",
+                    c_miu.path
+                ));
             }
-            implm.execution_result = CommandExecutionResult::from(r);
         } else {
             implm.execution_result = CommandExecutionResult::Cached;
             log::debug!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again", implm.path);
@@ -68,12 +75,22 @@ pub fn run_generated_commands<'a>(
 
     if !commands.sources.args.is_empty() {
         log::debug!("Executing the main command line...");
+
         let r = execute_command(&commands.compiler, &commands.sources.args, &cache);
-        if r.is_err() { return Err(r.unwrap_err()) };
-        if r.is_ok() { if !r.as_ref().unwrap().success() { return Err(eyre!("Ending the program, because the build of the main command line wasn't ended successfully"))} }
-        commands.sources.execution_result = CommandExecutionResult::from(r);
+        commands.sources.execution_result = CommandExecutionResult::from(&r);
+
+        if let Err(e) = r {
+            cache::save(program_data, cache, commands)?;
+            return Err(e);
+        } else if !r.as_ref().unwrap().success() {
+            cache::save(program_data, cache, commands)?;
+            return Err(eyre!(
+                "Ending the program, because the main command line execution wasn't ended successfully",
+            ));
+        }
     }
 
+    cache::save(program_data, cache, commands)?;
     Ok(())
 }
 
@@ -141,57 +158,7 @@ fn execute_command(
             .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
     };
 
-    log::debug!("[{compiler}] - Result: {:?}\n", process);
-    
     process
-}
-
-/// Executes a new [`std::process::Command`] configured according the choosen
-/// compiler and the current operating system composed of multiple prebuilt command
-/// lines joining them in one statement
-///
-/// TODO! Probably it would be better only make a big command formed by all the commands
-/// for the MSVC compiler in order to avoid to launch the developers command prompt
-/// for every commmand, but, as observed, generally speaking opening a shell under
-/// Unix using Clang or GCC it's extremily fast, so we can mantain the curren architecture
-/// of opening a shell for command, so the user is able to track better failed commands
-fn _execute_commands(
-    compiler: &CppCompiler,
-    arguments_for_commands: &[Vec<Argument<'_>>],
-    cache: &ZorkCache,
-) -> Result<()> {
-    let mut commands = if compiler.eq(&CppCompiler::MSVC) {
-        std::process::Command::new(
-            cache
-                .compilers_metadata
-                .msvc
-                .dev_commands_prompt
-                .as_ref()
-                .expect("Zork++ wasn't able to found a correct installation of MSVC"),
-        )
-    } else {
-        std::process::Command::new("sh")
-    };
-
-    arguments_for_commands.iter().for_each(|args_collection| {
-        log::debug!(
-            "[{compiler}] - Generating command => {:?}",
-            format!("{} {}", compiler.get_driver(), args_collection.join(" "))
-        );
-
-        commands
-            .arg("&&")
-            .arg(compiler.get_driver())
-            .args(args_collection);
-    });
-
-    commands
-        .spawn()?
-        .wait()
-        .with_context(|| format!("[{compiler}] - Command {commands:?} failed!"))?;
-
-    log::info!("[{compiler}] - Result: {:?}", commands);
-    Ok(())
 }
 
 /// Holds a collection of heap allocated arguments. This is introduced in the
@@ -204,7 +171,7 @@ pub struct ModuleCommandLine<'a> {
     pub path: PathBuf,
     pub args: Vec<Argument<'a>>,
     pub processed: bool,
-    pub execution_result: CommandExecutionResult
+    pub execution_result: CommandExecutionResult,
 }
 
 impl<'a> From<Vec<Argument<'a>>> for ModuleCommandLine<'a> {
@@ -213,7 +180,7 @@ impl<'a> From<Vec<Argument<'a>>> for ModuleCommandLine<'a> {
             path: PathBuf::new(),
             args: value,
             processed: false,
-            execution_result: Default::default()
+            execution_result: Default::default(),
         }
     }
 }
@@ -231,7 +198,7 @@ impl<'a> IntoIterator for ModuleCommandLine<'a> {
 pub struct SourcesCommandLine<'a> {
     pub sources_paths: Vec<PathBuf>,
     pub args: Vec<Argument<'a>>,
-    pub execution_result: CommandExecutionResult
+    pub execution_result: CommandExecutionResult,
 }
 
 /// Holds the generated command line arguments for a concrete compiler
@@ -279,22 +246,40 @@ pub enum CommandExecutionResult {
     Success,
     /// A skipped command due to previous successful iterations
     Cached,
-    /// A command which is return code indicates an unsuccessful execution 
+    /// A command which is return code indicates an unsuccessful execution
     Failed,
     /// The execution failed, returning a [`Result`] with the Err variant
     Error(String),
-    /// An status before storing a command execution result
-    #[default] Unitialized
+    /// A previous status before storing a command execution result
+    #[default]
+    Unreached,
 }
 
 impl From<Result<ExitStatus, Report>> for CommandExecutionResult {
     fn from(value: Result<ExitStatus, Report>) -> Self {
         match value {
             Ok(r) => {
-                if r.success() { CommandExecutionResult::Success } else {
+                if r.success() {
+                    CommandExecutionResult::Success
+                } else {
                     CommandExecutionResult::Failed
                 }
-            },
+            }
+            Err(e) => CommandExecutionResult::Error(e.to_string()),
+        }
+    }
+}
+
+impl From<&Result<ExitStatus, Report>> for CommandExecutionResult {
+    fn from(value: &Result<ExitStatus, Report>) -> Self {
+        match value {
+            Ok(r) => {
+                if r.success() {
+                    CommandExecutionResult::Success
+                } else {
+                    CommandExecutionResult::Failed
+                }
+            }
             Err(e) => CommandExecutionResult::Error(e.to_string()),
         }
     }

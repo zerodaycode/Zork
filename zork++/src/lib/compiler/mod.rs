@@ -102,14 +102,13 @@ fn compile_module_implementations<'a>(
 
 /// Specific operations over source files
 mod sources {
-    use std::path::{Path, PathBuf};
-    use color_eyre::Result;
+    use super::helpers;
     use crate::{
         bounds::{ExecutableTarget, TranslationUnit},
         cache::ZorkCache,
         cli::output::{
             arguments::{clang_args, Argument},
-            commands::{Commands, ModuleCommandLine, CommandExecutionResult},
+            commands::{CommandExecutionResult, Commands, ModuleCommandLine},
         },
         project_model::{
             compiler::CppCompiler,
@@ -118,7 +117,8 @@ mod sources {
         },
         utils::constants,
     };
-    use super::helpers;
+    use color_eyre::Result;
+    use std::path::{Path, PathBuf};
 
     /// Generates the command line arguments for non-module source files, including the one that
     /// holds the main function
@@ -212,7 +212,12 @@ mod sources {
 
         target.sourceset().as_args_to(&mut arguments)?;
         commands.sources.args.extend(arguments.into_iter());
-        commands.sources.sources_paths = target.sourceset().sources.iter().map(|s| s.paths().unwrap_or_default()).flatten().collect::<Vec<_>>();
+        commands.sources.sources_paths = target
+            .sourceset()
+            .sources
+            .iter()
+            .flat_map(|s| s.paths().unwrap_or_default())
+            .collect::<Vec<_>>();
 
         Ok(())
     }
@@ -334,7 +339,7 @@ mod sources {
             path: translation_unit_path,
             args: arguments,
             processed: processed_cache,
-            execution_result: CommandExecutionResult::default()
+            execution_result: CommandExecutionResult::default(),
         };
         commands.interfaces.push(command_line);
     }
@@ -441,13 +446,15 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
-    use chrono::{Utc, DateTime};
+    use chrono::{DateTime, Utc};
 
+    use super::*;
     use crate::{
-        bounds::TranslationUnit, cache::ZorkCache, cli::output::commands::{ModuleCommandLine, CommandExecutionResult},
+        bounds::TranslationUnit,
+        cache::ZorkCache,
+        cli::output::commands::{CommandExecutionResult, ModuleCommandLine},
     };
     use std::path::PathBuf;
-    use super::*;
 
     /// Formats the string that represents an input file that will be the target of
     /// the build process and that will be passed to the compiler
@@ -563,7 +570,7 @@ mod helpers {
                 path: PathBuf::new(),
                 args: collection_args,
                 processed: false,
-                execution_result: CommandExecutionResult::default()
+                execution_result: CommandExecutionResult::default(),
             });
         }
     }
@@ -572,32 +579,30 @@ mod helpers {
     /// or if it should be reprocessed again due to a previous failure status,
     /// to avoid losing time rebuilding that module if the source file
     /// hasn't been modified since the last build process iteration.
-    /// 
+    ///
     /// True means already processed and previous iteration Success
-    pub(crate) fn flag_modules_without_changes(
-        cache: &ZorkCache,
-        file: &Path
-    ) -> bool {
+    pub(crate) fn flag_modules_without_changes(cache: &ZorkCache, file: &Path) -> bool {
         // Check first if the file is already on the cache, and if it's last iteration was successful
         if let Some(cached_file) = cache.is_file_cached(file) {
-            if cached_file.execution_result != CommandExecutionResult::Success &&
-                cached_file.execution_result != CommandExecutionResult::Cached
+            if cached_file.execution_result != CommandExecutionResult::Success
+                && cached_file.execution_result != CommandExecutionResult::Cached
             {
-                println!("File {file:?} with status: {:?}. Marked to reprocess", cached_file.execution_result);
+                log::debug!(
+                    "File {file:?} with status: {:?}. Marked to reprocess",
+                    cached_file.execution_result
+                );
                 return false;
             };
-            println!("File {file:?} OK. Checking last modification timestamp");
+
             // If exists and was successful, let's see if has been modified after the program last iteration
             let last_process_timestamp = cache.last_program_execution;
             let file_metadata = file.metadata();
             match file_metadata {
-                Ok(m) => {
-                    match m.modified() {
-                        Ok(modified) => return DateTime::<Utc>::from(modified) < last_process_timestamp,
-                        Err(e) => {
-                            log::error!("An error happened trying to get the last time that the {file:?} was modified. Processing it anyway because {e:?}");
-                            false
-                        }
+                Ok(m) => match m.modified() {
+                    Ok(modified) => DateTime::<Utc>::from(modified) < last_process_timestamp,
+                    Err(e) => {
+                        log::error!("An error happened trying to get the last time that the {file:?} was modified. Processing it anyway because {e:?}");
+                        false
                     }
                 },
                 Err(e) => {
@@ -605,6 +610,8 @@ mod helpers {
                     false
                 }
             }
-        } else { return false; }
+        } else {
+            false
+        }
     }
 }

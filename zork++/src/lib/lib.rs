@@ -80,8 +80,7 @@ pub mod worker {
                         "Failed to build the project for the config file: {:?}",
                         config_file.dir_entry.file_name()
                     )
-                }
-            )?;
+                })?;
         }
 
         Ok(())
@@ -96,7 +95,7 @@ pub mod worker {
         cli_args: &'a CliArgs,
         program_data: &'a ZorkModel<'_>,
         cache: ZorkCache,
-        read_only_cache: &'a ZorkCache
+        read_only_cache: &'a ZorkCache,
     ) -> Result<()> {
         let commands: Commands;
 
@@ -104,7 +103,7 @@ pub mod worker {
             Command::Build => {
                 commands = build_project(program_data, read_only_cache, false)
                     .with_context(|| "Failed to build project")?;
-                
+
                 commands::run_generated_commands(program_data, commands, cache)?
             }
             Command::Run => {
