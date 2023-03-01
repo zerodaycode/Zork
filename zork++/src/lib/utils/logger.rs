@@ -12,11 +12,11 @@ pub fn config_logger(verbose_level: u8, target: Target) -> Result<()> {
 
     builder
         .target(target)
-        // .default_format()
+        .default_format()
         .format_indent(Some(4))
         .format_module_path(false)
-        .format_timestamp_millis();
-    // .write_style(env_logger::WriteStyle::Always);
+        .format_timestamp_millis()
+        .write_style(env_logger::WriteStyle::Always);
 
     if verbose_level == 1 {
         builder.filter(None, LevelFilter::Debug);

@@ -9,7 +9,7 @@ use std::{
 use walkdir::WalkDir;
 
 use crate::{
-    cli::output::commands::{CommandExecutionResult, Commands},
+    cli::output::commands::{CommandExecutionResult, Commands, ModuleCommandLine},
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::{
         self,
@@ -142,23 +142,9 @@ impl ZorkCache {
             .interfaces
             .extend(commands.interfaces.iter().map(|module_command_line| {
                 let details = CommandDetail {
-                    translation_unit: String::from(
-                        module_command_line
-                            .path
-                            .as_os_str()
-                            .to_str()
-                            .unwrap_or_default(),
-                    ),
-                    execution_result: module_command_line.execution_result.clone(),
-                    command: if module_command_line.processed {
-                        Vec::with_capacity(0)
-                    } else {
-                        module_command_line
-                            .args
-                            .iter()
-                            .map(|argument| argument.value.to_string())
-                            .collect()
-                    },
+                    translation_unit: self.set_translation_unit_identifier(&module_command_line),
+                    execution_result: self.normalize_execution_result_status(&module_command_line),
+                    command: self.set_module_generated_command_line(&module_command_line)
                 };
                 details
             }));
@@ -167,23 +153,9 @@ impl ZorkCache {
             .implementations
             .extend(commands.implementations.iter().map(|module_command_line| {
                 let details = CommandDetail {
-                    translation_unit: String::from(
-                        module_command_line
-                            .path
-                            .as_os_str()
-                            .to_str()
-                            .unwrap_or_default(),
-                    ),
-                    execution_result: module_command_line.execution_result.clone(),
-                    command: if module_command_line.processed {
-                        Vec::with_capacity(0)
-                    } else {
-                        module_command_line
-                            .args
-                            .iter()
-                            .map(|argument| argument.value.to_string())
-                            .collect()
-                    },
+                    translation_unit: self.set_translation_unit_identifier(&module_command_line),
+                    execution_result: self.normalize_execution_result_status(&module_command_line),
+                    command: self.set_module_generated_command_line(&module_command_line)
                 };
                 details
             }));
@@ -265,6 +237,40 @@ impl ZorkCache {
                     .collect::<Vec<_>>()[0]
                     .to_string()
             })
+    }
+
+    fn normalize_execution_result_status(&self, module_command_line: &ModuleCommandLine) -> CommandExecutionResult {
+        if module_command_line.execution_result.eq(&CommandExecutionResult::Unreached) {
+            if let Some(prev_entry) = self.is_file_cached(&module_command_line.path) {
+                prev_entry.execution_result.clone()
+            } else {
+                module_command_line.execution_result.clone()
+            }
+        } else {
+            module_command_line.execution_result.clone()
+        }
+    }
+
+    fn set_module_generated_command_line(&self, module_command_line: &ModuleCommandLine) -> Vec<String> {
+        if module_command_line.processed {
+            Vec::with_capacity(0)
+        } else {
+            module_command_line
+                .args
+                .iter()
+                .map(|argument| argument.value.to_string())
+                .collect()
+        }
+    }
+
+    fn set_translation_unit_identifier(&self, module_command_line: &ModuleCommandLine) -> String {
+        String::from(
+            module_command_line
+                .path
+                .as_os_str()
+                .to_str()
+                .unwrap_or_default(),
+        )
     }
 }
 
