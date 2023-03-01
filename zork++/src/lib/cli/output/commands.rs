@@ -3,25 +3,42 @@ use std::{path::{Path, PathBuf}, process::ExitStatus};
 ///! Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
-use crate::{cache::ZorkCache, project_model::compiler::CppCompiler, utils::constants};
-use color_eyre::{eyre::Context, Result, Report};
+use crate::{cache::{ZorkCache, self}, project_model::{compiler::CppCompiler, ZorkModel}, utils::constants};
+use color_eyre::{eyre::{Context, eyre}, Result, Report};
 use serde::{Deserialize, Serialize};
 
 use super::arguments::Argument;
 
 
-pub fn run_generated_commands(commands: &mut Commands<'_>, cache: &ZorkCache) -> Result<()> {
+pub fn run_generated_commands<'a>(
+    program_data: &ZorkModel<'_>,
+    mut commands: Commands<'_>,
+    cache: ZorkCache
+) -> Result<()> {
     if !commands.interfaces.is_empty() {
         log::debug!("Executing the commands for the module interfaces...");
     }
-    for miu in &mut commands.interfaces {
+
+    let compiler = commands.compiler;
+
+    for miu in commands.interfaces.iter_mut() {
         if !miu.processed {
-            miu.execution_result = CommandExecutionResult::from(
-                execute_command(&commands.compiler, &miu.args, cache)
-            );
+            let r = execute_command(&compiler, &miu.args, &cache);
+            if r.is_err() {
+                cache::save(program_data, cache, commands)?;
+                return Err(r.unwrap_err()) 
+            };
+            if r.is_ok() { 
+                if !r.as_ref().unwrap().success() {
+                    let c_miu = miu.clone();
+                    cache::save(program_data, cache, commands)?;
+                    return Err(eyre!("Ending the program, because the build of: {:?} wasn't ended successfully", c_miu.path));
+                }
+            }
+            miu.execution_result = CommandExecutionResult::from(r);
         } else {
             miu.execution_result = CommandExecutionResult::Cached;
-            log::debug!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again", miu.path);
+            log::debug!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again", &miu.path);
         }
     }
 
@@ -30,9 +47,19 @@ pub fn run_generated_commands(commands: &mut Commands<'_>, cache: &ZorkCache) ->
     }
     for implm in &mut commands.implementations {
         if !implm.processed {
-            implm.execution_result = CommandExecutionResult::from(
-                execute_command(&commands.compiler, &implm.args, cache)
-            );
+            let r = execute_command(&commands.compiler, &implm.args, &cache);
+            if r.is_err() {
+                cache::save(program_data, cache, commands)?;
+                return Err(r.unwrap_err())
+            };
+            if r.is_ok() {
+                if !r.as_ref().unwrap().success() {
+                    let c_impl = implm.clone();
+                    cache::save(program_data, cache, commands)?;
+                    return Err(eyre!("Ending the program, because the build of: {:?} wasn't ended successfully", c_impl.path))
+                }
+            }
+            implm.execution_result = CommandExecutionResult::from(r);
         } else {
             implm.execution_result = CommandExecutionResult::Cached;
             log::debug!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again", implm.path);
@@ -41,9 +68,10 @@ pub fn run_generated_commands(commands: &mut Commands<'_>, cache: &ZorkCache) ->
 
     if !commands.sources.args.is_empty() {
         log::debug!("Executing the main command line...");
-        commands.sources.execution_result = CommandExecutionResult::from(
-            execute_command(&commands.compiler, &commands.sources.args, cache)
-        );
+        let r = execute_command(&commands.compiler, &commands.sources.args, &cache);
+        if r.is_err() { return Err(r.unwrap_err()) };
+        if r.is_ok() { if !r.as_ref().unwrap().success() { return Err(eyre!("Ending the program, because the build of the main command line wasn't ended successfully"))} }
+        commands.sources.execution_result = CommandExecutionResult::from(r);
     }
 
     Ok(())
@@ -171,7 +199,7 @@ fn _execute_commands(
 /// a flag that will indicate us that this command line will be used in a module,
 /// and that module was already built, and the module source file didn't change
 /// since the last iteration of Zork++
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ModuleCommandLine<'a> {
     pub path: PathBuf,
     pub args: Vec<Argument<'a>>,
@@ -203,7 +231,6 @@ impl<'a> IntoIterator for ModuleCommandLine<'a> {
 pub struct SourcesCommandLine<'a> {
     pub sources_paths: Vec<PathBuf>,
     pub args: Vec<Argument<'a>>,
-    // pub processed: bool, // TODO sure?
     pub execution_result: CommandExecutionResult
 }
 

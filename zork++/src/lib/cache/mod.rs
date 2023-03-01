@@ -2,7 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use color_eyre::{eyre::Context, Result};
-use std::{fs::File, path::Path, borrow::Cow};
+use std::{fs::File, path::{Path, PathBuf}, borrow::Cow};
 use walkdir::WalkDir;
 
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 /// Standalone utility for retrieve the Zork++ cache file
-pub fn load<'a>(program_data: &'a ZorkModel<'_>) -> Result<ZorkCache<'a>> {
+pub fn load<'a>(program_data: &'a ZorkModel<'_>) -> Result<ZorkCache> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
         .join("cache")
@@ -39,8 +39,8 @@ pub fn load<'a>(program_data: &'a ZorkModel<'_>) -> Result<ZorkCache<'a>> {
 /// Standalone utility for persist the cache to the file system
 pub fn save<'a>(
     program_data: &ZorkModel<'_>,
-    mut cache: ZorkCache<'a>,
-    commands: &'a Commands<'_>,
+    mut cache: ZorkCache,
+    commands: Commands<'a>,
 ) -> Result<()> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
@@ -52,17 +52,17 @@ pub fn save<'a>(
     cache.last_program_execution = Utc::now();
 
     utils::fs::serialize_object_to_file(cache_path, &cache)
-        // .with_context(move || "Error saving data to the Zork++ cache")
+        .with_context(move || "Error saving data to the Zork++ cache")
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
-pub struct ZorkCache<'a> {
+pub struct ZorkCache {
     pub last_program_execution: DateTime<Utc>,
     pub compilers_metadata: CompilersMetadata,
-    pub generated_commands: CachedCommands<'a>,
+    pub generated_commands: CachedCommands,
 }
 
-impl<'a> ZorkCache<'a> {
+impl ZorkCache {
     /// Returns a [`Option`] of [`CommandDetails`] if the file is persisted already in the cache
     pub fn is_file_cached(&self, path: &Path) -> Option<&CommandDetail> {
         let last_iteration_details = self.generated_commands
@@ -79,7 +79,7 @@ impl<'a> ZorkCache<'a> {
     }
 
     /// The tasks associated with the cache after load it from the file system
-    pub fn run_tasks(&mut self, program_data: &'a ZorkModel<'_>) {
+    pub fn run_tasks(&mut self, program_data: &ZorkModel<'_>) {
         let compiler = program_data.compiler.cpp_compiler;
         if cfg!(target_os = "windows") && compiler == CppCompiler::MSVC {
             self.load_msvc_metadata()
@@ -92,7 +92,7 @@ impl<'a> ZorkCache<'a> {
     }
 
     /// Runs the tasks just before end the program and save the cache
-    pub fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>, commands: &'a Commands<'_>) {
+    pub fn run_final_tasks<'a>(&mut self, program_data: &ZorkModel<'_>, commands: Commands<'a>) {
         self.save_generated_commands(commands);
 
         if !(program_data.compiler.cpp_compiler == CppCompiler::MSVC) {
@@ -105,7 +105,7 @@ impl<'a> ZorkCache<'a> {
         }
     }
 
-    fn save_generated_commands(&mut self, commands: &'a Commands<'_>) {
+    fn save_generated_commands<'b>(&mut self, commands: Commands<'b>) {
         self.generated_commands.compiler = commands.compiler;
         let process_no = if !self.generated_commands.details.is_empty() {
             self.generated_commands
@@ -163,7 +163,7 @@ impl<'a> ZorkCache<'a> {
             }));
 
         commands_details.main = MainCommandLineDetail {
-            files: commands.sources.sources_paths.iter().map(|pb| pb.to_string_lossy()).collect::<Vec<_>>(),
+            files: commands.sources.sources_paths,
             execution_result: commands.sources.execution_result.clone(),
             command: commands
                 .sources
@@ -198,8 +198,8 @@ impl<'a> ZorkCache<'a> {
 
     /// Looks for the already precompiled GCC or Clang system headers, to avoid recompiling
     /// them on every process
-    fn track_system_modules(
-        program_data: &'a ZorkModel<'a>,
+    fn track_system_modules<'a>(
+        program_data: &'a ZorkModel<'_>,
     ) -> impl Iterator<Item = String> + 'a {
         let root = if program_data.compiler.cpp_compiler == CppCompiler::GCC {
             Path::new(GCC_CACHE_DIR).to_path_buf()
@@ -243,18 +243,18 @@ impl<'a> ZorkCache<'a> {
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
-pub struct CachedCommands<'a> {
+pub struct CachedCommands {
     compiler: CppCompiler,
-    details: Vec<CommandsDetails<'a>>,
+    details: Vec<CommandsDetails>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
-pub struct CommandsDetails<'a> {
+pub struct CommandsDetails {
     cached_process_num: i32,
     generated_at: DateTime<Utc>,
     interfaces: Vec<CommandDetail>,
     implementations: Vec<CommandDetail>,
-    main: MainCommandLineDetail<'a>,
+    main: MainCommandLineDetail,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
@@ -265,8 +265,8 @@ pub struct CommandDetail {
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
-pub struct MainCommandLineDetail<'a> {
-    files: Vec<Cow<'a, str>>,
+pub struct MainCommandLineDetail {
+    files: Vec<PathBuf>,
     execution_result: CommandExecutionResult,
     command: String
 }
