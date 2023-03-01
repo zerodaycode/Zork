@@ -36,6 +36,12 @@ impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
     }
 }
 
+impl<'a> TranslationUnit for &'a ModuleInterfaceModel<'a> {
+    fn file(&self) -> &Path {
+        self.file
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModulePartitionModel<'a> {
     pub module: &'a str,
@@ -66,6 +72,12 @@ impl<'a> fmt::Display for ModuleImplementationModel<'a> {
 }
 
 impl<'a> TranslationUnit for ModuleImplementationModel<'a> {
+    fn file(&self) -> &Path {
+        self.file
+    }
+}
+
+impl<'a> TranslationUnit for &'a ModuleImplementationModel<'a> {
     fn file(&self) -> &Path {
         self.file
     }

@@ -1,29 +1,26 @@
-use std::{path::{Path, PathBuf}, process::{ExitCode, ExitStatus}, os::windows::process::ExitStatusExt};
+use std::{path::{Path, PathBuf}, process::ExitStatus};
 
 ///! Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
 use crate::{cache::ZorkCache, project_model::compiler::CppCompiler, utils::constants};
 use color_eyre::{eyre::Context, Result, Report};
+use serde::{Deserialize, Serialize};
 
 use super::arguments::Argument;
 
 
-pub fn run_generated_commands(commands: &mut Commands<'_>, cache: &ZorkCache) -> Result<ExitStatus> {
+pub fn run_generated_commands(commands: &mut Commands<'_>, cache: &ZorkCache) -> Result<()> {
     if !commands.interfaces.is_empty() {
         log::debug!("Executing the commands for the module interfaces...");
     }
     for miu in &mut commands.interfaces {
         if !miu.processed {
-            let res = execute_command(&commands.compiler, &miu.args, cache);
-            match res {
-                Ok(r) => {
-                    miu.execution_result = Ok(r);
-                    if !r.success() { return Ok(r); }
-                },
-                Err(e) => return Err(e),
-            }
+            miu.execution_result = CommandExecutionResult::from(
+                execute_command(&commands.compiler, &miu.args, cache)
+            );
         } else {
+            miu.execution_result = CommandExecutionResult::Cached;
             log::debug!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again", miu.path);
         }
     }
@@ -33,25 +30,23 @@ pub fn run_generated_commands(commands: &mut Commands<'_>, cache: &ZorkCache) ->
     }
     for implm in &mut commands.implementations {
         if !implm.processed {
-            let res = execute_command(&commands.compiler, &implm.args, cache);
-            match res {
-                Ok(r) => {
-                    implm.execution_result = Ok(r);
-                    if !r.success() { return Ok(r); }
-                },
-                Err(e) => return Err(e),
-            }
+            implm.execution_result = CommandExecutionResult::from(
+                execute_command(&commands.compiler, &implm.args, cache)
+            );
         } else {
+            implm.execution_result = CommandExecutionResult::Cached;
             log::debug!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again", implm.path);
         }
     }
 
-    if !commands.sources.is_empty() {
+    if !commands.sources.args.is_empty() {
         log::debug!("Executing the main command line...");
-        execute_command(&commands.compiler, &commands.sources, cache)?;
+        commands.sources.execution_result = CommandExecutionResult::from(
+            execute_command(&commands.compiler, &commands.sources.args, cache)
+        );
     }
 
-    Ok(ExitStatus::from_raw(0))
+    Ok(())
 }
 
 /// Executes a new [`std::process::Command`] to run the generated binary
@@ -119,6 +114,7 @@ fn execute_command(
     };
 
     log::debug!("[{compiler}] - Result: {:?}\n", process);
+    
     process
 }
 
@@ -180,7 +176,7 @@ pub struct ModuleCommandLine<'a> {
     pub path: PathBuf,
     pub args: Vec<Argument<'a>>,
     pub processed: bool,
-    pub execution_result: Result<ExitStatus, Report>
+    pub execution_result: CommandExecutionResult
 }
 
 impl<'a> From<Vec<Argument<'a>>> for ModuleCommandLine<'a> {
@@ -189,14 +185,13 @@ impl<'a> From<Vec<Argument<'a>>> for ModuleCommandLine<'a> {
             path: PathBuf::new(),
             args: value,
             processed: false,
-            execution_result: Ok(ExitStatus::from_raw(0))
+            execution_result: Default::default()
         }
     }
 }
 
 impl<'a> IntoIterator for ModuleCommandLine<'a> {
     type Item = Argument<'a>;
-
     type IntoIter = std::vec::IntoIter<Argument<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -204,21 +199,12 @@ impl<'a> IntoIterator for ModuleCommandLine<'a> {
     }
 }
 
-impl<'a> FromIterator<Argument<'a>> for ModuleCommandLine<'a> {
-    fn from_iter<T: IntoIterator<Item = Argument<'a>>>(iter: T) -> Self {
-        let mut m = ModuleCommandLine {
-            path: PathBuf::new(),
-            args: Vec::new(),
-            processed: false,
-            execution_result: Ok(ExitStatus::from_raw(0))
-        };
-
-        for arg in iter {
-            m.args.push(arg)
-        }
-
-        m
-    }
+#[derive(Debug, Default)]
+pub struct SourcesCommandLine<'a> {
+    pub sources_paths: Vec<PathBuf>,
+    pub args: Vec<Argument<'a>>,
+    // pub processed: bool, // TODO sure?
+    pub execution_result: CommandExecutionResult
 }
 
 /// Holds the generated command line arguments for a concrete compiler
@@ -228,7 +214,7 @@ pub struct Commands<'a> {
     pub system_modules: Vec<Vec<Argument<'a>>>,
     pub interfaces: Vec<ModuleCommandLine<'a>>,
     pub implementations: Vec<ModuleCommandLine<'a>>,
-    pub sources: Vec<Argument<'a>>,
+    pub sources: SourcesCommandLine<'a>,
     pub generated_files_paths: Vec<Argument<'a>>,
 }
 
@@ -239,7 +225,7 @@ impl<'a> Commands<'a> {
             system_modules: Vec::with_capacity(0),
             interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
-            sources: Vec::with_capacity(0),
+            sources: SourcesCommandLine::default(),
             generated_files_paths: Vec::with_capacity(0),
         }
     }
@@ -253,7 +239,36 @@ impl<'a> core::fmt::Display for Commands<'a> {
             self.compiler,
             self.interfaces.iter().map(|vec| { vec.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
             self.implementations.iter().map(|vec| { vec.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
-            self.sources.iter().map(|e| e.value).collect::<Vec<_>>().join(" ")
+            self.sources.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" ")
         )
+    }
+}
+
+/// Holds a custom representation of the execution of
+/// a command line in a shell.
+#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
+pub enum CommandExecutionResult {
+    /// A command that is executed correctly
+    Success,
+    /// A skipped command due to previous successful iterations
+    Cached,
+    /// A command which is return code indicates an unsuccessful execution 
+    Failed,
+    /// The execution failed, returning a [`Result`] with the Err variant
+    Error(String),
+    /// An status before storing a command execution result
+    #[default] Unitialized
+}
+
+impl From<Result<ExitStatus, Report>> for CommandExecutionResult {
+    fn from(value: Result<ExitStatus, Report>) -> Self {
+        match value {
+            Ok(r) => {
+                if r.success() { CommandExecutionResult::Success } else {
+                    CommandExecutionResult::Failed
+                }
+            },
+            Err(e) => CommandExecutionResult::Error(e.to_string()),
+        }
     }
 }

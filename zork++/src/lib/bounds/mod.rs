@@ -17,7 +17,7 @@ pub trait ExecutableTarget<'a>: ExtraArgs<'a> {
 /// Represents any kind of translation unit and the generic operations
 /// applicable to all the implementors
 pub trait TranslationUnit: Display + Debug {
-    /// Outputs the declared path for `self` being the translation unit
+    /// Outputs the declared path for `self`, being self the translation unit
     fn file(&self) -> &Path;
 
     fn filestem(&self) -> &str {

@@ -102,16 +102,14 @@ fn compile_module_implementations<'a>(
 
 /// Specific operations over source files
 mod sources {
-    use std::{path::{Path, PathBuf}, process::{ExitCode, ExitStatus}, os::windows::process::ExitStatusExt};
-
+    use std::path::{Path, PathBuf};
     use color_eyre::Result;
-
     use crate::{
         bounds::{ExecutableTarget, TranslationUnit},
         cache::ZorkCache,
         cli::output::{
             arguments::{clang_args, Argument},
-            commands::{Commands, ModuleCommandLine},
+            commands::{Commands, ModuleCommandLine, CommandExecutionResult},
         },
         project_model::{
             compiler::CppCompiler,
@@ -120,7 +118,6 @@ mod sources {
         },
         utils::constants,
     };
-
     use super::helpers;
 
     /// Generates the command line arguments for non-module source files, including the one that
@@ -214,7 +211,8 @@ mod sources {
         };
 
         target.sourceset().as_args_to(&mut arguments)?;
-        commands.sources.extend(arguments.into_iter());
+        commands.sources.args.extend(arguments.into_iter());
+        commands.sources.sources_paths = target.sourceset().sources.iter().map(|s| s.paths().unwrap_or_default()).flatten().collect::<Vec<_>>();
 
         Ok(())
     }
@@ -323,18 +321,20 @@ mod sources {
             }
         }
 
+        let translation_unit_path = PathBuf::from(base_path).join(interface.file);
+        // Code on the if branch is provisional, until Clang implements `import std;`
         let processed_cache = if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
             log::debug!("Module unit {:?} will be rebuilt since we've detected that you are using Clang on Windows", interface.module_name);
             false
         } else {
-            helpers::flag_modules_without_changes(cache, &input_file)
+            helpers::flag_modules_without_changes(cache, &translation_unit_path)
         };
 
         let command_line = ModuleCommandLine {
-            path: PathBuf::from(interface.file),
+            path: translation_unit_path,
             args: arguments,
             processed: processed_cache,
-            execution_result: Ok(ExitStatus::from_raw(0))
+            execution_result: CommandExecutionResult::default()
         };
         commands.interfaces.push(command_line);
     }
@@ -426,11 +426,12 @@ mod sources {
             }
         }
 
+        let translation_unit_path = PathBuf::from(base_path).join(implementation.file);
         let command_line = ModuleCommandLine {
-            path: PathBuf::from(implementation.file),
+            path: translation_unit_path.clone(),
             args: arguments,
-            processed: helpers::flag_modules_without_changes(cache, &input_file),
-            execution_result: Ok(ExitStatus::from_raw(0)),
+            processed: helpers::flag_modules_without_changes(cache, &translation_unit_path),
+            execution_result: CommandExecutionResult::default(),
         };
         commands.implementations.push(command_line);
     }
@@ -440,13 +441,12 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate
 mod helpers {
-    use chrono::{DateTime, Utc};
+    use chrono::{Utc, DateTime};
 
     use crate::{
-        bounds::TranslationUnit, cache::ZorkCache, cli::output::commands::ModuleCommandLine,
+        bounds::TranslationUnit, cache::ZorkCache, cli::output::commands::{ModuleCommandLine, CommandExecutionResult},
     };
-    use std::{path::PathBuf, process::ExitStatus, os::windows::process::ExitStatusExt};
-
+    use std::path::PathBuf;
     use super::*;
 
     /// Formats the string that represents an input file that will be the target of
@@ -563,31 +563,48 @@ mod helpers {
                 path: PathBuf::new(),
                 args: collection_args,
                 processed: false,
-                execution_result: Ok(ExitStatus::from_raw(0))
+                execution_result: CommandExecutionResult::default()
             });
         }
     }
 
-    ///  Marks the given module translation unit as already processed
+    /// Marks the given module translation unit as already processed,
+    /// or if it should be reprocessed again due to a previous failure status,
     /// to avoid losing time rebuilding that module if the source file
-    /// hans't been modified since the last build process iteration
-    pub(crate) fn flag_modules_without_changes(cache: &ZorkCache, file: &PathBuf) -> bool {
-        // TODO if not previous iteration success, return false
-
-        let last_process_timestamp = cache.last_program_execution;
-        let file_metadata = file.metadata();
-        match file_metadata {
-            Ok(m) => {
-                match m.modified() {
-                    Ok(modified) => return DateTime::<Utc>::from(modified) < last_process_timestamp,
-                    Err(e) =>
-                        log::error!("An error happened trying to get the last time that the {file:?} was modified. Processing it anyway because {e:?}")
+    /// hasn't been modified since the last build process iteration.
+    /// 
+    /// True means already processed and previous iteration Success
+    pub(crate) fn flag_modules_without_changes(
+        cache: &ZorkCache,
+        file: &Path
+    ) -> bool {
+        // Check first if the file is already on the cache, and if it's last iteration was successful
+        if let Some(cached_file) = cache.is_file_cached(file) {
+            if cached_file.execution_result != CommandExecutionResult::Success &&
+                cached_file.execution_result != CommandExecutionResult::Cached
+            {
+                println!("File {file:?} with status: {:?}. Marked to reprocess", cached_file.execution_result);
+                return false;
+            };
+            println!("File {file:?} OK. Checking last modification timestamp");
+            // If exists and was successful, let's see if has been modified after the program last iteration
+            let last_process_timestamp = cache.last_program_execution;
+            let file_metadata = file.metadata();
+            match file_metadata {
+                Ok(m) => {
+                    match m.modified() {
+                        Ok(modified) => return DateTime::<Utc>::from(modified) < last_process_timestamp,
+                        Err(e) => {
+                            log::error!("An error happened trying to get the last time that the {file:?} was modified. Processing it anyway because {e:?}");
+                            false
+                        }
+                    }
+                },
+                Err(e) => {
+                    log::error!("An error happened trying to retrieve the metadata of {file:?}. Processing it anyway because {e:?}");
+                    false
                 }
-            },
-            Err(e) =>
-                log::error!("An error happened trying to retrieve the metadata of {file:?}. Processing it anyway because {e:?}")
-        }
-
-        false
+            }
+        } else { return false; }
     }
 }

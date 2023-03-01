@@ -98,46 +98,43 @@ pub mod worker {
         program_data: &'a ZorkModel,
         cache: &'a ZorkCache,
     ) -> Result<Commands<'a>> {
+        let mut commands: Commands;
         match cli_args.command {
             Command::Build => {
-                let mut commands = build_project(program_data, cache, false)
+                commands = build_project(program_data, cache, false)
                     .with_context(|| "Failed to build project")?;
-                commands::run_generated_commands(&mut commands, cache)?;
-                Ok(commands)
+                commands::run_generated_commands(&mut commands, cache)?
             }
             Command::Run => {
-                let mut commands = build_project(program_data, cache, false)
+                commands = build_project(program_data, cache, false)
                     .with_context(|| "Failed to build project")?;
 
                 match commands::run_generated_commands(&mut commands, cache) {
-                    Ok(es) => if es.success() {
-                        autorun_generated_binary(
-                            &program_data.compiler.cpp_compiler,
-                            program_data.build.output_dir,
-                            program_data.executable.executable_name,
-                        )?;
-                    },
+                    Ok(_) => autorun_generated_binary(
+                        &program_data.compiler.cpp_compiler,
+                        program_data.build.output_dir,
+                        program_data.executable.executable_name
+                    )?,
                     Err(e) => return Err(e),
                 }
-
-                Ok(commands)
             }
             Command::Test => {
-                let mut commands = build_project(program_data, cache, true)
+                commands = build_project(program_data, cache, true)
                     .with_context(|| "Failed to build project")?;
 
-                commands::run_generated_commands(&mut commands, cache)?;
-
-                autorun_generated_binary(
-                    &program_data.compiler.cpp_compiler,
-                    program_data.build.output_dir,
-                    &program_data.tests.test_executable_name,
-                )?;
-
-                Ok(commands)
+                match commands::run_generated_commands(&mut commands, cache) {
+                    Ok(_) => autorun_generated_binary(
+                        &program_data.compiler.cpp_compiler,
+                        program_data.build.output_dir,
+                        program_data.executable.executable_name
+                    )?,
+                    Err(e) => return Err(e),
+                }
             }
             _ => todo!("This branch should never be reached for now, as do not exists commands that may trigger them ")
         }
+
+        Ok(commands)
     }
 
     /// Creates the directory for output the elements generated
