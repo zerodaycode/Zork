@@ -122,7 +122,7 @@ impl ZorkCache {
     }
 
     fn save_generated_commands(&mut self, commands: Commands<'_>) {
-        log::trace!("Storing in the cache the last generated command lines");
+        log::trace!("Storing in the cache the last generated command lines...");
         self.generated_commands.compiler = commands.compiler;
         let process_no = if !self.generated_commands.details.is_empty() {
             self.generated_commands
@@ -271,15 +271,16 @@ impl ZorkCache {
     fn set_module_generated_command_line(
         &self,
         module_command_line: &ModuleCommandLine,
-    ) -> Vec<String> {
+    ) -> String {
         if module_command_line.processed {
-            Vec::with_capacity(0)
+            String::with_capacity(0)
         } else {
             module_command_line
                 .args
                 .iter()
-                .map(|argument| argument.value.to_string())
-                .collect()
+                .map(|argument| argument.value)
+                .collect::<Vec<_>>()
+                .join(" ")
         }
     }
 
@@ -313,7 +314,7 @@ pub struct CommandsDetails {
 pub struct CommandDetail {
     translation_unit: String,
     pub execution_result: CommandExecutionResult,
-    command: Vec<String>,
+    command: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
