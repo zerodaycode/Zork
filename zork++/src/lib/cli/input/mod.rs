@@ -8,9 +8,10 @@ use clap::{Parser, Subcommand, ValueEnum};
 /// use clap::Parser;
 /// use zork::cli::input::{CliArgs, Command, CppCompiler};
 ///
-/// let parser = CliArgs::parse_from(["", "-vv", "test"]);
+/// let parser = CliArgs::parse_from(["", "-vv", "--clear-cache", "test"]);
 /// assert_eq!(parser.command, Command::Test);
 /// assert_eq!(parser.verbose, 2);
+/// assert_eq!(parser.clear_cache, true);
 ///
 // Create Template Project
 /// let parser = CliArgs::parse_from(["", "new", "example", "--git", "--compiler", "clang"]);
@@ -34,6 +35,9 @@ pub struct CliArgs {
 
     #[arg(short, long, action = clap::ArgAction::Count, help="Zork++ maximum allowed verbosity level is: '-vv'")]
     pub verbose: u8,
+
+    #[arg(short, long, help="Removes all the entries stored in the cache")]
+    pub clear_cache: bool,
 }
 
 /// [`Command`] -  The core enum commands
