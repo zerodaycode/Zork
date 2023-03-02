@@ -23,7 +23,7 @@ pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
     mut commands: Commands<'_>,
     cache: ZorkCache,
-) -> Result<()> {
+) -> Result<CommandExecutionResult> {
     if !commands.interfaces.is_empty() {
         log::debug!("Executing the commands for the module interfaces...");
 
@@ -51,7 +51,7 @@ pub fn run_generated_commands(
 
     if !commands.implementations.is_empty() {
         log::debug!("Executing the commands for the module implementations...");
-    
+
         for implm in &mut commands.implementations {
             if !implm.processed {
                 let r = execute_command(&commands.compiler, &implm.args, &cache);
@@ -92,7 +92,7 @@ pub fn run_generated_commands(
     }
 
     cache::save(program_data, cache, commands)?;
-    Ok(())
+    Ok(CommandExecutionResult::Success)
 }
 
 /// Executes a new [`std::process::Command`] to run the generated binary
@@ -101,7 +101,7 @@ pub fn autorun_generated_binary(
     compiler: &CppCompiler,
     output_dir: &Path,
     executable_name: &str,
-) -> Result<()> {
+) -> Result<CommandExecutionResult> {
     let args = &[Argument::from(
         output_dir
             .join(compiler.as_ref())
@@ -114,14 +114,14 @@ pub fn autorun_generated_binary(
         args.join(" ")
     );
 
-    std::process::Command::new(Argument::from(
-        output_dir.join(compiler.as_ref()).join(executable_name),
+    Ok(CommandExecutionResult::from(
+        std::process::Command::new(Argument::from(
+            output_dir.join(compiler.as_ref()).join(executable_name),
+        ))
+        .spawn()?
+        .wait()
+        .with_context(|| format!("[{compiler}] - Command {:?} failed!", args.join(" "))),
     ))
-    .spawn()?
-    .wait()
-    .with_context(|| format!("[{compiler}] - Command {:?} failed!", args.join(" ")))?;
-
-    Ok(())
 }
 
 /// Executes a new [`std::process::Command`] configured according the choosen
@@ -131,7 +131,7 @@ fn execute_command(
     arguments: &[Argument<'_>],
     cache: &ZorkCache,
 ) -> Result<ExitStatus, Report> {
-    log::debug!(
+    log::trace!(
         "[{compiler}] - Executing command => {:?}",
         format!("{} {}", compiler.get_driver(), arguments.join(" "))
     );

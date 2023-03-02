@@ -69,22 +69,21 @@ impl ZorkCache {
     /// Returns a [`Option`] of [`CommandDetails`] if the file is persisted already in the cache
     pub fn is_file_cached(&self, path: &Path) -> Option<&CommandDetail> {
         let last_iteration_details = self.generated_commands.details.last();
-        
+
         if let Some(last_iteration) = last_iteration_details {
             let found_as_ifc = last_iteration.interfaces.iter().find(|f| {
                 path.to_str()
                     .unwrap_or_default()
-                    .eq(&f.translation_unit)
+                    .contains(&f.translation_unit)
             });
-            
+
             if found_as_ifc.is_some() {
                 return found_as_ifc;
             } else {
-                let found_as_impl = last_iteration.implementations.iter().find(|f| {
-                    path.to_str()
-                        .unwrap_or_default()
-                        .eq(&f.translation_unit)
-                });
+                let found_as_impl = last_iteration
+                    .implementations
+                    .iter()
+                    .find(|f| path.to_str().unwrap_or_default().eq(&f.translation_unit));
 
                 if found_as_impl.is_some() {
                     return found_as_impl;
@@ -268,10 +267,7 @@ impl ZorkCache {
         }
     }
 
-    fn set_module_generated_command_line(
-        &self,
-        module_command_line: &ModuleCommandLine,
-    ) -> String {
+    fn set_module_generated_command_line(&self, module_command_line: &ModuleCommandLine) -> String {
         if module_command_line.processed {
             String::with_capacity(0)
         } else {

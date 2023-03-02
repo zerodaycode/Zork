@@ -19,7 +19,7 @@ pub mod worker {
         cache::{self, ZorkCache},
         cli::{
             input::{CliArgs, Command},
-            output::commands::{self, autorun_generated_binary, Commands},
+            output::commands::{self, autorun_generated_binary, CommandExecutionResult, Commands},
         },
         compiler::build_project,
         config_file::ZorkConfigFile,
@@ -47,7 +47,7 @@ pub mod worker {
 
         let config_files: Vec<ConfigFile> = find_config_files(path)
             .with_context(|| "We didn't found a valid Zork++ configuration file")?;
-        log::debug!("Config files found: {config_files:?}");
+        log::trace!("Config files found: {config_files:?}");
 
         for config_file in config_files {
             log::debug!(
@@ -96,7 +96,7 @@ pub mod worker {
         program_data: &'a ZorkModel<'_>,
         cache: ZorkCache,
         read_only_cache: &'a ZorkCache,
-    ) -> Result<()> {
+    ) -> Result<CommandExecutionResult> {
         let commands: Commands;
 
         match cli_args.command {
@@ -104,7 +104,7 @@ pub mod worker {
                 commands = build_project(program_data, read_only_cache, false)
                     .with_context(|| "Failed to build project")?;
 
-                commands::run_generated_commands(program_data, commands, cache)?
+                commands::run_generated_commands(program_data, commands, cache)
             }
             Command::Run => {
                 commands = build_project(program_data, read_only_cache, false)
@@ -115,8 +115,8 @@ pub mod worker {
                         &program_data.compiler.cpp_compiler,
                         program_data.build.output_dir,
                         program_data.executable.executable_name
-                    )?,
-                    Err(e) => return Err(e),
+                    ),
+                    Err(e) => Err(e),
                 }
             }
             Command::Test => {
@@ -128,14 +128,12 @@ pub mod worker {
                         &program_data.compiler.cpp_compiler,
                         program_data.build.output_dir,
                         program_data.executable.executable_name
-                    )?,
-                    Err(e) => return Err(e),
+                    ),
+                    Err(e) => Err(e),
                 }
             }
             _ => todo!("This branch should never be reached for now, as do not exists commands that may trigger them ")
         }
-
-        Ok(())
     }
 
     /// Creates the directory for output the elements generated

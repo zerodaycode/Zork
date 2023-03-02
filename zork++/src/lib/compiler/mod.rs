@@ -567,7 +567,7 @@ mod helpers {
 
         for collection_args in sys_modules {
             commands.interfaces.push(ModuleCommandLine {
-                path: PathBuf::new(),
+                path: PathBuf::from(collection_args[4].value),
                 args: collection_args,
                 processed: false,
                 execution_result: CommandExecutionResult::default(),
