@@ -3,11 +3,11 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use zork::{
     cache::{self, ZorkCache},
+    cli::input::CliArgs,
     compiler::build_project,
     config_file::ZorkConfigFile,
-    utils::{self, reader::build_model}, cli::input::CliArgs,
+    utils::{self, reader::build_model},
 };
-
 
 pub fn build_project_benchmark(c: &mut Criterion) {
     let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK).unwrap();
