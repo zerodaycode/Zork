@@ -444,7 +444,7 @@ mod sources {
 
 /// Helpers for reduce the cyclomatic complexity introduced by the
 /// kind of workflow that should be done with this parse, format and
-/// generate
+/// generate.
 mod helpers {
     use chrono::{DateTime, Utc};
 
@@ -465,6 +465,13 @@ mod helpers {
         base_path.join(translation_unit.file())
     }
 
+    /// Creates the path for a prebuilt module interface, based on the default expected
+    /// extension for BMI's given a compiler
+    ///
+    /// We use join for the extension instead `with_extension` because modules are allowed to contain
+    /// dots in their module identifier declaration. So, for example, a module with a declaration of:
+    /// `export module dotted.module`, in Clang, due to the expected `.pcm` extension, the final path
+    /// will be generated as `dotted.pcm`, instead `dotted.module.pcm`.
     pub(crate) fn generate_prebuild_miu(
         compiler: &CppCompiler,
         out_dir: &Path,
@@ -487,13 +494,13 @@ mod helpers {
         } else {
             interface.module_name.to_string()
         };
+        log::trace!("Generating mod_unit for: {mod_unit:?}");
 
         out_dir
             .join(compiler.as_ref())
             .join("modules")
             .join("interfaces")
-            .join(mod_unit)
-            .with_extension(compiler.get_typical_bmi_extension())
+            .join(format!("{mod_unit}.{}", compiler.get_typical_bmi_extension()))
     }
 
     pub(crate) fn generate_impl_obj_file(

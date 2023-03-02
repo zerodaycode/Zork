@@ -241,8 +241,13 @@ fn assemble_module_implementation_model<'a>(
 ) -> ModuleImplementationModel<'a> {
     let mut dependencies = config.dependencies.clone().unwrap_or_default();
     if dependencies.is_empty() {
-        let implicit_dependency = config.file.split('.').collect::<Vec<_>>()[0];
-        dependencies.push(implicit_dependency);
+        let last_dot_index = config.file.rfind('.');
+        if let Some(idx) = last_dot_index {
+            let implicit_dependency = config.file.split_at(idx);
+            dependencies.push(implicit_dependency.0)
+        } else {
+            dependencies.push(config.file);
+        }
     }
 
     ModuleImplementationModel {

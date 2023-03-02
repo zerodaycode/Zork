@@ -204,8 +204,8 @@ impl ZorkCache {
         }
     }
 
-    /// Looks for the already precompiled GCC or Clang system headers, to avoid recompiling
-    /// them on every process
+    /// Looks for the already precompiled `GCC` or `Clang` system headers,
+    /// to avoid recompiling them on every process
     fn track_system_modules<'a>(
         program_data: &'a ZorkModel<'_>,
     ) -> impl Iterator<Item = String> + 'a {
