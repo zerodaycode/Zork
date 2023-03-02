@@ -8,9 +8,10 @@ use clap::{Parser, Subcommand, ValueEnum};
 /// use clap::Parser;
 /// use zork::cli::input::{CliArgs, Command, CppCompiler};
 ///
-/// let parser = CliArgs::parse_from(["", "-vv", "test"]);
+/// let parser = CliArgs::parse_from(["", "-vv", "--clear-cache", "test"]);
 /// assert_eq!(parser.command, Command::Test);
 /// assert_eq!(parser.verbose, 2);
+/// assert_eq!(parser.clear_cache, true);
 ///
 // Create Template Project
 /// let parser = CliArgs::parse_from(["", "new", "example", "--git", "--compiler", "clang"]);
@@ -20,10 +21,10 @@ use clap::{Parser, Subcommand, ValueEnum};
 /// let parser = CliArgs::parse_from(["", "-vv", "run"]);
 /// assert_eq!(parser.command, Command::Run);
 /// ```
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Default)]
 #[command(name = "Zork++")]
 #[command(author = "Zero Day Code")]
-#[command(version = "0.6.0")]
+#[command(version = "0.7.0")]
 #[command(
     about = "Zork++ is a build system for modern C++ projects",
     long_about = "Zork++ is a project of Zero Day Code. Find us: https://github.com/zerodaycode/Zork"
@@ -34,12 +35,16 @@ pub struct CliArgs {
 
     #[arg(short, long, action = clap::ArgAction::Count, help="Zork++ maximum allowed verbosity level is: '-vv'")]
     pub verbose: u8,
+
+    #[arg(short, long, help = "Removes all the entries stored in the cache")]
+    pub clear_cache: bool,
 }
 
 /// [`Command`] -  The core enum commands
-#[derive(Subcommand, Debug, PartialEq, Eq)]
+#[derive(Subcommand, Debug, PartialEq, Eq, Default)]
 pub enum Command {
     /// Triggers the process that builds the project based on the config file directives
+    #[default]
     Build,
     /// Performns a
     Run,

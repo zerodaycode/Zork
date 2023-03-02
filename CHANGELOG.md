@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2022 - 03 - 01
+
+### Feature
+
+- A module cache has been implemented, in order to bump up the time needed between iterations when
+the translation units aren't modified.
+Currently works as expected in all the compilers, but not in `Clang` under `Windows`, due to
+the manual usage of the module map for featuring the `import std;`
+
+- New command line argument `--clear-cache`, for manually deleting the cache when the user wants.
+
+### Fix
+
+- Solved a bug that was causing C++ modules containing a dot in their module identifier declaration to not be correctly processed by Zork++, causing a compilation error due to incorrect parameters
+
 ## [0.6.0] - 2022 - 02 - 28
 
 ### Feature

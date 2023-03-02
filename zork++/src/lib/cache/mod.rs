@@ -2,11 +2,17 @@
 
 use chrono::{DateTime, Utc};
 use color_eyre::{eyre::Context, Result};
-use std::{fs::File, path::Path};
+use std::{
+    fs::File,
+    path::{Path, PathBuf},
+};
 use walkdir::WalkDir;
 
 use crate::{
-    cli::output::commands::Commands,
+    cli::{
+        input::CliArgs,
+        output::commands::{CommandExecutionResult, Commands, ModuleCommandLine},
+    },
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::{
         self,
@@ -16,16 +22,23 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 /// Standalone utility for retrieve the Zork++ cache file
-pub fn load(program_data: &ZorkModel<'_>) -> Result<ZorkCache> {
+pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCache> {
+    let compiler = program_data.compiler.cpp_compiler.as_ref();
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
         .join("cache")
-        .join(program_data.compiler.cpp_compiler.as_ref());
+        .join(compiler);
 
     let cache_file_path = cache_path.join(constants::ZORK_CACHE_FILENAME);
 
     if !Path::new(&cache_file_path).exists() {
         File::create(cache_file_path).with_context(|| "Error creating the cache file")?;
+    } else if Path::new(cache_path).exists() && cli_args.clear_cache {
+        std::fs::remove_dir_all(cache_path).with_context(|| "Error cleaning the Zork++ cache")?;
+        std::fs::create_dir(cache_path)
+            .with_context(|| "Error creating the cache subdir for {compiler}")?;
+        File::create(cache_file_path)
+            .with_context(|| "Error creating the cache file after cleaning the cache")?;
     }
 
     let mut cache: ZorkCache = utils::fs::load_and_deserialize(&cache_path)
@@ -40,7 +53,7 @@ pub fn load(program_data: &ZorkModel<'_>) -> Result<ZorkCache> {
 pub fn save(
     program_data: &ZorkModel<'_>,
     mut cache: ZorkCache,
-    commands: &Commands<'_>,
+    commands: Commands<'_>,
 ) -> Result<()> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
@@ -52,17 +65,44 @@ pub fn save(
     cache.last_program_execution = Utc::now();
 
     utils::fs::serialize_object_to_file(cache_path, &cache)
-        .with_context(|| "Error saving data to the Zork++ cache")
+        .with_context(move || "Error saving data to the Zork++ cache")
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct ZorkCache {
     pub last_program_execution: DateTime<Utc>,
-    pub last_generated_commands: CachedCommands,
     pub compilers_metadata: CompilersMetadata,
+    pub generated_commands: CachedCommands,
 }
 
 impl ZorkCache {
+    /// Returns a [`Option`] of [`CommandDetails`] if the file is persisted already in the cache
+    pub fn is_file_cached(&self, path: &Path) -> Option<&CommandDetail> {
+        let last_iteration_details = self.generated_commands.details.last();
+
+        if let Some(last_iteration) = last_iteration_details {
+            let found_as_ifc = last_iteration.interfaces.iter().find(|f| {
+                path.to_str()
+                    .unwrap_or_default()
+                    .contains(&f.translation_unit)
+            });
+
+            if found_as_ifc.is_some() {
+                return found_as_ifc;
+            } else {
+                let found_as_impl = last_iteration
+                    .implementations
+                    .iter()
+                    .find(|f| path.to_str().unwrap_or_default().eq(&f.translation_unit));
+
+                if found_as_impl.is_some() {
+                    return found_as_impl;
+                }
+            }
+        }
+        None
+    }
+
     /// The tasks associated with the cache after load it from the file system
     pub fn run_tasks(&mut self, program_data: &ZorkModel<'_>) {
         let compiler = program_data.compiler.cpp_compiler;
@@ -77,10 +117,10 @@ impl ZorkCache {
     }
 
     /// Runs the tasks just before end the program and save the cache
-    pub fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>, commands: &Commands<'_>) {
+    pub fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>, commands: Commands<'_>) {
         self.save_generated_commands(commands);
 
-        if program_data.compiler.cpp_compiler == CppCompiler::GCC {
+        if !(program_data.compiler.cpp_compiler == CppCompiler::MSVC) {
             self.compilers_metadata.system_modules = program_data
                 .modules
                 .sys_modules
@@ -90,27 +130,69 @@ impl ZorkCache {
         }
     }
 
-    fn save_generated_commands(&mut self, commands: &Commands<'_>) {
-        self.last_generated_commands.compiler = commands.compiler;
-        self.last_generated_commands.interfaces = commands
+    fn save_generated_commands(&mut self, commands: Commands<'_>) {
+        log::trace!("Storing in the cache the last generated command lines...");
+        self.generated_commands.compiler = commands.compiler;
+        let process_no = if !self.generated_commands.details.is_empty() {
+            self.generated_commands
+                .details
+                .last()
+                .unwrap()
+                .cached_process_num
+                + 1
+        } else {
+            1
+        };
+
+        let mut commands_details = CommandsDetails {
+            cached_process_num: process_no,
+            generated_at: Utc::now(),
+            interfaces: Vec::with_capacity(commands.interfaces.len()),
+            implementations: Vec::with_capacity(commands.implementations.len()),
+            main: MainCommandLineDetail::default(),
+        };
+
+        commands_details
             .interfaces
-            .iter()
-            .map(|arg| {
-                arg.iter()
-                    .map(|argument| argument.value.to_string())
-                    .collect()
-            })
-            .collect();
-        self.last_generated_commands.implementations = commands
+            .extend(
+                commands
+                    .interfaces
+                    .iter()
+                    .map(|module_command_line| CommandDetail {
+                        translation_unit: self.set_translation_unit_identifier(module_command_line),
+                        execution_result: self
+                            .normalize_execution_result_status(module_command_line),
+                        command: self.set_module_generated_command_line(module_command_line),
+                    }),
+            );
+
+        commands_details
             .implementations
-            .iter()
-            .map(|arg| {
-                arg.iter()
-                    .map(|argument| argument.value.to_string())
-                    .collect()
-            })
-            .collect();
-        self.last_generated_commands.main = commands.sources.iter().map(|arg| arg.value).collect();
+            .extend(
+                commands
+                    .implementations
+                    .iter()
+                    .map(|module_command_line| CommandDetail {
+                        translation_unit: self.set_translation_unit_identifier(module_command_line),
+                        execution_result: self
+                            .normalize_execution_result_status(module_command_line),
+                        command: self.set_module_generated_command_line(module_command_line),
+                    }),
+            );
+
+        commands_details.main = MainCommandLineDetail {
+            files: commands.sources.sources_paths,
+            execution_result: commands.sources.execution_result.clone(),
+            command: commands
+                .sources
+                .args
+                .iter()
+                .map(|arg| arg.value.to_string())
+                .collect::<Vec<_>>()
+                .join(" "),
+        };
+
+        self.generated_commands.details.push(commands_details)
     }
 
     /// If Windows is the current OS, and the compiler is MSVC, then we will try
@@ -132,16 +214,22 @@ impl ZorkCache {
         }
     }
 
-    /// Looks for the already precompiled GCC or Clang system headers, to avoid recompiling
-    /// them on every process
+    /// Looks for the already precompiled `GCC` or `Clang` system headers,
+    /// to avoid recompiling them on every process
     fn track_system_modules<'a>(
-        program_data: &'a ZorkModel<'a>,
+        program_data: &'a ZorkModel<'_>,
     ) -> impl Iterator<Item = String> + 'a {
         let root = if program_data.compiler.cpp_compiler == CppCompiler::GCC {
             Path::new(GCC_CACHE_DIR).to_path_buf()
         } else {
-            program_data.build.output_dir.join("clang").join("modules")
+            program_data
+                .build
+                .output_dir
+                .join("clang")
+                .join("modules")
+                .join("interfaces")
         };
+
         WalkDir::new(root)
             .into_iter()
             .filter_map(Result::ok)
@@ -170,14 +258,76 @@ impl ZorkCache {
                     .to_string()
             })
     }
+
+    fn normalize_execution_result_status(
+        &self,
+        module_command_line: &ModuleCommandLine,
+    ) -> CommandExecutionResult {
+        if module_command_line
+            .execution_result
+            .eq(&CommandExecutionResult::Unreached)
+        {
+            if let Some(prev_entry) = self.is_file_cached(&module_command_line.path) {
+                prev_entry.execution_result.clone()
+            } else {
+                module_command_line.execution_result.clone()
+            }
+        } else {
+            module_command_line.execution_result.clone()
+        }
+    }
+
+    fn set_module_generated_command_line(&self, module_command_line: &ModuleCommandLine) -> String {
+        if module_command_line.processed {
+            String::with_capacity(0)
+        } else {
+            module_command_line
+                .args
+                .iter()
+                .map(|argument| argument.value)
+                .collect::<Vec<_>>()
+                .join(" ")
+        }
+    }
+
+    fn set_translation_unit_identifier(&self, module_command_line: &ModuleCommandLine) -> String {
+        String::from(
+            module_command_line
+                .path
+                .as_os_str()
+                .to_str()
+                .unwrap_or_default(),
+        )
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CachedCommands {
     compiler: CppCompiler,
-    interfaces: Vec<Vec<String>>,
-    implementations: Vec<Vec<String>>,
-    main: String,
+    details: Vec<CommandsDetails>,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct CommandsDetails {
+    cached_process_num: i32,
+    generated_at: DateTime<Utc>,
+    interfaces: Vec<CommandDetail>,
+    implementations: Vec<CommandDetail>,
+    main: MainCommandLineDetail,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct CommandDetail {
+    translation_unit: String,
+    pub execution_result: CommandExecutionResult,
+    command: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct MainCommandLineDetail {
+    files: Vec<PathBuf>,
+    execution_result: CommandExecutionResult,
+    command: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]

@@ -11,7 +11,8 @@ pub enum Source<'a> {
 }
 
 impl<'a> Source<'a> {
-    fn paths(&self) -> Result<Vec<PathBuf>> {
+    #[inline(always)]
+    pub fn paths(&self) -> Result<Vec<PathBuf>> {
         match self {
             Source::File(file) => Ok(vec![file.to_path_buf()]),
             Source::Glob(pattern) => pattern.resolve(),
@@ -23,6 +24,7 @@ impl<'a> Source<'a> {
 pub struct GlobPattern<'a>(pub &'a str);
 
 impl<'a> GlobPattern<'a> {
+    #[inline(always)]
     fn resolve(&self) -> Result<Vec<PathBuf>> {
         glob::glob(self.0)?
             .map(|path| path.with_context(|| ""))

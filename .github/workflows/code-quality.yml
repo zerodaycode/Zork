@@ -57,6 +57,12 @@ jobs:
         id: project-cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Get the latest Clang version available
+        run: |
+          clang++ -v
+          sudo apt update
+          sudo apt install clang-15 --install-suggests
+
       - name: Running the tests for the project
         run: |
           cd zork++

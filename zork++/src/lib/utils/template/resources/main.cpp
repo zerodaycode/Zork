@@ -8,6 +8,7 @@ const char* compiler =
     import <iostream>;
 #elif defined
     "MSVC";
+    #pragma warning(disable:5050)
     import std.core;
 #endif
 
