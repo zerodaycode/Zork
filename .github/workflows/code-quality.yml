@@ -61,7 +61,7 @@ jobs:
         run: |
           clang++ -v
           sudo apt update
-          sudo apt install clang-17 --install-suggests
+          sudo apt install clang-15 --install-suggests
 
       - name: Running the tests for the project
         run: |
