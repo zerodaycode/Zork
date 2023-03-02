@@ -21,7 +21,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 /// let parser = CliArgs::parse_from(["", "-vv", "run"]);
 /// assert_eq!(parser.command, Command::Run);
 /// ```
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Default)]
 #[command(name = "Zork++")]
 #[command(author = "Zero Day Code")]
 #[command(version = "0.7.0")]
@@ -41,9 +41,10 @@ pub struct CliArgs {
 }
 
 /// [`Command`] -  The core enum commands
-#[derive(Subcommand, Debug, PartialEq, Eq)]
+#[derive(Subcommand, Debug, PartialEq, Eq, Default)]
 pub enum Command {
     /// Triggers the process that builds the project based on the config file directives
+    #[default]
     Build,
     /// Performns a
     Run,

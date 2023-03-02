@@ -5,11 +5,10 @@ use zork::{
     cache::{self, ZorkCache},
     compiler::build_project,
     config_file::ZorkConfigFile,
-    utils::{self, reader::build_model},
+    utils::{self, reader::build_model}, cli::input::CliArgs,
 };
 
-/// To succesfully run the benchmarks, change the filename of the
-/// [deactivated]zork_clang.toml under the github-example folder
+
 pub fn build_project_benchmark(c: &mut Criterion) {
     let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK).unwrap();
     let program_data = build_model(&config);
@@ -20,7 +19,7 @@ pub fn build_project_benchmark(c: &mut Criterion) {
     });
 
     c.bench_function("Cache loading time", |b| {
-        b.iter(|| cache::load(black_box(&program_data)))
+        b.iter(|| cache::load(black_box(&program_data), &CliArgs::default()))
     });
 }
 
