@@ -135,7 +135,7 @@ fn execute_command(
         format!("{} {}", compiler.get_driver(), arguments.join(" "))
     );
 
-    let process = if compiler.eq(&CppCompiler::MSVC) {
+    if compiler.eq(&CppCompiler::MSVC) {
         std::process::Command::new(
             cache
                 .compilers_metadata
@@ -156,9 +156,7 @@ fn execute_command(
             .spawn()?
             .wait()
             .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
-    };
-
-    process
+    }
 }
 
 /// Holds a collection of heap allocated arguments. This is introduced in the
@@ -249,8 +247,8 @@ pub enum CommandExecutionResult {
     /// A command which is return code indicates an unsuccessful execution
     Failed,
     /// The execution failed, returning a [`Result`] with the Err variant
-    Error(String),
-    /// A previous status before storing a command execution result
+    Error,
+    /// A previous state before executing a command line
     #[default]
     Unreached,
 }
@@ -265,7 +263,7 @@ impl From<Result<ExitStatus, Report>> for CommandExecutionResult {
                     CommandExecutionResult::Failed
                 }
             }
-            Err(e) => CommandExecutionResult::Error(e.to_string()),
+            Err(_) => CommandExecutionResult::Error,
         }
     }
 }
@@ -280,7 +278,7 @@ impl From<&Result<ExitStatus, Report>> for CommandExecutionResult {
                     CommandExecutionResult::Failed
                 }
             }
-            Err(e) => CommandExecutionResult::Error(e.to_string()),
+            Err(_) => CommandExecutionResult::Error,
         }
     }
 }

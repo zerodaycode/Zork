@@ -141,23 +141,21 @@ impl ZorkCache {
         commands_details
             .interfaces
             .extend(commands.interfaces.iter().map(|module_command_line| {
-                let details = CommandDetail {
-                    translation_unit: self.set_translation_unit_identifier(&module_command_line),
-                    execution_result: self.normalize_execution_result_status(&module_command_line),
-                    command: self.set_module_generated_command_line(&module_command_line)
-                };
-                details
+                CommandDetail {
+                    translation_unit: self.set_translation_unit_identifier(module_command_line),
+                    execution_result: self.normalize_execution_result_status(module_command_line),
+                    command: self.set_module_generated_command_line(module_command_line),
+                }
             }));
 
         commands_details
             .implementations
             .extend(commands.implementations.iter().map(|module_command_line| {
-                let details = CommandDetail {
-                    translation_unit: self.set_translation_unit_identifier(&module_command_line),
-                    execution_result: self.normalize_execution_result_status(&module_command_line),
-                    command: self.set_module_generated_command_line(&module_command_line)
-                };
-                details
+                CommandDetail {
+                    translation_unit: self.set_translation_unit_identifier(module_command_line),
+                    execution_result: self.normalize_execution_result_status(module_command_line),
+                    command: self.set_module_generated_command_line(module_command_line),
+                }
             }));
 
         commands_details.main = MainCommandLineDetail {
@@ -239,8 +237,14 @@ impl ZorkCache {
             })
     }
 
-    fn normalize_execution_result_status(&self, module_command_line: &ModuleCommandLine) -> CommandExecutionResult {
-        if module_command_line.execution_result.eq(&CommandExecutionResult::Unreached) {
+    fn normalize_execution_result_status(
+        &self,
+        module_command_line: &ModuleCommandLine,
+    ) -> CommandExecutionResult {
+        if module_command_line
+            .execution_result
+            .eq(&CommandExecutionResult::Unreached)
+        {
             if let Some(prev_entry) = self.is_file_cached(&module_command_line.path) {
                 prev_entry.execution_result.clone()
             } else {
@@ -251,7 +255,10 @@ impl ZorkCache {
         }
     }
 
-    fn set_module_generated_command_line(&self, module_command_line: &ModuleCommandLine) -> Vec<String> {
+    fn set_module_generated_command_line(
+        &self,
+        module_command_line: &ModuleCommandLine,
+    ) -> Vec<String> {
         if module_command_line.processed {
             Vec::with_capacity(0)
         } else {
