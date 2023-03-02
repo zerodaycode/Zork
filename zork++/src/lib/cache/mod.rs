@@ -69,22 +69,26 @@ impl ZorkCache {
     /// Returns a [`Option`] of [`CommandDetails`] if the file is persisted already in the cache
     pub fn is_file_cached(&self, path: &Path) -> Option<&CommandDetail> {
         let last_iteration_details = self.generated_commands.details.last();
+        
         if let Some(last_iteration) = last_iteration_details {
             let found_as_ifc = last_iteration.interfaces.iter().find(|f| {
                 path.to_str()
                     .unwrap_or_default()
-                    .contains(&f.translation_unit)
+                    .eq(&f.translation_unit)
             });
-            let found_as_impl = last_iteration.implementations.iter().find(|f| {
-                path.to_str()
-                    .unwrap_or_default()
-                    .contains(&f.translation_unit)
-            });
+            
             if found_as_ifc.is_some() {
                 return found_as_ifc;
-            }
-            if found_as_impl.is_some() {
-                return found_as_impl;
+            } else {
+                let found_as_impl = last_iteration.implementations.iter().find(|f| {
+                    path.to_str()
+                        .unwrap_or_default()
+                        .eq(&f.translation_unit)
+                });
+
+                if found_as_impl.is_some() {
+                    return found_as_impl;
+                }
             }
         }
         None
@@ -118,6 +122,7 @@ impl ZorkCache {
     }
 
     fn save_generated_commands(&mut self, commands: Commands<'_>) {
+        log::trace!("Storing in the cache the last generated command lines");
         self.generated_commands.compiler = commands.compiler;
         let process_no = if !self.generated_commands.details.is_empty() {
             self.generated_commands

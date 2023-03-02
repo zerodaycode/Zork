@@ -26,50 +26,51 @@ pub fn run_generated_commands(
 ) -> Result<()> {
     if !commands.interfaces.is_empty() {
         log::debug!("Executing the commands for the module interfaces...");
-    }
 
-    for miu in commands.interfaces.iter_mut() {
-        if !miu.processed {
-            let r = execute_command(&commands.compiler, &miu.args, &cache);
-            miu.execution_result = CommandExecutionResult::from(&r);
-            if let Err(e) = r {
-                cache::save(program_data, cache, commands)?;
-                return Err(e);
-            } else if !r.as_ref().unwrap().success() {
-                let c_miu = miu.clone();
-                cache::save(program_data, cache, commands)?;
-                return Err(eyre!(
-                    "Ending the program, because the build of: {:?} wasn't ended successfully",
-                    c_miu.path
-                ));
+        for miu in commands.interfaces.iter_mut() {
+            if !miu.processed {
+                let r = execute_command(&commands.compiler, &miu.args, &cache);
+                miu.execution_result = CommandExecutionResult::from(&r);
+                if let Err(e) = r {
+                    cache::save(program_data, cache, commands)?;
+                    return Err(e);
+                } else if !r.as_ref().unwrap().success() {
+                    let c_miu = miu.clone();
+                    cache::save(program_data, cache, commands)?;
+                    return Err(eyre!(
+                        "Ending the program, because the build of: {:?} wasn't ended successfully",
+                        c_miu.path
+                    ));
+                }
+            } else {
+                miu.execution_result = CommandExecutionResult::Cached;
+                log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &miu.path);
             }
-        } else {
-            miu.execution_result = CommandExecutionResult::Cached;
-            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &miu.path);
         }
     }
 
     if !commands.implementations.is_empty() {
         log::debug!("Executing the commands for the module implementations...");
-    }
-    for implm in &mut commands.implementations {
-        if !implm.processed {
-            let r = execute_command(&commands.compiler, &implm.args, &cache);
-            implm.execution_result = CommandExecutionResult::from(&r);
-            if let Err(e) = r {
-                cache::save(program_data, cache, commands)?;
-                return Err(e);
-            } else if !r.as_ref().unwrap().success() {
-                let c_miu = implm.clone();
-                cache::save(program_data, cache, commands)?;
-                return Err(eyre!(
-                    "Ending the program, because the build of: {:?} wasn't ended successfully",
-                    c_miu.path
-                ));
+    
+        for implm in &mut commands.implementations {
+            if !implm.processed {
+                let r = execute_command(&commands.compiler, &implm.args, &cache);
+                implm.execution_result = CommandExecutionResult::from(&r);
+                if let Err(e) = r {
+                    cache::save(program_data, cache, commands)?;
+                    return Err(e);
+                } else if !r.as_ref().unwrap().success() {
+                    let c_miu = implm.clone();
+                    cache::save(program_data, cache, commands)?;
+                    return Err(eyre!(
+                        "Ending the program, because the build of: {:?} wasn't ended successfully",
+                        c_miu.path
+                    ));
+                }
+            } else {
+                implm.execution_result = CommandExecutionResult::Cached;
+                log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", implm.path);
             }
-        } else {
-            implm.execution_result = CommandExecutionResult::Cached;
-            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", implm.path);
         }
     }
 
