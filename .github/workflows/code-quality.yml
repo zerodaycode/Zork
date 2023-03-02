@@ -60,7 +60,7 @@ jobs:
       - name: Get the latest Clang version available
         run: |
           clang++ -v
-          apt install clang++
+          sudo apt install clang++
 
       - name: Running the tests for the project
         run: |

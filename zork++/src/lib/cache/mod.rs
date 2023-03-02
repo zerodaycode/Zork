@@ -140,23 +140,31 @@ impl ZorkCache {
 
         commands_details
             .interfaces
-            .extend(commands.interfaces.iter().map(|module_command_line| {
-                CommandDetail {
-                    translation_unit: self.set_translation_unit_identifier(module_command_line),
-                    execution_result: self.normalize_execution_result_status(module_command_line),
-                    command: self.set_module_generated_command_line(module_command_line),
-                }
-            }));
+            .extend(
+                commands
+                    .interfaces
+                    .iter()
+                    .map(|module_command_line| CommandDetail {
+                        translation_unit: self.set_translation_unit_identifier(module_command_line),
+                        execution_result: self
+                            .normalize_execution_result_status(module_command_line),
+                        command: self.set_module_generated_command_line(module_command_line),
+                    }),
+            );
 
         commands_details
             .implementations
-            .extend(commands.implementations.iter().map(|module_command_line| {
-                CommandDetail {
-                    translation_unit: self.set_translation_unit_identifier(module_command_line),
-                    execution_result: self.normalize_execution_result_status(module_command_line),
-                    command: self.set_module_generated_command_line(module_command_line),
-                }
-            }));
+            .extend(
+                commands
+                    .implementations
+                    .iter()
+                    .map(|module_command_line| CommandDetail {
+                        translation_unit: self.set_translation_unit_identifier(module_command_line),
+                        execution_result: self
+                            .normalize_execution_result_status(module_command_line),
+                        command: self.set_module_generated_command_line(module_command_line),
+                    }),
+            );
 
         commands_details.main = MainCommandLineDetail {
             files: commands.sources.sources_paths,
