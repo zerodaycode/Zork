@@ -36,7 +36,7 @@ pub struct CliArgs {
     #[arg(short, long, action = clap::ArgAction::Count, help="Zork++ maximum allowed verbosity level is: '-vv'")]
     pub verbose: u8,
 
-    #[arg(short, long, help="Removes all the entries stored in the cache")]
+    #[arg(short, long, help = "Removes all the entries stored in the cache")]
     pub clear_cache: bool,
 }
 

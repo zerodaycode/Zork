@@ -500,7 +500,10 @@ mod helpers {
             .join(compiler.as_ref())
             .join("modules")
             .join("interfaces")
-            .join(format!("{mod_unit}.{}", compiler.get_typical_bmi_extension()))
+            .join(format!(
+                "{mod_unit}.{}",
+                compiler.get_typical_bmi_extension()
+            ))
     }
 
     pub(crate) fn generate_impl_obj_file(

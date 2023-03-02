@@ -69,8 +69,8 @@ pub mod worker {
             let program_data = build_model(&config);
             create_output_directory(&program_data)?;
 
-            let cache =
-                cache::load(&program_data, &cli_args).with_context(|| "Unable to load the Zork++ caché")?;
+            let cache = cache::load(&program_data, cli_args)
+                .with_context(|| "Unable to load the Zork++ caché")?;
             let read_only_cache = cache.clone();
 
             // let generated_commands =

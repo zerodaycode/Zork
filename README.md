@@ -499,6 +499,9 @@ a minimal setup. This command includes some arguments to make it more flexible, 
     should be used to set up the template
 
 - `-v` ⇒ Outputs more information to stdout. The classical `verbose` command line flag
+- `--clear-cache` ⇒ Clears the files in the cache, so, in the next iteration, cached items
+must be processed again. This is useful after a lot of program iterations, when the cache starts
+to slow down the build process.
 
 # 📑 C++23 `import std;` feature <a name="import_std"></a>
 

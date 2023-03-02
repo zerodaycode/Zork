@@ -9,7 +9,10 @@ use std::{
 use walkdir::WalkDir;
 
 use crate::{
-    cli::{output::commands::{CommandExecutionResult, Commands, ModuleCommandLine}, input::CliArgs},
+    cli::{
+        input::CliArgs,
+        output::commands::{CommandExecutionResult, Commands, ModuleCommandLine},
+    },
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::{
         self,
@@ -25,15 +28,17 @@ pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCach
         .join("zork")
         .join("cache")
         .join(compiler);
-    
+
     let cache_file_path = cache_path.join(constants::ZORK_CACHE_FILENAME);
 
     if !Path::new(&cache_file_path).exists() {
         File::create(cache_file_path).with_context(|| "Error creating the cache file")?;
     } else if Path::new(cache_path).exists() && cli_args.clear_cache {
         std::fs::remove_dir_all(cache_path).with_context(|| "Error cleaning the Zork++ cache")?;
-        std::fs::create_dir(cache_path).with_context(|| "Error creating the cache subdir for {compiler}")?;
-        File::create(cache_file_path).with_context(|| "Error creating the cache file after cleaning the cache")?;
+        std::fs::create_dir(cache_path)
+            .with_context(|| "Error creating the cache subdir for {compiler}")?;
+        File::create(cache_file_path)
+            .with_context(|| "Error creating the cache file after cleaning the cache")?;
     }
 
     let mut cache: ZorkCache = utils::fs::load_and_deserialize(&cache_path)
