@@ -118,7 +118,7 @@ mod sources {
         utils::constants,
     };
     use color_eyre::Result;
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     /// Generates the command line arguments for non-module source files, including the one that
     /// holds the main function

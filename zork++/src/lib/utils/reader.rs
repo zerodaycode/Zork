@@ -100,6 +100,7 @@ fn assemble_project_model<'a>(config: &'a ProjectAttribute) -> ProjectModel<'a> 
             .authors
             .as_ref()
             .map_or_else(|| &[] as &[&str], |auths| auths.as_slice()),
+        compilation_db: config.compilation_db.unwrap_or_default(),
     }
 }
 
@@ -246,7 +247,7 @@ fn assemble_module_interface_model<'a>(
 
 fn assemble_module_implementation_model<'a>(
     config: &'a ModuleImplementation,
-    base_path: &str
+    base_path: &str,
 ) -> ModuleImplementationModel<'a> {
     let mut dependencies = config.dependencies.clone().unwrap_or_default();
     if dependencies.is_empty() {
@@ -336,6 +337,7 @@ mod test {
             project: ProjectModel {
                 name: "Zork++",
                 authors: &["zerodaycode.gz@gmail.com"],
+                compilation_db: false,
             },
             compiler: CompilerModel {
                 cpp_compiler: CppCompiler::CLANG,
@@ -385,6 +387,7 @@ mod test {
             project: ProjectModel {
                 name: "Zork++",
                 authors: &["zerodaycode.gz@gmail.com"],
+                compilation_db: false,
             },
             compiler: CompilerModel {
                 cpp_compiler: CppCompiler::CLANG,
@@ -422,11 +425,11 @@ mod test {
                 base_impls_dir: Path::new("src"),
                 implementations: vec![
                     ModuleImplementationModel {
-                        file: Path::new("math.cpp"),
+                        file: PathBuf::from(Path::new("math.cpp")),
                         dependencies: vec!["math"],
                     },
                     ModuleImplementationModel {
-                        file: Path::new("some_module_impl.cpp"),
+                        file: PathBuf::from(Path::new("some_module_impl.cpp")),
                         dependencies: vec!["iostream"],
                     },
                 ],
