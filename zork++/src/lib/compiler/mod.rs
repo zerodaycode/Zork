@@ -494,7 +494,6 @@ mod helpers {
         } else {
             interface.module_name.to_string()
         };
-        log::trace!("Generating mod_unit for: {mod_unit:?}");
 
         out_dir
             .join(compiler.as_ref())
