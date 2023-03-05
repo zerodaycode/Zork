@@ -11,6 +11,7 @@ pub const BINARY_EXTENSION: &str = if cfg!(target_os = "windows") {
 };
 
 pub const ZORK_CACHE_FILENAME: &str = "cache.json";
+pub const COMPILATION_DATABASE: &str = "compile_commands.json";
 
 pub const GCC_CACHE_DIR: &str = "gcm.cache";
 

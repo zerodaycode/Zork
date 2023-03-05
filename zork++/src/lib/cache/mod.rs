@@ -20,6 +20,7 @@ use crate::{
     },
 };
 use serde::{Deserialize, Serialize};
+use crate::utils::constants::COMPILATION_DATABASE;
 
 /// Standalone utility for retrieve the Zork++ cache file
 pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCache> {
@@ -61,7 +62,7 @@ pub fn save(
         .join(program_data.compiler.cpp_compiler.as_ref())
         .join(constants::ZORK_CACHE_FILENAME);
 
-    cache.run_final_tasks(program_data, commands);
+    cache.run_final_tasks(program_data, commands)?;
     cache.last_program_execution = Utc::now();
 
     utils::fs::serialize_object_to_file(cache_path, &cache)
@@ -117,7 +118,10 @@ impl ZorkCache {
     }
 
     /// Runs the tasks just before end the program and save the cache
-    pub fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>, commands: Commands<'_>) {
+    pub fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>, commands: Commands<'_>) -> Result<()>{
+        if program_data.project.compilation_db { // TODO Read prev changes and compare without regenerate
+            map_generated_commands_to_compilation_db(&commands)?;
+        }
         self.save_generated_commands(commands);
 
         if !(program_data.compiler.cpp_compiler == CppCompiler::MSVC) {
@@ -128,6 +132,8 @@ impl ZorkCache {
                 .map(|e| e.to_string())
                 .collect::<Vec<_>>();
         }
+
+        Ok(())
     }
 
     fn save_generated_commands(&mut self, commands: Commands<'_>) {
@@ -299,6 +305,82 @@ impl ZorkCache {
                 .unwrap_or_default(),
         )
     }
+}
+
+/// Generates the `compile_commands.json` file, that acts as a compilation database
+/// for some static analysis external tools, like `clang-tidy`, and populates it with
+/// the generated commands for the translation units
+fn map_generated_commands_to_compilation_db(commands: &Commands<'_>) -> Result<()> {
+    log::trace!("Generating the compilation database...");
+    let total_commands = commands.interfaces.len() + commands.implementations.len() + 1;
+    let mut compilation_db_entries = Vec::with_capacity(total_commands);
+
+    for command in &commands.interfaces {
+        let path = command.path.parent().map_or("", |p| p.to_str().unwrap_or_default());
+        let mut arguments = vec![commands.compiler.as_ref()];
+        arguments.extend(
+            command.args.iter().map(|arg| arg.value).collect::<Vec<&str>>()
+        );
+        let file = command.path.file_name().map_or("", |f| f.to_str().unwrap_or_default());
+
+        compilation_db_entries.push(
+            CompileCommands {
+                directory: path,
+                arguments,
+                file,
+            }
+        )
+    }
+
+    for command in &commands.implementations {
+        let path = command.path.parent().map_or("", |p| p.to_str().unwrap_or_default());
+        let mut arguments = vec![commands.compiler.as_ref()];
+        arguments.extend(
+            command.args.iter().map(|arg| arg.value).collect::<Vec<&str>>()
+        );
+        let file = command.path.file_name().map_or("", |f| f.to_str().unwrap_or_default());
+
+        compilation_db_entries.push(
+            CompileCommands {
+                directory: path,
+                arguments,
+                file,
+            }
+        )
+    }
+
+    // TODO This should be changed in order to only include the file that holds the entry
+    // point of the program. For that, we should modify the config file, to force the user
+    // to tell us what is that file
+    for source in &commands.sources.sources_paths {
+        let mut arguments = vec![commands.compiler.as_ref()];
+        arguments.extend(
+            commands.sources.args.iter().map(|arg| arg.value).collect::<Vec<&str>>()
+        );
+        compilation_db_entries.push(
+            CompileCommands {
+                directory: source.parent().map_or("", |p| p.to_str().unwrap_or_default()),
+                arguments: commands.sources.args.iter().map(|arg| arg.value).collect::<Vec<&str>>(),
+                file: source.file_name().map_or("", |f| f.to_str().unwrap_or_default()),
+            }
+        )
+    }
+
+    let compile_commands_path = Path::new(COMPILATION_DATABASE);
+    if !Path::new(&compile_commands_path).exists() {
+        File::create(compile_commands_path).with_context(|| "Error creating the cache file")?;
+    }
+    utils::fs::serialize_object_to_file(Path::new(compile_commands_path), &compilation_db_entries)
+        .with_context(move || "Error generating the compilation database")
+}
+
+/// Data model for serialize the data that will be outputted
+/// to the `compile_commands.json` compilation database file
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct CompileCommands<'a> {
+    pub directory: &'a str,
+    pub arguments: Vec<&'a str>,
+    pub file: &'a str
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
