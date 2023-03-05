@@ -15,6 +15,8 @@ use crate::{
         ZorkModel,
     },
 };
+use crate::cli::output::commands::{CommandExecutionResult, ModuleCommandLine};
+use crate::compiler::helpers::flag_modules_without_changes;
 
 /// The entry point of the compilation process
 ///
@@ -48,6 +50,8 @@ fn build_executable<'a>(
     commands: &'_ mut Commands<'a>,
     tests: bool,
 ) -> Result<()> {
+    // TODO Check if the command line is the same as the previous? If there's no new sources?
+    // And avoid reexecuting?
     if tests {
         sources::generate_main_command_line_args(model, commands, &model.tests)
     } else {
@@ -83,7 +87,19 @@ fn prebuild_module_interfaces<'a>(
     commands: &mut Commands<'a>,
 ) {
     interfaces.iter().for_each(|module_interface| {
-        sources::generate_module_interfaces_args(model, cache, module_interface, commands);
+        if !flag_modules_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file) {
+            sources::generate_module_interfaces_args(model, module_interface, commands);
+        } else {
+            let mut command_line = ModuleCommandLine {
+                path: module_interface.file.clone(),
+                args: Vec::with_capacity(0),
+                processed: true,
+                execution_result: CommandExecutionResult::default(),
+            };
+            command_line.execution_result = CommandExecutionResult::Cached;
+            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file);
+            commands.interfaces.push(command_line);
+        }
     });
 }
 
@@ -96,7 +112,19 @@ fn compile_module_implementations<'a>(
     commands: &mut Commands<'a>,
 ) {
     impls.iter().for_each(|module_impl| {
-        sources::generate_module_implementation_args(model, cache, module_impl, commands);
+        if !flag_modules_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file) {
+            sources::generate_module_implementation_args(model, module_impl, commands);
+        } else {
+            let mut command_line = ModuleCommandLine {
+                path: module_impl.file.clone(),
+                args: Vec::with_capacity(0),
+                processed: true,
+                execution_result: CommandExecutionResult::default(),
+            };
+            command_line.execution_result = CommandExecutionResult::Cached;
+            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file);
+            commands.interfaces.push(command_line);
+        }
     });
 }
 
@@ -225,7 +253,6 @@ mod sources {
     /// Generates the expected arguments for precompile the BMIs depending on self
     pub fn generate_module_interfaces_args<'a>(
         model: &'a ZorkModel,
-        cache: &'a ZorkCache,
         interface: &'a ModuleInterfaceModel,
         commands: &mut Commands<'a>,
     ) {
@@ -324,21 +351,10 @@ mod sources {
             }
         }
 
-        // Code on the if branch is provisional, until Clang implements `import std;`
-        let processed_cache = if compiler.eq(&CppCompiler::CLANG) {
-            log::debug!(
-                "Module unit {:?} will be rebuilt since we've detected that you are using Clang",
-                interface.module_name
-            );
-            false
-        } else {
-            helpers::flag_modules_without_changes(cache, &interface.file)
-        };
-
         let command_line = ModuleCommandLine {
             path: interface.file.clone(),
             args: arguments,
-            processed: processed_cache,
+            processed: false,
             execution_result: CommandExecutionResult::default(),
         };
         commands.interfaces.push(command_line);
@@ -347,7 +363,6 @@ mod sources {
     /// Generates the expected arguments for compile the implementation module files
     pub fn generate_module_implementation_args<'a>(
         model: &'a ZorkModel,
-        cache: &'a ZorkCache,
         implementation: &'a ModuleImplementationModel,
         commands: &mut Commands<'a>,
     ) {
@@ -432,7 +447,7 @@ mod sources {
         let command_line = ModuleCommandLine {
             path: implementation.file.clone(),
             args: arguments,
-            processed: helpers::flag_modules_without_changes(cache, &implementation.file),
+            processed: false,
             execution_result: CommandExecutionResult::default(),
         };
         commands.implementations.push(command_line);
@@ -562,6 +577,9 @@ mod helpers {
             })
             .collect::<Vec<_>>();
 
+        // TODO Cached sys headers will deserve in a near future its own type,
+        // storing the commands and the paths there, and checking for rebuild them
+        // independently, also check for execution independently
         for collection_args in sys_modules {
             commands.interfaces.push(ModuleCommandLine {
                 path: PathBuf::from(collection_args[4].value),
@@ -578,7 +596,10 @@ mod helpers {
     /// hasn't been modified since the last build process iteration.
     ///
     /// True means already processed and previous iteration Success
-    pub(crate) fn flag_modules_without_changes(cache: &ZorkCache, file: &Path) -> bool {
+    pub(crate) fn flag_modules_without_changes(compiler: &CppCompiler, cache: &ZorkCache, file: &Path) -> bool {
+        if compiler.eq(&CppCompiler::CLANG) {
+            log::debug!("Module unit {file:?} will be rebuilt since we've detected that you are using Clang");
+        }
         // Check first if the file is already on the cache, and if it's last iteration was successful
         if let Some(cached_file) = cache.is_file_cached(file) {
             if cached_file.execution_result != CommandExecutionResult::Success
