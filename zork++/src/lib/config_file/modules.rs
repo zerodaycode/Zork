@@ -129,7 +129,7 @@ pub struct ModulesAttribute<'a> {
 /// assert_eq!(ifc_3.module_name, Some("math_part"));
 /// ```
 #[derive(Deserialize, Debug, PartialEq)]
-#[serde (deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct ModuleInterface<'a> {
     #[serde(borrow)]
     pub file: &'a str,

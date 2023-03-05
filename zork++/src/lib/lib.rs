@@ -86,7 +86,7 @@ pub mod worker {
         Ok(())
     }
 
-    /// Helper for reduce the cyclomatic complextity of the main fn.
+    /// Helper for reduce the cyclomatic complexity of the main fn.
     ///
     /// Contains the main calls to the generation of the compilers commands lines,
     /// the calls to the process that runs those ones, the autorun the generated
@@ -104,13 +104,13 @@ pub mod worker {
                 commands = build_project(program_data, read_only_cache, false)
                     .with_context(|| "Failed to build project")?;
 
-                commands::run_generated_commands(program_data, commands, cache)
+                commands::run_generated_commands(program_data, commands, cache, false)
             }
             Command::Run => {
                 commands = build_project(program_data, read_only_cache, false)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, cache) {
+                match commands::run_generated_commands(program_data, commands, cache, false) {
                     Ok(_) => autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         program_data.build.output_dir,
@@ -123,7 +123,7 @@ pub mod worker {
                 commands = build_project(program_data, read_only_cache, true)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, cache) {
+                match commands::run_generated_commands(program_data, commands, cache, true) {
                     Ok(_) => autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         program_data.build.output_dir,

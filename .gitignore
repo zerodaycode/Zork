@@ -8,6 +8,7 @@ out/
 gcm.cache/
 github-example/
 cached_mods/
+compile_commands.json
 
 # out/
 .coverage

@@ -20,6 +20,7 @@ use serde::*;
 ///     sources = [
 ///         '*.cpp'
 ///     ]
+///     main = "main.cpp"
 ///     extra_args = ['example']
 /// "#;
 ///
@@ -29,6 +30,7 @@ use serde::*;
 /// assert_eq!(config.executable_name, Some("outputExecutableName"));
 /// assert_eq!(config.sources_base_path, Some("./src"));
 /// assert_eq!(config.sources, Some(vec!["*.cpp"]));
+/// assert_eq!(config.main, main.cpp);
 /// assert_eq!(config.extra_args, Some(vec!["example"]))
 /// ```
 /// > Note: TOML table are toml commented (#) to allow us to parse
@@ -40,7 +42,7 @@ use serde::*;
 /// For a test over a real example, please look at the
 /// [`zork::config_file::ZorkConfigFile`] doc-test
 #[derive(Deserialize, Debug, PartialEq, Clone, Default)]
-#[serde (deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct ExecutableAttribute<'a> {
     #[serde(borrow)]
     pub executable_name: Option<&'a str>,
@@ -48,6 +50,8 @@ pub struct ExecutableAttribute<'a> {
     pub sources_base_path: Option<&'a str>,
     #[serde(borrow)]
     pub sources: Option<Vec<&'a str>>,
+    #[serde(borrow)]
+    pub main: &'a str,
     #[serde(borrow)]
     pub extra_args: Option<Vec<&'a str>>,
 }

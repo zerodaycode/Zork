@@ -72,7 +72,7 @@ pub mod clang_args {
             Argument::from(format!(
                 "-fmodule-map-file={}",
                 out_dir
-                    .join("zork")
+                    .join("../zork")
                     .join("intrinsics")
                     .join("zork.modulemap")
                     .display()

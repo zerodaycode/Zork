@@ -2,6 +2,7 @@ use crate::{
     bounds::{ExecutableTarget, ExtraArgs},
     cli::output::arguments::Argument,
 };
+use std::path::Path;
 
 use super::sourceset::SourceSet;
 
@@ -9,6 +10,7 @@ use super::sourceset::SourceSet;
 pub struct TestsModel<'a> {
     pub test_executable_name: String,
     pub sourceset: SourceSet<'a>,
+    pub main: &'a Path,
     pub extra_args: Vec<Argument<'a>>,
 }
 

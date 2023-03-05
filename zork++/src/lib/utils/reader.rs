@@ -161,6 +161,8 @@ fn assemble_executable_model<'a>(
         sources,
     };
 
+    let main = Path::new(config.map_or("", |exe_attr| exe_attr.main));
+
     let extra_args = config
         .and_then(|exe| exe.extra_args.as_ref())
         .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
@@ -169,6 +171,7 @@ fn assemble_executable_model<'a>(
     ExecutableModel {
         executable_name,
         sourceset,
+        main,
         extra_args,
     }
 }
@@ -297,6 +300,8 @@ fn assemble_tests_model<'a>(
         sources,
     };
 
+    let main = Path::new(config.map_or("", |test_attr| test_attr.main));
+
     let extra_args = config
         .and_then(|test| test.extra_args.as_ref())
         .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
@@ -305,6 +310,7 @@ fn assemble_tests_model<'a>(
     TestsModel {
         test_executable_name,
         sourceset,
+        main,
         extra_args,
     }
 }
@@ -354,6 +360,7 @@ mod test {
                     base_path: Path::new("."),
                     sources: vec![],
                 },
+                main: Path::new("main.cpp"),
                 extra_args: vec![],
             },
             modules: ModulesModel {
@@ -369,6 +376,7 @@ mod test {
                     base_path: Path::new("."),
                     sources: vec![],
                 },
+                main: Path::new("main.cpp"),
                 extra_args: vec![],
             },
         };
@@ -404,6 +412,7 @@ mod test {
                     base_path: Path::new("bin"),
                     sources: vec![Source::Glob(GlobPattern("*.cpp"))],
                 },
+                main: Path::new("main.cpp"),
                 extra_args: vec![Argument::from("-Werr")],
             },
             modules: ModulesModel {
@@ -441,6 +450,7 @@ mod test {
                     base_path: Path::new("test"),
                     sources: vec![Source::Glob(GlobPattern("*.cpp"))],
                 },
+                main: Path::new("main.cpp"),
                 extra_args: vec![Argument::from("-pedantic")],
             },
         };

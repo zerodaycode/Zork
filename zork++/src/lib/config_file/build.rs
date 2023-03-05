@@ -24,7 +24,7 @@ use serde::*;
 /// assert_eq!(config.output_dir, Some("out"));
 /// ```
 #[derive(Deserialize, Debug, PartialEq)]
-#[serde (deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct BuildAttribute<'a> {
     #[serde(borrow)]
     pub output_dir: Option<&'a str>,
