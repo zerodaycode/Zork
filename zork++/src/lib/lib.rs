@@ -127,7 +127,7 @@ pub mod worker {
                     Ok(_) => autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         program_data.build.output_dir,
-                        program_data.executable.executable_name
+                        &program_data.tests.test_executable_name
                     ),
                     Err(e) => Err(e),
                 }
@@ -151,7 +151,7 @@ pub mod worker {
     /// in order to track different aspects of the program (last time
     /// modified files, last process build time...)
     fn create_output_directory(model: &ZorkModel) -> Result<()> {
-        let out_dir = &model.build.output_dir;
+        let out_dir = model.build.output_dir;
         let compiler = &model.compiler.cpp_compiler;
 
         // Recursively create a directory and all of its parent components if they are missing
