@@ -230,9 +230,7 @@ mod sources {
         commands: &mut Commands<'a>,
     ) {
         let compiler = &model.compiler.cpp_compiler;
-        let base_path = model.modules.base_ifcs_dir;
         let out_dir = model.build.output_dir;
-        let input_file = helpers::add_input_file(interface, base_path);
 
         let mut arguments = Vec::with_capacity(8);
         arguments.push(model.compiler.language_level_arg());
@@ -266,7 +264,7 @@ mod sources {
                 commands.generated_files_paths.push(miu_file_path.clone());
                 arguments.push(miu_file_path);
                 // The input file
-                arguments.push(Argument::from(&input_file));
+                arguments.push(Argument::from(&interface.file));
             }
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("/EHsc"));
@@ -308,7 +306,7 @@ mod sources {
                 }
                 arguments.push(Argument::from("/TP"));
                 // The input file
-                arguments.push(Argument::from(&input_file))
+                arguments.push(Argument::from(&interface.file))
             }
             CppCompiler::GCC => {
                 arguments.push(Argument::from("-fmodules-ts"));
@@ -316,7 +314,7 @@ mod sources {
                 arguments.push(Argument::from("c++"));
                 arguments.push(Argument::from("-c"));
                 // The input file
-                arguments.push(Argument::from(&input_file));
+                arguments.push(Argument::from(&interface.file));
                 // The output file
                 arguments.push(Argument::from("-o"));
                 let miu_file_path =
@@ -326,17 +324,19 @@ mod sources {
             }
         }
 
-        let translation_unit_path = PathBuf::from(base_path).join(interface.file);
         // Code on the if branch is provisional, until Clang implements `import std;`
         let processed_cache = if compiler.eq(&CppCompiler::CLANG) {
-            log::debug!("Module unit {:?} will be rebuilt since we've detected that you are using Clang", interface.module_name);
+            log::debug!(
+                "Module unit {:?} will be rebuilt since we've detected that you are using Clang",
+                interface.module_name
+            );
             false
         } else {
-            helpers::flag_modules_without_changes(cache, &translation_unit_path)
+            helpers::flag_modules_without_changes(cache, &interface.file)
         };
 
         let command_line = ModuleCommandLine {
-            path: translation_unit_path,
+            path: interface.file.clone(),
             args: arguments,
             processed: processed_cache,
             execution_result: CommandExecutionResult::default(),
@@ -352,9 +352,7 @@ mod sources {
         commands: &mut Commands<'a>,
     ) {
         let compiler = &model.compiler.cpp_compiler;
-        let base_path = model.modules.base_impls_dir;
         let out_dir = model.build.output_dir;
-        let input_file = helpers::add_input_file(implementation, base_path);
 
         let mut arguments = Vec::with_capacity(12);
         arguments.push(model.compiler.language_level_arg());
@@ -384,7 +382,7 @@ mod sources {
                 );
 
                 // The input file
-                arguments.push(Argument::from(&input_file))
+                arguments.push(Argument::from(&implementation.file))
             }
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("/EHsc"));
@@ -400,7 +398,7 @@ mod sources {
                         .join("interfaces"),
                 ));
                 // The input file
-                arguments.push(Argument::from(&input_file));
+                arguments.push(Argument::from(&implementation.file));
                 // The output .obj file
                 let obj_file_path = out_dir
                     .join(compiler.as_ref())
@@ -418,7 +416,7 @@ mod sources {
                 arguments.push(Argument::from("-fmodules-ts"));
                 arguments.push(Argument::from("-c"));
                 // The input file
-                arguments.push(Argument::from(&input_file));
+                arguments.push(Argument::from(&implementation.file));
                 // The output file
                 arguments.push(Argument::from("-o"));
                 let obj_file_path = Argument::from(helpers::generate_impl_obj_file(
@@ -431,11 +429,10 @@ mod sources {
             }
         }
 
-        let translation_unit_path = PathBuf::from(base_path).join(implementation.file);
         let command_line = ModuleCommandLine {
-            path: translation_unit_path.clone(),
+            path: implementation.file.clone(),
             args: arguments,
-            processed: helpers::flag_modules_without_changes(cache, &translation_unit_path),
+            processed: helpers::flag_modules_without_changes(cache, &implementation.file),
             execution_result: CommandExecutionResult::default(),
         };
         commands.implementations.push(command_line);
@@ -455,15 +452,6 @@ mod helpers {
         cli::output::commands::{CommandExecutionResult, ModuleCommandLine},
     };
     use std::path::PathBuf;
-
-    /// Formats the string that represents an input file that will be the target of
-    /// the build process and that will be passed to the compiler
-    pub(crate) fn add_input_file<T: TranslationUnit>(
-        translation_unit: &T,
-        base_path: &Path,
-    ) -> PathBuf {
-        base_path.join(translation_unit.file())
-    }
 
     /// Creates the path for a prebuilt module interface, based on the default expected
     /// extension for BMI's given a compiler
@@ -519,7 +507,7 @@ mod helpers {
     }
 
     /// System headers as can be imported as modules must be built before being imported.
-    /// First it will compare with the elements stored in the caché, and only we will
+    /// First it will compare with the elements stored in the cache, and only we will
     /// generate commands for the non processed elements yet.
     ///
     /// This is for `GCC` and `Clang`

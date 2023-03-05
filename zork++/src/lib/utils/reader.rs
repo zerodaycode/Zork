@@ -129,6 +129,7 @@ fn assemble_build_model<'a>(config: &'a Option<BuildAttribute>) -> BuildModel<'a
     }
 }
 
+//noinspection ALL
 fn assemble_executable_model<'a>(
     project_name: &'a str,
     config: &'a Option<ExecutableAttribute>,
@@ -180,7 +181,11 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
 
     let interfaces = config
         .and_then(|modules| modules.interfaces.as_ref())
-        .map(|ifcs| ifcs.iter().map(assemble_module_interface_model).collect())
+        .map(|ifcs| {
+            ifcs.iter()
+                .map(|m_ifc| assemble_module_interface_model(m_ifc, base_ifcs_dir))
+                .collect()
+        })
         .unwrap_or_default();
 
     let base_impls_dir = config
@@ -192,7 +197,7 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
         .map(|impls| {
             impls
                 .iter()
-                .map(assemble_module_implementation_model)
+                .map(|m_impl| assemble_module_implementation_model(m_impl, base_impls_dir))
                 .collect()
         })
         .unwrap_or_default();
@@ -210,7 +215,10 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
     }
 }
 
-fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInterfaceModel<'a> {
+fn assemble_module_interface_model<'a>(
+    config: &'a ModuleInterface,
+    base_path: &str,
+) -> ModuleInterfaceModel<'a> {
     let module_name = config.module_name.unwrap_or_else(|| {
         Path::new(config.file)
             .file_stem()
@@ -229,7 +237,7 @@ fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInt
     };
 
     ModuleInterfaceModel {
-        file: Path::new(config.file),
+        file: Path::new(base_path).join(config.file),
         module_name,
         partition,
         dependencies,
@@ -238,6 +246,7 @@ fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInt
 
 fn assemble_module_implementation_model<'a>(
     config: &'a ModuleImplementation,
+    base_path: &str
 ) -> ModuleImplementationModel<'a> {
     let mut dependencies = config.dependencies.clone().unwrap_or_default();
     if dependencies.is_empty() {
@@ -251,7 +260,7 @@ fn assemble_module_implementation_model<'a>(
     }
 
     ModuleImplementationModel {
-        file: Path::new(config.file),
+        file: Path::new(base_path).join(config.file),
         dependencies,
     }
 }
@@ -398,13 +407,13 @@ mod test {
                 base_ifcs_dir: Path::new("ifc"),
                 interfaces: vec![
                     ModuleInterfaceModel {
-                        file: Path::new("math.cppm"),
+                        file: PathBuf::from(Path::new("math.cppm")),
                         module_name: "math",
                         partition: None,
                         dependencies: vec![],
                     },
                     ModuleInterfaceModel {
-                        file: Path::new("some_module.cppm"),
+                        file: PathBuf::from(Path::new("some_module.cppm")),
                         module_name: "math",
                         partition: None,
                         dependencies: vec![],

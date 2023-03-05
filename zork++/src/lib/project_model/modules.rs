@@ -1,5 +1,5 @@
 use core::fmt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::{bounds::TranslationUnit, config_file::modules::ModulePartition};
 
@@ -14,7 +14,7 @@ pub struct ModulesModel<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleInterfaceModel<'a> {
-    pub file: &'a Path,
+    pub file: PathBuf,
     pub module_name: &'a str,
     pub partition: Option<ModulePartitionModel<'a>>,
     pub dependencies: Vec<&'a str>,
@@ -32,13 +32,13 @@ impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
 
 impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
     fn file(&self) -> &Path {
-        self.file
+        &self.file
     }
 }
 
 impl<'a> TranslationUnit for &'a ModuleInterfaceModel<'a> {
     fn file(&self) -> &Path {
-        self.file
+        &self.file
     }
 }
 
@@ -61,7 +61,7 @@ impl<'a> From<&ModulePartition<'a>> for ModulePartitionModel<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleImplementationModel<'a> {
-    pub file: &'a Path,
+    pub file: PathBuf,
     pub dependencies: Vec<&'a str>,
 }
 
@@ -73,12 +73,12 @@ impl<'a> fmt::Display for ModuleImplementationModel<'a> {
 
 impl<'a> TranslationUnit for ModuleImplementationModel<'a> {
     fn file(&self) -> &Path {
-        self.file
+        &self.file
     }
 }
 
 impl<'a> TranslationUnit for &'a ModuleImplementationModel<'a> {
     fn file(&self) -> &Path {
-        self.file
+        &self.file
     }
 }
