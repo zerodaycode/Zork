@@ -1,4 +1,4 @@
-//! The crate responsable for executing the core work of `Zork++`,
+//! The crate responsible for executing the core work of `Zork++`,
 // generate command lines and execute them in a shell of the current
 // operating system against the designed compilers in the configuration
 // file.
@@ -328,8 +328,8 @@ mod sources {
 
         let translation_unit_path = PathBuf::from(base_path).join(interface.file);
         // Code on the if branch is provisional, until Clang implements `import std;`
-        let processed_cache = if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
-            log::debug!("Module unit {:?} will be rebuilt since we've detected that you are using Clang on Windows", interface.module_name);
+        let processed_cache = if compiler.eq(&CppCompiler::CLANG) {
+            log::debug!("Module unit {:?} will be rebuilt since we've detected that you are using Clang", interface.module_name);
             false
         } else {
             helpers::flag_modules_without_changes(cache, &translation_unit_path)

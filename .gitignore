@@ -1,6 +1,9 @@
 # For testing the project in place
 notes.txt
+zork.*
+zork++.*
 example/
+example_project/
 out/
 gcm.cache/
 github-example/
