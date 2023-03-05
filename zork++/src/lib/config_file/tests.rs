@@ -2,11 +2,10 @@
 use serde::*;
 
 /// [`TestsAttribute`] - Tests attribute allows you to run the tests written for your application in a convenient way
-/// * `tests_executable_name` - This is names executions test
-/// * `sources_base_path` - Directoties source tests
-/// * `sources` - Define extension files to tests
-/// * `auto_run_tests` - Define if required run test after build
-/// * `extra_args`- Define command to added properties test execution
+/// * `tests_executable_name` - The name of the generated binary
+/// * `sources_base_path` - Base common path for the source files
+/// * `sources` - All the source files that must be included
+/// * `extra_args`- Extra arguments to add to the generated command line(s)
 ///
 /// ### Tests
 ///
