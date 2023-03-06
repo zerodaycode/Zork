@@ -126,11 +126,10 @@ impl ZorkCache {
         commands: Commands<'_>,
         test_mode: bool,
     ) -> Result<()> {
+        self.save_generated_commands(&commands);
         if program_data.project.compilation_db {
-            // TODO Read prev changes and compare without regenerate
             map_generated_commands_to_compilation_db(program_data, &commands, test_mode)?;
         }
-        self.save_generated_commands(commands);
 
         if !(program_data.compiler.cpp_compiler == CppCompiler::MSVC) {
             self.compilers_metadata.system_modules = program_data
@@ -144,7 +143,7 @@ impl ZorkCache {
         Ok(())
     }
 
-    fn save_generated_commands(&mut self, commands: Commands<'_>) {
+    fn save_generated_commands(&mut self, commands: &Commands<'_>) {
         log::trace!("Storing in the cache the last generated command lines...");
         self.generated_commands.compiler = commands.compiler;
         let process_no = if !self.generated_commands.details.is_empty() {
@@ -195,7 +194,7 @@ impl ZorkCache {
             );
 
         commands_details.main = MainCommandLineDetail {
-            files: commands.sources.sources_paths,
+            files: commands.sources.sources_paths.clone(),
             execution_result: commands.sources.execution_result.clone(),
             command: commands
                 .sources

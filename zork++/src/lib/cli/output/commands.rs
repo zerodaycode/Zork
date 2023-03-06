@@ -55,11 +55,9 @@ pub fn run_generated_commands(
                 let r = execute_command(&commands.compiler, &implm.args, &cache);
                 implm.execution_result = CommandExecutionResult::from(&r);
                 if let Err(e) = r {
-                    cache::save(program_data, cache, commands, test_mode)?;
                     return Err(e);
                 } else if !r.as_ref().unwrap().success() {
                     let c_miu = implm.clone();
-                    cache::save(program_data, cache, commands, test_mode)?;
                     return Err(eyre!(
                         "Ending the program, because the build of: {:?} wasn't ended successfully",
                         c_miu.path

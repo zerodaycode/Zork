@@ -99,6 +99,9 @@ fn prebuild_module_interfaces<'a>(
             command_line.execution_result = CommandExecutionResult::Cached;
             log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file);
             commands.interfaces.push(command_line);
+            commands.generated_files_paths.push(Argument::from(helpers::generate_prebuild_miu(
+                model.compiler.cpp_compiler, model.build.output_dir, module_interface
+            )))
         }
     });
 }
@@ -124,6 +127,9 @@ fn compile_module_implementations<'a>(
             command_line.execution_result = CommandExecutionResult::Cached;
             log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file);
             commands.interfaces.push(command_line);
+            commands.generated_files_paths.push(Argument::from(helpers::generate_impl_obj_file(
+                model.compiler.cpp_compiler, model.build.output_dir, module_impl
+            )))
         }
     });
 }
@@ -256,13 +262,13 @@ mod sources {
         interface: &'a ModuleInterfaceModel,
         commands: &mut Commands<'a>,
     ) {
-        let compiler = &model.compiler.cpp_compiler;
+        let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir;
 
         let mut arguments = Vec::with_capacity(8);
         arguments.push(model.compiler.language_level_arg());
 
-        match *compiler {
+        match compiler {
             CppCompiler::CLANG => {
                 arguments.extend(clang_args::add_std_lib(model));
                 arguments.push(Argument::from("-fimplicit-modules"));
@@ -276,7 +282,7 @@ mod sources {
                     "-fprebuilt-module-path={}/clang/modules/interfaces",
                     out_dir.display()
                 )));
-                clang_args::add_direct_module_interfafces_dependencies(
+                clang_args::add_direct_module_interfaces_dependencies(
                     &interface.dependencies,
                     compiler,
                     out_dir,
@@ -366,13 +372,13 @@ mod sources {
         implementation: &'a ModuleImplementationModel,
         commands: &mut Commands<'a>,
     ) {
-        let compiler = &model.compiler.cpp_compiler;
+        let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir;
 
         let mut arguments = Vec::with_capacity(12);
         arguments.push(model.compiler.language_level_arg());
 
-        match *compiler {
+        match compiler {
             CppCompiler::CLANG => {
                 arguments.extend(clang_args::add_std_lib(model));
                 arguments.push(Argument::from("-fimplicit-modules"));
@@ -389,7 +395,7 @@ mod sources {
                 commands.generated_files_paths.push(obj_file_path.clone());
                 arguments.push(obj_file_path);
 
-                clang_args::add_direct_module_interfafces_dependencies(
+                clang_args::add_direct_module_interfaces_dependencies(
                     &implementation.dependencies,
                     compiler,
                     out_dir,
@@ -476,7 +482,7 @@ mod helpers {
     /// `export module dotted.module`, in Clang, due to the expected `.pcm` extension, the final path
     /// will be generated as `dotted.pcm`, instead `dotted.module.pcm`.
     pub(crate) fn generate_prebuild_miu(
-        compiler: &CppCompiler,
+        compiler: CppCompiler,
         out_dir: &Path,
         interface: &ModuleInterfaceModel,
     ) -> PathBuf {
@@ -509,7 +515,7 @@ mod helpers {
     }
 
     pub(crate) fn generate_impl_obj_file(
-        compiler: &CppCompiler,
+        compiler: CppCompiler,
         out_dir: &Path,
         implementation: &ModuleImplementationModel,
     ) -> PathBuf {
@@ -598,7 +604,7 @@ mod helpers {
     /// True means already processed and previous iteration Success
     pub(crate) fn flag_modules_without_changes(compiler: &CppCompiler, cache: &ZorkCache, file: &Path) -> bool {
         if compiler.eq(&CppCompiler::CLANG) {
-            log::debug!("Module unit {file:?} will be rebuilt since we've detected that you are using Clang");
+            log::trace!("Module unit {file:?} will be rebuilt since we've detected that you are using Clang");
         }
         // Check first if the file is already on the cache, and if it's last iteration was successful
         if let Some(cached_file) = cache.is_file_cached(file) {

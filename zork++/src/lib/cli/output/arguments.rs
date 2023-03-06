@@ -72,7 +72,7 @@ pub mod clang_args {
             Argument::from(format!(
                 "-fmodule-map-file={}",
                 out_dir
-                    .join("../zork")
+                    .join("zork")
                     .join("intrinsics")
                     .join("zork.modulemap")
                     .display()
@@ -93,9 +93,9 @@ pub mod clang_args {
         None
     }
 
-    pub(crate) fn add_direct_module_interfafces_dependencies(
+    pub(crate) fn add_direct_module_interfaces_dependencies(
         dependencies: &[&str],
-        compiler: &CppCompiler,
+        compiler: CppCompiler,
         out_dir: &Path,
         arguments: &mut Vec<Argument>,
     ) {
