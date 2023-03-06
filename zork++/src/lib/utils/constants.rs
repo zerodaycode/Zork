@@ -22,6 +22,7 @@ pub const CONFIG_FILE_MOCK: &str = r#"
 [project]
 name = "Zork++"
 authors = ["zerodaycode.gz@gmail.com"]
+compilation_db = true
 
 [compiler]
 cpp_compiler = "clang"
@@ -39,6 +40,7 @@ sources = [
     "*.cpp"
 ]
 extra_args = [ "-Werr" ]
+main = "main.cpp"
 
 [tests]
 test_executable_name = "zork_check"
@@ -46,6 +48,7 @@ sources_base_path = "test"
 sources = [
     "*.cpp"
 ]
+main = "test_main.cpp"
 extra_args = [ "-pedantic" ]
 
 [modules]

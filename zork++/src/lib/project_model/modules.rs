@@ -14,7 +14,8 @@ pub struct ModulesModel<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleInterfaceModel<'a> {
-    pub file: PathBuf,
+    pub path: PathBuf,
+    pub extension: String,
     pub module_name: &'a str,
     pub partition: Option<ModulePartitionModel<'a>>,
     pub dependencies: Vec<&'a str>,
@@ -24,22 +25,30 @@ impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "({:?}, {:?}, {:?}, {:?})",
-            self.file, self.module_name, self.dependencies, self.partition
+            "({:?}.{:?}., {:?}, {:?}, {:?})",
+            self.path, self.extension, self.module_name, self.dependencies, self.partition
         )
     }
 }
 
 impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
-    fn file(&self) -> &Path {
-        &self.file
+    fn file(&self) -> PathBuf {
+        self.path.with_extension(self.extension.clone())
     }
+    fn path(&self) -> PathBuf {
+        self.path.clone()
+    }
+    fn extension(&self) -> String { self.extension.to_string() }
 }
 
 impl<'a> TranslationUnit for &'a ModuleInterfaceModel<'a> {
-    fn file(&self) -> &Path {
-        &self.file
+    fn file(&self) -> PathBuf {
+        self.path.with_extension(self.extension.clone())
     }
+    fn path(&self) -> PathBuf {
+        self.path.clone()
+    }
+    fn extension(&self) -> String { self.extension.to_string() }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -61,24 +70,29 @@ impl<'a> From<&ModulePartition<'a>> for ModulePartitionModel<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleImplementationModel<'a> {
-    pub file: PathBuf,
+    pub path: PathBuf,
+    pub extension: String,
     pub dependencies: Vec<&'a str>,
 }
 
 impl<'a> fmt::Display for ModuleImplementationModel<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({:?}, {:?})", self.file, self.dependencies)
+        write!(f, "({:?}, {:?})", self.path, self.dependencies)
     }
 }
 
 impl<'a> TranslationUnit for ModuleImplementationModel<'a> {
-    fn file(&self) -> &Path {
-        &self.file
+    fn file(&self) -> PathBuf {
+        self.path.with_extension(self.extension.clone())
     }
+    fn path(&self) -> PathBuf { self.path.clone() }
+    fn extension(&self) -> String { self.extension.to_string() }
 }
 
 impl<'a> TranslationUnit for &'a ModuleImplementationModel<'a> {
-    fn file(&self) -> &Path {
-        &self.file
+    fn file(&self) -> PathBuf {
+        self.path.with_extension(self.extension.clone())
     }
+    fn path(&self) -> PathBuf { self.path.clone() }
+    fn extension(&self) -> String { self.extension.to_string() }
 }

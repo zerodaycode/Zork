@@ -2,6 +2,7 @@
 //! or collections of command line arguments
 
 use std::{borrow::Borrow, ffi::OsStr, path::PathBuf};
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +23,12 @@ impl<'a> From<String> for Argument<'a> {
         Self {
             value: Box::leak(value.into_boxed_str()),
         }
+    }
+}
+
+impl<'a> From<&'a Path> for Argument<'a> {
+    fn from(value: &'a Path) -> Self {
+        Self::from(format!("{}", value.display()))
     }
 }
 

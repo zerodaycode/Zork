@@ -1,5 +1,6 @@
 use core::fmt::Debug;
 use std::{fmt::Display, path::Path};
+use std::path::PathBuf;
 
 use crate::{cli::output::arguments::Argument, project_model::sourceset::SourceSet};
 
@@ -17,31 +18,27 @@ pub trait ExecutableTarget<'a>: ExtraArgs<'a> {
 /// Represents any kind of translation unit and the generic operations
 /// applicable to all the implementors
 pub trait TranslationUnit: Display + Debug {
-    /// Outputs the declared path for `self`, being self the translation unit
-    fn file(&self) -> &Path;
+    /// Returns the file, being the addition of the path property plus the extension property
+    fn file(&self) -> PathBuf;
 
-    fn filestem(&self) -> &str {
-        self.file()
+    /// Outputs the declared path for `self`, being self the translation unit
+    fn path(&self) -> PathBuf;
+
+    /// Outputs the declared extension for `self`
+    fn extension(&self) -> String;
+
+    fn filestem(&self) -> String {
+        self.path()
             .file_stem()
             .unwrap_or_else(|| {
                 panic!(
                     "Unexpected error getting the filename of {:?}",
-                    self.file().as_os_str()
+                    self.path().with_extension(self.extension())
                 )
             })
             .to_str()
             .unwrap()
+            .to_string()
     }
 }
 
-impl TranslationUnit for &str {
-    fn file(&self) -> &Path {
-        Path::new(self)
-    }
-}
-
-impl TranslationUnit for String {
-    fn file(&self) -> &Path {
-        Path::new(self)
-    }
-}

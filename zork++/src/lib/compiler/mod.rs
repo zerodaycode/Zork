@@ -15,6 +15,7 @@ use crate::{
         ZorkModel,
     },
 };
+use crate::bounds::TranslationUnit;
 use crate::cli::output::commands::{CommandExecutionResult, ModuleCommandLine};
 use crate::compiler::helpers::flag_modules_without_changes;
 
@@ -87,17 +88,17 @@ fn prebuild_module_interfaces<'a>(
     commands: &mut Commands<'a>,
 ) {
     interfaces.iter().for_each(|module_interface| {
-        if !flag_modules_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file) {
+        if !flag_modules_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file()) {
             sources::generate_module_interfaces_args(model, module_interface, commands);
         } else {
             let mut command_line = ModuleCommandLine {
-                path: module_interface.file.clone(),
+                path: module_interface.file().to_path_buf(),
                 args: Vec::with_capacity(0),
                 processed: true,
                 execution_result: CommandExecutionResult::default(),
             };
             command_line.execution_result = CommandExecutionResult::Cached;
-            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file);
+            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
             commands.interfaces.push(command_line);
             commands.generated_files_paths.push(Argument::from(helpers::generate_prebuild_miu(
                 model.compiler.cpp_compiler, model.build.output_dir, module_interface
@@ -115,17 +116,17 @@ fn compile_module_implementations<'a>(
     commands: &mut Commands<'a>,
 ) {
     impls.iter().for_each(|module_impl| {
-        if !flag_modules_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file) {
+        if !flag_modules_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file()) {
             sources::generate_module_implementation_args(model, module_impl, commands);
         } else {
             let mut command_line = ModuleCommandLine {
-                path: module_impl.file.clone(),
+                path: module_impl.file().to_path_buf(),
                 args: Vec::with_capacity(0),
                 processed: true,
                 execution_result: CommandExecutionResult::default(),
             };
             command_line.execution_result = CommandExecutionResult::Cached;
-            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file);
+            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
             commands.interfaces.push(command_line);
             commands.generated_files_paths.push(Argument::from(helpers::generate_impl_obj_file(
                 model.compiler.cpp_compiler, model.build.output_dir, module_impl
@@ -297,7 +298,7 @@ mod sources {
                 commands.generated_files_paths.push(miu_file_path.clone());
                 arguments.push(miu_file_path);
                 // The input file
-                arguments.push(Argument::from(&interface.file));
+                arguments.push(Argument::from(interface.file()));
             }
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("/EHsc"));
@@ -334,7 +335,7 @@ mod sources {
                 }
                 arguments.push(Argument::from("/TP"));
                 // The input file
-                arguments.push(Argument::from(&interface.file))
+                arguments.push(Argument::from(interface.file()))
             }
             CppCompiler::GCC => {
                 arguments.push(Argument::from("-fmodules-ts"));
@@ -342,7 +343,7 @@ mod sources {
                 arguments.push(Argument::from("c++"));
                 arguments.push(Argument::from("-c"));
                 // The input file
-                arguments.push(Argument::from(&interface.file));
+                arguments.push(Argument::from(interface.file()));
                 // The output file
                 arguments.push(Argument::from("-o"));
                 let miu_file_path =
@@ -353,7 +354,7 @@ mod sources {
         }
 
         let command_line = ModuleCommandLine {
-            path: interface.file.clone(),
+            path: interface.file().to_path_buf(),
             args: arguments,
             processed: false,
             execution_result: CommandExecutionResult::default(),
@@ -398,7 +399,7 @@ mod sources {
                 );
 
                 // The input file
-                arguments.push(Argument::from(&implementation.file))
+                arguments.push(Argument::from(implementation.file()))
             }
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("/EHsc"));
@@ -414,7 +415,7 @@ mod sources {
                         .join("interfaces"),
                 ));
                 // The input file
-                arguments.push(Argument::from(&implementation.file));
+                arguments.push(Argument::from(implementation.file()));
                 // The output .obj file
                 let obj_file_path = out_dir
                     .join(compiler.as_ref())
@@ -432,7 +433,7 @@ mod sources {
                 arguments.push(Argument::from("-fmodules-ts"));
                 arguments.push(Argument::from("-c"));
                 // The input file
-                arguments.push(Argument::from(&implementation.file));
+                arguments.push(Argument::from(implementation.file()));
                 // The output file
                 arguments.push(Argument::from("-o"));
                 let obj_file_path = Argument::from(helpers::generate_impl_obj_file(
@@ -446,7 +447,7 @@ mod sources {
         }
 
         let command_line = ModuleCommandLine {
-            path: implementation.file.clone(),
+            path: implementation.file().to_path_buf(),
             args: arguments,
             processed: false,
             execution_result: CommandExecutionResult::default(),
@@ -493,7 +494,7 @@ mod helpers {
                 if !partition.partition_name.is_empty() {
                     temp.push_str(partition.partition_name)
                 } else {
-                    temp.push_str(interface.filestem())
+                    temp.push_str(&interface.filestem())
                 }
             } else {
                 temp.push_str(interface.module_name)
