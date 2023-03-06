@@ -315,17 +315,12 @@ mod sources {
                 arguments.push(Argument::from("/ifcSearchDir"));
                 arguments.push(implicit_lookup_mius_path.clone().into());
                 arguments.push(Argument::from("/ifcOutput"));
-                arguments.push(implicit_lookup_mius_path.clone().into());
+                arguments.push(implicit_lookup_mius_path.into());
 
                 // The output .obj file
-                let obj_file = format!(
-                    "{}",
-                    Path::new(&implicit_lookup_mius_path)
-                        .join(interface.filestem())
-                        .with_extension(compiler.get_obj_file_extension())
-                        .display()
-                );
-                commands.generated_files_paths.push(obj_file.clone().into());
+                let obj_file =
+                    Argument::from(helpers::generate_prebuild_miu(compiler, out_dir, interface));
+                commands.generated_files_paths.push(obj_file.clone());
                 arguments.push(Argument::from(format!("/Fo{obj_file}")));
 
                 if let Some(partition) = &interface.partition {
@@ -481,6 +476,10 @@ mod helpers {
     /// dots in their module identifier declaration. So, for example, a module with a declaration of:
     /// `export module dotted.module`, in Clang, due to the expected `.pcm` extension, the final path
     /// will be generated as `dotted.pcm`, instead `dotted.module.pcm`.
+    ///
+    /// For MSVC, we are relying in the autogenerate of the BMI automatically by the compiler,
+    /// so the output file that we need is an obj file (.obj), and not the
+    /// binary module interface (.ifc)
     pub(crate) fn generate_prebuild_miu(
         compiler: CppCompiler,
         out_dir: &Path,
@@ -510,7 +509,9 @@ mod helpers {
             .join("interfaces")
             .join(format!(
                 "{mod_unit}.{}",
-                compiler.get_typical_bmi_extension()
+                if compiler.eq(&CppCompiler::MSVC) {
+                    compiler.get_obj_file_extension()
+                } else { compiler.get_typical_bmi_extension() }
             ))
     }
 
