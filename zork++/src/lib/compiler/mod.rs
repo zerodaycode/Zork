@@ -92,7 +92,7 @@ fn prebuild_module_interfaces<'a>(
             sources::generate_module_interfaces_args(model, module_interface, commands);
         } else {
             let mut command_line = ModuleCommandLine {
-                path: module_interface.file().to_path_buf(),
+                path: module_interface.file(),
                 args: Vec::with_capacity(0),
                 processed: true,
                 execution_result: CommandExecutionResult::default(),
@@ -120,7 +120,7 @@ fn compile_module_implementations<'a>(
             sources::generate_module_implementation_args(model, module_impl, commands);
         } else {
             let mut command_line = ModuleCommandLine {
-                path: module_impl.file().to_path_buf(),
+                path: module_impl.file(),
                 args: Vec::with_capacity(0),
                 processed: true,
                 execution_result: CommandExecutionResult::default(),
@@ -447,7 +447,7 @@ mod sources {
         }
 
         let command_line = ModuleCommandLine {
-            path: implementation.file().to_path_buf(),
+            path: implementation.file(),
             args: arguments,
             processed: false,
             execution_result: CommandExecutionResult::default(),

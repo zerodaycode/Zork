@@ -33,7 +33,10 @@ impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
 
 impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
     fn file(&self) -> PathBuf {
-        self.path.with_extension(self.extension.clone())
+        let mut tmp = self.path.clone().into_os_string();
+        tmp.push(".");
+        tmp.push(self.extension.clone());
+        PathBuf::from(tmp)
     }
     fn path(&self) -> PathBuf {
         self.path.clone()
