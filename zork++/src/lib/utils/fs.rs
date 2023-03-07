@@ -1,9 +1,10 @@
-use std::{env, fs::{DirBuilder, File}, fs, io::{BufReader, Write}, path::Path};
+use std::{fs::{DirBuilder, File}, io::{BufReader, Write}, path::Path};
+
 use std::path::PathBuf;
 
 use color_eyre::{eyre::Context, Result};
 use color_eyre::eyre::ContextCompat;
-use color_eyre::owo_colors::OwoColorize;
+
 use serde::{Deserialize, Serialize};
 
 use super::constants;
@@ -35,6 +36,22 @@ pub fn get_absolute_path<P: AsRef<Path>>(p: P) -> Result<PathBuf> {
     let r = Ok(canonical.parent().unwrap_or_else(|| panic!("Unexpected error getting the parent of {:?}", p.as_ref())).join(file_stem));
     println!("Generated file: {:?}, file stem: {file_stem:?}, and canonical: {canonical:?}", &r);
     r
+}
+
+///
+pub fn get_file_details<P: AsRef<Path>>(p: P) -> Result<(PathBuf, String, String)> {
+    let mut canonical = p.as_ref().canonicalize().with_context(|| format!("Error getting the canonical path for: {:?}", p.as_ref()))?;
+    if cfg!(target_os = "windows") {
+        canonical = canonical.to_str().map(|unc| &unc[4..]).unwrap_or_default().into()
+    }
+    let file_stem = canonical.file_stem().with_context(|| format!("Unable to get the file stem for {:?}", p.as_ref()))?;
+
+    Ok((
+        canonical.parent().unwrap_or_else(|| panic!("Unexpected error getting the parent of {:?}", p.as_ref())).to_path_buf(),
+        file_stem.to_str().unwrap_or_default().to_string(),
+        canonical.extension()
+            .map_or_else(|| String::with_capacity(0), |os_str| os_str.to_str().unwrap_or_default().to_string())
+    ))
 }
 
 /// Returns the declared extension for a file, if exists

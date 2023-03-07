@@ -2,7 +2,7 @@ use crate::{
     bounds::{ExecutableTarget, ExtraArgs},
     cli::output::arguments::Argument,
 };
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::sourceset::SourceSet;
 
@@ -10,7 +10,7 @@ use super::sourceset::SourceSet;
 pub struct ExecutableModel<'a> {
     pub executable_name: &'a str,
     pub sourceset: SourceSet<'a>,
-    pub main: &'a Path,
+    pub main: PathBuf,
     pub extra_args: Vec<Argument<'a>>,
 }
 
@@ -24,7 +24,7 @@ impl<'a> ExecutableTarget<'a> for ExecutableModel<'a> {
     fn name(&'a self) -> &'a str {
         self.executable_name
     }
-
+    fn entry_point(&'a self) -> &'a Path { &self.main }
     fn sourceset(&'a self) -> &'a SourceSet<'a> {
         &self.sourceset
     }

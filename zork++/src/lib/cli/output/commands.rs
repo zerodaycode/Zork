@@ -16,6 +16,7 @@ use color_eyre::{
     Report, Result,
 };
 use serde::{Deserialize, Serialize};
+use crate::bounds::TranslationUnit;
 
 use super::arguments::Argument;
 
@@ -40,7 +41,7 @@ pub fn run_generated_commands(
                     cache::save(program_data, cache, commands, test_mode)?;
                     return Err(eyre!(
                         "Ending the program, because the build of: {:?} wasn't ended successfully",
-                        c_miu.path
+                        c_miu.file
                     ));
                 }
             }
@@ -60,7 +61,7 @@ pub fn run_generated_commands(
                     let c_miu = implm.clone();
                     return Err(eyre!(
                         "Ending the program, because the build of: {:?} wasn't ended successfully",
-                        c_miu.path
+                        c_miu.file
                     ));
                 }
             }
@@ -160,20 +161,31 @@ fn execute_command(
 /// since the last iteration of Zork++
 #[derive(Debug, Clone)]
 pub struct ModuleCommandLine<'a> {
-    pub path: PathBuf,
+    pub directory: PathBuf,
+    pub file: String,
     pub args: Vec<Argument<'a>>,
     pub processed: bool,
     pub execution_result: CommandExecutionResult,
 }
 
-impl<'a> From<Vec<Argument<'a>>> for ModuleCommandLine<'a> {
-    fn from(value: Vec<Argument<'a>>) -> Self {
+impl<'a> ModuleCommandLine<'a> {
+    pub fn from_translation_unit(
+        tu: impl TranslationUnit,
+        args: Vec<Argument<'a>>,
+        processed: bool,
+        execution_result: CommandExecutionResult
+    ) -> Self {
         Self {
-            path: PathBuf::new(),
-            args: value,
-            processed: false,
-            execution_result: Default::default(),
+            directory: tu.path(),
+            file: tu.file_with_extension(),
+            args,
+            processed,
+            execution_result,
         }
+    }
+
+    pub fn path(&self) -> PathBuf {
+        self.directory.join(Path::new(&self.file))
     }
 }
 
@@ -186,11 +198,23 @@ impl<'a> IntoIterator for ModuleCommandLine<'a> {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct SourcesCommandLine<'a> {
+    pub main: &'a Path,
     pub sources_paths: Vec<PathBuf>,
     pub args: Vec<Argument<'a>>,
     pub execution_result: CommandExecutionResult,
+}
+
+impl<'a> Default for SourcesCommandLine<'a> {
+    fn default() -> Self {
+        Self {
+            main: Path::new("."),
+            sources_paths: Vec::with_capacity(0),
+            args: Vec::with_capacity(0),
+            execution_result: Default::default(),
+        }
+    }
 }
 
 /// Holds the generated command line arguments for a concrete compiler

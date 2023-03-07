@@ -91,13 +91,10 @@ fn prebuild_module_interfaces<'a>(
         if !flag_modules_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file()) {
             sources::generate_module_interfaces_args(model, module_interface, commands);
         } else {
-            let mut command_line = ModuleCommandLine {
-                path: module_interface.file(),
-                args: Vec::with_capacity(0),
-                processed: true,
-                execution_result: CommandExecutionResult::default(),
-            };
-            command_line.execution_result = CommandExecutionResult::Cached;
+            let command_line = ModuleCommandLine::from_translation_unit(
+                module_interface, Vec::with_capacity(0), true, CommandExecutionResult::Cached
+            );
+
             log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
             commands.interfaces.push(command_line);
             commands.generated_files_paths.push(Argument::from(helpers::generate_prebuild_miu(
@@ -119,15 +116,12 @@ fn compile_module_implementations<'a>(
         if !flag_modules_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file()) {
             sources::generate_module_implementation_args(model, module_impl, commands);
         } else {
-            let mut command_line = ModuleCommandLine {
-                path: module_impl.file(),
-                args: Vec::with_capacity(0),
-                processed: true,
-                execution_result: CommandExecutionResult::default(),
-            };
-            command_line.execution_result = CommandExecutionResult::Cached;
+            let command_line = ModuleCommandLine::from_translation_unit(
+                module_impl, Vec::with_capacity(0), true, CommandExecutionResult::Cached
+            );
+
             log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
-            commands.interfaces.push(command_line);
+            commands.implementations.push(command_line);
             commands.generated_files_paths.push(Argument::from(helpers::generate_impl_obj_file(
                 model.compiler.cpp_compiler, model.build.output_dir, module_impl
             )))
@@ -140,7 +134,6 @@ mod sources {
     use super::helpers;
     use crate::{
         bounds::{ExecutableTarget, TranslationUnit},
-        cache::ZorkCache,
         cli::output::{
             arguments::{clang_args, Argument},
             commands::{CommandExecutionResult, Commands, ModuleCommandLine},
@@ -153,7 +146,7 @@ mod sources {
         utils::constants,
     };
     use color_eyre::Result;
-    use std::path::Path;
+    
 
     /// Generates the command line arguments for non-module source files, including the one that
     /// holds the main function
@@ -246,6 +239,7 @@ mod sources {
         };
 
         target.sourceset().as_args_to(&mut arguments)?;
+        commands.sources.main = target.entry_point();
         commands.sources.args.extend(arguments.into_iter());
         commands.sources.sources_paths = target
             .sourceset()
@@ -353,12 +347,9 @@ mod sources {
             }
         }
 
-        let command_line = ModuleCommandLine {
-            path: interface.file().to_path_buf(),
-            args: arguments,
-            processed: false,
-            execution_result: CommandExecutionResult::default(),
-        };
+        let command_line = ModuleCommandLine::from_translation_unit(
+            interface, arguments, false, CommandExecutionResult::default()
+        );
         commands.interfaces.push(command_line);
     }
 
@@ -421,7 +412,7 @@ mod sources {
                     .join(compiler.as_ref())
                     .join("modules")
                     .join("implementations")
-                    .join(implementation.filestem())
+                    .join(implementation.file_stem())
                     .with_extension(compiler.get_obj_file_extension());
 
                 commands
@@ -446,12 +437,9 @@ mod sources {
             }
         }
 
-        let command_line = ModuleCommandLine {
-            path: implementation.file(),
-            args: arguments,
-            processed: false,
-            execution_result: CommandExecutionResult::default(),
-        };
+        let command_line = ModuleCommandLine::from_translation_unit(
+            implementation, arguments, false, CommandExecutionResult::default()
+        );
         commands.implementations.push(command_line);
     }
 }
@@ -494,7 +482,7 @@ mod helpers {
                 if !partition.partition_name.is_empty() {
                     temp.push_str(partition.partition_name)
                 } else {
-                    temp.push_str(&interface.filestem())
+                    temp.push_str(&interface.file_stem())
                 }
             } else {
                 temp.push_str(interface.module_name)
@@ -525,7 +513,7 @@ mod helpers {
             .join(compiler.as_ref())
             .join("modules")
             .join("implementations")
-            .join(implementation.filestem())
+            .join(implementation.file_stem())
             .with_extension(compiler.get_obj_file_extension())
     }
 
@@ -590,7 +578,8 @@ mod helpers {
         // independently, also check for execution independently
         for collection_args in sys_modules {
             commands.interfaces.push(ModuleCommandLine {
-                path: PathBuf::from(collection_args[4].value),
+                directory: PathBuf::with_capacity(0),
+                file: collection_args[4].value.to_string(),
                 args: collection_args,
                 processed: false,
                 execution_result: CommandExecutionResult::default(),

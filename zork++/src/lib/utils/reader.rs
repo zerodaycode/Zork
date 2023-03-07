@@ -157,7 +157,10 @@ fn assemble_executable_model<'a>(
         sources,
     };
 
-    let main = Path::new(config.map_or("", |exe_attr| exe_attr.main));
+    let entry_point_file_path = Path::new(base_path)
+        .join(config.map_or("", |exe_attr| exe_attr.main));
+    let main = utils::fs::get_absolute_path(entry_point_file_path)
+        .unwrap_or_default();
 
     let extra_args = config
         .and_then(|exe| exe.extra_args.as_ref())
@@ -237,12 +240,15 @@ fn assemble_module_interface_model<'a>(
         ))
     };
 
+    let file_details = utils::fs::get_file_details(file_path)
+        .unwrap_or_default(); // TODO Care with this, refactor
     ModuleInterfaceModel {
-        path: utils::fs::get_absolute_path(&file_path).expect("TODO Propagate error on get path"),
-        extension: utils::fs::get_file_extension(&file_path),
+        path: file_details.0,
+        file_stem: file_details.1,
+        extension: file_details.2,
         module_name,
         partition,
-        dependencies,
+        dependencies
     }
 }
 
@@ -262,9 +268,13 @@ fn assemble_module_implementation_model<'a>(
         }
     }
 
+    let file_details = utils::fs::get_file_details(file_path)
+        .unwrap_or_default(); // TODO Care with this, refactor
+
     ModuleImplementationModel {
-        path: utils::fs::get_absolute_path(&file_path).expect("TODO Propagate error on get path impl"),
-        extension: utils::fs::get_file_extension(&file_path),
+        path: file_details.0,
+        file_stem: file_details.1,
+        extension: file_details.2,
         dependencies,
     }
 }
@@ -300,7 +310,10 @@ fn assemble_tests_model<'a>(
         sources,
     };
 
-    let main = Path::new(config.map_or("", |test_attr| test_attr.main));
+    let entry_point_file_path = Path::new(base_path)
+        .join(config.map_or("defaulted", |test_attr| test_attr.main));
+    let main = utils::fs::get_absolute_path(entry_point_file_path)
+        .unwrap_or_default();
 
     let extra_args = config
         .and_then(|test| test.extra_args.as_ref())
@@ -318,6 +331,7 @@ fn assemble_tests_model<'a>(
 #[cfg(test)]
 mod test {
     use std::env;
+    use std::ffi::OsString;
     use crate::{
         project_model::compiler::{CppCompiler, LanguageLevel, StdLib},
         utils,
@@ -361,7 +375,7 @@ mod test {
                     base_path: Path::new("."),
                     sources: vec![],
                 },
-                main: Path::new("main.cpp"),
+                main: PathBuf::from("main.cpp"),
                 extra_args: vec![],
             },
             modules: ModulesModel {
@@ -377,7 +391,7 @@ mod test {
                     base_path: Path::new("."),
                     sources: vec![],
                 },
-                main: Path::new("main.cpp"),
+                main: PathBuf::from("main.cpp"),
                 extra_args: vec![],
             },
         };
@@ -414,21 +428,23 @@ mod test {
                     base_path: Path::new("bin"),
                     sources: vec![Source::Glob(GlobPattern("*.cpp"))],
                 },
-                main: Path::new("main.cpp"),
+                main: PathBuf::from("main.cpp"),
                 extra_args: vec![Argument::from("-Werr")],
             },
             modules: ModulesModel {
                 base_ifcs_dir: Path::new("ifc"),
                 interfaces: vec![
                     ModuleInterfaceModel {
-                        path: env::current_dir().unwrap().join("ifc\\math"),
+                        path: env::current_dir().unwrap().join("ifc"),
+                        file_stem: String::from("math"),
                         extension: String::from("cppm"),
                         module_name: "math",
                         partition: None,
                         dependencies: vec![],
                     },
                     ModuleInterfaceModel {
-                        path: env::current_dir().unwrap().join("ifc\\some_module"),
+                        path: env::current_dir().unwrap().join("ifc"),
+                        file_stem: String::from("some_module"),
                         extension: String::from("cppm"),
                         module_name: "math",
                         partition: None,
@@ -438,12 +454,14 @@ mod test {
                 base_impls_dir: Path::new("src"),
                 implementations: vec![
                     ModuleImplementationModel {
-                        path: env::current_dir().unwrap().join("\\src\\math"),
+                        path: env::current_dir().unwrap().join("\\src"),
+                        file_stem: String::from("math"),
                         extension: String::from("cpp"),
                         dependencies: vec!["math"],
                     },
                     ModuleImplementationModel {
-                        path: env::current_dir().unwrap().join("\\ifc\\some_module_impl"),
+                        path: env::current_dir().unwrap().join("\\ifc"),
+                        file_stem: String::from("some_module_impl"),
                         extension: String::from("cpp"),
                         dependencies: vec!["iostream"],
                     },
@@ -456,7 +474,7 @@ mod test {
                     base_path: Path::new("test"),
                     sources: vec![Source::Glob(GlobPattern("*.cpp"))],
                 },
-                main: Path::new("main.cpp"),
+                main: PathBuf::from("main.cpp"),
                 extra_args: vec![Argument::from("-pedantic")],
             },
         };

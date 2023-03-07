@@ -15,6 +15,7 @@ pub struct ModulesModel<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleInterfaceModel<'a> {
     pub path: PathBuf,
+    pub file_stem: String,
     pub extension: String,
     pub module_name: &'a str,
     pub partition: Option<ModulePartitionModel<'a>>,
@@ -26,32 +27,51 @@ impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
         write!(
             f,
             "({:?}.{:?}., {:?}, {:?}, {:?})",
-            self.path, self.extension, self.module_name, self.dependencies, self.partition
+            self.path, self.file_stem, self.module_name, self.dependencies, self.partition
         )
     }
 }
 
 impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
     fn file(&self) -> PathBuf {
-        let mut tmp = self.path.clone().into_os_string();
+        let mut tmp = self.path.join(&self.file_stem).into_os_string();
         tmp.push(".");
-        tmp.push(self.extension.clone());
+        tmp.push(&self.extension);
         PathBuf::from(tmp)
     }
+
     fn path(&self) -> PathBuf {
         self.path.clone()
     }
-    fn extension(&self) -> String { self.extension.to_string() }
+
+    fn file_stem(&self) -> String {
+        self.file_stem.clone()
+    }
+
+    fn extension(&self) -> String {
+        self.extension.clone()
+    }
 }
 
 impl<'a> TranslationUnit for &'a ModuleInterfaceModel<'a> {
     fn file(&self) -> PathBuf {
-        self.path.with_extension(self.extension.clone())
+        let mut tmp = self.path.join(&self.file_stem).into_os_string();
+        tmp.push(".");
+        tmp.push(&self.extension);
+        PathBuf::from(tmp)
     }
+
     fn path(&self) -> PathBuf {
         self.path.clone()
     }
-    fn extension(&self) -> String { self.extension.to_string() }
+
+    fn file_stem(&self) -> String {
+        self.file_stem.clone()
+    }
+
+    fn extension(&self) -> String {
+        self.extension.clone()
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -74,6 +94,7 @@ impl<'a> From<&ModulePartition<'a>> for ModulePartitionModel<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleImplementationModel<'a> {
     pub path: PathBuf,
+    pub file_stem: String,
     pub extension: String,
     pub dependencies: Vec<&'a str>,
 }
@@ -86,16 +107,42 @@ impl<'a> fmt::Display for ModuleImplementationModel<'a> {
 
 impl<'a> TranslationUnit for ModuleImplementationModel<'a> {
     fn file(&self) -> PathBuf {
-        self.path.with_extension(self.extension.clone())
+        let mut tmp = self.path.join(&self.file_stem).into_os_string();
+        tmp.push(".");
+        tmp.push(&self.extension);
+        PathBuf::from(tmp)
     }
-    fn path(&self) -> PathBuf { self.path.clone() }
-    fn extension(&self) -> String { self.extension.to_string() }
+
+    fn path(&self) -> PathBuf {
+        self.path.clone()
+    }
+
+    fn file_stem(&self) -> String {
+        self.file_stem.clone()
+    }
+
+    fn extension(&self) -> String {
+        self.extension.clone()
+    }
 }
 
 impl<'a> TranslationUnit for &'a ModuleImplementationModel<'a> {
     fn file(&self) -> PathBuf {
-        self.path.with_extension(self.extension.clone())
+        let mut tmp = self.path.join(&self.file_stem).into_os_string();
+        tmp.push(".");
+        tmp.push(&self.extension);
+        PathBuf::from(tmp)
     }
-    fn path(&self) -> PathBuf { self.path.clone() }
-    fn extension(&self) -> String { self.extension.to_string() }
+
+    fn path(&self) -> PathBuf {
+        self.path.clone()
+    }
+
+    fn file_stem(&self) -> String {
+        self.file_stem.clone()
+    }
+
+    fn extension(&self) -> String {
+        self.extension.clone()
+    }
 }
