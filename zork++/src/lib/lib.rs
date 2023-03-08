@@ -104,13 +104,13 @@ pub mod worker {
                 commands = build_project(program_data, read_only_cache, false)
                     .with_context(|| "Failed to build project")?;
 
-                commands::run_generated_commands(program_data, commands, cache, false)
+                commands::run_generated_commands(program_data, commands, cache)
             }
             Command::Run => {
                 commands = build_project(program_data, read_only_cache, false)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, cache, false) {
+                match commands::run_generated_commands(program_data, commands, cache) {
                     Ok(_) => autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         program_data.build.output_dir,
@@ -123,7 +123,7 @@ pub mod worker {
                 commands = build_project(program_data, read_only_cache, true)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, cache, true) {
+                match commands::run_generated_commands(program_data, commands, cache) {
                     Ok(_) => autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         program_data.build.output_dir,

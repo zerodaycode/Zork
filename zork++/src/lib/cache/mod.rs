@@ -57,8 +57,7 @@ pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCach
 pub fn save(
     program_data: &ZorkModel<'_>,
     mut cache: ZorkCache,
-    commands: Commands<'_>,
-    test_mode: bool,
+    commands: Commands<'_>
 ) -> Result<()> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
@@ -66,7 +65,7 @@ pub fn save(
         .join(program_data.compiler.cpp_compiler.as_ref())
         .join(constants::ZORK_CACHE_FILENAME);
 
-    cache.run_final_tasks(program_data, commands, test_mode)?;
+    cache.run_final_tasks(program_data, commands)?;
     cache.last_program_execution = Utc::now();
 
     utils::fs::serialize_object_to_file(cache_path, &cache)
@@ -125,8 +124,7 @@ impl ZorkCache {
     pub fn run_final_tasks(
         &mut self,
         program_data: &ZorkModel<'_>,
-        commands: Commands<'_>,
-        test_mode: bool,
+        commands: Commands<'_>
     ) -> Result<()> {
         if self.save_generated_commands(&commands) && program_data.project.compilation_db {
             map_generated_commands_to_compilation_db(self)?;

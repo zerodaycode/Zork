@@ -23,8 +23,7 @@ use super::arguments::Argument;
 pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
     mut commands: Commands<'_>,
-    cache: ZorkCache,
-    test_mode: bool,
+    cache: ZorkCache
 ) -> Result<CommandExecutionResult> {
     if !commands.interfaces.is_empty() {
         log::debug!("Executing the commands for the module interfaces...");
@@ -34,11 +33,11 @@ pub fn run_generated_commands(
                 let r = execute_command(&commands.compiler, &miu.args, &cache);
                 miu.execution_result = CommandExecutionResult::from(&r);
                 if let Err(e) = r {
-                    cache::save(program_data, cache, commands, test_mode)?;
+                    cache::save(program_data, cache, commands)?;
                     return Err(e);
                 } else if !r.as_ref().unwrap().success() {
                     let c_miu = miu.clone();
-                    cache::save(program_data, cache, commands, test_mode)?;
+                    cache::save(program_data, cache, commands)?;
                     return Err(eyre!(
                         "Ending the program, because the build of: {:?} wasn't ended successfully",
                         c_miu.file
@@ -75,17 +74,17 @@ pub fn run_generated_commands(
         commands.sources.execution_result = CommandExecutionResult::from(&r);
 
         if let Err(e) = r {
-            cache::save(program_data, cache, commands, test_mode)?;
+            cache::save(program_data, cache, commands)?;
             return Err(e);
         } else if !r.as_ref().unwrap().success() {
-            cache::save(program_data, cache, commands, test_mode)?;
+            cache::save(program_data, cache, commands)?;
             return Err(eyre!(
                 "Ending the program, because the main command line execution wasn't ended successfully",
             ));
         }
     }
 
-    cache::save(program_data, cache, commands, test_mode)?;
+    cache::save(program_data, cache, commands)?;
     Ok(CommandExecutionResult::Success)
 }
 
