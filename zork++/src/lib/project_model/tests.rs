@@ -9,7 +9,7 @@ use super::sourceset::SourceSet;
 #[derive(Debug, PartialEq, Eq)]
 pub struct TestsModel<'a> {
     pub test_executable_name: String,
-    pub sourceset: SourceSet<'a>,
+    pub sourceset: SourceSet,
     pub main: PathBuf,
     pub extra_args: Vec<Argument<'a>>,
 }
@@ -24,8 +24,10 @@ impl<'a> ExecutableTarget<'a> for TestsModel<'a> {
     fn name(&'a self) -> &'a str {
         &self.test_executable_name
     }
-    fn entry_point(&'a self) -> &'a Path { &self.main }
-    fn sourceset(&'a self) -> &'a SourceSet<'a> {
+    fn entry_point(&'a self) -> &'a Path {
+        &self.main
+    }
+    fn sourceset(&'a self) -> &'a SourceSet {
         &self.sourceset
     }
 }

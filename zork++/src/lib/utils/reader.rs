@@ -1,26 +1,32 @@
-use crate::{cli::output::arguments::Argument, config_file::{
-    build::BuildAttribute,
-    compiler::CompilerAttribute,
-    executable::ExecutableAttribute,
-    modules::{ModuleImplementation, ModuleInterface, ModulesAttribute},
-    project::ProjectAttribute,
-    tests::TestsAttribute,
-    ZorkConfigFile,
-}, project_model::{
-    build::BuildModel,
-    compiler::CompilerModel,
-    executable::ExecutableModel,
-    modules::{
-        ModuleImplementationModel, ModuleInterfaceModel, ModulePartitionModel, ModulesModel,
+use crate::{
+    cli::output::arguments::Argument,
+    config_file::{
+        build::BuildAttribute,
+        compiler::CompilerAttribute,
+        executable::ExecutableAttribute,
+        modules::{ModuleImplementation, ModuleInterface, ModulesAttribute},
+        project::ProjectAttribute,
+        tests::TestsAttribute,
+        ZorkConfigFile,
     },
-    project::ProjectModel,
-    sourceset::{GlobPattern, Source, SourceSet},
-    tests::TestsModel,
-    ZorkModel,
-}, utils};
+    project_model::{
+        build::BuildModel,
+        compiler::CompilerModel,
+        executable::ExecutableModel,
+        modules::{
+            ModuleImplementationModel, ModuleInterfaceModel, ModulePartitionModel, ModulesModel,
+        },
+        project::ProjectModel,
+        sourceset::{GlobPattern, Source, SourceSet},
+        tests::TestsModel,
+        ZorkModel,
+    },
+    utils,
+};
 use color_eyre::{eyre::eyre, Result};
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
+use crate::project_model::sourceset::SourceFile;
 
 use super::constants::DEFAULT_OUTPUT_DIR;
 
@@ -139,27 +145,14 @@ fn assemble_executable_model<'a>(
 
     let base_path = config.and_then(|exe| exe.sources_base_path).unwrap_or(".");
 
-    let sources = config
+    let sources= config
         .and_then(|exe| exe.sources.clone())
-        .unwrap_or_default()
-        .into_iter()
-        .map(|source| {
-            if source.contains('.') {
-                Source::Glob(GlobPattern(source))
-            } else {
-                Source::File(Path::new(source))
-            }
-        })
-        .collect();
+        .unwrap_or_default();
 
-    let sourceset = SourceSet {
-        base_path: Path::new(base_path),
-        sources,
-    };
+    let sourceset = get_sourceset_for(sources);
 
-    let entry_point_file_path = Path::new(base_path)
-        .join(config.map_or("", |exe_attr| exe_attr.main));
-    let main = utils::fs::get_absolute_path(entry_point_file_path)
+    let main_as_path = Path::new(config.map_or("", |exe_attr| exe_attr.main));
+    let main = utils::fs::get_absolute_path(main_as_path)
         .unwrap_or_default();
 
     let extra_args = config
@@ -220,7 +213,7 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
 
 fn assemble_module_interface_model<'a>(
     config: &'a ModuleInterface,
-    base_path: &str
+    base_path: &str,
 ) -> ModuleInterfaceModel<'a> {
     let file_path = Path::new(base_path).join(config.file);
     let module_name = config.module_name.unwrap_or_else(|| {
@@ -240,15 +233,14 @@ fn assemble_module_interface_model<'a>(
         ))
     };
 
-    let file_details = utils::fs::get_file_details(file_path)
-        .unwrap_or_default(); // TODO Care with this, refactor
+    let file_details = utils::fs::get_file_details(file_path).unwrap_or_default(); // TODO Care with this, refactor
     ModuleInterfaceModel {
         path: file_details.0,
         file_stem: file_details.1,
         extension: file_details.2,
         module_name,
         partition,
-        dependencies
+        dependencies,
     }
 }
 
@@ -268,8 +260,7 @@ fn assemble_module_implementation_model<'a>(
         }
     }
 
-    let file_details = utils::fs::get_file_details(file_path)
-        .unwrap_or_default(); // TODO Care with this, refactor
+    let file_details = utils::fs::get_file_details(file_path).unwrap_or_default(); // TODO Care with this, refactor
 
     ModuleImplementationModel {
         path: file_details.0,
@@ -294,25 +285,11 @@ fn assemble_tests_model<'a>(
 
     let sources = config
         .and_then(|exe| exe.sources.clone())
-        .unwrap_or_default()
-        .into_iter()
-        .map(|source| {
-            if source.contains('.') {
-                Source::Glob(GlobPattern(source))
-            } else {
-                Source::File(Path::new(source))
-            }
-        })
-        .collect();
+        .unwrap_or_default();
+    let sourceset = get_sourceset_for(sources);
 
-    let sourceset = SourceSet {
-        base_path: Path::new(base_path),
-        sources,
-    };
-
-    let entry_point_file_path = Path::new(base_path)
-        .join(config.map_or("defaulted", |test_attr| test_attr.main));
-    let main = utils::fs::get_absolute_path(entry_point_file_path)
+    let main_as_path = Path::new(config.map_or("", |exe_attr| exe_attr.main));
+    let main = utils::fs::get_absolute_path(main_as_path)
         .unwrap_or_default();
 
     let extra_args = config
@@ -328,14 +305,39 @@ fn assemble_tests_model<'a>(
     }
 }
 
+fn get_sourceset_for(srcs: Vec<&str>) -> SourceSet {
+    let sources = srcs.into_iter()
+        .map(|src| {
+            if src.contains('*') {
+                Source::Glob(GlobPattern(src))
+            } else {
+                Source::File(Path::new(src))
+            }
+        }).map(|source| {
+            source.paths().expect(
+                "Error getting the declared paths for the source files"
+            )
+        }).flatten()
+        .map(|pb| {
+            let file_details = utils::fs::get_file_details(pb).unwrap_or_default();
+            SourceFile {
+                path: file_details.0,
+                file_stem: file_details.1,
+                extension: file_details.2,
+            }
+        }).collect();
+
+    SourceSet { sources }
+}
+
 #[cfg(test)]
 mod test {
-    use std::env;
-    use std::ffi::OsString;
     use crate::{
         project_model::compiler::{CppCompiler, LanguageLevel, StdLib},
         utils,
     };
+    use std::env;
+    use std::ffi::OsString;
 
     use super::*;
 
@@ -372,7 +374,6 @@ mod test {
             executable: ExecutableModel {
                 executable_name: "Zork++",
                 sourceset: SourceSet {
-                    base_path: Path::new("."),
                     sources: vec![],
                 },
                 main: PathBuf::from("main.cpp"),
@@ -388,7 +389,6 @@ mod test {
             tests: TestsModel {
                 test_executable_name: "Zork++_test".to_string(),
                 sourceset: SourceSet {
-                    base_path: Path::new("."),
                     sources: vec![],
                 },
                 main: PathBuf::from("main.cpp"),
@@ -425,8 +425,11 @@ mod test {
             executable: ExecutableModel {
                 executable_name: "zork",
                 sourceset: SourceSet {
-                    base_path: Path::new("bin"),
-                    sources: vec![Source::Glob(GlobPattern("*.cpp"))],
+                    sources: vec![SourceFile{
+                        path: Default::default(),
+                        file_stem: "".to_string(),
+                        extension: "".to_string(),
+                    }],
                 },
                 main: PathBuf::from("main.cpp"),
                 extra_args: vec![Argument::from("-Werr")],
@@ -471,8 +474,11 @@ mod test {
             tests: TestsModel {
                 test_executable_name: "zork_check".to_string(),
                 sourceset: SourceSet {
-                    base_path: Path::new("test"),
-                    sources: vec![Source::Glob(GlobPattern("*.cpp"))],
+                    sources: vec![SourceFile {
+                        path: Default::default(),
+                        file_stem: "".to_string(),
+                        extension: "".to_string(),
+                    }],
                 },
                 main: PathBuf::from("main.cpp"),
                 extra_args: vec![Argument::from("-pedantic")],

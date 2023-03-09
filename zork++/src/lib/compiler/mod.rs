@@ -6,6 +6,9 @@
 use color_eyre::Result;
 use std::path::Path;
 
+use crate::bounds::TranslationUnit;
+use crate::cli::output::commands::{CommandExecutionResult, SourceCommandLine};
+use crate::compiler::helpers::flag_source_file_without_changes;
 use crate::{
     cache::ZorkCache,
     cli::output::{arguments::Argument, commands::Commands},
@@ -15,9 +18,6 @@ use crate::{
         ZorkModel,
     },
 };
-use crate::bounds::TranslationUnit;
-use crate::cli::output::commands::{CommandExecutionResult, ModuleCommandLine};
-use crate::compiler::helpers::flag_modules_without_changes;
 
 /// The entry point of the compilation process
 ///
@@ -37,7 +37,9 @@ pub fn build_project<'a>(
 
     // 1st - Build the modules
     build_modules(model, cache, &mut commands)?;
-    // 2st - Build the executable or the tests
+    // 2nd - Build the non module sources
+    build_sources(model, cache, &mut commands, tests)?;
+    // 3rd - Build the executable or the tests
     build_executable(model, &mut commands, tests)?;
 
     Ok(commands)
@@ -58,6 +60,34 @@ fn build_executable<'a>(
     } else {
         sources::generate_main_command_line_args(model, commands, &model.executable)
     }
+}
+
+fn build_sources<'a>(
+    model: &'a ZorkModel<'_>,
+    cache: &'a ZorkCache,
+    commands: &'_ mut Commands<'a>,
+    tests: bool,
+) -> Result<()> {
+    log::info!("Building the source files...");
+    let srcs = if tests { &model.tests.sourceset.sources } else { &model.executable.sourceset.sources };
+
+    srcs.iter().for_each(|src| {
+        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &src.file()) {
+            sources::generate_sources_arguments(model, commands, &model.tests, src);
+        } else {
+            let command_line = SourceCommandLine::from_translation_unit(
+                src, Vec::with_capacity(0), true, CommandExecutionResult::Cached
+            );
+
+            log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &src.file());
+            commands.implementations.push(command_line);
+            commands.generated_files_paths.push(Argument::from(helpers::generate_obj_file(
+                model.compiler.cpp_compiler, model.build.output_dir, src
+            ).to_string()))
+        }
+    });
+
+    Ok(())
 }
 
 /// Triggers the build process for compile the declared modules in the project
@@ -88,14 +118,14 @@ fn prebuild_module_interfaces<'a>(
     commands: &mut Commands<'a>,
 ) {
     interfaces.iter().for_each(|module_interface| {
-        if !flag_modules_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file()) {
+        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file()) {
             sources::generate_module_interfaces_args(model, module_interface, commands);
         } else {
-            let command_line = ModuleCommandLine::from_translation_unit(
+            let command_line = SourceCommandLine::from_translation_unit(
                 module_interface, Vec::with_capacity(0), true, CommandExecutionResult::Cached
             );
 
-            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
+            log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
             commands.interfaces.push(command_line);
             commands.generated_files_paths.push(Argument::from(helpers::generate_prebuild_miu(
                 model.compiler.cpp_compiler, model.build.output_dir, module_interface
@@ -113,14 +143,14 @@ fn compile_module_implementations<'a>(
     commands: &mut Commands<'a>,
 ) {
     impls.iter().for_each(|module_impl| {
-        if !flag_modules_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file()) {
+        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file()) {
             sources::generate_module_implementation_args(model, module_impl, commands);
         } else {
-            let command_line = ModuleCommandLine::from_translation_unit(
+            let command_line = SourceCommandLine::from_translation_unit(
                 module_impl, Vec::with_capacity(0), true, CommandExecutionResult::Cached
             );
 
-            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
+            log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
             commands.implementations.push(command_line);
             commands.generated_files_paths.push(Argument::from(helpers::generate_impl_obj_file(
                 model.compiler.cpp_compiler, model.build.output_dir, module_impl
@@ -136,7 +166,7 @@ mod sources {
         bounds::{ExecutableTarget, TranslationUnit},
         cli::output::{
             arguments::{clang_args, Argument},
-            commands::{CommandExecutionResult, Commands, ModuleCommandLine},
+            commands::{CommandExecutionResult, Commands, SourceCommandLine},
         },
         project_model::{
             compiler::CppCompiler,
@@ -146,10 +176,10 @@ mod sources {
         utils::constants,
     };
     use color_eyre::Result;
-    
+    use crate::cli::output::arguments;
+    use crate::project_model::sourceset::SourceFile;
 
-    /// Generates the command line arguments for non-module source files, including the one that
-    /// holds the main function
+    /// Generates the command line arguments for the desired target
     pub fn generate_main_command_line_args<'a>(
         model: &'a ZorkModel,
         commands: &mut Commands<'a>,
@@ -189,8 +219,6 @@ mod sources {
                         .with_extension(constants::BINARY_EXTENSION)
                         .display()
                 )));
-
-                arguments.extend(commands.generated_files_paths.clone().into_iter());
             }
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("/EHsc"));
@@ -221,7 +249,6 @@ mod sources {
                         .with_extension(constants::BINARY_EXTENSION)
                         .display()
                 )));
-                arguments.extend(commands.generated_files_paths.clone().into_iter());
             }
             CppCompiler::GCC => {
                 arguments.push(Argument::from("-fmodules-ts"));
@@ -234,21 +261,81 @@ mod sources {
                         .with_extension(constants::BINARY_EXTENSION)
                         .display()
                 )));
-                arguments.extend(commands.generated_files_paths.clone().into_iter());
             }
         };
+        arguments.extend(commands.generated_files_paths.clone().into_iter());
 
-        target.sourceset().as_args_to(&mut arguments)?;
-        commands.sources.main = target.entry_point();
-        commands.sources.args.extend(arguments.into_iter());
-        commands.sources.sources_paths = target
+        commands.main.main = target.entry_point();
+        commands.main.args.extend(arguments.into_iter());
+        commands.main.sources_paths = target
             .sourceset()
             .sources
             .iter()
-            .flat_map(|s| s.paths().unwrap_or_default())
+            .map(|s| s.file())
             .collect::<Vec<_>>();
 
         Ok(())
+    }
+
+    /// Generates the command line arguments for non-module source files
+    pub fn generate_sources_arguments<'a>(
+        model: &'a ZorkModel,
+        commands: &mut Commands<'a>,
+        target: &'a impl ExecutableTarget<'a>,
+        source: &'a SourceFile,
+    ) {
+        let compiler = model.compiler.cpp_compiler;
+        let out_dir = model.build.output_dir;
+
+        let mut arguments = Vec::new();
+        arguments.push(model.compiler.language_level_arg());
+        arguments.push(Argument::from("-c"));
+        arguments.extend_from_slice(target.extra_args());
+
+        match compiler {
+            CppCompiler::CLANG => {
+                arguments.extend(clang_args::add_std_lib(model));
+                arguments.push(Argument::from("-fimplicit-modules"));
+                arguments.push(clang_args::implicit_module_maps(out_dir));
+                arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
+
+                arguments.push(Argument::from("-o"));
+            }
+            CppCompiler::MSVC => {
+                arguments.push(Argument::from("/EHsc"));
+                arguments.push(Argument::from("/nologo"));
+                // If /std:c++20 this, else should be the direct options
+                // available on C++23 to use directly import std by precompiling the standard library
+                arguments.push(Argument::from("/experimental:module"));
+                arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
+
+                arguments.push(Argument::from("/ifcSearchDir"));
+                arguments.push(Argument::from(
+                    out_dir
+                        .join(compiler.as_ref())
+                        .join("modules")
+                        .join("interfaces"),
+                ));
+            }
+            CppCompiler::GCC => {
+                arguments.push(Argument::from("-fmodules-ts"));
+                arguments.push(Argument::from("-o"));
+            }
+        };
+
+        let obj_file = helpers::generate_obj_file(compiler, out_dir, source);
+        let fo = if compiler.eq(&CppCompiler::MSVC) { "/Fo" } else { "" };
+        arguments.push(Argument::from(format!("{fo}{obj_file}")));
+        arguments.push(Argument::from(source.file()));
+
+        let command_line = SourceCommandLine::from_translation_unit(
+            source,
+            arguments,
+            false,
+            CommandExecutionResult::default(),
+        );
+        commands.sources.push(command_line);
+        commands.generated_files_paths.push(Argument::from(obj_file.to_string()))
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
@@ -347,8 +434,11 @@ mod sources {
             }
         }
 
-        let command_line = ModuleCommandLine::from_translation_unit(
-            interface, arguments, false, CommandExecutionResult::default()
+        let command_line = SourceCommandLine::from_translation_unit(
+            interface,
+            arguments,
+            false,
+            CommandExecutionResult::default(),
         );
         commands.interfaces.push(command_line);
     }
@@ -437,8 +527,11 @@ mod sources {
             }
         }
 
-        let command_line = ModuleCommandLine::from_translation_unit(
-            implementation, arguments, false, CommandExecutionResult::default()
+        let command_line = SourceCommandLine::from_translation_unit(
+            implementation,
+            arguments,
+            false,
+            CommandExecutionResult::default(),
         );
         commands.implementations.push(command_line);
     }
@@ -448,15 +541,17 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate.
 mod helpers {
+    use std::fmt::Display;
     use chrono::{DateTime, Utc};
 
     use super::*;
     use crate::{
         bounds::TranslationUnit,
         cache::ZorkCache,
-        cli::output::commands::{CommandExecutionResult, ModuleCommandLine},
+        cli::output::commands::CommandExecutionResult
     };
     use std::path::PathBuf;
+    use crate::project_model::sourceset::SourceFile;
 
     /// Creates the path for a prebuilt module interface, based on the default expected
     /// extension for BMI's given a compiler
@@ -500,7 +595,9 @@ mod helpers {
                 "{mod_unit}.{}",
                 if compiler.eq(&CppCompiler::MSVC) {
                     compiler.get_obj_file_extension()
-                } else { compiler.get_typical_bmi_extension() }
+                } else {
+                    compiler.get_typical_bmi_extension()
+                }
             ))
     }
 
@@ -573,27 +670,25 @@ mod helpers {
             })
             .collect::<Vec<_>>();
 
-        // TODO Cached sys headers will deserve in a near future its own type,
-        // storing the commands and the paths there, and checking for rebuild them
-        // independently, also check for execution independently
         for collection_args in sys_modules {
-            commands.interfaces.push(ModuleCommandLine {
-                directory: PathBuf::with_capacity(0),
-                file: collection_args[4].value.to_string(),
-                args: collection_args,
-                processed: false,
-                execution_result: CommandExecutionResult::default(),
-            });
+            commands.system_modules.insert(
+                collection_args[4].value.to_string(),
+                collection_args
+            );
         }
     }
 
-    /// Marks the given module translation unit as already processed,
+    /// Marks the given source file as already processed,
     /// or if it should be reprocessed again due to a previous failure status,
     /// to avoid losing time rebuilding that module if the source file
     /// hasn't been modified since the last build process iteration.
     ///
     /// True means already processed and previous iteration Success
-    pub(crate) fn flag_modules_without_changes(compiler: &CppCompiler, cache: &ZorkCache, file: &Path) -> bool {
+    pub(crate) fn flag_source_file_without_changes(
+        compiler: &CppCompiler,
+        cache: &ZorkCache,
+        file: &Path,
+    ) -> bool {
         if compiler.eq(&CppCompiler::CLANG) {
             log::trace!("Module unit {file:?} will be rebuilt since we've detected that you are using Clang");
         }
@@ -628,5 +723,16 @@ mod helpers {
         } else {
             false
         }
+    }
+
+    pub(crate) fn generate_obj_file<'a>(compiler: CppCompiler, out_dir: &Path, source: &SourceFile) -> impl Display {
+        format!("{}",
+            out_dir
+                .join(compiler.as_ref())
+                .join("sources")
+                .join(source.file_stem())
+                .with_extension(compiler.get_obj_file_extension())
+                .display()
+        )
     }
 }
