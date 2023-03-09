@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod bounds;
 pub mod cache;
 pub mod cli;
@@ -156,7 +158,7 @@ pub mod worker {
 
         // Recursively create a directory and all of its parent components if they are missing
         let modules_path = Path::new(out_dir)
-            .join(compiler.to_string())
+            .join(compiler.as_ref())
             .join("modules");
         let zork_path = out_dir.join("zork");
         let zork_cache_path = zork_path.join("cache");
@@ -164,6 +166,7 @@ pub mod worker {
 
         utils::fs::create_directory(&modules_path.join("interfaces"))?;
         utils::fs::create_directory(&modules_path.join("implementations"))?;
+        utils::fs::create_directory(&out_dir.join(compiler.as_ref()).join("sources"))?;
         utils::fs::create_directory(&zork_cache_path.join(model.compiler.cpp_compiler.as_ref()))?;
         utils::fs::create_directory(&zork_intrinsics_path)?;
 

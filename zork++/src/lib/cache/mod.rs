@@ -2,14 +2,15 @@
 
 use chrono::{DateTime, Utc};
 use color_eyre::{eyre::Context, Result};
+use std::collections::HashMap;
 use std::{
     fs,
     fs::File,
     path::{Path, PathBuf},
 };
-use std::collections::HashMap;
 use walkdir::WalkDir;
 
+use crate::cli::output::arguments::Argument;
 use crate::utils::constants::COMPILATION_DATABASE;
 use crate::{
     cli::{
@@ -23,7 +24,6 @@ use crate::{
     },
 };
 use serde::{Deserialize, Serialize};
-use crate::cli::output::arguments::Argument;
 
 /// Standalone utility for retrieve the Zork++ cache file
 pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCache> {
@@ -57,7 +57,7 @@ pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCach
 pub fn save(
     program_data: &ZorkModel<'_>,
     mut cache: ZorkCache,
-    commands: Commands<'_>
+    commands: Commands<'_>,
 ) -> Result<()> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
@@ -78,7 +78,7 @@ pub struct ZorkCache {
     pub last_program_execution: DateTime<Utc>,
     pub compilers_metadata: CompilersMetadata,
     pub generated_commands: Vec<CommandsDetails>,
-    pub last_generated_commands: HashMap<PathBuf, Vec<String>>
+    pub last_generated_commands: HashMap<PathBuf, Vec<String>>,
 }
 
 impl ZorkCache {
@@ -87,9 +87,10 @@ impl ZorkCache {
         let last_iteration_details = self.generated_commands.last();
 
         if let Some(last_iteration) = last_iteration_details {
-            let found_as_ifc = last_iteration.interfaces.iter().find(|comm_det| {
-                comm_det.file_path().eq(path.as_ref())
-            });
+            let found_as_ifc = last_iteration
+                .interfaces
+                .iter()
+                .find(|comm_det| comm_det.file_path().eq(path.as_ref()));
 
             if found_as_ifc.is_some() {
                 return found_as_ifc;
@@ -124,7 +125,7 @@ impl ZorkCache {
     pub fn run_final_tasks(
         &mut self,
         program_data: &ZorkModel<'_>,
-        commands: Commands<'_>
+        commands: Commands<'_>,
     ) -> Result<()> {
         if self.save_generated_commands(&commands) && program_data.project.compilation_db {
             map_generated_commands_to_compilation_db(self)?;
@@ -148,11 +149,7 @@ impl ZorkCache {
 
         self.compiler = commands.compiler;
         let process_no = if !self.generated_commands.is_empty() {
-            self.generated_commands
-                .last()
-                .unwrap()
-                .cached_process_num
-                + 1
+            self.generated_commands.last().unwrap().cached_process_num + 1
         } else {
             1
         };
@@ -162,64 +159,90 @@ impl ZorkCache {
             generated_at: Utc::now(),
             interfaces: Vec::with_capacity(commands.interfaces.len()),
             implementations: Vec::with_capacity(commands.implementations.len()),
+            sources: Vec::with_capacity(commands.sources.len()),
             main: MainCommandLineDetail::default(),
         };
 
         commands_details
             .interfaces
-            .extend(
-                commands
-                    .interfaces
-                    .iter()
-                    .map(|module_command_line| {
-                        self.last_generated_commands.entry(module_command_line.path())
-                            .or_insert_with(|| {
-                                has_changes = true;
-                                module_command_line.args.iter()
-                                    .map(|e| e.value.to_string())
-                                    .collect()
-                            }
-                        );
-                        CommandDetail {
-                            directory: module_command_line.directory.to_str().unwrap_or_default().to_string(),
-                            file: module_command_line.file.clone(),
-                            execution_result: self
-                                .normalize_execution_result_status(module_command_line),
-                            command: self.set_module_generated_command_line(module_command_line),
-                        }
-                    }),
-            );
+            .extend(commands.interfaces.iter().map(|module_command_line| {
+                self.last_generated_commands
+                    .entry(module_command_line.path())
+                    .or_insert_with(|| {
+                        has_changes = true;
+                        module_command_line
+                            .args
+                            .iter()
+                            .map(|e| e.value.to_string())
+                            .collect()
+                    });
+                CommandDetail {
+                    directory: module_command_line
+                        .directory
+                        .to_str()
+                        .unwrap_or_default()
+                        .to_string(),
+                    file: module_command_line.file.clone(),
+                    execution_result: self.normalize_execution_result_status(module_command_line),
+                    command: self.set_module_generated_command_line(module_command_line),
+                }
+            }));
 
         commands_details
             .implementations
-            .extend(
-                commands
-                    .implementations
-                    .iter()
-                    .map(|module_command_line| {
-                        self.last_generated_commands.entry(module_command_line.path())
-                            .or_insert_with(|| {
-                                has_changes = true;
-                                module_command_line.args.iter()
-                                    .map(|e| e.value.to_string())
-                                    .collect()
-                            }
-                        );
-                        CommandDetail {
-                            directory: module_command_line.directory.to_str().unwrap_or_default().to_string(),
-                            file: module_command_line.file.clone(),
-                            execution_result: self
-                                .normalize_execution_result_status(module_command_line),
-                            command: self.set_module_generated_command_line(module_command_line),
-                        }
-                    }),
-            );
+            .extend(commands.implementations.iter().map(|module_command_line| {
+                self.last_generated_commands
+                    .entry(module_command_line.path())
+                    .or_insert_with(|| {
+                        has_changes = true;
+                        module_command_line
+                            .args
+                            .iter()
+                            .map(|e| e.value.to_string())
+                            .collect()
+                    });
+                CommandDetail {
+                    directory: module_command_line
+                        .directory
+                        .to_str()
+                        .unwrap_or_default()
+                        .to_string(),
+                    file: module_command_line.file.clone(),
+                    execution_result: self.normalize_execution_result_status(module_command_line),
+                    command: self.set_module_generated_command_line(module_command_line),
+                }
+            }));
+
+        commands_details
+            .sources
+            .extend(commands.sources.iter().map(|source_command_line| {
+                self.last_generated_commands
+                    .entry(source_command_line.path())
+                    .or_insert_with(|| {
+                        has_changes = true;
+                        source_command_line
+                            .args
+                            .iter()
+                            .map(|e| e.value.to_string())
+                            .collect()
+                    });
+                CommandDetail {
+                    directory: source_command_line
+                        .directory
+                        .to_str()
+                        .unwrap_or_default()
+                        .to_string(),
+                    file: source_command_line.file.clone(),
+                    execution_result: self.normalize_execution_result_status(source_command_line),
+                    command: self.set_module_generated_command_line(source_command_line),
+                }
+            }));
 
         commands_details.main = MainCommandLineDetail {
-            files: commands.sources.sources_paths.clone(),
-            execution_result: commands.sources.execution_result.clone(),
+            files: commands.main.sources_paths.clone(),
+            execution_result: commands.main.execution_result.clone(),
             command: commands
-                .sources
+                .main
                 .args
                 .iter()
                 .map(|arg| arg.value.to_string())
@@ -227,12 +250,12 @@ impl ZorkCache {
                 .join(" "),
         };
 
-        self.last_generated_commands.entry(PathBuf::from(commands.sources.main)) // provisional
+        self.last_generated_commands
+            .entry(PathBuf::from(commands.main.main)) // provisional
             .or_insert_with(|| {
                 has_changes = true;
                 vec![commands_details.main.command.clone()]
-            }
-        );
+            });
 
         self.generated_commands.push(commands_details);
         has_changes
@@ -372,7 +395,7 @@ impl From<(&'_ PathBuf, &'_ Vec<String>)> for CompileCommands {
         Self {
             directory: dir.to_str().unwrap_or_default().to_string(),
             file: file.to_str().unwrap_or_default().to_string(),
-            arguments: value.1.clone()
+            arguments: value.1.clone(),
         }
     }
 }
@@ -383,6 +406,7 @@ pub struct CommandsDetails {
     generated_at: DateTime<Utc>,
     interfaces: Vec<CommandDetail>,
     implementations: Vec<CommandDetail>,
+    sources: Vec<CommandDetail>,
     main: MainCommandLineDetail,
 }
 

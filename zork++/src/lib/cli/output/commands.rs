@@ -3,6 +3,7 @@ use std::{
     process::ExitStatus,
 };
 
+use crate::bounds::TranslationUnit;
 ///! Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
@@ -16,14 +17,13 @@ use color_eyre::{
     Report, Result,
 };
 use serde::{Deserialize, Serialize};
-use crate::bounds::TranslationUnit;
 
 use super::arguments::Argument;
 
 pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
     mut commands: Commands<'_>,
-    cache: ZorkCache
+    cache: ZorkCache,
 ) -> Result<CommandExecutionResult> {
     if !commands.interfaces.is_empty() {
         log::debug!("Executing the commands for the module interfaces...");
@@ -67,11 +67,31 @@ pub fn run_generated_commands(
         }
     }
 
-    if !commands.sources.args.is_empty() {
+    if !commands.sources.is_empty() {
+        log::debug!("Executing the commands for the source files...");
+
+        for source in &mut commands.sources {
+            if !source.processed {
+                let r = execute_command(&commands.compiler, &source.args, &cache);
+                source.execution_result = CommandExecutionResult::from(&r);
+                if let Err(e) = r {
+                    return Err(e);
+                } else if !r.as_ref().unwrap().success() {
+                    let c_miu = source.clone();
+                    return Err(eyre!(
+                        "Ending the program, because the build of: {:?} wasn't ended successfully",
+                        c_miu.file
+                    ));
+                }
+            }
+        }
+    }
+
+    if !commands.main.args.is_empty() {
         log::debug!("Executing the main command line...");
 
-        let r = execute_command(&commands.compiler, &commands.sources.args, &cache);
-        commands.sources.execution_result = CommandExecutionResult::from(&r);
+        let r = execute_command(&commands.compiler, &commands.main.args, &cache);
+        commands.main.execution_result = CommandExecutionResult::from(&r);
 
         if let Err(e) = r {
             cache::save(program_data, cache, commands)?;
@@ -172,7 +192,7 @@ impl<'a> ModuleCommandLine<'a> {
         tu: impl TranslationUnit,
         args: Vec<Argument<'a>>,
         processed: bool,
-        execution_result: CommandExecutionResult
+        execution_result: CommandExecutionResult,
     ) -> Self {
         Self {
             directory: tu.path(),
@@ -223,7 +243,8 @@ pub struct Commands<'a> {
     pub system_modules: Vec<Vec<Argument<'a>>>,
     pub interfaces: Vec<ModuleCommandLine<'a>>,
     pub implementations: Vec<ModuleCommandLine<'a>>,
-    pub sources: SourcesCommandLine<'a>,
+    pub sources: Vec<ModuleCommandLine<'a>>,
+    pub main: SourcesCommandLine<'a>,
     pub generated_files_paths: Vec<Argument<'a>>,
 }
 
@@ -234,7 +255,8 @@ impl<'a> Commands<'a> {
             system_modules: Vec::with_capacity(0),
             interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
-            sources: SourcesCommandLine::default(),
+            sources: Vec::with_capacity(0),
+            main: SourcesCommandLine::default(),
             generated_files_paths: Vec::with_capacity(0),
         }
     }
@@ -248,7 +270,7 @@ impl<'a> core::fmt::Display for Commands<'a> {
             self.compiler,
             self.interfaces.iter().map(|vec| { vec.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
             self.implementations.iter().map(|vec| { vec.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
-            self.sources.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" ")
+            self.sources.iter().map(|vec| { vec.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
         )
     }
 }

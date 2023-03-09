@@ -6,6 +6,9 @@
 use color_eyre::Result;
 use std::path::Path;
 
+use crate::bounds::TranslationUnit;
+use crate::cli::output::commands::{CommandExecutionResult, ModuleCommandLine};
+use crate::compiler::helpers::flag_modules_without_changes;
 use crate::{
     cache::ZorkCache,
     cli::output::{arguments::Argument, commands::Commands},
@@ -15,9 +18,6 @@ use crate::{
         ZorkModel,
     },
 };
-use crate::bounds::TranslationUnit;
-use crate::cli::output::commands::{CommandExecutionResult, ModuleCommandLine};
-use crate::compiler::helpers::flag_modules_without_changes;
 
 /// The entry point of the compilation process
 ///
@@ -37,7 +37,9 @@ pub fn build_project<'a>(
 
     // 1st - Build the modules
     build_modules(model, cache, &mut commands)?;
-    // 2st - Build the executable or the tests
+    // 2nd - Build the non module sources
+    build_sources(model, &mut commands, tests)?;
+    // 3rd - Build the executable or the tests
     build_executable(model, &mut commands, tests)?;
 
     Ok(commands)
@@ -58,6 +60,24 @@ fn build_executable<'a>(
     } else {
         sources::generate_main_command_line_args(model, commands, &model.executable)
     }
+}
+
+fn build_sources<'a>(
+    model: &'a ZorkModel<'_>,
+    commands: &'_ mut Commands<'a>,
+    tests: bool,
+) -> Result<()> {
+    if tests {
+        for source in model.tests.sourceset.sources.iter() {
+            sources::generate_sources_arguments(model, commands, &model.tests, source)?;
+        }
+    } else {
+        for source in model.executable.sourceset.sources.iter() {
+            sources::generate_sources_arguments(model, commands, &model.executable, source)?;
+        }
+    }
+
+    Ok(())
 }
 
 /// Triggers the build process for compile the declared modules in the project
@@ -146,7 +166,7 @@ mod sources {
         utils::constants,
     };
     use color_eyre::Result;
-    
+    use crate::project_model::sourceset::SourceFile;
 
     /// Generates the command line arguments for non-module source files, including the one that
     /// holds the main function
@@ -239,14 +259,94 @@ mod sources {
         };
 
         target.sourceset().as_args_to(&mut arguments)?;
-        commands.sources.main = target.entry_point();
-        commands.sources.args.extend(arguments.into_iter());
-        commands.sources.sources_paths = target
+        commands.main.main = target.entry_point();
+        commands.main.args.extend(arguments.into_iter());
+        commands.main.sources_paths = target
             .sourceset()
             .sources
             .iter()
-            .flat_map(|s| s.paths().unwrap_or_default())
+            .map(|s| s.file())
             .collect::<Vec<_>>();
+
+        Ok(())
+    }
+
+    /// Generates the command line arguments for non-module source files
+    pub fn generate_sources_arguments<'a>(
+        model: &'a ZorkModel,
+        commands: &mut Commands<'a>,
+        target: &'a impl ExecutableTarget<'a>,
+        source: &'a SourceFile,
+    ) -> Result<()> {
+        log::info!("Building the source files...");
+
+        let compiler = model.compiler.cpp_compiler;
+        let out_dir = model.build.output_dir;
+
+        let mut arguments = Vec::new();
+        arguments.push(model.compiler.language_level_arg());
+        arguments.push(Argument::from("-c"));
+        arguments.extend_from_slice(target.extra_args());
+
+        match compiler {
+            CppCompiler::CLANG => {
+                arguments.extend(clang_args::add_std_lib(model));
+                arguments.push(Argument::from("-fimplicit-modules"));
+                arguments.push(clang_args::implicit_module_maps(out_dir));
+                arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
+
+                arguments.push(Argument::from("-o"));
+            }
+            CppCompiler::MSVC => {
+                arguments.push(Argument::from("/EHsc"));
+                arguments.push(Argument::from("/nologo"));
+                // If /std:c++20 this, else should be the direct options
+                // available on C++23 to use directly import std by precompiling the standard library
+                arguments.push(Argument::from("/experimental:module"));
+                arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
+
+                arguments.push(Argument::from("/ifcSearchDir"));
+                arguments.push(Argument::from(
+                    out_dir
+                        .join(compiler.as_ref())
+                        .join("modules")
+                        .join("interfaces"),
+                ));
+                arguments.push(Argument::from(format!(
+                    "/Fo{}\\",
+                    out_dir.join(compiler.as_ref()).display()
+                )));
+            }
+            CppCompiler::GCC => {
+                arguments.push(Argument::from("-fmodules-ts"));
+                arguments.push(Argument::from("-o"));
+            }
+        };
+
+        let fo = if compiler.eq(&CppCompiler::MSVC) {
+            "/Fo"
+        } else { "" };
+        let obj_file = Argument::from(format!(
+            "{fo}{}",
+            out_dir
+                .join(compiler.as_ref())
+                .join("sources")
+                .join(source.file_stem())
+                .with_extension(compiler.get_obj_file_extension())
+                .display()
+        ));
+
+        arguments.push(obj_file.clone());
+        arguments.push(Argument::from(source.file()));
+
+        let command_line = ModuleCommandLine::from_translation_unit(
+            source,
+            arguments,
+            false,
+            CommandExecutionResult::default(),
+        );
+        commands.sources.push(command_line);
+        commands.generated_files_paths.push(obj_file);
 
         Ok(())
     }
@@ -348,7 +448,10 @@ mod sources {
         }
 
         let command_line = ModuleCommandLine::from_translation_unit(
-            interface, arguments, false, CommandExecutionResult::default()
+            interface,
+            arguments,
+            false,
+            CommandExecutionResult::default(),
         );
         commands.interfaces.push(command_line);
     }
@@ -438,7 +541,10 @@ mod sources {
         }
 
         let command_line = ModuleCommandLine::from_translation_unit(
-            implementation, arguments, false, CommandExecutionResult::default()
+            implementation,
+            arguments,
+            false,
+            CommandExecutionResult::default(),
         );
         commands.implementations.push(command_line);
     }
@@ -500,7 +606,9 @@ mod helpers {
                 "{mod_unit}.{}",
                 if compiler.eq(&CppCompiler::MSVC) {
                     compiler.get_obj_file_extension()
-                } else { compiler.get_typical_bmi_extension() }
+                } else {
+                    compiler.get_typical_bmi_extension()
+                }
             ))
     }
 
@@ -593,7 +701,11 @@ mod helpers {
     /// hasn't been modified since the last build process iteration.
     ///
     /// True means already processed and previous iteration Success
-    pub(crate) fn flag_modules_without_changes(compiler: &CppCompiler, cache: &ZorkCache, file: &Path) -> bool {
+    pub(crate) fn flag_modules_without_changes(
+        compiler: &CppCompiler,
+        cache: &ZorkCache,
+        file: &Path,
+    ) -> bool {
         if compiler.eq(&CppCompiler::CLANG) {
             log::trace!("Module unit {file:?} will be rebuilt since we've detected that you are using Clang");
         }

@@ -1,5 +1,5 @@
 use core::fmt::Debug;
-use std::{fmt::Display};
+use std::fmt::Display;
 use std::path::{Path, PathBuf};
 
 use crate::{cli::output::arguments::Argument, project_model::sourceset::SourceSet};
@@ -13,7 +13,7 @@ pub trait ExtraArgs<'a> {
 pub trait ExecutableTarget<'a>: ExtraArgs<'a> {
     fn name(&'a self) -> &'a str;
     fn entry_point(&'a self) -> &'a Path;
-    fn sourceset(&'a self) -> &'a SourceSet<'a>;
+    fn sourceset(&'a self) -> &'a SourceSet;
 }
 
 /// Represents any kind of translation unit and the generic operations
@@ -37,4 +37,3 @@ pub trait TranslationUnit: Display + Debug {
         format!("{}.{}", self.file_stem(), self.extension())
     }
 }
-
