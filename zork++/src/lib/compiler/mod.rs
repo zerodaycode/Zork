@@ -168,8 +168,7 @@ mod sources {
     use color_eyre::Result;
     use crate::project_model::sourceset::SourceFile;
 
-    /// Generates the command line arguments for non-module source files, including the one that
-    /// holds the main function
+    /// Generates the command line arguments for the desired target
     pub fn generate_main_command_line_args<'a>(
         model: &'a ZorkModel,
         commands: &mut Commands<'a>,
@@ -209,8 +208,6 @@ mod sources {
                         .with_extension(constants::BINARY_EXTENSION)
                         .display()
                 )));
-
-                arguments.extend(commands.generated_files_paths.clone().into_iter());
             }
             CppCompiler::MSVC => {
                 arguments.push(Argument::from("/EHsc"));
@@ -241,7 +238,6 @@ mod sources {
                         .with_extension(constants::BINARY_EXTENSION)
                         .display()
                 )));
-                arguments.extend(commands.generated_files_paths.clone().into_iter());
             }
             CppCompiler::GCC => {
                 arguments.push(Argument::from("-fmodules-ts"));
@@ -254,11 +250,10 @@ mod sources {
                         .with_extension(constants::BINARY_EXTENSION)
                         .display()
                 )));
-                arguments.extend(commands.generated_files_paths.clone().into_iter());
             }
         };
+        arguments.extend(commands.generated_files_paths.clone().into_iter());
 
-        target.sourceset().as_args_to(&mut arguments)?;
         commands.main.main = target.entry_point();
         commands.main.args.extend(arguments.into_iter());
         commands.main.sources_paths = target
