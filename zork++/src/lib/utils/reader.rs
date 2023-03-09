@@ -1,3 +1,4 @@
+use crate::project_model::sourceset::SourceFile;
 use crate::{
     cli::output::arguments::Argument,
     config_file::{
@@ -26,7 +27,6 @@ use crate::{
 use color_eyre::{eyre::eyre, Result};
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
-use crate::project_model::sourceset::SourceFile;
 
 use super::constants::DEFAULT_OUTPUT_DIR;
 
@@ -143,17 +143,11 @@ fn assemble_executable_model<'a>(
         .and_then(|exe| exe.executable_name)
         .unwrap_or(project_name);
 
-    let base_path = config.and_then(|exe| exe.sources_base_path).unwrap_or(".");
-
-    let sources= config
+    let sources = config
         .and_then(|exe| exe.sources.clone())
         .unwrap_or_default();
 
     let sourceset = get_sourceset_for(sources);
-
-    let main_as_path = Path::new(config.map_or("", |exe_attr| exe_attr.main));
-    let main = utils::fs::get_absolute_path(main_as_path)
-        .unwrap_or_default();
 
     let extra_args = config
         .and_then(|exe| exe.extra_args.as_ref())
@@ -163,7 +157,6 @@ fn assemble_executable_model<'a>(
     ExecutableModel {
         executable_name,
         sourceset,
-        main,
         extra_args,
     }
 }
@@ -281,16 +274,10 @@ fn assemble_tests_model<'a>(
         |exe_name| exe_name.to_owned(),
     );
 
-    let base_path = config.and_then(|exe| exe.sources_base_path).unwrap_or(".");
-
     let sources = config
         .and_then(|exe| exe.sources.clone())
         .unwrap_or_default();
     let sourceset = get_sourceset_for(sources);
-
-    let main_as_path = Path::new(config.map_or("", |exe_attr| exe_attr.main));
-    let main = utils::fs::get_absolute_path(main_as_path)
-        .unwrap_or_default();
 
     let extra_args = config
         .and_then(|test| test.extra_args.as_ref())
@@ -300,24 +287,25 @@ fn assemble_tests_model<'a>(
     TestsModel {
         test_executable_name,
         sourceset,
-        main,
         extra_args,
     }
 }
 
 fn get_sourceset_for(srcs: Vec<&str>) -> SourceSet {
-    let sources = srcs.into_iter()
+    let sources = srcs
+        .into_iter()
         .map(|src| {
             if src.contains('*') {
                 Source::Glob(GlobPattern(src))
             } else {
                 Source::File(Path::new(src))
             }
-        }).map(|source| {
-            source.paths().expect(
-                "Error getting the declared paths for the source files"
-            )
-        }).flatten()
+        })
+        .flat_map(|source| {
+            source
+                .paths()
+                .expect("Error getting the declared paths for the source files")
+        })
         .map(|pb| {
             let file_details = utils::fs::get_file_details(pb).unwrap_or_default();
             SourceFile {
@@ -325,7 +313,8 @@ fn get_sourceset_for(srcs: Vec<&str>) -> SourceSet {
                 file_stem: file_details.1,
                 extension: file_details.2,
             }
-        }).collect();
+        })
+        .collect();
 
     SourceSet { sources }
 }
@@ -337,7 +326,6 @@ mod test {
         utils,
     };
     use std::env;
-    use std::ffi::OsString;
 
     use super::*;
 
@@ -373,10 +361,7 @@ mod test {
             },
             executable: ExecutableModel {
                 executable_name: "Zork++",
-                sourceset: SourceSet {
-                    sources: vec![],
-                },
-                main: PathBuf::from("main.cpp"),
+                sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![],
             },
             modules: ModulesModel {
@@ -388,10 +373,7 @@ mod test {
             },
             tests: TestsModel {
                 test_executable_name: "Zork++_test".to_string(),
-                sourceset: SourceSet {
-                    sources: vec![],
-                },
-                main: PathBuf::from("main.cpp"),
+                sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![],
             },
         };
@@ -425,13 +407,12 @@ mod test {
             executable: ExecutableModel {
                 executable_name: "zork",
                 sourceset: SourceSet {
-                    sources: vec![SourceFile{
+                    sources: vec![SourceFile {
                         path: Default::default(),
                         file_stem: "".to_string(),
                         extension: "".to_string(),
                     }],
                 },
-                main: PathBuf::from("main.cpp"),
                 extra_args: vec![Argument::from("-Werr")],
             },
             modules: ModulesModel {
@@ -480,7 +461,6 @@ mod test {
                         extension: "".to_string(),
                     }],
                 },
-                main: PathBuf::from("main.cpp"),
                 extra_args: vec![Argument::from("-pedantic")],
             },
         };

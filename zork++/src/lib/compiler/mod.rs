@@ -54,7 +54,7 @@ fn build_executable<'a>(
     tests: bool,
 ) -> Result<()> {
     // TODO Check if the command line is the same as the previous? If there's no new sources?
-    // And avoid reexecuting?
+    // And avoid re-executing?
     if tests {
         sources::generate_main_command_line_args(model, commands, &model.tests)
     } else {
@@ -69,7 +69,11 @@ fn build_sources<'a>(
     tests: bool,
 ) -> Result<()> {
     log::info!("Building the source files...");
-    let srcs = if tests { &model.tests.sourceset.sources } else { &model.executable.sourceset.sources };
+    let srcs = if tests {
+        &model.tests.sourceset.sources
+    } else {
+        &model.executable.sourceset.sources
+    };
 
     srcs.iter().for_each(|src| {
         if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &src.file()) {
@@ -162,6 +166,7 @@ fn compile_module_implementations<'a>(
 /// Specific operations over source files
 mod sources {
     use super::helpers;
+    use crate::project_model::sourceset::SourceFile;
     use crate::{
         bounds::{ExecutableTarget, TranslationUnit},
         cli::output::{
@@ -176,8 +181,6 @@ mod sources {
         utils::constants,
     };
     use color_eyre::Result;
-    use crate::cli::output::arguments;
-    use crate::project_model::sourceset::SourceFile;
 
     /// Generates the command line arguments for the desired target
     pub fn generate_main_command_line_args<'a>(
@@ -265,7 +268,6 @@ mod sources {
         };
         arguments.extend(commands.generated_files_paths.clone().into_iter());
 
-        commands.main.main = target.entry_point();
         commands.main.args.extend(arguments.into_iter());
         commands.main.sources_paths = target
             .sourceset()
@@ -324,7 +326,11 @@ mod sources {
         };
 
         let obj_file = helpers::generate_obj_file(compiler, out_dir, source);
-        let fo = if compiler.eq(&CppCompiler::MSVC) { "/Fo" } else { "" };
+        let fo = if compiler.eq(&CppCompiler::MSVC) {
+            "/Fo"
+        } else {
+            ""
+        };
         arguments.push(Argument::from(format!("{fo}{obj_file}")));
         arguments.push(Argument::from(source.file()));
 
@@ -335,7 +341,9 @@ mod sources {
             CommandExecutionResult::default(),
         );
         commands.sources.push(command_line);
-        commands.generated_files_paths.push(Argument::from(obj_file.to_string()))
+        commands
+            .generated_files_paths
+            .push(Argument::from(obj_file.to_string()))
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
@@ -541,17 +549,15 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate.
 mod helpers {
-    use std::fmt::Display;
     use chrono::{DateTime, Utc};
+    use std::fmt::Display;
 
     use super::*;
+    use crate::project_model::sourceset::SourceFile;
     use crate::{
-        bounds::TranslationUnit,
-        cache::ZorkCache,
-        cli::output::commands::CommandExecutionResult
+        bounds::TranslationUnit, cache::ZorkCache, cli::output::commands::CommandExecutionResult,
     };
     use std::path::PathBuf;
-    use crate::project_model::sourceset::SourceFile;
 
     /// Creates the path for a prebuilt module interface, based on the default expected
     /// extension for BMI's given a compiler
@@ -671,10 +677,9 @@ mod helpers {
             .collect::<Vec<_>>();
 
         for collection_args in sys_modules {
-            commands.system_modules.insert(
-                collection_args[4].value.to_string(),
-                collection_args
-            );
+            commands
+                .system_modules
+                .insert(collection_args[4].value.to_string(), collection_args);
         }
     }
 
@@ -725,8 +730,13 @@ mod helpers {
         }
     }
 
-    pub(crate) fn generate_obj_file<'a>(compiler: CppCompiler, out_dir: &Path, source: &SourceFile) -> impl Display {
-        format!("{}",
+    pub(crate) fn generate_obj_file(
+        compiler: CppCompiler,
+        out_dir: &Path,
+        source: &SourceFile,
+    ) -> impl Display {
+        format!(
+            "{}",
             out_dir
                 .join(compiler.as_ref())
                 .join("sources")

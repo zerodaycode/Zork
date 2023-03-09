@@ -22,6 +22,7 @@ assembling and linking.
 - Due to the described above, now the main task of the main command line
 is to link the generated object files together, introducing the necessary dependencies
 - Non module source files now have their explicit types and operations
+- Internal deps: toml raised to the 0.7.2, criterion raised to its 0.4.0v
 
 ### Fix
 

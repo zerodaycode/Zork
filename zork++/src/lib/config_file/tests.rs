@@ -17,7 +17,6 @@ use serde::*;
 ///     test_executable_name = 'Zork++ tests'
 ///     sources_base_path = 'path_test'
 ///     sources = [ '*.cpp' ]
-///     main = "tests_main.cpp"
 ///     extra_args = ['extra_argument to run test']
 ///"#;
 ///
@@ -27,7 +26,6 @@ use serde::*;
 /// assert_eq!(config.test_executable_name, Some("Zork++ tests"));
 /// assert_eq!(config.sources_base_path, Some("path_test"));
 /// assert_eq!(config.sources, Some(vec!["*.cpp"]));
-/// assert_eq!(config.main, "test_main.cpp");
 /// assert_eq!(config.extra_args, Some(vec!["extra_argument to run test"]));
 ///
 /// ```
@@ -48,8 +46,6 @@ pub struct TestsAttribute<'a> {
     pub sources_base_path: Option<&'a str>,
     #[serde(borrow)]
     pub sources: Option<Vec<&'a str>>,
-    #[serde(borrow)]
-    pub main: &'a str,
     #[serde(borrow)]
     pub extra_args: Option<Vec<&'a str>>,
 }

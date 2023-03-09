@@ -8,9 +8,7 @@ use std::{
     fs::File,
     path::{Path, PathBuf},
 };
-use walkdir::WalkDir;
 
-use crate::cli::output::arguments::Argument;
 use crate::utils::constants::COMPILATION_DATABASE;
 use crate::{
     cli::{
@@ -24,6 +22,7 @@ use crate::{
     },
 };
 use serde::{Deserialize, Serialize};
+use walkdir::WalkDir;
 
 /// Standalone utility for retrieve the Zork++ cache file
 pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCache> {
@@ -58,6 +57,7 @@ pub fn save(
     program_data: &ZorkModel<'_>,
     mut cache: ZorkCache,
     commands: Commands<'_>,
+    test_mode: bool
 ) -> Result<()> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
@@ -65,7 +65,7 @@ pub fn save(
         .join(program_data.compiler.cpp_compiler.as_ref())
         .join(constants::ZORK_CACHE_FILENAME);
 
-    cache.run_final_tasks(program_data, commands)?;
+    cache.run_final_tasks(program_data, commands, test_mode)?;
     cache.last_program_execution = Utc::now();
 
     utils::fs::serialize_object_to_file(cache_path, &cache)
@@ -87,7 +87,9 @@ impl ZorkCache {
         let last_iteration_details = self.generated_commands.last();
 
         if let Some(last_iteration) = last_iteration_details {
-            return last_iteration.interfaces.iter()
+            return last_iteration
+                .interfaces
+                .iter()
                 .chain(last_iteration.implementations.iter())
                 .chain(last_iteration.sources.iter())
                 .find(|comm_det| comm_det.file_path().eq(path.as_ref()));
@@ -113,8 +115,9 @@ impl ZorkCache {
         &mut self,
         program_data: &ZorkModel<'_>,
         commands: Commands<'_>,
+        test_mode: bool
     ) -> Result<()> {
-        if self.save_generated_commands(&commands) && program_data.project.compilation_db {
+        if self.save_generated_commands(&commands, test_mode) && program_data.project.compilation_db {
             map_generated_commands_to_compilation_db(self)?;
         }
 
@@ -130,7 +133,7 @@ impl ZorkCache {
         Ok(())
     }
 
-    fn save_generated_commands(&mut self, commands: &Commands<'_>) -> bool {
+    fn save_generated_commands(&mut self, commands: &Commands<'_>, test_mode: bool) -> bool {
         log::trace!("Storing in the cache the last generated command lines...");
         let mut has_changes = false;
 
@@ -171,7 +174,6 @@ impl ZorkCache {
                         .to_string(),
                     file: module_command_line.file.clone(),
                     execution_result: self.normalize_execution_result_status(module_command_line),
-                    command: self.set_module_generated_command_line(module_command_line),
                 }
             }));
 
@@ -196,7 +198,6 @@ impl ZorkCache {
                         .to_string(),
                     file: module_command_line.file.clone(),
                     execution_result: self.normalize_execution_result_status(module_command_line),
-                    command: self.set_module_generated_command_line(module_command_line),
                 }
             }));
 
@@ -221,7 +222,6 @@ impl ZorkCache {
                         .to_string(),
                     file: source_command_line.file.clone(),
                     execution_result: self.normalize_execution_result_status(source_command_line),
-                    command: self.set_module_generated_command_line(source_command_line),
                 }
             }));
 
@@ -237,8 +237,9 @@ impl ZorkCache {
                 .join(" "),
         };
 
+        // TODO Replace for target, or whatever, so it doesn't goes to the main command line
         self.last_generated_commands
-            .entry(PathBuf::from(commands.main.main)) // provisional
+            .entry(PathBuf::from("main")) // provisional
             .or_insert_with(|| {
                 has_changes = true;
                 vec![commands_details.main.command.clone()]
@@ -329,19 +330,6 @@ impl ZorkCache {
             module_command_line.execution_result.clone()
         }
     }
-
-    fn set_module_generated_command_line(&self, module_command_line: &SourceCommandLine) -> String {
-        if module_command_line.processed {
-            String::with_capacity(0)
-        } else {
-            module_command_line
-                .args
-                .iter()
-                .map(|argument| argument.value)
-                .collect::<Vec<_>>()
-                .join(" ")
-        }
-    }
 }
 
 /// Generates the `compile_commands.json` file, that acts as a compilation database
@@ -402,7 +390,6 @@ pub struct CommandDetail {
     directory: String,
     file: String,
     pub execution_result: CommandExecutionResult,
-    command: String,
 }
 
 impl CommandDetail {

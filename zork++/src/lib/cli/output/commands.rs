@@ -1,8 +1,8 @@
+use std::collections::HashMap;
 use std::{
     path::{Path, PathBuf},
     process::ExitStatus,
 };
-use std::collections::HashMap;
 
 use crate::bounds::TranslationUnit;
 ///! Contains helpers and data structure to process in
@@ -25,6 +25,7 @@ pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
     mut commands: Commands<'_>,
     cache: ZorkCache,
+    test_mode: bool
 ) -> Result<CommandExecutionResult> {
     log::info!("Proceeding to execute the generated commands...");
     let mut total_exec_commands = 0;
@@ -34,7 +35,9 @@ pub fn run_generated_commands(
         execute_command(compiler, sys_module.1, &cache)?;
     }
 
-    let sources = commands.interfaces.iter_mut()
+    let sources = commands
+        .interfaces
+        .iter_mut()
         .chain(commands.implementations.iter_mut())
         .chain(commands.sources.iter_mut());
 
@@ -44,14 +47,14 @@ pub fn run_generated_commands(
             source_file.execution_result = CommandExecutionResult::from(&r);
             total_exec_commands += 1;
             if let Err(e) = r {
-                cache::save(program_data, cache, commands)?;
+                cache::save(program_data, cache, commands, test_mode)?;
                 return Err(e);
             } else if !r.as_ref().unwrap().success() {
                 let err = eyre!(
                     "Ending the program, because the build of: {:?} wasn't ended successfully",
                     source_file
                 );
-                cache::save(program_data, cache, commands)?;
+                cache::save(program_data, cache, commands, test_mode)?;
                 return Err(err);
             }
         }
@@ -65,10 +68,10 @@ pub fn run_generated_commands(
         total_exec_commands += 1;
 
         if let Err(e) = r {
-            cache::save(program_data, cache, commands)?;
+            cache::save(program_data, cache, commands, test_mode)?; // Here because use of moved value
             return Err(e);
         } else if !r.as_ref().unwrap().success() {
-            cache::save(program_data, cache, commands)?;
+            cache::save(program_data, cache, commands, test_mode)?; // Here because use of moved value
             return Err(eyre!(
                 "Ending the program, because the main command line execution wasn't ended successfully",
             ));
@@ -76,7 +79,7 @@ pub fn run_generated_commands(
     }
 
     log::debug!("A total of: {total_exec_commands} command lines has been executed successfully");
-    cache::save(program_data, cache, commands)?;
+    cache::save(program_data, cache, commands, test_mode)?;
     Ok(CommandExecutionResult::Success)
 }
 
@@ -109,7 +112,7 @@ pub fn autorun_generated_binary(
     ))
 }
 
-/// Executes a new [`std::process::Command`] configured according the choosen
+/// Executes a new [`std::process::Command`] configured according the chosen
 /// compiler and the current operating system
 fn execute_command(
     compiler: CppCompiler,
@@ -237,9 +240,27 @@ impl<'a> core::fmt::Display for Commands<'a> {
             f,
             "Commands for [{}]:\n- Interfaces: {:?},\n- Implementations: {:?},\n- Sources: {:?}",
             self.compiler,
-            self.interfaces.iter().map(|vec| { vec.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
-            self.implementations.iter().map(|vec| { vec.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
-            self.sources.iter().map(|vec| { vec.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
+            self.interfaces.iter().map(|vec| {
+                vec.args
+                    .iter()
+                    .map(|e| e.value)
+                    .collect::<Vec<_>>()
+                    .join(" ");
+            }),
+            self.implementations.iter().map(|vec| {
+                vec.args
+                    .iter()
+                    .map(|e| e.value)
+                    .collect::<Vec<_>>()
+                    .join(" ");
+            }),
+            self.sources.iter().map(|vec| {
+                vec.args
+                    .iter()
+                    .map(|e| e.value)
+                    .collect::<Vec<_>>()
+                    .join(" ");
+            }),
         )
     }
 }
