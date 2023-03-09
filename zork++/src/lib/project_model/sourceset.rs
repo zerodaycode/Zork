@@ -1,8 +1,8 @@
 use core::fmt;
 use std::path::{Path, PathBuf};
 
-use color_eyre::{eyre::Context, Result};
 use crate::bounds::TranslationUnit;
+use color_eyre::{eyre::Context, Result};
 
 use crate::cli::output::arguments::Argument;
 
@@ -16,7 +16,7 @@ pub enum Source<'a> {
 pub struct SourceFile {
     pub path: PathBuf,
     pub file_stem: String,
-    pub extension: String
+    pub extension: String,
 }
 
 impl TranslationUnit for SourceFile {
@@ -61,7 +61,6 @@ impl TranslationUnit for &SourceFile {
     }
 }
 
-
 impl fmt::Display for SourceFile {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -101,10 +100,7 @@ pub struct SourceSet {
 
 impl SourceSet {
     pub fn as_args_to(&self, dst: &mut Vec<Argument<'_>>) -> Result<()> {
-        let args = self.sources
-            .iter()
-            .map(|sf| sf.file())
-            .map(Argument::from);
+        let args = self.sources.iter().map(|sf| sf.file()).map(Argument::from);
 
         dst.extend(args);
 

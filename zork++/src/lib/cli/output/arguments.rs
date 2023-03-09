@@ -100,10 +100,7 @@ pub mod clang_args {
         None
     }
 
-    pub(crate) fn add_prebuilt_module_path(
-        compiler: CppCompiler,
-        out_dir: &Path
-    ) -> Argument<'_> {
+    pub(crate) fn add_prebuilt_module_path(compiler: CppCompiler, out_dir: &Path) -> Argument<'_> {
         Argument::from(format!(
             "-fprebuilt-module-path={}",
             out_dir

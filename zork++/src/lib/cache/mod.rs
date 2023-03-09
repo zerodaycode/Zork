@@ -237,9 +237,9 @@ impl ZorkCache {
                 .join(" "),
         };
 
-        // TODO Replace for target, or whatever, so it doesn't goes to the main command line
+        let named_target = if test_mode { "test_main" } else { "main" };
         self.last_generated_commands
-            .entry(PathBuf::from("main")) // provisional
+            .entry(PathBuf::from(named_target)) // provisional
             .or_insert_with(|| {
                 has_changes = true;
                 vec![commands_details.main.command.clone()]

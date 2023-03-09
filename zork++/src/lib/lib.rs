@@ -106,13 +106,13 @@ pub mod worker {
                 commands = build_project(program_data, read_only_cache, false)
                     .with_context(|| "Failed to build project")?;
 
-                commands::run_generated_commands(program_data, commands, cache)
+                commands::run_generated_commands(program_data, commands, cache, false)
             }
             Command::Run => {
                 commands = build_project(program_data, read_only_cache, false)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, cache) {
+                match commands::run_generated_commands(program_data, commands, cache, false) {
                     Ok(_) => autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         program_data.build.output_dir,
@@ -125,7 +125,7 @@ pub mod worker {
                 commands = build_project(program_data, read_only_cache, true)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, cache) {
+                match commands::run_generated_commands(program_data, commands, cache, false) {
                     Ok(_) => autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         program_data.build.output_dir,
@@ -157,9 +157,7 @@ pub mod worker {
         let compiler = &model.compiler.cpp_compiler;
 
         // Recursively create a directory and all of its parent components if they are missing
-        let modules_path = Path::new(out_dir)
-            .join(compiler.as_ref())
-            .join("modules");
+        let modules_path = Path::new(out_dir).join(compiler.as_ref()).join("modules");
         let zork_path = out_dir.join("zork");
         let zork_cache_path = zork_path.join("cache");
         let zork_intrinsics_path = zork_path.join("intrinsics");
