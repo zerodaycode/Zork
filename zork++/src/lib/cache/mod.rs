@@ -15,7 +15,7 @@ use crate::utils::constants::COMPILATION_DATABASE;
 use crate::{
     cli::{
         input::CliArgs,
-        output::commands::{CommandExecutionResult, Commands, ModuleCommandLine},
+        output::commands::{CommandExecutionResult, Commands, SourceCommandLine},
     },
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::{
@@ -314,7 +314,7 @@ impl ZorkCache {
 
     fn normalize_execution_result_status(
         &self,
-        module_command_line: &ModuleCommandLine,
+        module_command_line: &SourceCommandLine,
     ) -> CommandExecutionResult {
         if module_command_line
             .execution_result
@@ -330,7 +330,7 @@ impl ZorkCache {
         }
     }
 
-    fn set_module_generated_command_line(&self, module_command_line: &ModuleCommandLine) -> String {
+    fn set_module_generated_command_line(&self, module_command_line: &SourceCommandLine) -> String {
         if module_command_line.processed {
             String::with_capacity(0)
         } else {

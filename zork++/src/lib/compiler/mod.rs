@@ -7,7 +7,7 @@ use color_eyre::Result;
 use std::path::Path;
 
 use crate::bounds::TranslationUnit;
-use crate::cli::output::commands::{CommandExecutionResult, ModuleCommandLine};
+use crate::cli::output::commands::{CommandExecutionResult, SourceCommandLine};
 use crate::compiler::helpers::flag_source_file_without_changes;
 use crate::{
     cache::ZorkCache,
@@ -75,7 +75,7 @@ fn build_sources<'a>(
         if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &src.file()) {
             sources::generate_sources_arguments(model, commands, &model.tests, src);
         } else {
-            let command_line = ModuleCommandLine::from_translation_unit(
+            let command_line = SourceCommandLine::from_translation_unit(
                 src, Vec::with_capacity(0), true, CommandExecutionResult::Cached
             );
 
@@ -121,7 +121,7 @@ fn prebuild_module_interfaces<'a>(
         if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file()) {
             sources::generate_module_interfaces_args(model, module_interface, commands);
         } else {
-            let command_line = ModuleCommandLine::from_translation_unit(
+            let command_line = SourceCommandLine::from_translation_unit(
                 module_interface, Vec::with_capacity(0), true, CommandExecutionResult::Cached
             );
 
@@ -146,7 +146,7 @@ fn compile_module_implementations<'a>(
         if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file()) {
             sources::generate_module_implementation_args(model, module_impl, commands);
         } else {
-            let command_line = ModuleCommandLine::from_translation_unit(
+            let command_line = SourceCommandLine::from_translation_unit(
                 module_impl, Vec::with_capacity(0), true, CommandExecutionResult::Cached
             );
 
@@ -166,7 +166,7 @@ mod sources {
         bounds::{ExecutableTarget, TranslationUnit},
         cli::output::{
             arguments::{clang_args, Argument},
-            commands::{CommandExecutionResult, Commands, ModuleCommandLine},
+            commands::{CommandExecutionResult, Commands, SourceCommandLine},
         },
         project_model::{
             compiler::CppCompiler,
@@ -330,7 +330,7 @@ mod sources {
         arguments.push(obj_file.clone());
         arguments.push(Argument::from(source.file()));
 
-        let command_line = ModuleCommandLine::from_translation_unit(
+        let command_line = SourceCommandLine::from_translation_unit(
             source,
             arguments,
             false,
@@ -436,7 +436,7 @@ mod sources {
             }
         }
 
-        let command_line = ModuleCommandLine::from_translation_unit(
+        let command_line = SourceCommandLine::from_translation_unit(
             interface,
             arguments,
             false,
@@ -529,7 +529,7 @@ mod sources {
             }
         }
 
-        let command_line = ModuleCommandLine::from_translation_unit(
+        let command_line = SourceCommandLine::from_translation_unit(
             implementation,
             arguments,
             false,
@@ -549,7 +549,7 @@ mod helpers {
     use crate::{
         bounds::TranslationUnit,
         cache::ZorkCache,
-        cli::output::commands::{CommandExecutionResult, ModuleCommandLine},
+        cli::output::commands::{CommandExecutionResult, SourceCommandLine},
     };
     use std::path::PathBuf;
     use crate::project_model::sourceset::SourceFile;
@@ -671,21 +671,15 @@ mod helpers {
             })
             .collect::<Vec<_>>();
 
-        // TODO Cached sys headers will deserve in a near future its own type,
-        // storing the commands and the paths there, and checking for rebuild them
-        // independently, also check for execution independently
         for collection_args in sys_modules {
-            commands.interfaces.push(ModuleCommandLine {
-                directory: PathBuf::with_capacity(0),
-                file: collection_args[4].value.to_string(),
-                args: collection_args,
-                processed: false,
-                execution_result: CommandExecutionResult::default(),
-            });
+            commands.system_modules.insert(
+                collection_args[4].value.to_string(),
+                collection_args
+            );
         }
     }
 
-    /// Marks the given module translation unit as already processed,
+    /// Marks the given source file as already processed,
     /// or if it should be reprocessed again due to a previous failure status,
     /// to avoid losing time rebuilding that module if the source file
     /// hasn't been modified since the last build process iteration.
