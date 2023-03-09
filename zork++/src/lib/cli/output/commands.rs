@@ -34,55 +34,25 @@ pub fn run_generated_commands(
         execute_command(compiler, sys_module.1, &cache)?;
     }
 
-    for miu in commands.interfaces.iter_mut() {
-        if !miu.processed {
-            let r = execute_command(compiler, &miu.args, &cache);
-            miu.execution_result = CommandExecutionResult::from(&r);
+    let sources = commands.interfaces.iter_mut()
+        .chain(commands.implementations.iter_mut())
+        .chain(commands.sources.iter_mut());
+
+    for source_file in sources {
+        if !source_file.processed {
+            let r = execute_command(compiler, &source_file.args, &cache);
+            source_file.execution_result = CommandExecutionResult::from(&r);
             total_exec_commands += 1;
             if let Err(e) = r {
                 cache::save(program_data, cache, commands)?;
                 return Err(e);
             } else if !r.as_ref().unwrap().success() {
-                let c_miu = miu.clone();
+                let err = eyre!(
+                    "Ending the program, because the build of: {:?} wasn't ended successfully",
+                    source_file
+                );
                 cache::save(program_data, cache, commands)?;
-                return Err(eyre!(
-                    "Ending the program, because the build of: {:?} wasn't ended successfully",
-                    c_miu.file
-                ));
-            }
-        }
-    }
-
-    for implm in &mut commands.implementations {
-        if !implm.processed {
-            let r = execute_command(compiler, &implm.args, &cache);
-            implm.execution_result = CommandExecutionResult::from(&r);
-            total_exec_commands += 1;
-            if let Err(e) = r {
-                return Err(e);
-            } else if !r.as_ref().unwrap().success() {
-                let c_miu = implm.clone();
-                return Err(eyre!(
-                    "Ending the program, because the build of: {:?} wasn't ended successfully",
-                    c_miu.file
-                ));
-            }
-        }
-    }
-
-    for source in &mut commands.sources {
-        if !source.processed {
-            let r = execute_command(compiler, &source.args, &cache);
-            source.execution_result = CommandExecutionResult::from(&r);
-            total_exec_commands += 1;
-            if let Err(e) = r {
-                return Err(e);
-            } else if !r.as_ref().unwrap().success() {
-                let c_miu = source.clone();
-                return Err(eyre!(
-                    "Ending the program, because the build of: {:?} wasn't ended successfully",
-                    c_miu.file
-                ));
+                return Err(err);
             }
         }
     }
@@ -105,7 +75,7 @@ pub fn run_generated_commands(
         }
     }
 
-    log::info!("A total of: {total_exec_commands} has been successfully executed");
+    log::info!("A total of: {total_exec_commands} command lines has been executed successfully");
     cache::save(program_data, cache, commands)?;
     Ok(CommandExecutionResult::Success)
 }
