@@ -8,7 +8,7 @@ use std::path::Path;
 
 use crate::bounds::TranslationUnit;
 use crate::cli::output::commands::{CommandExecutionResult, ModuleCommandLine};
-use crate::compiler::helpers::flag_modules_without_changes;
+use crate::compiler::helpers::flag_source_file_without_changes;
 use crate::{
     cache::ZorkCache,
     cli::output::{arguments::Argument, commands::Commands},
@@ -38,7 +38,7 @@ pub fn build_project<'a>(
     // 1st - Build the modules
     build_modules(model, cache, &mut commands)?;
     // 2nd - Build the non module sources
-    build_sources(model, &mut commands, tests)?;
+    build_sources(model, cache, &mut commands, tests)?;
     // 3rd - Build the executable or the tests
     build_executable(model, &mut commands, tests)?;
 
@@ -64,18 +64,28 @@ fn build_executable<'a>(
 
 fn build_sources<'a>(
     model: &'a ZorkModel<'_>,
+    cache: &'a ZorkCache,
     commands: &'_ mut Commands<'a>,
     tests: bool,
 ) -> Result<()> {
-    if tests {
-        for source in model.tests.sourceset.sources.iter() {
-            sources::generate_sources_arguments(model, commands, &model.tests, source)?;
+    log::info!("Building the source files...");
+    let srcs = if tests { &model.tests.sourceset.sources } else { &model.executable.sourceset.sources };
+
+    srcs.iter().for_each(|src| {
+        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &src.file()) {
+            sources::generate_sources_arguments(model, commands, &model.tests, src);
+        } else {
+            let command_line = ModuleCommandLine::from_translation_unit(
+                src, Vec::with_capacity(0), true, CommandExecutionResult::Cached
+            );
+
+            log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &src.file());
+            commands.implementations.push(command_line);
+            commands.generated_files_paths.push(helpers::generate_obj_file(
+                model.compiler.cpp_compiler, model.build.output_dir, src
+            ))
         }
-    } else {
-        for source in model.executable.sourceset.sources.iter() {
-            sources::generate_sources_arguments(model, commands, &model.executable, source)?;
-        }
-    }
+    });
 
     Ok(())
 }
@@ -108,14 +118,14 @@ fn prebuild_module_interfaces<'a>(
     commands: &mut Commands<'a>,
 ) {
     interfaces.iter().for_each(|module_interface| {
-        if !flag_modules_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file()) {
+        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file()) {
             sources::generate_module_interfaces_args(model, module_interface, commands);
         } else {
             let command_line = ModuleCommandLine::from_translation_unit(
                 module_interface, Vec::with_capacity(0), true, CommandExecutionResult::Cached
             );
 
-            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
+            log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
             commands.interfaces.push(command_line);
             commands.generated_files_paths.push(Argument::from(helpers::generate_prebuild_miu(
                 model.compiler.cpp_compiler, model.build.output_dir, module_interface
@@ -133,14 +143,14 @@ fn compile_module_implementations<'a>(
     commands: &mut Commands<'a>,
 ) {
     impls.iter().for_each(|module_impl| {
-        if !flag_modules_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file()) {
+        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file()) {
             sources::generate_module_implementation_args(model, module_impl, commands);
         } else {
             let command_line = ModuleCommandLine::from_translation_unit(
                 module_impl, Vec::with_capacity(0), true, CommandExecutionResult::Cached
             );
 
-            log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
+            log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
             commands.implementations.push(command_line);
             commands.generated_files_paths.push(Argument::from(helpers::generate_impl_obj_file(
                 model.compiler.cpp_compiler, model.build.output_dir, module_impl
@@ -272,9 +282,7 @@ mod sources {
         commands: &mut Commands<'a>,
         target: &'a impl ExecutableTarget<'a>,
         source: &'a SourceFile,
-    ) -> Result<()> {
-        log::info!("Building the source files...");
-
+    ) {
         let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir;
 
@@ -318,19 +326,7 @@ mod sources {
             }
         };
 
-        let fo = if compiler.eq(&CppCompiler::MSVC) {
-            "/Fo"
-        } else { "" };
-        let obj_file = Argument::from(format!(
-            "{fo}{}",
-            out_dir
-                .join(compiler.as_ref())
-                .join("sources")
-                .join(source.file_stem())
-                .with_extension(compiler.get_obj_file_extension())
-                .display()
-        ));
-
+        let obj_file = helpers::generate_obj_file(compiler, out_dir, source);
         arguments.push(obj_file.clone());
         arguments.push(Argument::from(source.file()));
 
@@ -341,9 +337,7 @@ mod sources {
             CommandExecutionResult::default(),
         );
         commands.sources.push(command_line);
-        commands.generated_files_paths.push(obj_file);
-
-        Ok(())
+        commands.generated_files_paths.push(obj_file)
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
@@ -558,6 +552,7 @@ mod helpers {
         cli::output::commands::{CommandExecutionResult, ModuleCommandLine},
     };
     use std::path::PathBuf;
+    use crate::project_model::sourceset::SourceFile;
 
     /// Creates the path for a prebuilt module interface, based on the default expected
     /// extension for BMI's given a compiler
@@ -696,7 +691,7 @@ mod helpers {
     /// hasn't been modified since the last build process iteration.
     ///
     /// True means already processed and previous iteration Success
-    pub(crate) fn flag_modules_without_changes(
+    pub(crate) fn flag_source_file_without_changes(
         compiler: &CppCompiler,
         cache: &ZorkCache,
         file: &Path,
@@ -735,5 +730,21 @@ mod helpers {
         } else {
             false
         }
+    }
+
+    pub(crate) fn generate_obj_file<'a>(compiler: CppCompiler, out_dir: &Path, source: &SourceFile) -> Argument<'a> {
+        let fo = if compiler.eq(&CppCompiler::MSVC) {
+            "/Fo"
+        } else { "" };
+
+        Argument::from(format!(
+            "{fo}{}",
+            out_dir
+                .join(compiler.as_ref())
+                .join("sources")
+                .join(source.file_stem())
+                .with_extension(compiler.get_obj_file_extension())
+                .display()
+        ))
     }
 }

@@ -87,23 +87,10 @@ impl ZorkCache {
         let last_iteration_details = self.generated_commands.last();
 
         if let Some(last_iteration) = last_iteration_details {
-            let found_as_ifc = last_iteration
-                .interfaces
-                .iter()
+            return last_iteration.interfaces.iter()
+                .chain(last_iteration.implementations.iter())
+                .chain(last_iteration.sources.iter())
                 .find(|comm_det| comm_det.file_path().eq(path.as_ref()));
-
-            if found_as_ifc.is_some() {
-                return found_as_ifc;
-            } else {
-                let found_as_impl = last_iteration
-                    .implementations
-                    .iter()
-                    .find(|comm_det| comm_det.file_path().eq(path.as_ref()));
-
-                if found_as_impl.is_some() {
-                    return found_as_impl;
-                }
-            }
         }
         None
     }

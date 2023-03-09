@@ -173,11 +173,8 @@ fn execute_command(
     }
 }
 
-/// Holds a collection of heap allocated arguments. This is introduced in the
-/// v0.7.0, for just wrapping the vector that holds the arguments, and for hold
-/// a flag that will indicate us that this command line will be used in a module,
-/// and that module was already built, and the module source file didn't change
-/// since the last iteration of Zork++
+/// The pieces and details for the generated command line for
+/// for some translation unit
 #[derive(Debug, Clone)]
 pub struct ModuleCommandLine<'a> {
     pub directory: PathBuf,
@@ -218,14 +215,14 @@ impl<'a> IntoIterator for ModuleCommandLine<'a> {
 }
 
 #[derive(Debug)]
-pub struct SourcesCommandLine<'a> {
+pub struct ExecutableCommandLine<'a> {
     pub main: &'a Path,
     pub sources_paths: Vec<PathBuf>,
     pub args: Vec<Argument<'a>>,
     pub execution_result: CommandExecutionResult,
 }
 
-impl<'a> Default for SourcesCommandLine<'a> {
+impl<'a> Default for ExecutableCommandLine<'a> {
     fn default() -> Self {
         Self {
             main: Path::new("."),
@@ -244,7 +241,7 @@ pub struct Commands<'a> {
     pub interfaces: Vec<ModuleCommandLine<'a>>,
     pub implementations: Vec<ModuleCommandLine<'a>>,
     pub sources: Vec<ModuleCommandLine<'a>>,
-    pub main: SourcesCommandLine<'a>,
+    pub main: ExecutableCommandLine<'a>,
     pub generated_files_paths: Vec<Argument<'a>>,
 }
 
@@ -256,7 +253,7 @@ impl<'a> Commands<'a> {
             interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
             sources: Vec::with_capacity(0),
-            main: SourcesCommandLine::default(),
+            main: ExecutableCommandLine::default(),
             generated_files_paths: Vec::with_capacity(0),
         }
     }
