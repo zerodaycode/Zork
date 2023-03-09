@@ -81,9 +81,9 @@ fn build_sources<'a>(
 
             log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &src.file());
             commands.implementations.push(command_line);
-            commands.generated_files_paths.push(helpers::generate_obj_file(
+            commands.generated_files_paths.push(Argument::from(helpers::generate_obj_file(
                 model.compiler.cpp_compiler, model.build.output_dir, src
-            ))
+            ).to_string()))
         }
     });
 
@@ -176,6 +176,7 @@ mod sources {
         utils::constants,
     };
     use color_eyre::Result;
+    use crate::cli::output::arguments;
     use crate::project_model::sourceset::SourceFile;
 
     /// Generates the command line arguments for the desired target
@@ -315,10 +316,6 @@ mod sources {
                         .join("modules")
                         .join("interfaces"),
                 ));
-                arguments.push(Argument::from(format!(
-                    "/Fo{}\\",
-                    out_dir.join(compiler.as_ref()).display()
-                )));
             }
             CppCompiler::GCC => {
                 arguments.push(Argument::from("-fmodules-ts"));
@@ -327,7 +324,8 @@ mod sources {
         };
 
         let obj_file = helpers::generate_obj_file(compiler, out_dir, source);
-        arguments.push(obj_file.clone());
+        let fo = if compiler.eq(&CppCompiler::MSVC) { "/Fo" } else { "" };
+        arguments.push(Argument::from(format!("{fo}{obj_file}")));
         arguments.push(Argument::from(source.file()));
 
         let command_line = SourceCommandLine::from_translation_unit(
@@ -337,7 +335,7 @@ mod sources {
             CommandExecutionResult::default(),
         );
         commands.sources.push(command_line);
-        commands.generated_files_paths.push(obj_file)
+        commands.generated_files_paths.push(Argument::from(obj_file.to_string()))
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
@@ -543,13 +541,14 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate.
 mod helpers {
+    use std::fmt::Display;
     use chrono::{DateTime, Utc};
 
     use super::*;
     use crate::{
         bounds::TranslationUnit,
         cache::ZorkCache,
-        cli::output::commands::{CommandExecutionResult, SourceCommandLine},
+        cli::output::commands::CommandExecutionResult
     };
     use std::path::PathBuf;
     use crate::project_model::sourceset::SourceFile;
@@ -726,19 +725,14 @@ mod helpers {
         }
     }
 
-    pub(crate) fn generate_obj_file<'a>(compiler: CppCompiler, out_dir: &Path, source: &SourceFile) -> Argument<'a> {
-        let fo = if compiler.eq(&CppCompiler::MSVC) {
-            "/Fo"
-        } else { "" };
-
-        Argument::from(format!(
-            "{fo}{}",
+    pub(crate) fn generate_obj_file<'a>(compiler: CppCompiler, out_dir: &Path, source: &SourceFile) -> impl Display {
+        format!("{}",
             out_dir
                 .join(compiler.as_ref())
                 .join("sources")
                 .join(source.file_stem())
                 .with_extension(compiler.get_obj_file_extension())
                 .display()
-        ))
+        )
     }
 }

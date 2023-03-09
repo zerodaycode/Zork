@@ -75,7 +75,7 @@ pub fn run_generated_commands(
         }
     }
 
-    log::info!("A total of: {total_exec_commands} command lines has been executed successfully");
+    log::debug!("A total of: {total_exec_commands} command lines has been executed successfully");
     cache::save(program_data, cache, commands)?;
     Ok(CommandExecutionResult::Success)
 }

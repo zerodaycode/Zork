@@ -46,15 +46,10 @@ pub fn get_absolute_path<P: AsRef<Path>>(p: P) -> Result<PathBuf> {
     let file_stem = canonical
         .file_stem()
         .with_context(|| format!("Unable to get the file stem for {:?}", p.as_ref()))?;
-    let r = Ok(canonical
+    Ok(canonical
         .parent()
         .unwrap_or_else(|| panic!("Unexpected error getting the parent of {:?}", p.as_ref()))
-        .join(file_stem));
-    println!(
-        "Generated file: {:?}, file stem: {file_stem:?}, and canonical: {canonical:?}",
-        &r
-    );
-    r
+        .join(file_stem))
 }
 
 ///
