@@ -407,11 +407,7 @@ mod test {
             executable: ExecutableModel {
                 executable_name: "zork",
                 sourceset: SourceSet {
-                    sources: vec![SourceFile {
-                        path: Default::default(),
-                        file_stem: "".to_string(),
-                        extension: "".to_string(),
-                    }],
+                    sources: vec![],
                 },
                 extra_args: vec![Argument::from("-Werr")],
             },
@@ -419,17 +415,17 @@ mod test {
                 base_ifcs_dir: Path::new("ifc"),
                 interfaces: vec![
                     ModuleInterfaceModel {
-                        path: env::current_dir().unwrap().join("ifc"),
-                        file_stem: String::from("math"),
-                        extension: String::from("cppm"),
+                        path: PathBuf::from(""),
+                        file_stem: String::from(""),
+                        extension: String::from(""),
                         module_name: "math",
                         partition: None,
                         dependencies: vec![],
                     },
                     ModuleInterfaceModel {
-                        path: env::current_dir().unwrap().join("ifc"),
-                        file_stem: String::from("some_module"),
-                        extension: String::from("cppm"),
+                        path: PathBuf::from(""),
+                        file_stem: String::from(""),
+                        extension: String::from(""),
                         module_name: "math",
                         partition: None,
                         dependencies: vec![],
@@ -438,15 +434,15 @@ mod test {
                 base_impls_dir: Path::new("src"),
                 implementations: vec![
                     ModuleImplementationModel {
-                        path: env::current_dir().unwrap().join("\\src"),
-                        file_stem: String::from("math"),
-                        extension: String::from("cpp"),
+                        path: PathBuf::from(""),
+                        file_stem: String::from(""),
+                        extension: String::from(""),
                         dependencies: vec!["math"],
                     },
                     ModuleImplementationModel {
-                        path: env::current_dir().unwrap().join("\\ifc"),
-                        file_stem: String::from("some_module_impl"),
-                        extension: String::from("cpp"),
+                        path: PathBuf::from(""),
+                        file_stem: String::from(""),
+                        extension: String::from(""),
                         dependencies: vec!["iostream"],
                     },
                 ],
@@ -455,11 +451,7 @@ mod test {
             tests: TestsModel {
                 test_executable_name: "zork_check".to_string(),
                 sourceset: SourceSet {
-                    sources: vec![SourceFile {
-                        path: Default::default(),
-                        file_stem: "".to_string(),
-                        extension: "".to_string(),
-                    }],
+                    sources: vec![],
                 },
                 extra_args: vec![Argument::from("-pedantic")],
             },
