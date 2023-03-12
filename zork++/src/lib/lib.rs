@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod bounds;
 pub mod cache;
 pub mod cli;
@@ -55,14 +57,12 @@ pub mod worker {
                 config_file.dir_entry.file_name(),
                 config_file.path
             );
-            let raw_file = fs::read_to_string(config_file.path)
-                .with_context(|| {
-                    format!(
-                        "An error happened parsing the configuration file: {:?}",
-                        config_file.dir_entry.file_name()
-                    )
-                })
-                .expect("Unexpected big error happened reading a config file");
+            let raw_file = fs::read_to_string(config_file.path).with_context(|| {
+                format!(
+                    "An error happened parsing the configuration file: {:?}",
+                    config_file.dir_entry.file_name()
+                )
+            })?;
 
             let config: ZorkConfigFile = toml::from_str(raw_file.as_str())
                 .with_context(|| "Could not parse configuration file")?;
@@ -70,23 +70,20 @@ pub mod worker {
             create_output_directory(&program_data)?;
 
             let cache = cache::load(&program_data, cli_args)
-                .with_context(|| "Unable to load the Zork++ caché")?;
-            let read_only_cache = cache.clone();
+                .with_context(|| "Unable to load the Zork++ cache")?;
 
-            // let generated_commands =
-            do_main_work_based_on_cli_input(cli_args, &program_data, cache, &read_only_cache)
-                .with_context(|| {
-                    format!(
-                        "Failed to build the project for the config file: {:?}",
-                        config_file.dir_entry.file_name()
-                    )
-                })?;
+            do_main_work_based_on_cli_input(cli_args, &program_data, cache).with_context(|| {
+                format!(
+                    "Failed to build the project for the config file: {:?}",
+                    config_file.dir_entry.file_name()
+                )
+            })?;
         }
 
         Ok(())
     }
 
-    /// Helper for reduce the cyclomatic complextity of the main fn.
+    /// Helper for reduce the cyclomatic complexity of the main fn.
     ///
     /// Contains the main calls to the generation of the compilers commands lines,
     /// the calls to the process that runs those ones, the autorun the generated
@@ -94,45 +91,48 @@ pub mod worker {
     fn do_main_work_based_on_cli_input<'a>(
         cli_args: &'a CliArgs,
         program_data: &'a ZorkModel<'_>,
-        cache: ZorkCache,
-        read_only_cache: &'a ZorkCache,
+        mut cache: ZorkCache,
     ) -> Result<CommandExecutionResult> {
         let commands: Commands;
 
         match cli_args.command {
             Command::Build => {
-                commands = build_project(program_data, read_only_cache, false)
+                commands = build_project(program_data, &cache, false)
                     .with_context(|| "Failed to build project")?;
 
-                commands::run_generated_commands(program_data, commands, cache)
+                commands::run_generated_commands(program_data, commands, &mut cache, false)
             }
             Command::Run => {
-                commands = build_project(program_data, read_only_cache, false)
+                commands = build_project(program_data, &cache, false)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, cache) {
+                match commands::run_generated_commands(program_data, commands, &mut cache, false) {
                     Ok(_) => autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         program_data.build.output_dir,
-                        program_data.executable.executable_name
+                        program_data.executable.executable_name,
                     ),
                     Err(e) => Err(e),
                 }
             }
             Command::Test => {
-                commands = build_project(program_data, read_only_cache, true)
+                commands = build_project(program_data, &cache, true)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, cache) {
+                match commands::run_generated_commands(program_data, commands, &mut cache, true) {
                     Ok(_) => autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         program_data.build.output_dir,
-                        &program_data.tests.test_executable_name
+                        &program_data.tests.test_executable_name,
                     ),
                     Err(e) => Err(e),
                 }
             }
-            _ => todo!("This branch should never be reached for now, as do not exists commands that may trigger them ")
+            _ => todo!(
+                "This branch should never be reached for now, as do not exists commands that may\
+                trigger them. The unique remaining, is ::New, that is already processed\
+                at the very beggining"
+            ),
         }
     }
 
@@ -155,15 +155,14 @@ pub mod worker {
         let compiler = &model.compiler.cpp_compiler;
 
         // Recursively create a directory and all of its parent components if they are missing
-        let modules_path = Path::new(out_dir)
-            .join(compiler.to_string())
-            .join("modules");
+        let modules_path = Path::new(out_dir).join(compiler.as_ref()).join("modules");
         let zork_path = out_dir.join("zork");
         let zork_cache_path = zork_path.join("cache");
         let zork_intrinsics_path = zork_path.join("intrinsics");
 
         utils::fs::create_directory(&modules_path.join("interfaces"))?;
         utils::fs::create_directory(&modules_path.join("implementations"))?;
+        utils::fs::create_directory(&out_dir.join(compiler.as_ref()).join("sources"))?;
         utils::fs::create_directory(&zork_cache_path.join(model.compiler.cpp_compiler.as_ref()))?;
         utils::fs::create_directory(&zork_intrinsics_path)?;
 

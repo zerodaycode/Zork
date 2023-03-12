@@ -1,6 +1,7 @@
 //! Types and procedures that represents a command line argument,
 //! or collections of command line arguments
 
+use std::path::Path;
 use std::{borrow::Borrow, ffi::OsStr, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -22,6 +23,12 @@ impl<'a> From<String> for Argument<'a> {
         Self {
             value: Box::leak(value.into_boxed_str()),
         }
+    }
+}
+
+impl<'a> From<&'a Path> for Argument<'a> {
+    fn from(value: &'a Path) -> Self {
+        Self::from(format!("{}", value.display()))
     }
 }
 
@@ -93,9 +100,20 @@ pub mod clang_args {
         None
     }
 
-    pub(crate) fn add_direct_module_interfafces_dependencies(
+    pub(crate) fn add_prebuilt_module_path(compiler: CppCompiler, out_dir: &Path) -> Argument<'_> {
+        Argument::from(format!(
+            "-fprebuilt-module-path={}",
+            out_dir
+                .join(compiler.as_ref())
+                .join("modules")
+                .join("interfaces")
+                .display()
+        ))
+    }
+
+    pub(crate) fn add_direct_module_interfaces_dependencies(
         dependencies: &[&str],
-        compiler: &CppCompiler,
+        compiler: CppCompiler,
         out_dir: &Path,
         arguments: &mut Vec<Argument>,
     ) {

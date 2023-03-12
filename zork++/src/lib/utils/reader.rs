@@ -1,3 +1,4 @@
+use crate::project_model::sourceset::SourceFile;
 use crate::{
     cli::output::arguments::Argument,
     config_file::{
@@ -21,6 +22,7 @@ use crate::{
         tests::TestsModel,
         ZorkModel,
     },
+    utils,
 };
 use color_eyre::{eyre::eyre, Result};
 use std::path::{Path, PathBuf};
@@ -100,6 +102,7 @@ fn assemble_project_model<'a>(config: &'a ProjectAttribute) -> ProjectModel<'a> 
             .authors
             .as_ref()
             .map_or_else(|| &[] as &[&str], |auths| auths.as_slice()),
+        compilation_db: config.compilation_db.unwrap_or_default(),
     }
 }
 
@@ -129,6 +132,7 @@ fn assemble_build_model<'a>(config: &'a Option<BuildAttribute>) -> BuildModel<'a
     }
 }
 
+//noinspection ALL
 fn assemble_executable_model<'a>(
     project_name: &'a str,
     config: &'a Option<ExecutableAttribute>,
@@ -139,25 +143,11 @@ fn assemble_executable_model<'a>(
         .and_then(|exe| exe.executable_name)
         .unwrap_or(project_name);
 
-    let base_path = config.and_then(|exe| exe.sources_base_path).unwrap_or(".");
-
     let sources = config
         .and_then(|exe| exe.sources.clone())
-        .unwrap_or_default()
-        .into_iter()
-        .map(|source| {
-            if source.contains('.') {
-                Source::Glob(GlobPattern(source))
-            } else {
-                Source::File(Path::new(source))
-            }
-        })
-        .collect();
+        .unwrap_or_default();
 
-    let sourceset = SourceSet {
-        base_path: Path::new(base_path),
-        sources,
-    };
+    let sourceset = get_sourceset_for(sources);
 
     let extra_args = config
         .and_then(|exe| exe.extra_args.as_ref())
@@ -180,7 +170,11 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
 
     let interfaces = config
         .and_then(|modules| modules.interfaces.as_ref())
-        .map(|ifcs| ifcs.iter().map(assemble_module_interface_model).collect())
+        .map(|ifcs| {
+            ifcs.iter()
+                .map(|m_ifc| assemble_module_interface_model(m_ifc, base_ifcs_dir))
+                .collect()
+        })
         .unwrap_or_default();
 
     let base_impls_dir = config
@@ -192,7 +186,7 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
         .map(|impls| {
             impls
                 .iter()
-                .map(assemble_module_implementation_model)
+                .map(|m_impl| assemble_module_implementation_model(m_impl, base_impls_dir))
                 .collect()
         })
         .unwrap_or_default();
@@ -210,7 +204,11 @@ fn assemble_modules_model<'a>(config: &'a Option<ModulesAttribute>) -> ModulesMo
     }
 }
 
-fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInterfaceModel<'a> {
+fn assemble_module_interface_model<'a>(
+    config: &'a ModuleInterface,
+    base_path: &str,
+) -> ModuleInterfaceModel<'a> {
+    let file_path = Path::new(base_path).join(config.file);
     let module_name = config.module_name.unwrap_or_else(|| {
         Path::new(config.file)
             .file_stem()
@@ -228,8 +226,11 @@ fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInt
         ))
     };
 
+    let file_details = utils::fs::get_file_details(file_path).unwrap_or_default(); // TODO Care with this, refactor
     ModuleInterfaceModel {
-        file: Path::new(config.file),
+        path: file_details.0,
+        file_stem: file_details.1,
+        extension: file_details.2,
         module_name,
         partition,
         dependencies,
@@ -238,7 +239,9 @@ fn assemble_module_interface_model<'a>(config: &'a ModuleInterface) -> ModuleInt
 
 fn assemble_module_implementation_model<'a>(
     config: &'a ModuleImplementation,
+    base_path: &str,
 ) -> ModuleImplementationModel<'a> {
+    let file_path = Path::new(base_path).join(config.file);
     let mut dependencies = config.dependencies.clone().unwrap_or_default();
     if dependencies.is_empty() {
         let last_dot_index = config.file.rfind('.');
@@ -250,8 +253,12 @@ fn assemble_module_implementation_model<'a>(
         }
     }
 
+    let file_details = utils::fs::get_file_details(file_path).unwrap_or_default(); // TODO Care with this, refactor
+
     ModuleImplementationModel {
-        file: Path::new(config.file),
+        path: file_details.0,
+        file_stem: file_details.1,
+        extension: file_details.2,
         dependencies,
     }
 }
@@ -267,25 +274,10 @@ fn assemble_tests_model<'a>(
         |exe_name| exe_name.to_owned(),
     );
 
-    let base_path = config.and_then(|exe| exe.sources_base_path).unwrap_or(".");
-
     let sources = config
         .and_then(|exe| exe.sources.clone())
-        .unwrap_or_default()
-        .into_iter()
-        .map(|source| {
-            if source.contains('.') {
-                Source::Glob(GlobPattern(source))
-            } else {
-                Source::File(Path::new(source))
-            }
-        })
-        .collect();
-
-    let sourceset = SourceSet {
-        base_path: Path::new(base_path),
-        sources,
-    };
+        .unwrap_or_default();
+    let sourceset = get_sourceset_for(sources);
 
     let extra_args = config
         .and_then(|test| test.extra_args.as_ref())
@@ -297,6 +289,34 @@ fn assemble_tests_model<'a>(
         sourceset,
         extra_args,
     }
+}
+
+fn get_sourceset_for(srcs: Vec<&str>) -> SourceSet {
+    let sources = srcs
+        .into_iter()
+        .map(|src| {
+            if src.contains('*') {
+                Source::Glob(GlobPattern(src))
+            } else {
+                Source::File(Path::new(src))
+            }
+        })
+        .flat_map(|source| {
+            source
+                .paths()
+                .expect("Error getting the declared paths for the source files")
+        })
+        .map(|pb| {
+            let file_details = utils::fs::get_file_details(pb).unwrap_or_default();
+            SourceFile {
+                path: file_details.0,
+                file_stem: file_details.1,
+                extension: file_details.2,
+            }
+        })
+        .collect();
+
+    SourceSet { sources }
 }
 
 #[cfg(test)]
@@ -327,6 +347,7 @@ mod test {
             project: ProjectModel {
                 name: "Zork++",
                 authors: &["zerodaycode.gz@gmail.com"],
+                compilation_db: false,
             },
             compiler: CompilerModel {
                 cpp_compiler: CppCompiler::CLANG,
@@ -339,10 +360,7 @@ mod test {
             },
             executable: ExecutableModel {
                 executable_name: "Zork++",
-                sourceset: SourceSet {
-                    base_path: Path::new("."),
-                    sources: vec![],
-                },
+                sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![],
             },
             modules: ModulesModel {
@@ -354,10 +372,7 @@ mod test {
             },
             tests: TestsModel {
                 test_executable_name: "Zork++_test".to_string(),
-                sourceset: SourceSet {
-                    base_path: Path::new("."),
-                    sources: vec![],
-                },
+                sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![],
             },
         };
@@ -376,6 +391,7 @@ mod test {
             project: ProjectModel {
                 name: "Zork++",
                 authors: &["zerodaycode.gz@gmail.com"],
+                compilation_db: true,
             },
             compiler: CompilerModel {
                 cpp_compiler: CppCompiler::CLANG,
@@ -388,23 +404,24 @@ mod test {
             },
             executable: ExecutableModel {
                 executable_name: "zork",
-                sourceset: SourceSet {
-                    base_path: Path::new("bin"),
-                    sources: vec![Source::Glob(GlobPattern("*.cpp"))],
-                },
+                sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![Argument::from("-Werr")],
             },
             modules: ModulesModel {
                 base_ifcs_dir: Path::new("ifc"),
                 interfaces: vec![
                     ModuleInterfaceModel {
-                        file: Path::new("math.cppm"),
+                        path: PathBuf::from(""),
+                        file_stem: String::from(""),
+                        extension: String::from(""),
                         module_name: "math",
                         partition: None,
                         dependencies: vec![],
                     },
                     ModuleInterfaceModel {
-                        file: Path::new("some_module.cppm"),
+                        path: PathBuf::from(""),
+                        file_stem: String::from(""),
+                        extension: String::from(""),
                         module_name: "math",
                         partition: None,
                         dependencies: vec![],
@@ -413,11 +430,15 @@ mod test {
                 base_impls_dir: Path::new("src"),
                 implementations: vec![
                     ModuleImplementationModel {
-                        file: Path::new("math.cpp"),
+                        path: PathBuf::from(""),
+                        file_stem: String::from(""),
+                        extension: String::from(""),
                         dependencies: vec!["math"],
                     },
                     ModuleImplementationModel {
-                        file: Path::new("some_module_impl.cpp"),
+                        path: PathBuf::from(""),
+                        file_stem: String::from(""),
+                        extension: String::from(""),
                         dependencies: vec!["iostream"],
                     },
                 ],
@@ -425,10 +446,7 @@ mod test {
             },
             tests: TestsModel {
                 test_executable_name: "zork_check".to_string(),
-                sourceset: SourceSet {
-                    base_path: Path::new("test"),
-                    sources: vec![Source::Glob(GlobPattern("*.cpp"))],
-                },
+                sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![Argument::from("-pedantic")],
             },
         };

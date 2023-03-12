@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use std::{
     path::{Path, PathBuf},
     process::ExitStatus,
 };
 
+use crate::bounds::TranslationUnit;
 ///! Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
@@ -22,76 +24,62 @@ use super::arguments::Argument;
 pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
     mut commands: Commands<'_>,
-    cache: ZorkCache,
+    cache: &mut ZorkCache,
+    test_mode: bool,
 ) -> Result<CommandExecutionResult> {
-    if !commands.interfaces.is_empty() {
-        log::debug!("Executing the commands for the module interfaces...");
+    log::info!("Proceeding to execute the generated commands...");
+    let mut total_exec_commands = 0;
+    let compiler = commands.compiler;
 
-        for miu in commands.interfaces.iter_mut() {
-            if !miu.processed {
-                let r = execute_command(&commands.compiler, &miu.args, &cache);
-                miu.execution_result = CommandExecutionResult::from(&r);
-                if let Err(e) = r {
-                    cache::save(program_data, cache, commands)?;
-                    return Err(e);
-                } else if !r.as_ref().unwrap().success() {
-                    let c_miu = miu.clone();
-                    cache::save(program_data, cache, commands)?;
-                    return Err(eyre!(
-                        "Ending the program, because the build of: {:?} wasn't ended successfully",
-                        c_miu.path
-                    ));
-                }
-            } else {
-                miu.execution_result = CommandExecutionResult::Cached;
-                log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", &miu.path);
+    for sys_module in &commands.system_modules {
+        execute_command(compiler, sys_module.1, cache)?;
+    }
+
+    let sources = commands
+        .interfaces
+        .iter_mut()
+        .chain(commands.implementations.iter_mut())
+        .chain(commands.sources.iter_mut());
+
+    for source_file in sources {
+        if !source_file.processed {
+            let r = execute_command(compiler, &source_file.args, cache);
+            source_file.execution_result = CommandExecutionResult::from(&r);
+            total_exec_commands += 1;
+            if let Err(e) = r {
+                cache::save(program_data, cache, commands, test_mode)?;
+                return Err(e);
+            } else if !r.as_ref().unwrap().success() {
+                let err = eyre!(
+                    "Ending the program, because the build of: {:?} wasn't ended successfully",
+                    source_file
+                );
+                cache::save(program_data, cache, commands, test_mode)?;
+                return Err(err);
             }
         }
     }
 
-    if !commands.implementations.is_empty() {
-        log::debug!("Executing the commands for the module implementations...");
-
-        for implm in &mut commands.implementations {
-            if !implm.processed {
-                let r = execute_command(&commands.compiler, &implm.args, &cache);
-                implm.execution_result = CommandExecutionResult::from(&r);
-                if let Err(e) = r {
-                    cache::save(program_data, cache, commands)?;
-                    return Err(e);
-                } else if !r.as_ref().unwrap().success() {
-                    let c_miu = implm.clone();
-                    cache::save(program_data, cache, commands)?;
-                    return Err(eyre!(
-                        "Ending the program, because the build of: {:?} wasn't ended successfully",
-                        c_miu.path
-                    ));
-                }
-            } else {
-                implm.execution_result = CommandExecutionResult::Cached;
-                log::trace!("Translation unit: {:?} was not modified since the last iteration. No need to rebuilt it again.", implm.path);
-            }
-        }
-    }
-
-    if !commands.sources.args.is_empty() {
+    if !commands.main.args.is_empty() {
         log::debug!("Executing the main command line...");
 
-        let r = execute_command(&commands.compiler, &commands.sources.args, &cache);
-        commands.sources.execution_result = CommandExecutionResult::from(&r);
+        let r = execute_command(compiler, &commands.main.args, cache);
+        commands.main.execution_result = CommandExecutionResult::from(&r);
+        total_exec_commands += 1;
 
         if let Err(e) = r {
-            cache::save(program_data, cache, commands)?;
+            cache::save(program_data, cache, commands, test_mode)?;
             return Err(e);
         } else if !r.as_ref().unwrap().success() {
-            cache::save(program_data, cache, commands)?;
+            cache::save(program_data, cache, commands, test_mode)?;
             return Err(eyre!(
                 "Ending the program, because the main command line execution wasn't ended successfully",
             ));
         }
     }
 
-    cache::save(program_data, cache, commands)?;
+    log::debug!("A total of: {total_exec_commands} command lines has been executed successfully");
+    cache::save(program_data, cache, commands, test_mode)?;
     Ok(CommandExecutionResult::Success)
 }
 
@@ -124,10 +112,10 @@ pub fn autorun_generated_binary(
     ))
 }
 
-/// Executes a new [`std::process::Command`] configured according the choosen
+/// Executes a new [`std::process::Command`] configured according the chosen
 /// compiler and the current operating system
 fn execute_command(
-    compiler: &CppCompiler,
+    compiler: CppCompiler,
     arguments: &[Argument<'_>],
     cache: &ZorkCache,
 ) -> Result<ExitStatus, Report> {
@@ -160,31 +148,39 @@ fn execute_command(
     }
 }
 
-/// Holds a collection of heap allocated arguments. This is introduced in the
-/// v0.7.0, for just wrapping the vector that holds the arguments, and for hold
-/// a flag that will indicate us that this command line will be used in a module,
-/// and that module was already built, and the module source file didn't change
-/// since the last iteration of Zork++
+/// The pieces and details for the generated command line for
+/// for some translation unit
 #[derive(Debug, Clone)]
-pub struct ModuleCommandLine<'a> {
-    pub path: PathBuf,
+pub struct SourceCommandLine<'a> {
+    pub directory: PathBuf,
+    pub file: String,
     pub args: Vec<Argument<'a>>,
     pub processed: bool,
     pub execution_result: CommandExecutionResult,
 }
 
-impl<'a> From<Vec<Argument<'a>>> for ModuleCommandLine<'a> {
-    fn from(value: Vec<Argument<'a>>) -> Self {
+impl<'a> SourceCommandLine<'a> {
+    pub fn from_translation_unit(
+        tu: impl TranslationUnit,
+        args: Vec<Argument<'a>>,
+        processed: bool,
+        execution_result: CommandExecutionResult,
+    ) -> Self {
         Self {
-            path: PathBuf::new(),
-            args: value,
-            processed: false,
-            execution_result: Default::default(),
+            directory: tu.path(),
+            file: tu.file_with_extension(),
+            args,
+            processed,
+            execution_result,
         }
+    }
+
+    pub fn path(&self) -> PathBuf {
+        self.directory.join(Path::new(&self.file))
     }
 }
 
-impl<'a> IntoIterator for ModuleCommandLine<'a> {
+impl<'a> IntoIterator for SourceCommandLine<'a> {
     type Item = Argument<'a>;
     type IntoIter = std::vec::IntoIter<Argument<'a>>;
 
@@ -193,21 +189,34 @@ impl<'a> IntoIterator for ModuleCommandLine<'a> {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct SourcesCommandLine<'a> {
+#[derive(Debug)]
+pub struct ExecutableCommandLine<'a> {
+    pub main: &'a Path,
     pub sources_paths: Vec<PathBuf>,
     pub args: Vec<Argument<'a>>,
     pub execution_result: CommandExecutionResult,
+}
+
+impl<'a> Default for ExecutableCommandLine<'a> {
+    fn default() -> Self {
+        Self {
+            main: Path::new("."),
+            sources_paths: Vec::with_capacity(0),
+            args: Vec::with_capacity(0),
+            execution_result: Default::default(),
+        }
+    }
 }
 
 /// Holds the generated command line arguments for a concrete compiler
 #[derive(Debug)]
 pub struct Commands<'a> {
     pub compiler: CppCompiler,
-    pub system_modules: Vec<Vec<Argument<'a>>>,
-    pub interfaces: Vec<ModuleCommandLine<'a>>,
-    pub implementations: Vec<ModuleCommandLine<'a>>,
-    pub sources: SourcesCommandLine<'a>,
+    pub system_modules: HashMap<String, Vec<Argument<'a>>>,
+    pub interfaces: Vec<SourceCommandLine<'a>>,
+    pub implementations: Vec<SourceCommandLine<'a>>,
+    pub sources: Vec<SourceCommandLine<'a>>,
+    pub main: ExecutableCommandLine<'a>,
     pub generated_files_paths: Vec<Argument<'a>>,
 }
 
@@ -215,10 +224,11 @@ impl<'a> Commands<'a> {
     pub fn new(compiler: &'a CppCompiler) -> Self {
         Self {
             compiler: *compiler,
-            system_modules: Vec::with_capacity(0),
+            system_modules: HashMap::with_capacity(0),
             interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
-            sources: SourcesCommandLine::default(),
+            sources: Vec::with_capacity(0),
+            main: ExecutableCommandLine::default(),
             generated_files_paths: Vec::with_capacity(0),
         }
     }
@@ -228,18 +238,36 @@ impl<'a> core::fmt::Display for Commands<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Commands for [{}]:\n- Interfaces: {:?},\n- Implementations: {:?},\n- Main command line: {:?}",
+            "Commands for [{}]:\n- Interfaces: {:?},\n- Implementations: {:?},\n- Sources: {:?}",
             self.compiler,
-            self.interfaces.iter().map(|vec| { vec.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
-            self.implementations.iter().map(|vec| { vec.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" "); }),
-            self.sources.args.iter().map(|e| e.value).collect::<Vec<_>>().join(" ")
+            self.interfaces.iter().map(|vec| {
+                vec.args
+                    .iter()
+                    .map(|e| e.value)
+                    .collect::<Vec<_>>()
+                    .join(" ");
+            }),
+            self.implementations.iter().map(|vec| {
+                vec.args
+                    .iter()
+                    .map(|e| e.value)
+                    .collect::<Vec<_>>()
+                    .join(" ");
+            }),
+            self.sources.iter().map(|vec| {
+                vec.args
+                    .iter()
+                    .map(|e| e.value)
+                    .collect::<Vec<_>>()
+                    .join(" ");
+            }),
         )
     }
 }
 
 /// Holds a custom representation of the execution of
 /// a command line in a shell.
-#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, Copy, PartialEq)]
 pub enum CommandExecutionResult {
     /// A command that is executed correctly
     Success,

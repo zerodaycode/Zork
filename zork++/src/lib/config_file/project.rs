@@ -15,6 +15,7 @@ use serde::*;
 ///     #[project]
 ///     name = 'Zork++ serde tests'
 ///     authors = ['zerodaycode.gz@gmail.com']
+///     compilation_db = true
 ///"#;
 ///
 /// let config: ProjectAttribute = toml::from_str(CONFIG_FILE_MOCK)
@@ -22,6 +23,7 @@ use serde::*;
 ///
 /// assert_eq!(config.name, "Zork++ serde tests");
 /// assert_eq!(config.authors, Some(vec!["zerodaycode.gz@gmail.com"]));
+/// assert_eq!(config.compilation_db, Some(true));
 /// ```
 ///
 /// > Note: TOML table are toml commented (#) to allow us to parse
@@ -38,4 +40,5 @@ pub struct ProjectAttribute<'a> {
     pub name: &'a str,
     #[serde(borrow)]
     pub authors: Option<Vec<&'a str>>,
+    pub compilation_db: Option<bool>,
 }

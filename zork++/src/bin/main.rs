@@ -18,7 +18,7 @@ fn main() -> Result<()> {
     match run_zork(&cli_args, Path::new(".")) {
         Ok(_) => {
             log::info!(
-                "[SUCCESS] - The process ended succesfully, taking a total time in complete of: {:?} ms",
+                "[SUCCESS] - The process ended successfully, taking a total time in complete of: {:?} ms",
                 process_start_time.elapsed().as_millis()
             );
             Ok(())

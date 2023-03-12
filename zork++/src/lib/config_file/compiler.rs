@@ -1,10 +1,5 @@
 ///! file for represent the available configuration properties within Zork++
 ///! for setting up the target compiler
-///
-/// ## TODO LIST
-///! TODO -> Convert this attribute into a collection of this attribute,
-/// allowing Zork++ to compile one project for multiple compilers
-/// at the same time
 use serde::Deserialize;
 
 use crate::project_model;
@@ -20,7 +15,7 @@ use crate::project_model;
 /// C++ standard that should be used on the compilation process
 ///
 /// * `std_lib` - The concrete C++ standard library (vendor specific)
-/// to link the builded code against
+/// to link the built code against
 ///
 /// * `extra_args` - A comma separated list of strings that will be passed
 /// to the generated command lines. This ones here will be placed in every
@@ -29,7 +24,7 @@ use crate::project_model;
 /// are included here, this will be wired in the main command line (the executable),
 /// the ones generated for compile modules (both interfaces and implementations)
 /// and for the command line generated for build the specified test suite and
-/// the test executableç
+/// the test executable
 ///
 /// * `system_headers_path` - An string indicating a user custom defined place
 /// where the system headers lives.
@@ -109,7 +104,7 @@ impl Into<project_model::compiler::CppCompiler> for CppCompiler {
 /// enumerated type in Rust
 ///
 /// Variants *2A* and *2B* represents Clang's way of
-/// use the latests features available
+/// use the latest features available
 ///
 /// Variant *LATEST* is the `MSVC` specific way of set the language
 /// standard level to the latest features available in Microsoft's compiler
