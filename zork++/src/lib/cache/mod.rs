@@ -164,6 +164,18 @@ impl ZorkCache {
             self.extend_collection_of_source_file_details(&mut commands_details.sources, &mut commands.sources, commands.compiler);
         are_new_commands.push(sources_has_new_commands);
 
+        commands_details.main = MainCommandLineDetail {
+            files: commands.main.sources_paths.clone(),
+            execution_result: commands.main.execution_result,
+            command: commands
+                .main
+                .args
+                .iter()
+                .map(|arg| arg.value.to_string())
+                .collect::<Vec<_>>()
+                .join(" "),
+        };
+
         let named_target = if test_mode { "test_main" } else { "main" };
         self.last_generated_commands
             .entry(PathBuf::from(named_target)) // provisional
@@ -286,7 +298,7 @@ impl ZorkCache {
                     .to_str()
                     .unwrap_or_default()
                     .to_string(),
-                file: format!("{} {}", compiler.get_driver(), module_command_line.file),
+                file: module_command_line.file.clone(),
                 execution_result: self.normalize_execution_result_status(module_command_line),
             }
         }));
