@@ -114,7 +114,7 @@ impl ZorkCache {
     pub fn run_final_tasks(
         &mut self,
         program_data: &ZorkModel<'_>,
-        commands: Commands<'_>,
+        mut commands: Commands<'_>,
         test_mode: bool
     ) -> Result<()> {
         if self.save_generated_commands(&mut commands, test_mode) && program_data.project.compilation_db {
@@ -155,13 +155,13 @@ impl ZorkCache {
 
         let mut are_new_commands = Vec::with_capacity(3);
         let interfaces_has_new_commands=
-            self.extend_collection_of_source_file_details(&mut commands_details.interfaces, &mut commands.interfaces);
+            self.extend_collection_of_source_file_details(&mut commands_details.interfaces, &mut commands.interfaces, commands.compiler);
         are_new_commands.push(interfaces_has_new_commands);
         let implementations_has_new_commands =
-            self.extend_collection_of_source_file_details(&mut commands_details.implementations, &mut commands.implementations);
+            self.extend_collection_of_source_file_details(&mut commands_details.implementations, &mut commands.implementations, commands.compiler);
         are_new_commands.push(implementations_has_new_commands);
         let sources_has_new_commands =
-            self.extend_collection_of_source_file_details(&mut commands_details.sources, &mut commands.sources);
+            self.extend_collection_of_source_file_details(&mut commands_details.sources, &mut commands.sources, commands.compiler);
         are_new_commands.push(sources_has_new_commands);
 
         let named_target = if test_mode { "test_main" } else { "main" };
@@ -174,7 +174,7 @@ impl ZorkCache {
 
         self.generated_commands.push(commands_details);
 
-        are_new_commands.iter().any(|b| *b == true)
+        are_new_commands.iter().any(|b| *b)
     }
 
     /// If Windows is the current OS, and the compiler is MSVC, then we will try
@@ -250,19 +250,20 @@ impl ZorkCache {
             .eq(&CommandExecutionResult::Unreached)
         {
             if let Some(prev_entry) = self.is_file_cached(module_command_line.path()) {
-                prev_entry.execution_result.clone()
+                prev_entry.execution_result
             } else {
-                module_command_line.execution_result.clone()
+                module_command_line.execution_result
             }
         } else {
-            module_command_line.execution_result.clone()
+            module_command_line.execution_result
         }
     }
 
     fn extend_collection_of_source_file_details(
         &mut self,
         collection: &mut Vec<CommandDetail>,
-        target: &mut [SourceCommandLine]
+        target: &mut [SourceCommandLine],
+        compiler: CppCompiler
     ) -> bool {
         let mut new_commands = false;
         collection.extend(target.iter().map(|module_command_line| {
@@ -270,11 +271,14 @@ impl ZorkCache {
                 .entry(module_command_line.path())
                 .or_insert_with(|| {
                     new_commands = true;
-                    module_command_line
+                    let mut arguments = Vec::with_capacity(module_command_line.args.len() + 1);
+                    arguments.push(compiler.get_driver().to_string());
+                    arguments.extend(module_command_line
                         .args
                         .iter()
                         .map(|e| e.value.to_string())
-                        .collect()
+                    );
+                    arguments
                 });
             CommandDetail {
                 directory: module_command_line
@@ -282,7 +286,7 @@ impl ZorkCache {
                     .to_str()
                     .unwrap_or_default()
                     .to_string(),
-                file: module_command_line.file.clone(),
+                file: format!("{} {}", compiler.get_driver(), module_command_line.file),
                 execution_result: self.normalize_execution_result_status(module_command_line),
             }
         }));

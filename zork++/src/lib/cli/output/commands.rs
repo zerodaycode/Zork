@@ -25,7 +25,7 @@ pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
     mut commands: Commands<'_>,
     cache: ZorkCache,
-    test_mode: bool
+    test_mode: bool,
 ) -> Result<CommandExecutionResult> {
     log::info!("Proceeding to execute the generated commands...");
     let mut total_exec_commands = 0;
@@ -267,7 +267,7 @@ impl<'a> core::fmt::Display for Commands<'a> {
 
 /// Holds a custom representation of the execution of
 /// a command line in a shell.
-#[derive(Debug, Default, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, Copy, PartialEq)]
 pub enum CommandExecutionResult {
     /// A command that is executed correctly
     Success,

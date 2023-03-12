@@ -404,9 +404,7 @@ mod test {
             },
             executable: ExecutableModel {
                 executable_name: "zork",
-                sourceset: SourceSet {
-                    sources: vec![],
-                },
+                sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![Argument::from("-Werr")],
             },
             modules: ModulesModel {
@@ -448,9 +446,7 @@ mod test {
             },
             tests: TestsModel {
                 test_executable_name: "zork_check".to_string(),
-                sourceset: SourceSet {
-                    sources: vec![],
-                },
+                sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![Argument::from("-pedantic")],
             },
         };
