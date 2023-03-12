@@ -3,6 +3,9 @@ use std::{
     path::{Path, PathBuf},
     process::ExitStatus,
 };
+use std::cell::{Ref, RefCell, RefMut};
+use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 
 use crate::bounds::TranslationUnit;
 ///! Contains helpers and data structure to process in
@@ -24,15 +27,15 @@ use super::arguments::Argument;
 pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
     mut commands: Commands<'_>,
-    cache: ZorkCache,
-    test_mode: bool,
+    cache: Rc<RefCell<ZorkCache>>,
+    test_mode: bool
 ) -> Result<CommandExecutionResult> {
     log::info!("Proceeding to execute the generated commands...");
     let mut total_exec_commands = 0;
     let compiler = commands.compiler;
 
     for sys_module in &commands.system_modules {
-        execute_command(compiler, sys_module.1, &cache)?;
+        execute_command(compiler, sys_module.1, cache.clone())?;
     }
 
     let sources = commands
@@ -43,18 +46,18 @@ pub fn run_generated_commands(
 
     for source_file in sources {
         if !source_file.processed {
-            let r = execute_command(compiler, &source_file.args, &cache);
+            let r = execute_command(compiler, &source_file.args, cache.clone());
             source_file.execution_result = CommandExecutionResult::from(&r);
             total_exec_commands += 1;
             if let Err(e) = r {
-                cache::save(program_data, cache, commands, test_mode)?;
+                cache::save(program_data, cache.clone(), commands, test_mode)?;
                 return Err(e);
             } else if !r.as_ref().unwrap().success() {
                 let err = eyre!(
                     "Ending the program, because the build of: {:?} wasn't ended successfully",
                     source_file
                 );
-                cache::save(program_data, cache, commands, test_mode)?;
+                cache::save(program_data, cache.clone(), commands, test_mode)?;
                 return Err(err);
             }
         }
@@ -63,15 +66,15 @@ pub fn run_generated_commands(
     if !commands.main.args.is_empty() {
         log::debug!("Executing the main command line...");
 
-        let r = execute_command(compiler, &commands.main.args, &cache);
+        let r = execute_command(compiler, &commands.main.args, cache.clone());
         commands.main.execution_result = CommandExecutionResult::from(&r);
         total_exec_commands += 1;
 
         if let Err(e) = r {
-            cache::save(program_data, cache, commands, test_mode)?; // Here because use of moved value
+            cache::save(program_data, cache.clone(), commands, test_mode)?;
             return Err(e);
         } else if !r.as_ref().unwrap().success() {
-            cache::save(program_data, cache, commands, test_mode)?; // Here because use of moved value
+            cache::save(program_data, cache.clone(), commands, test_mode)?;
             return Err(eyre!(
                 "Ending the program, because the main command line execution wasn't ended successfully",
             ));
@@ -117,7 +120,7 @@ pub fn autorun_generated_binary(
 fn execute_command(
     compiler: CppCompiler,
     arguments: &[Argument<'_>],
-    cache: &ZorkCache,
+    cache: Rc<RefCell<ZorkCache>>,
 ) -> Result<ExitStatus, Report> {
     log::trace!(
         "[{compiler}] - Executing command => {:?}",
@@ -127,6 +130,7 @@ fn execute_command(
     if compiler.eq(&CppCompiler::MSVC) {
         std::process::Command::new(
             cache
+                .borrow_mut()
                 .compilers_metadata
                 .msvc
                 .dev_commands_prompt

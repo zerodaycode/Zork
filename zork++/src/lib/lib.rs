@@ -16,6 +16,8 @@ pub mod utils;
 /// data sent to stdout/stderr
 pub mod worker {
     use std::{fs, path::Path};
+    use std::cell::RefCell;
+    use std::rc::Rc;
 
     use crate::{
         cache::{self, ZorkCache},
@@ -63,8 +65,7 @@ pub mod worker {
                         "An error happened parsing the configuration file: {:?}",
                         config_file.dir_entry.file_name()
                     )
-                })
-                .expect("Unexpected big error happened reading a config file");
+                })?;
 
             let config: ZorkConfigFile = toml::from_str(raw_file.as_str())
                 .with_context(|| "Could not parse configuration file")?;
@@ -73,10 +74,9 @@ pub mod worker {
 
             let cache = cache::load(&program_data, cli_args)
                 .with_context(|| "Unable to load the Zork++ cache")?;
-            let read_only_cache = cache.clone();
 
             // let generated_commands =
-            do_main_work_based_on_cli_input(cli_args, &program_data, cache, &read_only_cache)
+            do_main_work_based_on_cli_input(cli_args, &program_data, cache)
                 .with_context(|| {
                     format!(
                         "Failed to build the project for the config file: {:?}",
@@ -97,22 +97,22 @@ pub mod worker {
         cli_args: &'a CliArgs,
         program_data: &'a ZorkModel<'_>,
         cache: ZorkCache,
-        read_only_cache: &'a ZorkCache,
     ) -> Result<CommandExecutionResult> {
         let commands: Commands;
+        let mut_ref = Rc::new(RefCell::new(cache));
 
         match cli_args.command {
             Command::Build => {
-                commands = build_project(program_data, read_only_cache, false)
+                commands = build_project(program_data, mut_ref.clone(), false)
                     .with_context(|| "Failed to build project")?;
 
-                commands::run_generated_commands(program_data, commands, cache, false)
+                commands::run_generated_commands(program_data, commands, mut_ref, false)
             }
             Command::Run => {
-                commands = build_project(program_data, read_only_cache, false)
+                commands = build_project(program_data, mut_ref.clone(), false)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, cache, false) {
+                match commands::run_generated_commands(program_data, commands, mut_ref, false) {
                     Ok(_) => autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         program_data.build.output_dir,
@@ -122,10 +122,10 @@ pub mod worker {
                 }
             }
             Command::Test => {
-                commands = build_project(program_data, read_only_cache, true)
+                commands = build_project(program_data, mut_ref.clone(), true)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, cache, false) {
+                match commands::run_generated_commands(program_data, commands, mut_ref,false) {
                     Ok(_) => autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         program_data.build.output_dir,

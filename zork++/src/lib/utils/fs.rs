@@ -3,13 +3,17 @@ use std::{
     io::{BufReader, Write},
     path::Path,
 };
+use std::cell::RefMut;
+use std::ops::Deref;
 
 use std::path::PathBuf;
+use std::rc::Rc;
 
 use color_eyre::eyre::ContextCompat;
 use color_eyre::{eyre::Context, Result};
 
 use serde::{Deserialize, Serialize};
+use crate::cache::ZorkCache;
 
 use super::constants;
 
@@ -99,6 +103,14 @@ where
     serde_json::to_writer_pretty(
         File::create(path).with_context(|| "Error creating the cache file")?,
         data,
+    )
+    .with_context(|| "Error serializing data to the cache")
+}
+
+pub fn serialize_cache(path: &Path, data: RefMut<ZorkCache>) -> Result<()> {
+    serde_json::to_writer_pretty(
+        File::create(path).with_context(|| "Error creating the cache file")?,
+         data.deref(),
     )
     .with_context(|| "Error serializing data to the cache")
 }

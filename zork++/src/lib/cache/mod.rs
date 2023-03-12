@@ -10,6 +10,9 @@ use std::{
     fs::File,
     path::{Path, PathBuf},
 };
+use std::cell::{RefCell, RefMut};
+use std::ops::Deref;
+use std::rc::Rc;
 
 use crate::{
     cli::{
@@ -56,7 +59,7 @@ pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCach
 /// Standalone utility for persist the cache to the file system
 pub fn save(
     program_data: &ZorkModel<'_>,
-    mut cache: ZorkCache,
+    cache: Rc<RefCell<ZorkCache>>,
     commands: Commands<'_>,
     test_mode: bool
 ) -> Result<()> {
@@ -66,10 +69,10 @@ pub fn save(
         .join(program_data.compiler.cpp_compiler.as_ref())
         .join(constants::ZORK_CACHE_FILENAME);
 
-    cache.run_final_tasks(program_data, commands, test_mode)?;
-    cache.last_program_execution = Utc::now();
+    cache.borrow_mut().run_final_tasks(program_data, commands, test_mode)?;
+    cache.borrow_mut().last_program_execution = Utc::now();
 
-    utils::fs::serialize_object_to_file(cache_path, &cache)
+    utils::fs::serialize_cache(cache_path, cache.borrow_mut())
         .with_context(move || "Error saving data to the Zork++ cache")
 }
 
