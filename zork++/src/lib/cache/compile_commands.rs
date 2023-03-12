@@ -1,10 +1,10 @@
-use std::fs::File;
-use std::path::{Path, PathBuf};
-use serde::Serialize;
-use color_eyre::eyre::{Context, Result};
 use crate::cache::ZorkCache;
 use crate::utils;
 use crate::utils::constants::COMPILATION_DATABASE;
+use color_eyre::eyre::{Context, Result};
+use serde::Serialize;
+use std::fs::File;
+use std::path::{Path, PathBuf};
 
 /// Generates the `compile_commands.json` file, that acts as a compilation database
 /// for some static analysis external tools, like `clang-tidy`, and populates it with
@@ -19,7 +19,8 @@ pub(crate) fn map_generated_commands_to_compilation_db(cache: &ZorkCache) -> Res
 
     let compile_commands_path = Path::new(COMPILATION_DATABASE);
     if !Path::new(&compile_commands_path).exists() {
-        File::create(compile_commands_path).with_context(|| "Error creating the compilation database")?;
+        File::create(compile_commands_path)
+            .with_context(|| "Error creating the compilation database")?;
     }
     utils::fs::serialize_object_to_file(Path::new(compile_commands_path), &compilation_db_entries)
         .with_context(move || "Error saving the compilation database")

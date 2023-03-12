@@ -1,7 +1,5 @@
 //! Benchmarks tests for measuring the performance of the code
 
-use std::cell::RefCell;
-use std::rc::Rc;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use zork::{
     cache::{self, ZorkCache},
@@ -14,9 +12,10 @@ use zork::{
 pub fn build_project_benchmark(c: &mut Criterion) {
     let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK).unwrap();
     let program_data = build_model(&config);
+    let cache = ZorkCache::default();
 
     c.bench_function("Build project", |b| {
-        b.iter(|| build_project(black_box(&program_data), black_box(Rc::new(RefCell::new(ZorkCache::default()))), false))
+        b.iter(|| build_project(black_box(&program_data), black_box(&cache), false))
     });
 
     c.bench_function("Cache loading time", |b| {

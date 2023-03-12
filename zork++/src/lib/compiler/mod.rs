@@ -3,10 +3,8 @@
 // operating system against the designed compilers in the configuration
 // file.
 
-use std::cell::{Ref, RefCell, RefMut};
 use color_eyre::Result;
 use std::path::Path;
-use std::rc::Rc;
 
 use crate::bounds::TranslationUnit;
 use crate::cli::output::commands::{CommandExecutionResult, SourceCommandLine};
@@ -27,20 +25,20 @@ use crate::{
 /// configuration file will be build
 pub fn build_project<'a>(
     model: &'a ZorkModel<'a>,
-    cache: Rc<RefCell<ZorkCache>>,
+    cache: &ZorkCache,
     tests: bool,
 ) -> Result<Commands<'a>> {
     // A registry of the generated command lines
     let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
     if model.compiler.cpp_compiler != CppCompiler::MSVC {
-        helpers::prebuild_sys_modules(model, &mut commands, &cache)
+        helpers::prebuild_sys_modules(model, &mut commands, cache)
     }
 
     // 1st - Build the modules
-    build_modules(model, cache.clone(), &mut commands)?;
+    build_modules(model, cache, &mut commands)?;
     // 2nd - Build the non module sources
-    build_sources(model, cache.clone(), &mut commands, tests)?;
+    build_sources(model, cache, &mut commands, tests)?;
     // 3rd - Build the executable or the tests
     build_executable(model, &mut commands, tests)?;
 
@@ -66,7 +64,7 @@ fn build_executable<'a>(
 
 fn build_sources<'a>(
     model: &'a ZorkModel<'_>,
-    cache: Rc<RefCell<ZorkCache>>,
+    cache: &ZorkCache,
     commands: &'_ mut Commands<'a>,
     tests: bool,
 ) -> Result<()> {
@@ -77,7 +75,7 @@ fn build_sources<'a>(
         &model.executable.sourceset.sources
     };
 
-    srcs.iter().for_each(|src| if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache.clone(), &src.file()) {
+    srcs.iter().for_each(|src| if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &src.file()) {
         sources::generate_sources_arguments(model, commands, &model.tests, src);
     } else {
         let command_line = SourceCommandLine::from_translation_unit(
@@ -101,11 +99,11 @@ fn build_sources<'a>(
 /// compiler responses>
 fn build_modules<'a>(
     model: &'a ZorkModel,
-    cache: Rc<RefCell<ZorkCache>>,
+    cache: &ZorkCache,
     commands: &mut Commands<'a>,
 ) -> Result<()> {
     log::info!("Building the module interfaces and partitions...");
-    prebuild_module_interfaces(model, cache.clone(), &model.modules.interfaces, commands);
+    prebuild_module_interfaces(model, cache, &model.modules.interfaces, commands);
 
     log::info!("Building the module implementations...");
     compile_module_implementations(model, cache, &model.modules.implementations, commands);
@@ -117,12 +115,12 @@ fn build_modules<'a>(
 /// by precompiling the module interface units
 fn prebuild_module_interfaces<'a>(
     model: &'a ZorkModel<'_>,
-    cache: Rc<RefCell<ZorkCache>>,
+    cache: &ZorkCache,
     interfaces: &'a [ModuleInterfaceModel],
     commands: &mut Commands<'a>,
 ) {
     interfaces.iter().for_each(|module_interface| {
-        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache.clone(), &module_interface.file()) {
+        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file()) {
             sources::generate_module_interfaces_args(model, module_interface, commands);
         } else {
             let command_line = SourceCommandLine::from_translation_unit(
@@ -142,12 +140,12 @@ fn prebuild_module_interfaces<'a>(
 /// translation units declared for the project
 fn compile_module_implementations<'a>(
     model: &'a ZorkModel,
-    cache: Rc<RefCell<ZorkCache>>,
+    cache: &ZorkCache,
     impls: &'a [ModuleImplementationModel],
     commands: &mut Commands<'a>,
 ) {
     impls.iter().for_each(|module_impl| {
-        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache.clone(), &module_impl.file()) {
+        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file()) {
             sources::generate_module_implementation_args(model, module_impl, commands);
         } else {
             let command_line = SourceCommandLine::from_translation_unit(
@@ -628,12 +626,12 @@ mod helpers {
     pub(crate) fn prebuild_sys_modules<'a>(
         model: &'a ZorkModel,
         commands: &mut Commands<'a>,
-        cache: &Rc<RefCell<ZorkCache>>,
+        cache: &ZorkCache,
     ) {
-        if !cache.borrow_mut().compilers_metadata.system_modules.is_empty() {
+        if !cache.compilers_metadata.system_modules.is_empty() {
             log::info!(
                 "System modules already build: {:?}. They will be skipped!",
-                cache.borrow_mut().compilers_metadata.system_modules
+                cache.compilers_metadata.system_modules
             );
         }
 
@@ -644,7 +642,6 @@ mod helpers {
             .iter()
             .filter(|sys_module| {
                 !cache
-                    .borrow_mut()
                     .compilers_metadata
                     .system_modules
                     .iter()
@@ -692,13 +689,14 @@ mod helpers {
     /// True means already processed and previous iteration Success
     pub(crate) fn flag_source_file_without_changes(
         compiler: &CppCompiler,
-        cache: Rc<RefCell<ZorkCache>>,
+        cache: &ZorkCache,
         file: &Path,
     ) -> bool {
-        if compiler.eq(&CppCompiler::CLANG) {
-            log::trace!("Module unit {file:?} will be rebuilt since we've detected that you are using Clang");
+        if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
+            log::trace!("Module unit {file:?} will be rebuilt since we've detected that you are using Clang in Windows");
+            return false;
         }
-        let cache = cache.borrow_mut();
+        let cache = cache;
         // Check first if the file is already on the cache, and if it's last iteration was successful
         if let Some(cached_file) = cache.is_file_cached(file) {
             if cached_file.execution_result != CommandExecutionResult::Success

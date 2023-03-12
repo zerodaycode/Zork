@@ -10,9 +10,6 @@ use std::{
     fs::File,
     path::{Path, PathBuf},
 };
-use std::cell::{RefCell, RefMut};
-use std::ops::Deref;
-use std::rc::Rc;
 
 use crate::{
     cli::{
@@ -59,9 +56,9 @@ pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCach
 /// Standalone utility for persist the cache to the file system
 pub fn save(
     program_data: &ZorkModel<'_>,
-    cache: Rc<RefCell<ZorkCache>>,
+    cache: &mut ZorkCache,
     commands: Commands<'_>,
-    test_mode: bool
+    test_mode: bool,
 ) -> Result<()> {
     let cache_path = &Path::new(program_data.build.output_dir)
         .join("zork")
@@ -69,10 +66,10 @@ pub fn save(
         .join(program_data.compiler.cpp_compiler.as_ref())
         .join(constants::ZORK_CACHE_FILENAME);
 
-    cache.borrow_mut().run_final_tasks(program_data, commands, test_mode)?;
-    cache.borrow_mut().last_program_execution = Utc::now();
+    cache.run_final_tasks(program_data, commands, test_mode)?;
+    cache.last_program_execution = Utc::now();
 
-    utils::fs::serialize_cache(cache_path, cache.borrow_mut())
+    utils::fs::serialize_cache(cache_path, cache)
         .with_context(move || "Error saving data to the Zork++ cache")
 }
 
@@ -120,9 +117,11 @@ impl ZorkCache {
         &mut self,
         program_data: &ZorkModel<'_>,
         mut commands: Commands<'_>,
-        test_mode: bool
+        test_mode: bool,
     ) -> Result<()> {
-        if self.save_generated_commands(&mut commands, test_mode) && program_data.project.compilation_db {
+        if self.save_generated_commands(&mut commands, test_mode)
+            && program_data.project.compilation_db
+        {
             compile_commands::map_generated_commands_to_compilation_db(self)?;
         }
 
@@ -157,14 +156,23 @@ impl ZorkCache {
         };
 
         let mut are_new_commands = Vec::with_capacity(3);
-        let interfaces_has_new_commands=
-            self.extend_collection_of_source_file_details(&mut commands_details.interfaces, &mut commands.interfaces, commands.compiler);
+        let interfaces_has_new_commands = self.extend_collection_of_source_file_details(
+            &mut commands_details.interfaces,
+            &mut commands.interfaces,
+            commands.compiler,
+        );
         are_new_commands.push(interfaces_has_new_commands);
-        let implementations_has_new_commands =
-            self.extend_collection_of_source_file_details(&mut commands_details.implementations, &mut commands.implementations, commands.compiler);
+        let implementations_has_new_commands = self.extend_collection_of_source_file_details(
+            &mut commands_details.implementations,
+            &mut commands.implementations,
+            commands.compiler,
+        );
         are_new_commands.push(implementations_has_new_commands);
-        let sources_has_new_commands =
-            self.extend_collection_of_source_file_details(&mut commands_details.sources, &mut commands.sources, commands.compiler);
+        let sources_has_new_commands = self.extend_collection_of_source_file_details(
+            &mut commands_details.sources,
+            &mut commands.sources,
+            commands.compiler,
+        );
         are_new_commands.push(sources_has_new_commands);
 
         commands_details.main = MainCommandLineDetail {
@@ -186,7 +194,8 @@ impl ZorkCache {
                 if !(*e).eq(&commands_details.main.command) {
                     *e = commands_details.main.command.clone()
                 }
-            }).or_insert(commands_details.main.command.clone());
+            })
+            .or_insert(commands_details.main.command.clone());
 
         self.generated_commands.push(commands_details);
 
@@ -279,7 +288,7 @@ impl ZorkCache {
         &mut self,
         collection: &mut Vec<CommandDetail>,
         target: &mut [SourceCommandLine],
-        compiler: CppCompiler
+        compiler: CppCompiler,
     ) -> bool {
         let mut new_commands = false;
         collection.extend(target.iter().map(|source_command_line| {
@@ -289,11 +298,7 @@ impl ZorkCache {
                     new_commands = true;
                     let mut arguments = Vec::with_capacity(source_command_line.args.len() + 1);
                     arguments.push(compiler.get_driver().to_string());
-                    arguments.extend(source_command_line
-                        .args
-                        .iter()
-                        .map(|e| e.value.to_string())
-                    );
+                    arguments.extend(source_command_line.args.iter().map(|e| e.value.to_string()));
                     arguments
                 });
             CommandDetail {
@@ -310,7 +315,6 @@ impl ZorkCache {
         new_commands
     }
 }
-
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CommandsDetails {
