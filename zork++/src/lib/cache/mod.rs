@@ -1,5 +1,7 @@
 //! The implementation of the Zork++ cache, for persisting data in between process
 
+pub mod compile_commands;
+
 use chrono::{DateTime, Utc};
 use color_eyre::{eyre::Context, Result};
 use std::collections::HashMap;
@@ -9,7 +11,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::utils::constants::COMPILATION_DATABASE;
 use crate::{
     cli::{
         input::CliArgs,
@@ -77,8 +78,9 @@ pub struct ZorkCache {
     pub compiler: CppCompiler,
     pub last_program_execution: DateTime<Utc>,
     pub compilers_metadata: CompilersMetadata,
-    pub generated_commands: Vec<CommandsDetails>,
     pub last_generated_commands: HashMap<PathBuf, Vec<String>>,
+    pub last_generated_linker_commands: HashMap<PathBuf, String>,
+    pub generated_commands: Vec<CommandsDetails>,
 }
 
 impl ZorkCache {
@@ -118,7 +120,7 @@ impl ZorkCache {
         test_mode: bool
     ) -> Result<()> {
         if self.save_generated_commands(&mut commands, test_mode) && program_data.project.compilation_db {
-            map_generated_commands_to_compilation_db(self)?;
+            compile_commands::map_generated_commands_to_compilation_db(self)?;
         }
 
         if !(program_data.compiler.cpp_compiler == CppCompiler::MSVC) {
@@ -135,8 +137,6 @@ impl ZorkCache {
 
     fn save_generated_commands(&mut self, commands: &mut Commands<'_>, test_mode: bool) -> bool {
         log::trace!("Storing in the cache the last generated command lines...");
-        let mut has_changes = false;
-
         self.compiler = commands.compiler;
         let process_no = if !self.generated_commands.is_empty() {
             self.generated_commands.last().unwrap().cached_process_num + 1
@@ -177,12 +177,13 @@ impl ZorkCache {
         };
 
         let named_target = if test_mode { "test_main" } else { "main" };
-        self.last_generated_commands
-            .entry(PathBuf::from(named_target)) // provisional
-            .or_insert_with(|| {
-                has_changes = true;
-                vec![commands_details.main.command.clone()]
-            });
+        self.last_generated_linker_commands
+            .entry(PathBuf::from(named_target))
+            .and_modify(|e| {
+                if !(*e).eq(&commands_details.main.command) {
+                    *e = commands_details.main.command.clone()
+                }
+            }).or_insert(commands_details.main.command.clone());
 
         self.generated_commands.push(commands_details);
 
@@ -278,14 +279,14 @@ impl ZorkCache {
         compiler: CppCompiler
     ) -> bool {
         let mut new_commands = false;
-        collection.extend(target.iter().map(|module_command_line| {
+        collection.extend(target.iter().map(|source_command_line| {
             self.last_generated_commands
-                .entry(module_command_line.path())
+                .entry(source_command_line.path())
                 .or_insert_with(|| {
                     new_commands = true;
-                    let mut arguments = Vec::with_capacity(module_command_line.args.len() + 1);
+                    let mut arguments = Vec::with_capacity(source_command_line.args.len() + 1);
                     arguments.push(compiler.get_driver().to_string());
-                    arguments.extend(module_command_line
+                    arguments.extend(source_command_line
                         .args
                         .iter()
                         .map(|e| e.value.to_string())
@@ -293,13 +294,13 @@ impl ZorkCache {
                     arguments
                 });
             CommandDetail {
-                directory: module_command_line
+                directory: source_command_line
                     .directory
                     .to_str()
                     .unwrap_or_default()
                     .to_string(),
-                file: module_command_line.file.clone(),
-                execution_result: self.normalize_execution_result_status(module_command_line),
+                file: source_command_line.file.clone(),
+                execution_result: self.normalize_execution_result_status(source_command_line),
             }
         }));
 
@@ -307,48 +308,6 @@ impl ZorkCache {
     }
 }
 
-/// Generates the `compile_commands.json` file, that acts as a compilation database
-/// for some static analysis external tools, like `clang-tidy`, and populates it with
-/// the generated commands for the translation units
-fn map_generated_commands_to_compilation_db(cache: &ZorkCache) -> Result<()> {
-    log::trace!("Generating the compilation database...");
-    let mut compilation_db_entries = Vec::with_capacity(cache.last_generated_commands.len());
-
-    for command in cache.last_generated_commands.iter() {
-        compilation_db_entries.push(CompileCommands::from(command));
-    }
-
-    let compile_commands_path = Path::new(COMPILATION_DATABASE);
-    if !Path::new(&compile_commands_path).exists() {
-        File::create(compile_commands_path).with_context(|| "Error creating the cache file")?;
-    }
-    utils::fs::serialize_object_to_file(Path::new(compile_commands_path), &compilation_db_entries)
-        .with_context(move || "Error generating the compilation database")
-}
-
-/// Data model for serialize the data that will be outputted
-/// to the `compile_commands.json` compilation database file
-#[derive(Serialize, Debug, Default, Clone)]
-pub struct CompileCommands {
-    pub directory: String,
-    pub file: String,
-    pub arguments: Vec<String>,
-}
-
-impl From<(&'_ PathBuf, &'_ Vec<String>)> for CompileCommands {
-    fn from(value: (&PathBuf, &Vec<String>)) -> Self {
-        let dir = value.0.parent().unwrap_or(Path::new("."));
-        let mut file = value.0.file_stem().unwrap_or_default().to_os_string();
-        file.push(".");
-        file.push(value.0.extension().unwrap_or_default());
-
-        Self {
-            directory: dir.to_str().unwrap_or_default().to_string(),
-            file: file.to_str().unwrap_or_default().to_string(),
-            arguments: value.1.clone(),
-        }
-    }
-}
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CommandsDetails {
