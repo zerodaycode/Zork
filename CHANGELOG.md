@@ -5,15 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-## [0.8.0] - // TODO
+## [0.8.0] - 2023 - 03 - 12
 
 ### Feature
 
-### Updates
+- Zork++ generates now a compilation database for `C++` projects, known as the `compile_commands.json`
+file, which is used by static analyzers and IDE's to offer code completion and linting.
+- The cache has been updated to store data in a more efficient layout.
+- The overall performance of the cache process has been reviewed. We get rid of a cache clone that was affecting
+the performance, and making a huge impact the memory needed for the cache process during runtime
+by a factor of two.
+Now everything is smoothly handled by mutable and inmutable reference types. 
+- A command line flag `-c` has been included to reset the cache when the user requires.
 
-- Source type has been modified to support individual files, and
+### Update
+
+- The source type has been modified to support individual files, and
 sourceset now is a collection of those individuals, non one path or multiple paths
 - Non module source files are compiled and assembled without linking now. This
 allows us to generate the compile_commands.json for every translation unit
@@ -22,14 +29,17 @@ assembling and linking.
 - Due to the described above, now the main task of the main command line
 is to link the generated object files together, introducing the necessary dependencies
 - Non module source files now have their explicit types and operations
-- Internal deps: toml raised to the 0.7.2, criterion raised to its 0.4.0v
+- Internal deps: criterion raised to its 0.4.0v
+- We've merged some parts of the source code that was performing similar operations, specially the one that was mapping
+  data in the cache to some other datastructures. Even that technically that parts wasn't exactly
+  duplicated code, we've managed to make them cleaned and shorter.
 
 ### Fix
 
 - Solved a bug for which the source files was always detected as a glob pattern,
 even if they were declared in a non glob form
 
-## [0.7.0] - 2022 - 03 - 01
+## [0.7.0] - 2023 - 03 - 01
 
 ### Feature
 
@@ -44,14 +54,14 @@ the manual usage of the module map for featuring the `import std;`
 
 - Solved a bug that was causing C++ modules containing a dot in their module identifier declaration to not be correctly processed by Zork++, causing a compilation error due to incorrect parameters
 
-## [0.6.0] - 2022 - 02 - 28
+## [0.6.0] - 2023 - 02 - 28
 
 ### Feature
 
 - Allowing the usage of `import <system_module>` with `Clang`, by precompiling
 the declared system modules required, just as we were doing with `GCC`
 
-## [0.5.0] - 2022 - 02 - 08
+## [0.5.0] - 2023 - 02 - 08
 
 ### Feature
 
