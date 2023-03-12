@@ -24,19 +24,20 @@
 
 # 📝 Table of Contents
 
-- [About](#about)
-- [Getting Started](#getting_started)
-- [The `zork.toml` quick start](#usage)
-- [The `zork.toml` reference guide](#zork_toml_reference)
-- [The `Zork++` command_line](#zork_command_line)
-- [C++23 `import std;`](#import_std)
-- [The developers and contributors guide](#dev_guide)
-- [TODO ZONE](#todo_zone)
-- [Built Using](#built_using)
-- [Contributing](../CONTRIBUTING.md)
+- [About](#-about-a-name--about-a)
+- [Getting Started](#-getting-started-a-name--gettingstarted-a)
+- [The `zork.toml` quick start example](#generating-a-new-c-project-a-name--gettingstartedexample-a)
+- [The `zork.toml` reference guide](#-the-zorktoml-reference-guide-a-namezorktomlreference-a)
+- [The `Zork++` command_line](#-the-zork-command-line-interface-a-namezorkcommandline-a)
+- [Compilation Database (`compile_commands.json`)](#-compilation-database-a-namecompilation-database-a)
+- [C++23 `import std;`](#-c23-import-std-feature-a-nameimportstd-a)
+- [The developers and contributors guide](#-developers-guide-a-namedevguide-a)
+- [TODO ZONE](#-todo-zone-a-name--todozone-a)
+- [Built Using](#-built-using-a-name--builtusing-a)
+- [Contributing](./CONTRIBUTING.md)
 - [License](./LICENSE)
-- [Authors](#authors)
-- [Acknowledgements](#acknowledgement)
+- [Authors](#-authors-a-name--authors-a)
+- [Acknowledgements](#-acknowledgements-a-name--acknowledgement-a)
 
 # 🧐 About <a name = "about"></a>
 
@@ -360,6 +361,7 @@ ZorkConfigFile {
 ProjectAttribute {
     name: &'a str
     authors: Option<Vec<str>>,
+    compilation_db : bool
 }
 
 /// The [compiler] key 
@@ -499,9 +501,26 @@ a minimal setup. This command includes some arguments to make it more flexible, 
     should be used to set up the template
 
 - `-v` ⇒ Outputs more information to stdout. The classical `verbose` command line flag
-- `--clear-cache` ⇒ Clears the files in the cache, so, in the next iteration, cached items
+- `-c,`--clear-cache` ⇒ Clears the files in the cache, so, in the next iteration, cached items
 must be processed again. This is useful after a lot of program iterations, when the cache starts
 to slow down the build process.
+
+# 📑 Compilation Database <a name="compilation-database"></a>
+
+`Zork++` is able to generate a compilation database file, commonly known as `compile_commands.json`. This file is typically
+used by static code analyzers, IDE's and other tools to provide information about the status, the quality, problems, errors,
+suggestions and all kind of crazy things that the linting tools are able to do.
+
+To enable this feature, you will need to put a flag property, under the `#[project]` table, named `compilation_db`.
+
+```toml
+#[project]
+compilation_db = true
+```
+
+The file will be automatically generated the first time that `Zork++` sees this property on the configuration file, and
+will be regularly updated when changes are detected in the generated command lines, or when files are added/dropped
+from your project.
 
 # 📑 C++23 `import std;` feature <a name="import_std"></a>
 
