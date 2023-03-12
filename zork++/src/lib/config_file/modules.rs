@@ -96,7 +96,7 @@ pub struct ModulesAttribute<'a> {
 ///         { file = 'math.cppm' },
 ///         { file = 'some_module.cppm', module_name = 'math' },
 ///         { file = 'a.cppm', module_name = 'module', dependencies = ['math', 'type_traits', 'iostream'] },
-///         { file = 'some_module_part.cppm', module_name = 'math_part', dependecies = ['math'] }
+///         { file = 'some_module_part.cppm', module_name = 'math_part', dependencies = ['math'] }
 ///     ]
 /// "#;
 ///

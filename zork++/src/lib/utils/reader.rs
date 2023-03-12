@@ -325,7 +325,6 @@ mod test {
         project_model::compiler::{CppCompiler, LanguageLevel, StdLib},
         utils,
     };
-    use std::env;
 
     use super::*;
 
@@ -384,7 +383,6 @@ mod test {
     }
 
     #[test]
-    #[ignore] // TODO ignoring for now since we're trying to canonicalize since the assemble of the project model
     fn test_project_model_with_full_config() -> Result<()> {
         let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK)?;
         let model = build_model(&config);

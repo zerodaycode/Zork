@@ -117,7 +117,7 @@ impl ZorkCache {
         commands: Commands<'_>,
         test_mode: bool
     ) -> Result<()> {
-        if self.save_generated_commands(&commands, test_mode) && program_data.project.compilation_db {
+        if self.save_generated_commands(&mut commands, test_mode) && program_data.project.compilation_db {
             map_generated_commands_to_compilation_db(self)?;
         }
 
@@ -133,7 +133,7 @@ impl ZorkCache {
         Ok(())
     }
 
-    fn save_generated_commands(&mut self, commands: &Commands<'_>, test_mode: bool) -> bool {
+    fn save_generated_commands(&mut self, commands: &mut Commands<'_>, test_mode: bool) -> bool {
         log::trace!("Storing in the cache the last generated command lines...");
         let mut has_changes = false;
 
@@ -153,89 +153,16 @@ impl ZorkCache {
             main: MainCommandLineDetail::default(),
         };
 
-        commands_details
-            .interfaces
-            .extend(commands.interfaces.iter().map(|module_command_line| {
-                self.last_generated_commands
-                    .entry(module_command_line.path())
-                    .or_insert_with(|| {
-                        has_changes = true;
-                        module_command_line
-                            .args
-                            .iter()
-                            .map(|e| e.value.to_string())
-                            .collect()
-                    });
-                CommandDetail {
-                    directory: module_command_line
-                        .directory
-                        .to_str()
-                        .unwrap_or_default()
-                        .to_string(),
-                    file: module_command_line.file.clone(),
-                    execution_result: self.normalize_execution_result_status(module_command_line),
-                }
-            }));
-
-        commands_details
-            .implementations
-            .extend(commands.implementations.iter().map(|module_command_line| {
-                self.last_generated_commands
-                    .entry(module_command_line.path())
-                    .or_insert_with(|| {
-                        has_changes = true;
-                        module_command_line
-                            .args
-                            .iter()
-                            .map(|e| e.value.to_string())
-                            .collect()
-                    });
-                CommandDetail {
-                    directory: module_command_line
-                        .directory
-                        .to_str()
-                        .unwrap_or_default()
-                        .to_string(),
-                    file: module_command_line.file.clone(),
-                    execution_result: self.normalize_execution_result_status(module_command_line),
-                }
-            }));
-
-        commands_details
-            .sources
-            .extend(commands.sources.iter().map(|source_command_line| {
-                self.last_generated_commands
-                    .entry(source_command_line.path())
-                    .or_insert_with(|| {
-                        has_changes = true;
-                        source_command_line
-                            .args
-                            .iter()
-                            .map(|e| e.value.to_string())
-                            .collect()
-                    });
-                CommandDetail {
-                    directory: source_command_line
-                        .directory
-                        .to_str()
-                        .unwrap_or_default()
-                        .to_string(),
-                    file: source_command_line.file.clone(),
-                    execution_result: self.normalize_execution_result_status(source_command_line),
-                }
-            }));
-
-        commands_details.main = MainCommandLineDetail {
-            files: commands.main.sources_paths.clone(),
-            execution_result: commands.main.execution_result.clone(),
-            command: commands
-                .main
-                .args
-                .iter()
-                .map(|arg| arg.value.to_string())
-                .collect::<Vec<_>>()
-                .join(" "),
-        };
+        let mut are_new_commands = Vec::with_capacity(3);
+        let interfaces_has_new_commands=
+            self.extend_collection_of_source_file_details(&mut commands_details.interfaces, &mut commands.interfaces);
+        are_new_commands.push(interfaces_has_new_commands);
+        let implementations_has_new_commands =
+            self.extend_collection_of_source_file_details(&mut commands_details.implementations, &mut commands.implementations);
+        are_new_commands.push(implementations_has_new_commands);
+        let sources_has_new_commands =
+            self.extend_collection_of_source_file_details(&mut commands_details.sources, &mut commands.sources);
+        are_new_commands.push(sources_has_new_commands);
 
         let named_target = if test_mode { "test_main" } else { "main" };
         self.last_generated_commands
@@ -246,7 +173,8 @@ impl ZorkCache {
             });
 
         self.generated_commands.push(commands_details);
-        has_changes
+
+        are_new_commands.iter().any(|b| *b == true)
     }
 
     /// If Windows is the current OS, and the compiler is MSVC, then we will try
@@ -329,6 +257,37 @@ impl ZorkCache {
         } else {
             module_command_line.execution_result.clone()
         }
+    }
+
+    fn extend_collection_of_source_file_details(
+        &mut self,
+        collection: &mut Vec<CommandDetail>,
+        target: &mut [SourceCommandLine]
+    ) -> bool {
+        let mut new_commands = false;
+        collection.extend(target.iter().map(|module_command_line| {
+            self.last_generated_commands
+                .entry(module_command_line.path())
+                .or_insert_with(|| {
+                    new_commands = true;
+                    module_command_line
+                        .args
+                        .iter()
+                        .map(|e| e.value.to_string())
+                        .collect()
+                });
+            CommandDetail {
+                directory: module_command_line
+                    .directory
+                    .to_str()
+                    .unwrap_or_default()
+                    .to_string(),
+                file: module_command_line.file.clone(),
+                execution_result: self.normalize_execution_result_status(module_command_line),
+            }
+        }));
+
+        new_commands
     }
 }
 
