@@ -197,7 +197,7 @@ mod sources {
 
         match compiler {
             CppCompiler::CLANG => {
-                arguments.extend(clang_args::add_std_lib(model));
+                arguments.extend(model.compiler.stdlib_arg());
                 arguments.extend_from_slice(target.extra_args());
                 arguments.push(Argument::from("-fimplicit-modules"));
                 arguments.push(clang_args::implicit_module_maps(out_dir));
@@ -225,7 +225,7 @@ mod sources {
                 arguments.push(Argument::from("/EHsc"));
                 arguments.push(Argument::from("/nologo"));
                 // If /std:c++20 this, else should be the direct options
-                // available on C++23 to use directly import std by precompiling the standard library
+                // available on C++23 to use directly import std by pre-compiling the standard library
                 arguments.push(Argument::from("/experimental:module"));
                 arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
 
@@ -294,7 +294,7 @@ mod sources {
 
         match compiler {
             CppCompiler::CLANG => {
-                arguments.extend(clang_args::add_std_lib(model));
+                arguments.extend(model.compiler.stdlib_arg());
                 arguments.push(Argument::from("-fimplicit-modules"));
                 arguments.push(clang_args::implicit_module_maps(out_dir));
                 arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
@@ -305,7 +305,7 @@ mod sources {
                 arguments.push(Argument::from("/EHsc"));
                 arguments.push(Argument::from("/nologo"));
                 // If /std:c++20 this, else should be the direct options
-                // available on C++23 to use directly import std by precompiling the standard library
+                // available on C++23 to use directly import std by pre-compiling the standard library
                 arguments.push(Argument::from("/experimental:module"));
                 arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
 
@@ -358,7 +358,7 @@ mod sources {
 
         match compiler {
             CppCompiler::CLANG => {
-                arguments.extend(clang_args::add_std_lib(model));
+                arguments.extend(model.compiler.stdlib_arg());
                 arguments.push(Argument::from("-fimplicit-modules"));
                 arguments.push(Argument::from("-x"));
                 arguments.push(Argument::from("c++-module"));
@@ -463,7 +463,7 @@ mod sources {
 
         match compiler {
             CppCompiler::CLANG => {
-                arguments.extend(clang_args::add_std_lib(model));
+                arguments.extend(model.compiler.stdlib_arg());
                 arguments.push(Argument::from("-fimplicit-modules"));
                 arguments.push(Argument::from("-c"));
                 arguments.push(clang_args::implicit_module_maps(out_dir));

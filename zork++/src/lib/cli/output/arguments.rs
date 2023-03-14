@@ -89,17 +89,6 @@ pub mod clang_args {
         }
     }
 
-    #[inline(always)]
-    pub fn add_std_lib<'a>(model: &'a ZorkModel) -> Option<Argument<'a>> {
-        if !cfg!(target_os = "windows") {
-            if let Some(arg) = model.compiler.stdlib_arg() {
-                return Some(arg);
-            }
-        }
-
-        None
-    }
-
     pub(crate) fn add_prebuilt_module_path(compiler: CppCompiler, out_dir: &Path) -> Argument<'_> {
         Argument::from(format!(
             "-fprebuilt-module-path={}",
