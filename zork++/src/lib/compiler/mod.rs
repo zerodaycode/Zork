@@ -85,7 +85,7 @@ fn build_sources<'a>(
         log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &src.file());
         commands.sources.push(command_line);
         commands.generated_files_paths.push(Argument::from(helpers::generate_obj_file(
-            model.compiler.cpp_compiler, model.build.output_dir, src
+            model.compiler.cpp_compiler, &model.build.output_dir, src
         ).to_string()))
     });
 
@@ -130,7 +130,7 @@ fn prebuild_module_interfaces<'a>(
             log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
             commands.interfaces.push(command_line);
             commands.generated_files_paths.push(Argument::from(helpers::generate_prebuild_miu(
-                model.compiler.cpp_compiler, model.build.output_dir, module_interface
+                model.compiler.cpp_compiler, &model.build.output_dir, module_interface
             )))
         }
     });
@@ -155,7 +155,7 @@ fn compile_module_implementations<'a>(
             log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
             commands.implementations.push(command_line);
             commands.generated_files_paths.push(Argument::from(helpers::generate_impl_obj_file(
-                model.compiler.cpp_compiler, model.build.output_dir, module_impl
+                model.compiler.cpp_compiler, &model.build.output_dir, module_impl
             )))
         }
     });
@@ -189,7 +189,7 @@ mod sources {
         log::info!("Generating the main command line...");
 
         let compiler = &model.compiler.cpp_compiler;
-        let out_dir = model.build.output_dir;
+        let out_dir = model.build.output_dir.as_ref();
         let executable_name = target.name();
 
         let mut arguments = Vec::new();
@@ -285,7 +285,7 @@ mod sources {
         source: &'a SourceFile,
     ) {
         let compiler = model.compiler.cpp_compiler;
-        let out_dir = model.build.output_dir;
+        let out_dir = model.build.output_dir.as_ref();
 
         let mut arguments = Vec::new();
         arguments.push(model.compiler.language_level_arg());
@@ -351,7 +351,7 @@ mod sources {
         commands: &mut Commands<'a>,
     ) {
         let compiler = model.compiler.cpp_compiler;
-        let out_dir = model.build.output_dir;
+        let out_dir = model.build.output_dir.as_ref();
 
         let mut arguments = Vec::with_capacity(8);
         arguments.push(model.compiler.language_level_arg());
@@ -456,7 +456,7 @@ mod sources {
         commands: &mut Commands<'a>,
     ) {
         let compiler = model.compiler.cpp_compiler;
-        let out_dir = model.build.output_dir;
+        let out_dir = model.build.output_dir.as_ref();
 
         let mut arguments = Vec::with_capacity(12);
         arguments.push(model.compiler.language_level_arg());
@@ -659,7 +659,7 @@ mod helpers {
                 if model.compiler.cpp_compiler.eq(&CppCompiler::CLANG) {
                     v.push(Argument::from("-o"));
                     v.push(Argument::from(
-                        Path::new(model.build.output_dir)
+                        Path::new(&model.build.output_dir)
                             .join(model.compiler.cpp_compiler.as_ref())
                             .join("modules")
                             .join("interfaces")

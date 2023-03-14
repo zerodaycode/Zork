@@ -30,8 +30,25 @@ pub fn create_directory(path_create: &Path) -> Result<()> {
         .with_context(|| format!("Could not create directory {path_create:?}"))
 }
 
+
+#[inline(always)]
+pub fn get_project_root_absolute_path(project_root: &Path) -> Result<PathBuf> {
+    let mut canonical = project_root
+        .canonicalize()
+        .with_context(|| format!("Error getting the canonical path for the project root: {project_root:?}"))?;
+    if cfg!(target_os = "windows") {
+        canonical = canonical
+            .to_str()
+            .map(|unc| &unc[4..])
+            .unwrap_or_default()
+            .into()
+    }
+
+    Ok(canonical)
+}
+
 /// Gets the absolute route for an element in the system given a path P,
-/// without the extension is P belongs to a file
+/// without the extension if P belongs to a file
 pub fn get_absolute_path<P: AsRef<Path>>(p: P) -> Result<PathBuf> {
     let mut canonical = p
         .as_ref()
@@ -53,7 +70,7 @@ pub fn get_absolute_path<P: AsRef<Path>>(p: P) -> Result<PathBuf> {
         .join(file_stem))
 }
 
-///
+/// Returns a tuple of elements containing the directory of a file, its file stem and its extension
 pub fn get_file_details<P: AsRef<Path>>(p: P) -> Result<(PathBuf, String, String)> {
     let mut canonical = p
         .as_ref()

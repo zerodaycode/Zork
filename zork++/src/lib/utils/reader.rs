@@ -27,6 +27,7 @@ use crate::{
 use color_eyre::{eyre::eyre, Result};
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
+use crate::utils::fs::get_project_root_absolute_path;
 
 use super::constants::DEFAULT_OUTPUT_DIR;
 
@@ -77,22 +78,26 @@ pub fn find_config_files(base_path: &Path) -> Result<Vec<ConfigFile>> {
     }
 }
 
-pub fn build_model<'a>(config: &'a ZorkConfigFile) -> ZorkModel<'a> {
+pub fn build_model<'a>(config: &'a ZorkConfigFile, project_root: &Path) -> Result<ZorkModel<'a>> {
     let project = assemble_project_model(&config.project);
+
+    // TODO Project root also may come from the config line, not only from the CLI
+    let absolute_project_root = get_project_root_absolute_path(project_root)?;
+
     let compiler = assemble_compiler_model(&config.compiler);
-    let build = assemble_build_model(&config.build);
+    let build = assemble_build_model(&config.build, &absolute_project_root);
     let executable = assemble_executable_model(project.name, &config.executable);
     let modules = assemble_modules_model(&config.modules);
     let tests = assemble_tests_model(project.name, &config.tests);
 
-    ZorkModel {
+    Ok(ZorkModel {
         project,
         compiler,
         build,
         executable,
         modules,
         tests,
-    }
+    })
 }
 
 fn assemble_project_model<'a>(config: &'a ProjectAttribute) -> ProjectModel<'a> {
@@ -121,14 +126,15 @@ fn assemble_compiler_model<'a>(config: &'a CompilerAttribute) -> CompilerModel<'
     }
 }
 
-fn assemble_build_model<'a>(config: &'a Option<BuildAttribute>) -> BuildModel<'a> {
+fn assemble_build_model(config: &Option<BuildAttribute>, project_root: &Path) -> BuildModel {
     let output_dir = config
         .as_ref()
         .and_then(|build| build.output_dir)
+        .map(|out_dir| out_dir.strip_prefix("./").unwrap_or_default())
         .unwrap_or(DEFAULT_OUTPUT_DIR);
 
     BuildModel {
-        output_dir: Path::new(output_dir),
+        output_dir: Path::new(project_root).join(output_dir),
     }
 }
 
@@ -293,7 +299,7 @@ fn assemble_tests_model<'a>(
 
 fn get_sourceset_for(srcs: Vec<&str>) -> SourceSet {
     let sources = srcs
-        .into_iter()
+        .iter()
         .map(|src| {
             if src.contains('*') {
                 Source::Glob(GlobPattern(src))
@@ -341,7 +347,7 @@ mod test {
         "#;
 
         let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
-        let model = build_model(&config);
+        let model = build_model(&config, Path::new("."));
 
         let expected = ZorkModel {
             project: ProjectModel {
@@ -356,7 +362,7 @@ mod test {
                 extra_args: vec![],
             },
             build: BuildModel {
-                output_dir: Path::new("./out"),
+                output_dir: PathBuf::from("./out").canonicalize()?,
             },
             executable: ExecutableModel {
                 executable_name: "Zork++",
@@ -377,7 +383,7 @@ mod test {
             },
         };
 
-        assert_eq!(model, expected);
+        assert_eq!(model.unwrap(), expected);
 
         Ok(())
     }
@@ -385,7 +391,7 @@ mod test {
     #[test]
     fn test_project_model_with_full_config() -> Result<()> {
         let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK)?;
-        let model = build_model(&config);
+        let model = build_model(&config, Path::new("."));
 
         let expected = ZorkModel {
             project: ProjectModel {
@@ -400,7 +406,7 @@ mod test {
                 extra_args: vec![Argument::from("-Wall")],
             },
             build: BuildModel {
-                output_dir: Path::new("build"),
+                output_dir: PathBuf::from(".").canonicalize()?,
             },
             executable: ExecutableModel {
                 executable_name: "zork",
@@ -451,7 +457,7 @@ mod test {
             },
         };
 
-        assert_eq!(model, expected);
+        assert_eq!(model.unwrap(), expected);
 
         Ok(())
     }
