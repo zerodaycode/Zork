@@ -28,7 +28,7 @@ in the configuration
 
 ### Update
 
-- Removed the restriction that doesn't allows the user to be able to link against `libc++`
+- Removed the restriction that doesn't allow the user to be able to link against `libc++`
 in Windows
 
 ### Upgrade
@@ -36,7 +36,7 @@ in Windows
 the project, avoiding make a .canonicalize() call for every one, raising the performance
 of the project model build process
 
-## [0.8.0] - 2023 - 03 - 12
+## [0.8.1] - 2023 - 03 - 12
 
 ### Feature
 
@@ -46,7 +46,7 @@ file, which is used by static analyzers and IDE's to offer code completion and l
 - The overall performance of the cache process has been reviewed. We get rid of a cache clone that was affecting
 the performance, and making a huge impact the memory needed for the cache process during runtime
 by a factor of two.
-Now everything is smoothly handled by mutable and inmutable reference types. 
+Now everything is smoothly handled by mutable and immutable reference types. 
 - A command line flag `-c` has been included to reset the cache when the user requires.
 
 ### Update
