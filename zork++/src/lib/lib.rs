@@ -185,8 +185,8 @@ pub mod worker {
 
     #[cfg(test)]
     mod tests {
+        use color_eyre::{eyre::Context, Result};
         use std::path::Path;
-        use color_eyre::{Result, eyre::Context};
         use tempfile::tempdir;
 
         use crate::config_file::ZorkConfigFile;

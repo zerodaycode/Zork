@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased, TODOs]
+- Add extra arguments for the modules
+- nº of iterations of the program to automatically clear the cache (new model, cache)
+- new model, for the compilation database?
+- make the project model full owned, and cache it?
+
+## [0.8.1] - 2023 - 03 - 15
+
+### Feature
+
+- Constructed the full path for the output directory from the one specified or defaulted
+in the configuration
+
+### Update
+
+- Removed the restriction that doesn't allows the user to be able to link against `libc++`
+in Windows
+
+### Upgrade
+- The absolute paths for all the declared files is preloaded from the declared root from
+the project, avoiding make a .canonicalize() call for every one, raising the performance
+of the project model build process
+
 ## [0.8.0] - 2023 - 03 - 12
 
 ### Feature

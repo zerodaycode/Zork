@@ -65,7 +65,7 @@ impl<'a> core::fmt::Display for Argument<'a> {
 pub mod clang_args {
     use std::path::Path;
 
-    use crate::project_model::{compiler::CppCompiler};
+    use crate::project_model::compiler::CppCompiler;
 
     use super::*;
 

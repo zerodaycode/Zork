@@ -28,7 +28,9 @@ use walkdir::WalkDir;
 /// Standalone utility for retrieve the Zork++ cache file
 pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCache> {
     let compiler = program_data.compiler.cpp_compiler.as_ref();
-    let cache_path = &program_data.build.output_dir
+    let cache_path = &program_data
+        .build
+        .output_dir
         .join("zork")
         .join("cache")
         .join(compiler);
@@ -60,7 +62,9 @@ pub fn save(
     commands: Commands<'_>,
     test_mode: bool,
 ) -> Result<()> {
-    let cache_path = &program_data.build.output_dir
+    let cache_path = &program_data
+        .build
+        .output_dir
         .join("zork")
         .join("cache")
         .join(program_data.compiler.cpp_compiler.as_ref())

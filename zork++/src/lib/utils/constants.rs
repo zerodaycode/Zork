@@ -50,15 +50,15 @@ sources = [
 extra_args = [ "-pedantic" ]
 
 [modules]
-base_ifcs_dir = "ifc"
+base_ifcs_dir = "ifcs"
 interfaces = [
-    { file = "math.cppm" },
-    { file = 'some_module.cppm', module_name = 'math' }
+    { file = "maths.cppm" },
+    { file = 'some_module.cppm', module_name = 'maths' }
 ]
 
-base_impls_dir = "src"
+base_impls_dir = "srcs"
 implementations = [
-    { file = "math.cpp" },
+    { file = "maths.cpp" },
     { file = 'some_module_impl.cpp', dependencies = ['iostream'] }
 ]
 sys_modules = [ "iostream" ]
