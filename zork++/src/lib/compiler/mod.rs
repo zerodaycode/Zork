@@ -353,7 +353,9 @@ mod sources {
         let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir.as_ref();
 
-        let mut arguments = Vec::with_capacity(8);
+        let mut arguments = Vec::with_capacity(8 + model.compiler.extra_args.len());
+        // Clang 8, MSVC 15, GCC 7 - TODO Make a strong type for Vec<Argument> that is initialized
+        // with the correct capacity given a compiler
         arguments.push(model.compiler.language_level_arg());
 
         match compiler {
