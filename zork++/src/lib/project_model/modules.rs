@@ -2,6 +2,8 @@ use core::fmt;
 use std::path::{Path, PathBuf};
 
 use crate::{bounds::TranslationUnit, config_file::modules::ModulePartition};
+use crate::bounds::ExtraArgs;
+use crate::cli::output::arguments::Argument;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModulesModel<'a> {
@@ -10,6 +12,13 @@ pub struct ModulesModel<'a> {
     pub base_impls_dir: &'a Path,
     pub implementations: Vec<ModuleImplementationModel<'a>>,
     pub sys_modules: Vec<&'a str>,
+    pub extra_args: Vec<Argument<'a>>,
+}
+
+impl<'a> ExtraArgs<'a> for ModulesModel<'a> {
+    fn extra_args(&'a self) -> &'a [Argument<'a>] {
+        &self.extra_args
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]

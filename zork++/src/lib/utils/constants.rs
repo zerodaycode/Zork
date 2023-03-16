@@ -62,4 +62,5 @@ implementations = [
     { file = 'some_module_impl.cpp', dependencies = ['iostream'] }
 ]
 sys_modules = [ "iostream" ]
+extra_args = [ "-Wall" ]
 "#;

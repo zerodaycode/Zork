@@ -216,12 +216,18 @@ fn assemble_modules_model<'a>(
         .and_then(|modules| modules.sys_modules.as_ref())
         .map_or_else(Default::default, |headers| headers.clone());
 
+    let extra_args = config
+        .and_then(|mod_attr| mod_attr.extra_args.as_ref())
+        .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
+        .unwrap_or_default();
+
     ModulesModel {
         base_ifcs_dir: Path::new(base_ifcs_dir),
         interfaces,
         base_impls_dir: Path::new(base_impls_dir),
         implementations,
         sys_modules,
+        extra_args
     }
 }
 
@@ -402,6 +408,7 @@ mod test {
                 base_impls_dir: Path::new("."),
                 implementations: vec![],
                 sys_modules: vec![],
+                extra_args: vec![]
             },
             tests: TestsModel {
                 test_executable_name: "Zork++_test".to_string(),
@@ -479,6 +486,7 @@ mod test {
                     },
                 ],
                 sys_modules: vec!["iostream"],
+                extra_args: vec![Argument::from("-Wall")]
             },
             tests: TestsModel {
                 test_executable_name: "zork_check".to_string(),
