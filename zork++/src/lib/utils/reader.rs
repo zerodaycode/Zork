@@ -322,10 +322,11 @@ fn get_sourceset_for(srcs: Vec<&str>, project_root: &Path) -> SourceSet {
     let sources = srcs
         .iter()
         .map(|src| {
+            let target_src = project_root.join(src);
             if src.contains('*') {
-                Source::Glob(GlobPattern(src))
+                Source::Glob(GlobPattern(target_src))
             } else {
-                Source::File(Path::new(src))
+                Source::File(target_src)
             }
         })
         .flat_map(|source| {
@@ -334,7 +335,7 @@ fn get_sourceset_for(srcs: Vec<&str>, project_root: &Path) -> SourceSet {
                 .expect("Error getting the declared paths for the source files")
         })
         .map(|pb| {
-            let file_details = utils::fs::get_file_details(project_root.join(&pb))
+            let file_details = utils::fs::get_file_details(&pb)
                 .unwrap_or_else(|_| panic!("An unexpected error happened getting the file details for {pb:?}"));
             SourceFile {
                 path: file_details.0,
@@ -388,7 +389,7 @@ mod test {
                 extra_args: vec![],
             },
             build: BuildModel {
-                output_dir: (&abs_path_for_mock).join("out"),
+                output_dir: abs_path_for_mock.join("out"),
             },
             executable: ExecutableModel {
                 executable_name: "Zork++",

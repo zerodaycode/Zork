@@ -1,33 +1,34 @@
 use std::{
     fs::{DirBuilder, File},
     io::{BufReader, Write},
-    path::Path,
+    path::{Path, PathBuf},
 };
-
-use std::path::PathBuf;
-
 use color_eyre::eyre::ContextCompat;
 use color_eyre::{eyre::Context, Result};
-
-use crate::cache::ZorkCache;
 use serde::{Deserialize, Serialize};
 
 use super::constants;
 
+/// Creates a new file in the filesystem if the given does not exists yet at the specified location
 pub fn create_file<'a>(path: &Path, filename: &'a str, buff_write: &'a [u8]) -> Result<()> {
     let file_path = path.join(filename);
 
-    File::create(&file_path)
-        .with_context(|| format!("Could not create file {file_path:?}"))?
-        .write_all(buff_write)
-        .with_context(|| format!("Could not write to file {file_path:?}"))
+    if !file_path.exists() {
+        File::create(&file_path)
+            .with_context(|| format!("Could not create file {file_path:?}"))?
+            .write_all(buff_write)
+            .with_context(|| format!("Could not write to file {file_path:?}"))
+    } else { Ok(()) }
 }
 
-pub fn create_directory(path_create: &Path) -> Result<()> {
-    DirBuilder::new()
-        .recursive(true)
-        .create(path_create)
-        .with_context(|| format!("Could not create directory {path_create:?}"))
+/// Recursively creates a new directory pointed at the value of target if not exists yet
+pub fn create_directory(target: &Path) -> Result<()> {
+    if !target.exists() {
+        DirBuilder::new()
+            .recursive(true)
+            .create(target)
+            .with_context(|| format!("Could not create directory {target:?}"))
+    } else { Ok(()) }
 }
 
 #[inline(always)]

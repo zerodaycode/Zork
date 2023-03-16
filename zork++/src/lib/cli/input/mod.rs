@@ -24,7 +24,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[derive(Parser, Debug, Default)]
 #[command(name = "Zork++")]
 #[command(author = "Zero Day Code")]
-#[command(version = "0.8.1")]
+#[command(version = "0.8.2")]
 #[command(
     about = "Zork++ is a build system for modern C++ projects",
     long_about = "Zork++ is a project of Zero Day Code. Find us: https://github.com/zerodaycode/Zork"
