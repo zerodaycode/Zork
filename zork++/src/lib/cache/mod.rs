@@ -73,7 +73,7 @@ pub fn save(
     cache.run_final_tasks(program_data, commands, test_mode)?;
     cache.last_program_execution = Utc::now();
 
-    utils::fs::serialize_cache(cache_path, cache)
+    utils::fs::serialize_object_to_file(cache_path, cache)
         .with_context(move || "Error saving data to the Zork++ cache")
 }
 

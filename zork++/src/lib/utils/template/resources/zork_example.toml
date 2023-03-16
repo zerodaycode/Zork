@@ -7,7 +7,6 @@ compilation_db = true
 [compiler]
 cpp_compiler = "<compiler>"
 cpp_standard = "20"
-std_lib = "libc++"  # This concrete property will only be applied to Clang
 
 [build]
 output_dir = "<base_path>/out"

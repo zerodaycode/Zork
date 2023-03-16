@@ -372,6 +372,8 @@ mod test {
         let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
         let model = build_model(&config, Path::new("."));
 
+        let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
+
         let expected = ZorkModel {
             project: ProjectModel {
                 name: "Zork++",
@@ -386,7 +388,7 @@ mod test {
                 extra_args: vec![],
             },
             build: BuildModel {
-                output_dir: PathBuf::from("./out").canonicalize()?,
+                output_dir: (&abs_path_for_mock).join("out"),
             },
             executable: ExecutableModel {
                 executable_name: "Zork++",
@@ -417,7 +419,7 @@ mod test {
         let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK)?;
         let model = build_model(&config, Path::new("."));
 
-        let abs_path_for_mock = fs::get_absolute_path(Path::new("."))?;
+        let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
 
         let expected = ZorkModel {
             project: ProjectModel {
@@ -433,7 +435,7 @@ mod test {
                 extra_args: vec![Argument::from("-Wall")],
             },
             build: BuildModel {
-                output_dir: PathBuf::from(".").canonicalize()?,
+                output_dir: abs_path_for_mock.clone(),
             },
             executable: ExecutableModel {
                 executable_name: "zork",
