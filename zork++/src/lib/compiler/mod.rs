@@ -7,8 +7,10 @@ use color_eyre::Result;
 use std::path::Path;
 
 use crate::bounds::{ExecutableTarget, ExtraArgs, TranslationUnit};
+use crate::cli::output::arguments::{clang_args, Arguments};
 use crate::cli::output::commands::{CommandExecutionResult, SourceCommandLine};
 use crate::compiler::helpers::flag_source_file_without_changes;
+use crate::utils::constants;
 use crate::{
     cache::ZorkCache,
     cli::output::{arguments::Argument, commands::Commands},
@@ -18,8 +20,6 @@ use crate::{
         ZorkModel,
     },
 };
-use crate::cli::output::arguments::{Arguments, clang_args};
-use crate::utils::constants;
 
 /// The entry point of the compilation process
 ///
@@ -261,6 +261,8 @@ pub fn generate_main_command_line_args<'a>(
 /// Specific operations over source files
 mod sources {
     use super::helpers;
+    use crate::bounds::ExtraArgs;
+    use crate::cli::output::arguments::Arguments;
     use crate::project_model::sourceset::SourceFile;
     use crate::{
         bounds::{ExecutableTarget, TranslationUnit},
@@ -274,8 +276,6 @@ mod sources {
             ZorkModel,
         },
     };
-    use crate::bounds::ExtraArgs;
-    use crate::cli::output::arguments::Arguments;
 
     /// Generates the command line arguments for non-module source files
     pub fn generate_sources_arguments<'a>(
@@ -677,9 +677,10 @@ mod helpers {
             .collect::<Vec<_>>();
 
         for collection_args in sys_modules {
-            commands
-                .system_modules
-                .insert(collection_args[4].value.to_string(), Arguments::from_vec(collection_args));
+            commands.system_modules.insert(
+                collection_args[4].value.to_string(),
+                Arguments::from_vec(collection_args),
+            );
         }
     }
 

@@ -1,11 +1,11 @@
+use color_eyre::eyre::ContextCompat;
+use color_eyre::{eyre::Context, Result};
+use serde::{Deserialize, Serialize};
 use std::{
     fs::{DirBuilder, File},
     io::{BufReader, Write},
     path::{Path, PathBuf},
 };
-use color_eyre::eyre::ContextCompat;
-use color_eyre::{eyre::Context, Result};
-use serde::{Deserialize, Serialize};
 
 use super::constants;
 
@@ -18,7 +18,9 @@ pub fn create_file<'a>(path: &Path, filename: &'a str, buff_write: &'a [u8]) -> 
             .with_context(|| format!("Could not create file {file_path:?}"))?
             .write_all(buff_write)
             .with_context(|| format!("Could not write to file {file_path:?}"))
-    } else { Ok(()) }
+    } else {
+        Ok(())
+    }
 }
 
 /// Recursively creates a new directory pointed at the value of target if not exists yet
@@ -28,7 +30,9 @@ pub fn create_directory(target: &Path) -> Result<()> {
             .recursive(true)
             .create(target)
             .with_context(|| format!("Could not create directory {target:?}"))
-    } else { Ok(()) }
+    } else {
+        Ok(())
+    }
 }
 
 #[inline(always)]

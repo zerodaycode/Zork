@@ -1,9 +1,9 @@
 use core::fmt;
 use std::path::{Path, PathBuf};
 
-use crate::{bounds::TranslationUnit, config_file::modules::ModulePartition};
 use crate::bounds::ExtraArgs;
 use crate::cli::output::arguments::Argument;
+use crate::{bounds::TranslationUnit, config_file::modules::ModulePartition};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModulesModel<'a> {

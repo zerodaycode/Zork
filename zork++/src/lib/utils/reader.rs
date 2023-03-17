@@ -227,7 +227,7 @@ fn assemble_modules_model<'a>(
         base_impls_dir: Path::new(base_impls_dir),
         implementations,
         sys_modules,
-        extra_args
+        extra_args,
     }
 }
 
@@ -284,8 +284,9 @@ fn assemble_module_implementation_model<'a>(
         }
     }
 
-    let file_details = utils::fs::get_file_details(&file_path)
-        .unwrap_or_else(|_| panic!("An unexpected error happened getting the file details for {file_path:?}"));
+    let file_details = utils::fs::get_file_details(&file_path).unwrap_or_else(|_| {
+        panic!("An unexpected error happened getting the file details for {file_path:?}")
+    });
 
     ModuleImplementationModel {
         path: file_details.0,
@@ -341,8 +342,9 @@ fn get_sourceset_for(srcs: Vec<&str>, project_root: &Path) -> SourceSet {
                 .expect("Error getting the declared paths for the source files")
         })
         .map(|pb| {
-            let file_details = utils::fs::get_file_details(&pb)
-                .unwrap_or_else(|_| panic!("An unexpected error happened getting the file details for {pb:?}"));
+            let file_details = utils::fs::get_file_details(&pb).unwrap_or_else(|_| {
+                panic!("An unexpected error happened getting the file details for {pb:?}")
+            });
             SourceFile {
                 path: file_details.0,
                 file_stem: file_details.1,
@@ -408,7 +410,7 @@ mod test {
                 base_impls_dir: Path::new("."),
                 implementations: vec![],
                 sys_modules: vec![],
-                extra_args: vec![]
+                extra_args: vec![],
             },
             tests: TestsModel {
                 test_executable_name: "Zork++_test".to_string(),
@@ -486,7 +488,7 @@ mod test {
                     },
                 ],
                 sys_modules: vec!["iostream"],
-                extra_args: vec![Argument::from("-Wall")]
+                extra_args: vec![Argument::from("-Wall")],
             },
             tests: TestsModel {
                 test_executable_name: "zork_check".to_string(),

@@ -1,9 +1,9 @@
 //! Types and procedures that represents a command line argument,
 //! or collections of command line arguments
 
+use std::ops::Deref;
 use std::path::Path;
 use std::{borrow::Borrow, ffi::OsStr, path::PathBuf};
-use std::ops::Deref;
 
 use serde::{Deserialize, Serialize};
 
@@ -76,7 +76,9 @@ impl<'a> core::fmt::Display for Argument<'a> {
 pub struct Arguments<'a>(Vec<Argument<'a>>);
 impl<'a> Arguments<'a> {
     /// Wraps an existing [`std::vec::Vec`] of [`Argument`]
-    pub fn from_vec(vec: Vec<Argument<'a>>) -> Self { Self(vec) }
+    pub fn from_vec(vec: Vec<Argument<'a>>) -> Self {
+        Self(vec)
+    }
 
     /// Returns a new collection of [`Argument`] with the specified capacity
     pub fn with_capacity(cap: usize) -> Self {
@@ -85,7 +87,8 @@ impl<'a> Arguments<'a> {
 
     /// Creates and stores a new [`Argument`] to the end of this collection
     pub fn create_and_push<T>(&mut self, val: T)
-        where T: Into<Argument<'a>>
+    where
+        T: Into<Argument<'a>>,
     {
         self.0.push(val.into())
     }

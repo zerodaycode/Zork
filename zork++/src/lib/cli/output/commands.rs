@@ -5,6 +5,7 @@ use std::{
 };
 
 use crate::bounds::TranslationUnit;
+use crate::cli::output::arguments::Arguments;
 ///! Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
@@ -18,7 +19,6 @@ use color_eyre::{
     Report, Result,
 };
 use serde::{Deserialize, Serialize};
-use crate::cli::output::arguments::Arguments;
 
 use super::arguments::Argument;
 
