@@ -6,9 +6,11 @@
 use color_eyre::Result;
 use std::path::Path;
 
-use crate::bounds::TranslationUnit;
+use crate::bounds::{ExecutableTarget, ExtraArgs, TranslationUnit};
+use crate::cli::output::arguments::{clang_args, Arguments};
 use crate::cli::output::commands::{CommandExecutionResult, SourceCommandLine};
 use crate::compiler::helpers::flag_source_file_without_changes;
+use crate::utils::constants;
 use crate::{
     cache::ZorkCache,
     cli::output::{arguments::Argument, commands::Commands},
@@ -32,7 +34,7 @@ pub fn build_project<'a>(
     let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
     if model.compiler.cpp_compiler != CppCompiler::MSVC {
-        helpers::prebuild_sys_modules(model, &mut commands, cache)
+        helpers::build_sys_modules(model, &mut commands, cache)
     }
 
     // 1st - Build the modules
@@ -56,9 +58,9 @@ fn build_executable<'a>(
     // TODO Check if the command line is the same as the previous? If there's no new sources?
     // And avoid re-executing?
     if tests {
-        sources::generate_main_command_line_args(model, commands, &model.tests)
+        generate_main_command_line_args(model, commands, &model.tests)
     } else {
-        sources::generate_main_command_line_args(model, commands, &model.executable)
+        generate_main_command_line_args(model, commands, &model.executable)
     }
 }
 
@@ -79,13 +81,13 @@ fn build_sources<'a>(
         sources::generate_sources_arguments(model, commands, &model.tests, src);
     } else {
         let command_line = SourceCommandLine::from_translation_unit(
-            src, Vec::with_capacity(0), true, CommandExecutionResult::Cached
+            src, Arguments::default(), true, CommandExecutionResult::Cached
         );
 
         log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &src.file());
         commands.sources.push(command_line);
         commands.generated_files_paths.push(Argument::from(helpers::generate_obj_file(
-            model.compiler.cpp_compiler, model.build.output_dir, src
+            model.compiler.cpp_compiler, &model.build.output_dir, src
         ).to_string()))
     });
 
@@ -103,17 +105,17 @@ fn build_modules<'a>(
     commands: &mut Commands<'a>,
 ) -> Result<()> {
     log::info!("Building the module interfaces and partitions...");
-    prebuild_module_interfaces(model, cache, &model.modules.interfaces, commands);
+    build_module_interfaces(model, cache, &model.modules.interfaces, commands);
 
     log::info!("Building the module implementations...");
-    compile_module_implementations(model, cache, &model.modules.implementations, commands);
+    build_module_implementations(model, cache, &model.modules.implementations, commands);
 
     Ok(())
 }
 
 /// Parses the configuration in order to build the BMIs declared for the project,
 /// by precompiling the module interface units
-fn prebuild_module_interfaces<'a>(
+fn build_module_interfaces<'a>(
     model: &'a ZorkModel<'_>,
     cache: &ZorkCache,
     interfaces: &'a [ModuleInterfaceModel],
@@ -124,13 +126,13 @@ fn prebuild_module_interfaces<'a>(
             sources::generate_module_interfaces_args(model, module_interface, commands);
         } else {
             let command_line = SourceCommandLine::from_translation_unit(
-                module_interface, Vec::with_capacity(0), true, CommandExecutionResult::Cached
+                module_interface, Arguments::default(), true, CommandExecutionResult::Cached
             );
 
             log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
             commands.interfaces.push(command_line);
-            commands.generated_files_paths.push(Argument::from(helpers::generate_prebuild_miu(
-                model.compiler.cpp_compiler, model.build.output_dir, module_interface
+            commands.generated_files_paths.push(Argument::from(helpers::generate_prebuilt_miu(
+                model.compiler.cpp_compiler, &model.build.output_dir, module_interface
             )))
         }
     });
@@ -138,7 +140,7 @@ fn prebuild_module_interfaces<'a>(
 
 /// Parses the configuration in order to compile the module implementation
 /// translation units declared for the project
-fn compile_module_implementations<'a>(
+fn build_module_implementations<'a>(
     model: &'a ZorkModel,
     cache: &ZorkCache,
     impls: &'a [ModuleImplementationModel],
@@ -149,21 +151,118 @@ fn compile_module_implementations<'a>(
             sources::generate_module_implementation_args(model, module_impl, commands);
         } else {
             let command_line = SourceCommandLine::from_translation_unit(
-                module_impl, Vec::with_capacity(0), true, CommandExecutionResult::Cached
+                module_impl, Arguments::default(), true, CommandExecutionResult::Cached
             );
 
             log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
             commands.implementations.push(command_line);
             commands.generated_files_paths.push(Argument::from(helpers::generate_impl_obj_file(
-                model.compiler.cpp_compiler, model.build.output_dir, module_impl
+                model.compiler.cpp_compiler, &model.build.output_dir, module_impl
             )))
         }
     });
 }
 
+/// Generates the command line arguments for the desired target
+pub fn generate_main_command_line_args<'a>(
+    model: &'a ZorkModel,
+    commands: &mut Commands<'a>,
+    target: &'a impl ExecutableTarget<'a>,
+) -> Result<()> {
+    log::info!("Generating the main command line...");
+
+    let compiler = &model.compiler.cpp_compiler;
+    let out_dir = model.build.output_dir.as_ref();
+    let executable_name = target.name();
+
+    let mut arguments = Arguments::default();
+    arguments.push(model.compiler.language_level_arg());
+    arguments.extend_from_slice(model.compiler.extra_args());
+    arguments.extend_from_slice(target.extra_args());
+
+    match compiler {
+        CppCompiler::CLANG => {
+            arguments.push_opt(model.compiler.stdlib_arg());
+            arguments.create_and_push("-fimplicit-modules");
+            arguments.push(clang_args::implicit_module_maps(out_dir));
+
+            arguments.create_and_push(format!(
+                "-fprebuilt-module-path={}",
+                out_dir
+                    .join(compiler.as_ref())
+                    .join("modules")
+                    .join("interfaces")
+                    .display()
+            ));
+
+            arguments.create_and_push("-o");
+            arguments.create_and_push(format!(
+                "{}",
+                out_dir
+                    .join(compiler.as_ref())
+                    .join(executable_name)
+                    .with_extension(constants::BINARY_EXTENSION)
+                    .display()
+            ));
+        }
+        CppCompiler::MSVC => {
+            arguments.create_and_push("/EHsc");
+            arguments.create_and_push("/nologo");
+            // If /std:c++20 this, else should be the direct options
+            // available on C++23 to use directly import std by pre-compiling the standard library
+            arguments.create_and_push("/experimental:module");
+            arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
+            arguments.create_and_push("/ifcSearchDir");
+            arguments.create_and_push(
+                out_dir
+                    .join(compiler.as_ref())
+                    .join("modules")
+                    .join("interfaces"),
+            );
+            arguments.create_and_push(format!(
+                "/Fo{}\\",
+                out_dir.join(compiler.as_ref()).display()
+            ));
+            arguments.create_and_push(format!(
+                "/Fe{}",
+                out_dir
+                    .join(compiler.as_ref())
+                    .join(executable_name)
+                    .with_extension(constants::BINARY_EXTENSION)
+                    .display()
+            ));
+        }
+        CppCompiler::GCC => {
+            arguments.create_and_push("-fmodules-ts");
+            arguments.create_and_push("-o");
+            arguments.create_and_push(format!(
+                "{}",
+                out_dir
+                    .join(compiler.as_ref())
+                    .join(executable_name)
+                    .with_extension(constants::BINARY_EXTENSION)
+                    .display()
+            ));
+        }
+    };
+    arguments.extend(commands.generated_files_paths.clone().into_iter());
+
+    commands.main.args.extend(arguments.into_iter());
+    commands.main.sources_paths = target
+        .sourceset()
+        .sources
+        .iter()
+        .map(|s| s.file())
+        .collect::<Vec<_>>();
+
+    Ok(())
+}
+
 /// Specific operations over source files
 mod sources {
     use super::helpers;
+    use crate::bounds::ExtraArgs;
+    use crate::cli::output::arguments::Arguments;
     use crate::project_model::sourceset::SourceFile;
     use crate::{
         bounds::{ExecutableTarget, TranslationUnit},
@@ -176,106 +275,7 @@ mod sources {
             modules::{ModuleImplementationModel, ModuleInterfaceModel},
             ZorkModel,
         },
-        utils::constants,
     };
-    use color_eyre::Result;
-
-    /// Generates the command line arguments for the desired target
-    pub fn generate_main_command_line_args<'a>(
-        model: &'a ZorkModel,
-        commands: &mut Commands<'a>,
-        target: &'a impl ExecutableTarget<'a>,
-    ) -> Result<()> {
-        log::info!("Generating the main command line...");
-
-        let compiler = &model.compiler.cpp_compiler;
-        let out_dir = model.build.output_dir;
-        let executable_name = target.name();
-
-        let mut arguments = Vec::new();
-        arguments.push(model.compiler.language_level_arg());
-
-        match compiler {
-            CppCompiler::CLANG => {
-                arguments.extend(clang_args::add_std_lib(model));
-                arguments.extend_from_slice(target.extra_args());
-                arguments.push(Argument::from("-fimplicit-modules"));
-                arguments.push(clang_args::implicit_module_maps(out_dir));
-
-                arguments.push(Argument::from(format!(
-                    "-fprebuilt-module-path={}",
-                    out_dir
-                        .join(compiler.as_ref())
-                        .join("modules")
-                        .join("interfaces")
-                        .display()
-                )));
-
-                arguments.push(Argument::from("-o"));
-                arguments.push(Argument::from(format!(
-                    "{}",
-                    out_dir
-                        .join(compiler.as_ref())
-                        .join(executable_name)
-                        .with_extension(constants::BINARY_EXTENSION)
-                        .display()
-                )));
-            }
-            CppCompiler::MSVC => {
-                arguments.push(Argument::from("/EHsc"));
-                arguments.push(Argument::from("/nologo"));
-                // If /std:c++20 this, else should be the direct options
-                // available on C++23 to use directly import std by precompiling the standard library
-                arguments.push(Argument::from("/experimental:module"));
-                arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
-
-                // helpers::add_extra_args_if_present(&config.executable, &mut arguments);
-                arguments.extend_from_slice(target.extra_args());
-                arguments.push(Argument::from("/ifcSearchDir"));
-                arguments.push(Argument::from(
-                    out_dir
-                        .join(compiler.as_ref())
-                        .join("modules")
-                        .join("interfaces"),
-                ));
-                arguments.push(Argument::from(format!(
-                    "/Fo{}\\",
-                    out_dir.join(compiler.as_ref()).display()
-                )));
-                arguments.push(Argument::from(format!(
-                    "/Fe{}",
-                    out_dir
-                        .join(compiler.as_ref())
-                        .join(executable_name)
-                        .with_extension(constants::BINARY_EXTENSION)
-                        .display()
-                )));
-            }
-            CppCompiler::GCC => {
-                arguments.push(Argument::from("-fmodules-ts"));
-                arguments.push(Argument::from("-o"));
-                arguments.push(Argument::from(format!(
-                    "{}",
-                    out_dir
-                        .join(compiler.as_ref())
-                        .join(executable_name)
-                        .with_extension(constants::BINARY_EXTENSION)
-                        .display()
-                )));
-            }
-        };
-        arguments.extend(commands.generated_files_paths.clone().into_iter());
-
-        commands.main.args.extend(arguments.into_iter());
-        commands.main.sources_paths = target
-            .sourceset()
-            .sources
-            .iter()
-            .map(|s| s.file())
-            .collect::<Vec<_>>();
-
-        Ok(())
-    }
 
     /// Generates the command line arguments for non-module source files
     pub fn generate_sources_arguments<'a>(
@@ -285,41 +285,41 @@ mod sources {
         source: &'a SourceFile,
     ) {
         let compiler = model.compiler.cpp_compiler;
-        let out_dir = model.build.output_dir;
+        let out_dir = model.build.output_dir.as_ref();
 
-        let mut arguments = Vec::new();
+        let mut arguments = Arguments::default();
         arguments.push(model.compiler.language_level_arg());
-        arguments.push(Argument::from("-c"));
+        arguments.create_and_push("-c");
+        arguments.extend_from_slice(model.compiler.extra_args());
         arguments.extend_from_slice(target.extra_args());
 
         match compiler {
             CppCompiler::CLANG => {
-                arguments.extend(clang_args::add_std_lib(model));
-                arguments.push(Argument::from("-fimplicit-modules"));
+                arguments.push_opt(model.compiler.stdlib_arg());
+                arguments.create_and_push("-fimplicit-modules");
                 arguments.push(clang_args::implicit_module_maps(out_dir));
                 arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
-
-                arguments.push(Argument::from("-o"));
+                arguments.create_and_push("-o");
             }
             CppCompiler::MSVC => {
-                arguments.push(Argument::from("/EHsc"));
-                arguments.push(Argument::from("/nologo"));
+                arguments.create_and_push("/EHsc");
+                arguments.create_and_push(Argument::from("/nologo"));
                 // If /std:c++20 this, else should be the direct options
-                // available on C++23 to use directly import std by precompiling the standard library
-                arguments.push(Argument::from("/experimental:module"));
-                arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
+                // available on C++23 to use directly import std by pre-compiling the standard library
+                arguments.create_and_push("/experimental:module");
+                arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
 
-                arguments.push(Argument::from("/ifcSearchDir"));
-                arguments.push(Argument::from(
+                arguments.create_and_push("/ifcSearchDir");
+                arguments.create_and_push(
                     out_dir
                         .join(compiler.as_ref())
                         .join("modules")
                         .join("interfaces"),
-                ));
+                );
             }
             CppCompiler::GCC => {
-                arguments.push(Argument::from("-fmodules-ts"));
-                arguments.push(Argument::from("-o"));
+                arguments.create_and_push("-fmodules-ts");
+                arguments.create_and_push("-o");
             }
         };
 
@@ -329,8 +329,8 @@ mod sources {
         } else {
             ""
         };
-        arguments.push(Argument::from(format!("{fo}{obj_file}")));
-        arguments.push(Argument::from(source.file()));
+        arguments.create_and_push(format!("{fo}{obj_file}"));
+        arguments.create_and_push(source.file());
 
         let command_line = SourceCommandLine::from_translation_unit(
             source,
@@ -351,25 +351,25 @@ mod sources {
         commands: &mut Commands<'a>,
     ) {
         let compiler = model.compiler.cpp_compiler;
-        let out_dir = model.build.output_dir;
+        let out_dir = model.build.output_dir.as_ref();
 
-        let mut arguments = Vec::with_capacity(8);
+        let mut arguments = Arguments::default();
         arguments.push(model.compiler.language_level_arg());
+        arguments.extend_from_slice(model.compiler.extra_args());
+        arguments.extend_from_slice(model.modules.extra_args());
 
         match compiler {
             CppCompiler::CLANG => {
-                arguments.extend(clang_args::add_std_lib(model));
-                arguments.push(Argument::from("-fimplicit-modules"));
-                arguments.push(Argument::from("-x"));
-                arguments.push(Argument::from("c++-module"));
-                arguments.push(Argument::from("--precompile"));
-
+                arguments.push_opt(model.compiler.stdlib_arg());
+                arguments.create_and_push("-fimplicit-modules");
+                arguments.create_and_push("-x");
+                arguments.create_and_push("c++-module");
+                arguments.create_and_push("--precompile");
                 arguments.push(clang_args::implicit_module_maps(out_dir));
-
-                arguments.push(Argument::from(format!(
+                arguments.create_and_push(format!(
                     "-fprebuilt-module-path={}/clang/modules/interfaces",
                     out_dir.display()
-                )));
+                ));
                 clang_args::add_direct_module_interfaces_dependencies(
                     &interface.dependencies,
                     compiler,
@@ -378,63 +378,63 @@ mod sources {
                 );
 
                 // The resultant BMI as a .pcm file
-                arguments.push(Argument::from("-o"));
+                arguments.create_and_push("-o");
                 // The output file
                 let miu_file_path =
-                    Argument::from(helpers::generate_prebuild_miu(compiler, out_dir, interface));
+                    Argument::from(helpers::generate_prebuilt_miu(compiler, out_dir, interface));
                 commands.generated_files_paths.push(miu_file_path.clone());
                 arguments.push(miu_file_path);
                 // The input file
-                arguments.push(Argument::from(interface.file()));
+                arguments.create_and_push(interface.file());
             }
             CppCompiler::MSVC => {
-                arguments.push(Argument::from("/EHsc"));
-                arguments.push(Argument::from("/nologo"));
-                arguments.push(Argument::from("/experimental:module"));
-                arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
-                arguments.push(Argument::from("/c"));
+                arguments.create_and_push("/EHsc");
+                arguments.create_and_push("/nologo");
+                arguments.create_and_push("/experimental:module");
+                arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
+                arguments.create_and_push("/c");
 
                 let implicit_lookup_mius_path = out_dir
                     .join(compiler.as_ref())
                     .join("modules")
                     .join("interfaces")
                     .display()
-                    .to_string();
-                arguments.push(Argument::from("/ifcSearchDir"));
-                arguments.push(implicit_lookup_mius_path.clone().into());
-                arguments.push(Argument::from("/ifcOutput"));
-                arguments.push(implicit_lookup_mius_path.into());
+                    .to_string(); // TODO Can we avoid this conversions?
+                arguments.create_and_push("/ifcSearchDir");
+                arguments.create_and_push(implicit_lookup_mius_path.clone());
+                arguments.create_and_push("/ifcOutput");
+                arguments.create_and_push(implicit_lookup_mius_path);
 
                 // The output .obj file
                 let obj_file =
-                    Argument::from(helpers::generate_prebuild_miu(compiler, out_dir, interface));
+                    Argument::from(helpers::generate_prebuilt_miu(compiler, out_dir, interface));
                 commands.generated_files_paths.push(obj_file.clone());
-                arguments.push(Argument::from(format!("/Fo{obj_file}")));
+                arguments.create_and_push(format!("/Fo{obj_file}"));
 
                 if let Some(partition) = &interface.partition {
                     if partition.is_internal_partition {
-                        arguments.push(Argument::from("/internalPartition"));
+                        arguments.create_and_push("/internalPartition");
                     } else {
-                        arguments.push(Argument::from("/interface"));
+                        arguments.create_and_push("/interface");
                     }
                 } else {
-                    arguments.push(Argument::from("/interface"));
+                    arguments.create_and_push("/interface");
                 }
-                arguments.push(Argument::from("/TP"));
+                arguments.create_and_push("/TP");
                 // The input file
-                arguments.push(Argument::from(interface.file()))
+                arguments.create_and_push(interface.file())
             }
             CppCompiler::GCC => {
-                arguments.push(Argument::from("-fmodules-ts"));
-                arguments.push(Argument::from("-x"));
-                arguments.push(Argument::from("c++"));
-                arguments.push(Argument::from("-c"));
+                arguments.create_and_push("-fmodules-ts");
+                arguments.create_and_push("-x");
+                arguments.create_and_push("c++");
+                arguments.create_and_push("-c");
                 // The input file
-                arguments.push(Argument::from(interface.file()));
+                arguments.create_and_push(interface.file());
                 // The output file
-                arguments.push(Argument::from("-o"));
+                arguments.create_and_push("-o");
                 let miu_file_path =
-                    Argument::from(helpers::generate_prebuild_miu(compiler, out_dir, interface));
+                    Argument::from(helpers::generate_prebuilt_miu(compiler, out_dir, interface));
                 commands.generated_files_paths.push(miu_file_path.clone());
                 arguments.push(miu_file_path);
             }
@@ -456,20 +456,22 @@ mod sources {
         commands: &mut Commands<'a>,
     ) {
         let compiler = model.compiler.cpp_compiler;
-        let out_dir = model.build.output_dir;
+        let out_dir = model.build.output_dir.as_ref();
 
-        let mut arguments = Vec::with_capacity(12);
+        let mut arguments = Arguments::default();
         arguments.push(model.compiler.language_level_arg());
+        arguments.extend_from_slice(model.compiler.extra_args());
+        arguments.extend_from_slice(model.modules.extra_args());
 
         match compiler {
             CppCompiler::CLANG => {
-                arguments.extend(clang_args::add_std_lib(model));
-                arguments.push(Argument::from("-fimplicit-modules"));
-                arguments.push(Argument::from("-c"));
+                arguments.push_opt(model.compiler.stdlib_arg());
+                arguments.create_and_push("-fimplicit-modules");
+                arguments.create_and_push("-c");
                 arguments.push(clang_args::implicit_module_maps(out_dir));
 
                 // The resultant object file
-                arguments.push(Argument::from("-o"));
+                arguments.create_and_push("-o");
                 let obj_file_path = Argument::from(helpers::generate_impl_obj_file(
                     compiler,
                     out_dir,
@@ -486,23 +488,23 @@ mod sources {
                 );
 
                 // The input file
-                arguments.push(Argument::from(implementation.file()))
+                arguments.create_and_push(implementation.file())
             }
             CppCompiler::MSVC => {
-                arguments.push(Argument::from("/EHsc"));
-                arguments.push(Argument::from("/nologo"));
-                arguments.push(Argument::from("-c"));
-                arguments.push(Argument::from("/experimental:module"));
-                arguments.push(Argument::from("/stdIfcDir \"$(VC_IFCPath)\""));
-                arguments.push(Argument::from("/ifcSearchDir"));
-                arguments.push(Argument::from(
+                arguments.create_and_push("/EHsc");
+                arguments.create_and_push("/nologo");
+                arguments.create_and_push("-c");
+                arguments.create_and_push("/experimental:module");
+                arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
+                arguments.create_and_push("/ifcSearchDir");
+                arguments.create_and_push(
                     out_dir
                         .join(compiler.as_ref())
                         .join("modules")
                         .join("interfaces"),
-                ));
+                );
                 // The input file
-                arguments.push(Argument::from(implementation.file()));
+                arguments.create_and_push(implementation.file());
                 // The output .obj file
                 let obj_file_path = out_dir
                     .join(compiler.as_ref())
@@ -514,15 +516,15 @@ mod sources {
                 commands
                     .generated_files_paths
                     .push(Argument::from(obj_file_path.clone()));
-                arguments.push(Argument::from(format!("/Fo{}", obj_file_path.display())));
+                arguments.create_and_push(format!("/Fo{}", obj_file_path.display()));
             }
             CppCompiler::GCC => {
-                arguments.push(Argument::from("-fmodules-ts"));
-                arguments.push(Argument::from("-c"));
+                arguments.create_and_push("-fmodules-ts");
+                arguments.create_and_push("-c");
                 // The input file
-                arguments.push(Argument::from(implementation.file()));
+                arguments.create_and_push(implementation.file());
                 // The output file
-                arguments.push(Argument::from("-o"));
+                arguments.create_and_push("-o");
                 let obj_file_path = Argument::from(helpers::generate_impl_obj_file(
                     compiler,
                     out_dir,
@@ -568,7 +570,7 @@ mod helpers {
     /// For MSVC, we are relying in the autogenerate of the BMI automatically by the compiler,
     /// so the output file that we need is an obj file (.obj), and not the
     /// binary module interface (.ifc)
-    pub(crate) fn generate_prebuild_miu(
+    pub(crate) fn generate_prebuilt_miu(
         compiler: CppCompiler,
         out_dir: &Path,
         interface: &ModuleInterfaceModel,
@@ -623,7 +625,7 @@ mod helpers {
     /// generate commands for the non processed elements yet.
     ///
     /// This is for `GCC` and `Clang`
-    pub(crate) fn prebuild_sys_modules<'a>(
+    pub(crate) fn build_sys_modules<'a>(
         model: &'a ZorkModel,
         commands: &mut Commands<'a>,
         cache: &ZorkCache,
@@ -659,7 +661,7 @@ mod helpers {
                 if model.compiler.cpp_compiler.eq(&CppCompiler::CLANG) {
                     v.push(Argument::from("-o"));
                     v.push(Argument::from(
-                        Path::new(model.build.output_dir)
+                        Path::new(&model.build.output_dir)
                             .join(model.compiler.cpp_compiler.as_ref())
                             .join("modules")
                             .join("interfaces")
@@ -675,9 +677,10 @@ mod helpers {
             .collect::<Vec<_>>();
 
         for collection_args in sys_modules {
-            commands
-                .system_modules
-                .insert(collection_args[4].value.to_string(), collection_args);
+            commands.system_modules.insert(
+                collection_args[4].value.to_string(),
+                Arguments::from_vec(collection_args),
+            );
         }
     }
 

@@ -5,6 +5,7 @@ use std::{
 };
 
 use crate::bounds::TranslationUnit;
+use crate::cli::output::arguments::Arguments;
 ///! Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
@@ -150,11 +151,11 @@ fn execute_command(
 
 /// The pieces and details for the generated command line for
 /// for some translation unit
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SourceCommandLine<'a> {
     pub directory: PathBuf,
     pub file: String,
-    pub args: Vec<Argument<'a>>,
+    pub args: Arguments<'a>,
     pub processed: bool,
     pub execution_result: CommandExecutionResult,
 }
@@ -162,7 +163,7 @@ pub struct SourceCommandLine<'a> {
 impl<'a> SourceCommandLine<'a> {
     pub fn from_translation_unit(
         tu: impl TranslationUnit,
-        args: Vec<Argument<'a>>,
+        args: Arguments<'a>,
         processed: bool,
         execution_result: CommandExecutionResult,
     ) -> Self {
@@ -177,15 +178,6 @@ impl<'a> SourceCommandLine<'a> {
 
     pub fn path(&self) -> PathBuf {
         self.directory.join(Path::new(&self.file))
-    }
-}
-
-impl<'a> IntoIterator for SourceCommandLine<'a> {
-    type Item = Argument<'a>;
-    type IntoIter = std::vec::IntoIter<Argument<'a>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.args.into_iter()
     }
 }
 
@@ -212,12 +204,12 @@ impl<'a> Default for ExecutableCommandLine<'a> {
 #[derive(Debug)]
 pub struct Commands<'a> {
     pub compiler: CppCompiler,
-    pub system_modules: HashMap<String, Vec<Argument<'a>>>,
+    pub system_modules: HashMap<String, Arguments<'a>>,
     pub interfaces: Vec<SourceCommandLine<'a>>,
     pub implementations: Vec<SourceCommandLine<'a>>,
     pub sources: Vec<SourceCommandLine<'a>>,
     pub main: ExecutableCommandLine<'a>,
-    pub generated_files_paths: Vec<Argument<'a>>,
+    pub generated_files_paths: Arguments<'a>,
 }
 
 impl<'a> Commands<'a> {
@@ -229,7 +221,7 @@ impl<'a> Commands<'a> {
             implementations: Vec::with_capacity(0),
             sources: Vec::with_capacity(0),
             main: ExecutableCommandLine::default(),
-            generated_files_paths: Vec::with_capacity(0),
+            generated_files_paths: Arguments::default(),
         }
     }
 }

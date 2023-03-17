@@ -1,6 +1,6 @@
-use std::path::Path;
+use std::path::PathBuf;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct BuildModel<'a> {
-    pub output_dir: &'a Path,
+pub struct BuildModel {
+    pub output_dir: PathBuf,
 }

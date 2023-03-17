@@ -17,7 +17,7 @@ use self::{
 pub struct ZorkModel<'a> {
     pub project: ProjectModel<'a>,
     pub compiler: CompilerModel<'a>,
-    pub build: BuildModel<'a>,
+    pub build: BuildModel,
     pub executable: ExecutableModel<'a>,
     pub modules: ModulesModel<'a>,
     pub tests: TestsModel<'a>,

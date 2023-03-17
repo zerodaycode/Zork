@@ -1,5 +1,5 @@
 use core::fmt;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::bounds::TranslationUnit;
 use color_eyre::{eyre::Context, Result};
@@ -7,9 +7,9 @@ use color_eyre::{eyre::Context, Result};
 use crate::cli::output::arguments::Argument;
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Source<'a> {
-    File(&'a Path),
-    Glob(GlobPattern<'a>),
+pub enum Source {
+    File(PathBuf),
+    Glob(GlobPattern),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -71,7 +71,7 @@ impl fmt::Display for SourceFile {
     }
 }
 
-impl<'a> Source<'a> {
+impl Source {
     #[inline(always)]
     pub fn paths(&self) -> Result<Vec<PathBuf>> {
         match self {
@@ -82,12 +82,12 @@ impl<'a> Source<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct GlobPattern<'a>(pub &'a str);
+pub struct GlobPattern(pub PathBuf);
 
-impl<'a> GlobPattern<'a> {
+impl GlobPattern {
     #[inline(always)]
     fn resolve(&self) -> Result<Vec<PathBuf>> {
-        glob::glob(self.0)?
+        glob::glob(self.0.to_str().unwrap_or_default())?
             .map(|path| path.with_context(|| ""))
             .collect()
     }

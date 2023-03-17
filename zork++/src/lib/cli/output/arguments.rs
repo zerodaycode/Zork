@@ -1,6 +1,7 @@
 //! Types and procedures that represents a command line argument,
 //! or collections of command line arguments
 
+use std::ops::Deref;
 use std::path::Path;
 use std::{borrow::Borrow, ffi::OsStr, path::PathBuf};
 
@@ -23,6 +24,14 @@ impl<'a> From<String> for Argument<'a> {
         Self {
             value: Box::leak(value.into_boxed_str()),
         }
+    }
+}
+
+impl<'a> Deref for Argument<'a> {
+    type Target = &'a str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
     }
 }
 
@@ -62,10 +71,73 @@ impl<'a> core::fmt::Display for Argument<'a> {
     }
 }
 
+/// Strong type for represent a linear collection of [`Argument`]
+#[derive(Debug, Default, Clone)]
+pub struct Arguments<'a>(Vec<Argument<'a>>);
+impl<'a> Arguments<'a> {
+    /// Wraps an existing [`std::vec::Vec`] of [`Argument`]
+    pub fn from_vec(vec: Vec<Argument<'a>>) -> Self {
+        Self(vec)
+    }
+
+    /// Returns a new collection of [`Argument`] with the specified capacity
+    pub fn with_capacity(cap: usize) -> Self {
+        Self(Vec::with_capacity(cap))
+    }
+
+    /// Creates and stores a new [`Argument`] to the end of this collection
+    pub fn create_and_push<T>(&mut self, val: T)
+    where
+        T: Into<Argument<'a>>,
+    {
+        self.0.push(val.into())
+    }
+
+    /// Appends a new [`Argument`] to the end of this collection
+    pub fn push(&mut self, arg: Argument<'a>) {
+        self.0.push(arg)
+    }
+
+    /// Given an optional, adds the wrapper inner value if there's some element,
+    /// otherwise leaves
+    pub fn push_opt(&mut self, arg: Option<Argument<'a>>) {
+        if let Some(val) = arg {
+            self.0.push(val)
+        }
+    }
+
+    /// Extends the underlying collection from a Iterator of [`Argument`]
+    pub fn extend(&mut self, iter: impl IntoIterator<Item = Argument<'a>>) {
+        self.0.extend(iter);
+    }
+
+    /// Extends the underlying collection given a slice of [`Argument`]
+    pub fn extend_from_slice(&mut self, slice: &'a [Argument<'a>]) {
+        self.0.extend_from_slice(slice);
+    }
+}
+
+impl<'a> Deref for Arguments<'a> {
+    type Target = [Argument<'a>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> IntoIterator for Arguments<'a> {
+    type Item = Argument<'a>;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 pub mod clang_args {
     use std::path::Path;
 
-    use crate::project_model::{compiler::CppCompiler, ZorkModel};
+    use crate::project_model::compiler::CppCompiler;
 
     use super::*;
 
@@ -89,17 +161,6 @@ pub mod clang_args {
         }
     }
 
-    #[inline(always)]
-    pub fn add_std_lib<'a>(model: &'a ZorkModel) -> Option<Argument<'a>> {
-        if !cfg!(target_os = "windows") {
-            if let Some(arg) = model.compiler.stdlib_arg() {
-                return Some(arg);
-            }
-        }
-
-        None
-    }
-
     pub(crate) fn add_prebuilt_module_path(compiler: CppCompiler, out_dir: &Path) -> Argument<'_> {
         Argument::from(format!(
             "-fprebuilt-module-path={}",
@@ -115,7 +176,7 @@ pub mod clang_args {
         dependencies: &[&str],
         compiler: CppCompiler,
         out_dir: &Path,
-        arguments: &mut Vec<Argument>,
+        arguments: &mut Arguments<'_>,
     ) {
         dependencies.iter().for_each(|ifc_dep| {
             arguments.push(Argument::from(format!(

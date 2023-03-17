@@ -391,12 +391,14 @@ ExecutableAttribute {
 /// * `base_impls_dir` - Base directory. So you don't have to specify the full path of the implementation files
 /// * `implementations` - A list to define the module interface translation units for the project
 /// * `sys_modules` - An array field explicitly declare which system headers must be precompiled
+/// * `extra_args` - Extra arguments that will be added to the generated command lines
 ModulesAttribute {
     base_ifcs_dir: Option<str>,
     interfaces: Option<Vec<ModuleInterface>>,
     base_impls_dir: Option<str>,
     implementations: Option<Vec<ModuleImplementation>>,
     sys_modules: Option<Vec<str>>,
+    extra_args: Option<Vec<str>>,
 }
 
 /// The [tests] key

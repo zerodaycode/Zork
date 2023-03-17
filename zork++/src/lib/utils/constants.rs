@@ -2,7 +2,7 @@
 
 pub const CONFIG_FILE_NAME: &str = "zork";
 pub const CONFIG_FILE_EXT: &str = ".toml";
-pub const DEFAULT_OUTPUT_DIR: &str = "./out";
+pub const DEFAULT_OUTPUT_DIR: &str = "out";
 
 pub const BINARY_EXTENSION: &str = if cfg!(target_os = "windows") {
     "exe"
@@ -31,7 +31,7 @@ std_lib = "libc++"
 extra_args = [ "-Wall" ]
 
 [build]
-output_dir = "build"
+output_dir = ""
 
 [executable]
 executable_name = "zork"
@@ -50,16 +50,17 @@ sources = [
 extra_args = [ "-pedantic" ]
 
 [modules]
-base_ifcs_dir = "ifc"
+base_ifcs_dir = "ifcs"
 interfaces = [
-    { file = "math.cppm" },
-    { file = 'some_module.cppm', module_name = 'math' }
+    { file = "maths.cppm" },
+    { file = 'some_module.cppm', module_name = 'maths' }
 ]
 
-base_impls_dir = "src"
+base_impls_dir = "srcs"
 implementations = [
-    { file = "math.cpp" },
+    { file = "maths.cpp" },
     { file = 'some_module_impl.cpp', dependencies = ['iostream'] }
 ]
 sys_modules = [ "iostream" ]
+extra_args = [ "-Wall" ]
 "#;
