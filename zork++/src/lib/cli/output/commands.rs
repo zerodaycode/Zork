@@ -53,7 +53,7 @@ pub fn run_generated_commands(
             } else if !r.as_ref().unwrap().success() {
                 let err = eyre!(
                     "Ending the program, because the build of: {:?} wasn't ended successfully",
-                    source_file
+                    source_file.file
                 );
                 cache::save(program_data, cache, commands, test_mode)?;
                 return Err(err);
