@@ -11,6 +11,13 @@ use crate::project_model;
 /// They are represented by an enumerated type named [`CppCompiler`],
 /// that holds the different options where the user can choose
 ///
+/// * `driver_name` - The specific command line terminal identifier that will
+/// call the compiler's binary. ie: clang++-15 will call a specific installation
+/// of Clang in the host machine corresponding to the version 15 of the compiler.
+/// This entry is particularly useful in Unix based OS or MinGW environments,
+/// where multiple versions of the compiler lives at the same time, and their drivers
+/// are identified by some sort of name like the one in the example of above
+///
 /// * `cpp_standard` - An string defining the version of the ISO
 /// C++ standard that should be used on the compilation process
 ///
@@ -25,9 +32,6 @@ use crate::project_model;
 /// the ones generated for compile modules (both interfaces and implementations)
 /// and for the command line generated for build the specified test suite and
 /// the test executable
-///
-/// * `system_headers_path` - An string indicating a user custom defined place
-/// where the system headers lives.
 ///
 /// ### Tests
 ///
@@ -66,6 +70,8 @@ use crate::project_model;
 #[serde(deny_unknown_fields)]
 pub struct CompilerAttribute<'a> {
     pub cpp_compiler: CppCompiler,
+    #[serde(borrow)]
+    pub driver_name: Option<&'a str>,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
     #[serde(borrow)]

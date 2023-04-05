@@ -367,6 +367,7 @@ ProjectAttribute {
 /// The [compiler] key 
 CompilerAttribute {
     cpp_compiler: CppCompiler, // clang, msvc or gcc
+    driver_name: Option<str>, // The invokable name for the compiler's binary
     cpp_standard: LanguageLevel, // but as a string, for ex: '20'
     std_lib: Option<str>, // libc++ or stdlibc++
     extra_args: Option<Vec<str>>

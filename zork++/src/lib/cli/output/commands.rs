@@ -33,7 +33,7 @@ pub fn run_generated_commands(
     let compiler = commands.compiler;
 
     for sys_module in &commands.system_modules {
-        execute_command(compiler, sys_module.1, cache)?;
+        execute_command(compiler, program_data, sys_module.1, cache)?;
     }
 
     let sources = commands
@@ -44,7 +44,7 @@ pub fn run_generated_commands(
 
     for source_file in sources {
         if !source_file.processed {
-            let r = execute_command(compiler, &source_file.args, cache);
+            let r = execute_command(compiler, program_data, &source_file.args, cache);
             source_file.execution_result = CommandExecutionResult::from(&r);
             total_exec_commands += 1;
             if let Err(e) = r {
@@ -64,7 +64,7 @@ pub fn run_generated_commands(
     if !commands.main.args.is_empty() {
         log::debug!("Executing the main command line...");
 
-        let r = execute_command(compiler, &commands.main.args, cache);
+        let r = execute_command(compiler, program_data, &commands.main.args, cache);
         commands.main.execution_result = CommandExecutionResult::from(&r);
         total_exec_commands += 1;
 
@@ -117,12 +117,17 @@ pub fn autorun_generated_binary(
 /// compiler and the current operating system
 fn execute_command(
     compiler: CppCompiler,
+    model: &ZorkModel,
     arguments: &[Argument<'_>],
     cache: &ZorkCache,
 ) -> Result<ExitStatus, Report> {
     log::trace!(
         "[{compiler}] - Executing command => {:?}",
-        format!("{} {}", compiler.get_driver(), arguments.join(" "))
+        format!(
+            "{} {}",
+            compiler.get_driver(&model.compiler),
+            arguments.join(" ")
+        )
     );
 
     if compiler.eq(&CppCompiler::MSVC) {
@@ -135,13 +140,13 @@ fn execute_command(
                 .expect("Zork++ wasn't able to found a correct installation of MSVC"),
         )
         .arg("&&")
-        .arg(compiler.get_driver())
+        .arg(compiler.get_driver(&model.compiler))
         .args(arguments)
         .spawn()?
         .wait()
         .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
     } else {
-        std::process::Command::new(compiler.get_driver())
+        std::process::Command::new(compiler.get_driver(&model.compiler))
             .args(arguments)
             .spawn()?
             .wait()

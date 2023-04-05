@@ -42,7 +42,11 @@ pub struct CliArgs {
     #[arg(short, long, help = "Removes all the entries stored in the cache")]
     pub clear_cache: bool,
 
-    #[arg(short, long, help = "Filters between the Zork++ configuration files for the project, taking only the ones that contains in their name the value passed in")]
+    #[arg(
+        short,
+        long,
+        help = "Filters between the Zork++ configuration files for the project, taking only the ones that contains in their name the value passed in"
+    )]
     pub match_files: Option<String>,
 }
 
