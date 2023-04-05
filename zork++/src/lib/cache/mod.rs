@@ -123,7 +123,7 @@ impl ZorkCache {
         mut commands: Commands<'_>,
         test_mode: bool,
     ) -> Result<()> {
-        if self.save_generated_commands(&mut commands, test_mode)
+        if self.save_generated_commands(&mut commands, program_data, test_mode)
             && program_data.project.compilation_db
         {
             compile_commands::map_generated_commands_to_compilation_db(self)?;
@@ -141,7 +141,12 @@ impl ZorkCache {
         Ok(())
     }
 
-    fn save_generated_commands(&mut self, commands: &mut Commands<'_>, test_mode: bool) -> bool {
+    fn save_generated_commands(
+        &mut self,
+        commands: &mut Commands<'_>,
+        model: &ZorkModel,
+        test_mode: bool,
+    ) -> bool {
         log::trace!("Storing in the cache the last generated command lines...");
         self.compiler = commands.compiler;
         let process_no = if !self.generated_commands.is_empty() {
@@ -161,18 +166,21 @@ impl ZorkCache {
 
         let mut are_new_commands = Vec::with_capacity(3);
         let interfaces_has_new_commands = self.extend_collection_of_source_file_details(
+            model,
             &mut commands_details.interfaces,
             &mut commands.interfaces,
             commands.compiler,
         );
         are_new_commands.push(interfaces_has_new_commands);
         let implementations_has_new_commands = self.extend_collection_of_source_file_details(
+            model,
             &mut commands_details.implementations,
             &mut commands.implementations,
             commands.compiler,
         );
         are_new_commands.push(implementations_has_new_commands);
         let sources_has_new_commands = self.extend_collection_of_source_file_details(
+            model,
             &mut commands_details.sources,
             &mut commands.sources,
             commands.compiler,
@@ -290,6 +298,7 @@ impl ZorkCache {
 
     fn extend_collection_of_source_file_details(
         &mut self,
+        model: &ZorkModel,
         collection: &mut Vec<CommandDetail>,
         target: &mut [SourceCommandLine],
         compiler: CppCompiler,
@@ -301,7 +310,7 @@ impl ZorkCache {
                 .or_insert_with(|| {
                     new_commands = true;
                     let mut arguments = Vec::with_capacity(source_command_line.args.len() + 1);
-                    arguments.push(compiler.get_driver().to_string());
+                    arguments.push(compiler.get_driver(&model.compiler).to_string());
                     arguments.extend(source_command_line.args.iter().map(|e| e.value.to_string()));
                     arguments
                 });

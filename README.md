@@ -367,6 +367,7 @@ ProjectAttribute {
 /// The [compiler] key 
 CompilerAttribute {
     cpp_compiler: CppCompiler, // clang, msvc or gcc
+    driver_name: Option<str>, // The invokable name for the compiler's binary
     cpp_standard: LanguageLevel, // but as a string, for ex: '20'
     std_lib: Option<str>, // libc++ or stdlibc++
     extra_args: Option<Vec<str>>
@@ -502,7 +503,13 @@ a minimal setup. This command includes some arguments to make it more flexible, 
   - `--compiler <COMPILER>` ⇒ indicates which of the compilers available within `Zork++`
     should be used to set up the template
 
-- `-v` ⇒ Outputs more information to stdout. The classical `verbose` command line flag
+#### Arguments (they should be place before the main subcommands described above)
+
+- `--match-files` => Accepts an string value that will be used to perform a filter to the detected `Zork++`
+configuration files present in the project. Acts like the classical `contains` method, by checking that the value
+that you passed in is a substring of some of the detected config files.
+- `-v` ⇒ Outputs more information to stdout. The classical `verbose` command line flag. You have until
+`-vv`, which is the maximum verbosity allowed, that will unlock the trace level logs.
 - `-c,`--clear-cache` ⇒ Clears the files in the cache, so, in the next iteration, cached items
 must be processed again. This is useful after a lot of program iterations, when the cache starts
 to slow down the build process.
