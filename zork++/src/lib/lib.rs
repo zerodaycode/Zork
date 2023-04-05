@@ -47,7 +47,7 @@ pub mod worker {
             return create_templated_project(path, name, git, compiler.into(), template);
         };
 
-        let config_files: Vec<ConfigFile> = find_config_files(path)
+        let config_files: Vec<ConfigFile> = find_config_files(path, &cli_args.match_files)
             .with_context(|| "We didn't found a valid Zork++ configuration file")?;
         log::trace!("Config files found: {config_files:?}");
 

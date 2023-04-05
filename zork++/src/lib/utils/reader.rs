@@ -51,7 +51,7 @@ pub struct ConfigFile {
 ///
 /// This function fails if there's no configuration file
 /// (or isn't present in any directory of the project)
-pub fn find_config_files(base_path: &Path) -> Result<Vec<ConfigFile>> {
+pub fn find_config_files(base_path: &Path, filename_match: &Option<String>) -> Result<Vec<ConfigFile>> {
     log::debug!("Searching for Zork++ configuration files...");
     let mut files = vec![];
 
@@ -60,9 +60,12 @@ pub fn find_config_files(base_path: &Path) -> Result<Vec<ConfigFile>> {
         .into_iter()
         .filter_map(|e| e.ok())
     {
+        let filename = e.file_name().to_str().unwrap();
+        let file_match = filename_match.as_ref().map(|fm| fm.as_str()).unwrap_or(filename);
         if e.metadata().unwrap().is_file()
-            && e.file_name().to_str().unwrap().starts_with("zork")
-            && e.file_name().to_str().unwrap().ends_with(".toml")
+            && filename.starts_with("zork")
+            && filename.ends_with(".toml")
+            && filename.contains(&file_match)
         {
             files.push(ConfigFile {
                 dir_entry: e.clone(),
