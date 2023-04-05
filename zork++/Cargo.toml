@@ -1,6 +1,6 @@
 [package]
 name = "zork"
-version = "0.8.3"
+version = "0.8.4"
 authors = ["Zero Day Code"]
 edition = "2021"
 description = "A modern C++ project manager and build system for modern C++"
