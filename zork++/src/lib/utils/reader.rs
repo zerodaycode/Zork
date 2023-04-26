@@ -28,6 +28,8 @@ use crate::{
 use color_eyre::{eyre::eyre, Result};
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
+use crate::config_file::workspace::WorkspaceAttribute;
+use crate::project_model::workspace::WorkspaceModel;
 
 use super::constants::DEFAULT_OUTPUT_DIR;
 
@@ -59,7 +61,7 @@ pub fn find_config_files(
     let mut files = vec![];
 
     for e in WalkDir::new(base_path)
-        .max_depth(2)
+        .max_depth(2)// TODO 0 if not workspace? Else, allowed more depth?
         .into_iter()
         .filter_map(|e| e.ok())
     {
@@ -91,6 +93,7 @@ pub fn build_model<'a>(
     config: &'a ZorkConfigFile,
     project_root_from_cli: &Path,
 ) -> Result<ZorkModel<'a>> {
+    let workspace = assemble_workspace_model(&config.workspace);
     let project = assemble_project_model(&config.project);
 
     let absolute_project_root = get_project_root_absolute_path(
@@ -108,6 +111,7 @@ pub fn build_model<'a>(
     let tests = assemble_tests_model(project.name, &config.tests, &absolute_project_root);
 
     Ok(ZorkModel {
+        workspace,
         project,
         compiler,
         build,
@@ -115,6 +119,12 @@ pub fn build_model<'a>(
         modules,
         tests,
     })
+}
+
+fn assemble_workspace_model<'a>(config: &'a Option<WorkspaceAttribute>) -> WorkspaceModel<'a> {
+    WorkspaceModel {
+        members: config.as_ref().unwrap_or(&WorkspaceAttribute::default()).members.clone()
+    }
 }
 
 fn assemble_project_model<'a>(config: &'a ProjectAttribute) -> ProjectModel<'a> {
@@ -394,6 +404,9 @@ mod test {
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
 
         let expected = ZorkModel {
+            workspace: WorkspaceModel {
+                members: vec![],
+            },
             project: ProjectModel {
                 name: "Zork++",
                 authors: &["zerodaycode.gz@gmail.com"],
@@ -443,6 +456,9 @@ mod test {
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
 
         let expected = ZorkModel {
+            workspace: WorkspaceModel {
+                members: vec![],
+            },
             project: ProjectModel {
                 name: "Zork++",
                 authors: &["zerodaycode.gz@gmail.com"],
