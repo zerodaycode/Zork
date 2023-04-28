@@ -47,26 +47,37 @@ pub mod worker {
             return create_templated_project(path, name, git, compiler.into(), template);
         };
 
-        let config_files: Vec<ConfigFile> = find_config_files(path, &cli_args.match_files)
-            .with_context(|| "We didn't found a valid Zork++ configuration file")?;
+        let config_files = find_config_files(path, &cli_args.match_files)
+            .with_context(|| "We didn't found a valid Zork++ configuration file")?
+            .iter()
+            .map(|cfg| {
+                let raw_file = fs::read_to_string(&cfg.path).with_context(|| {
+                    format!(
+                        "An error happened parsing the configuration file: {:?}",
+                        config_file.dir_entry.file_name()
+                    )
+                })?;
+                toml::from_str(raw_file.as_str())
+                    .with_context(|| "Could not parse configuration file")?
+            });
         log::trace!("Config files found: {config_files:?}");
 
-        for config_file in config_files {
-            log::debug!(
-                "Launching a Zork++ work event for the configuration file: {:?}, located at: {:?}\n",
-                config_file.dir_entry.file_name(),
-                config_file.path
-            );
-            let raw_file = fs::read_to_string(config_file.path).with_context(|| {
-                format!(
-                    "An error happened parsing the configuration file: {:?}",
-                    config_file.dir_entry.file_name()
-                )
-            })?;
-
-            let config: ZorkConfigFile = toml::from_str(raw_file.as_str())
-                .with_context(|| "Could not parse configuration file")?;
-            let program_data = build_model(&config, Path::new("."))?;
+        for zork_config_file in config_files {
+            // log::debug!(
+            //     "Launching a Zork++ work event for the configuration file: {:?}, located at: {:?}\n",
+            //     config_file.dir_entry.file_name(),
+            //     config_file.path
+            // );
+            // let raw_file = fs::read_to_string(config_file.path).with_context(|| {
+            //     format!(
+            //         "An error happened parsing the configuration file: {:?}",
+            //         config_file.dir_entry.file_name()
+            //     )
+            // })?;
+            //
+            // let config: ZorkConfigFile = toml::from_str(raw_file.as_str())
+            //     .with_context(|| "Could not parse configuration file")?;
+            let program_data = build_model(&zork_config_file, Path::new("."))?;
             create_output_directory(&program_data)?;
 
             let cache = cache::load(&program_data, cli_args)
