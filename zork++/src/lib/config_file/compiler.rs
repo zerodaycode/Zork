@@ -66,7 +66,7 @@ use crate::project_model;
 ///
 /// For a test over a real example, please look at the
 /// [`zork::config_file::ZorkConfigFile`] doc-test
-#[derive(Deserialize, Debug, PartialEq, Default)]
+#[derive(Deserialize, Debug, PartialEq, Default, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct CompilerAttribute<'a> {
     pub cpp_compiler: CppCompiler,
