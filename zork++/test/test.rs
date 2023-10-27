@@ -10,7 +10,15 @@ fn test_clang_full_process() -> Result<()> {
     let temp = tempdir()?;
 
     assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "new", "clang_example", "--compiler", "clang", "--template", "basic"]),
+        &CliArgs::parse_from([
+            "",
+            "new",
+            "clang_example",
+            "--compiler",
+            "clang",
+            "--template",
+            "basic"
+        ]),
         Path::new(temp.path())
     )
     .is_ok());
@@ -153,8 +161,8 @@ fn test_full_program_with_multi_config_files() -> Result<()> {
 }
 
 mod local_env_tests {
-    use std::env;
     use super::*;
+    use std::env;
 
     /// This test allows the developers to specify a path in local environments, having the opportunity
     /// to debug the Zork++ source code from a concrete location.
@@ -170,13 +178,22 @@ mod local_env_tests {
         // Using env::home_dir because this test should be Unix specific
         // For any developer, change the path to whatever C++ project based on modules
         // you want to test Zork++ against
-        #[allow(deprecated)] let mut path = env::home_dir().unwrap();
-            path.push("code");
-            path.push("c++");
-            path.push("Zero");
+        #[allow(deprecated)]
+        let mut path = env::home_dir().unwrap();
+        path.push("code");
+        path.push("c++");
+        path.push("Zero");
         let process = zork::worker::run_zork(
-            &CliArgs::parse_from(["", "-vv", "--root", &path.display().to_string(), "--match-files", "local_linux", "run"]),
-            &path
+            &CliArgs::parse_from([
+                "",
+                "-vv",
+                "--root",
+                &path.display().to_string(),
+                "--match-files",
+                "local_linux",
+                "run",
+            ]),
+            &path,
         );
         assert!(process.is_ok());
     }

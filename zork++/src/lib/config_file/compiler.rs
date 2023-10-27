@@ -1,5 +1,5 @@
-///! file for represent the available configuration properties within Zork++
-///! for setting up the target compiler
+//! file for represent the available configuration properties within Zork++
+//! for setting up the target compiler
 use serde::Deserialize;
 
 use crate::project_model;

@@ -245,9 +245,9 @@ pub fn generate_main_command_line_args<'a>(
             ));
         }
     };
-    arguments.extend(commands.generated_files_paths.clone().into_iter());
+    arguments.extend(commands.generated_files_paths.clone());
 
-    commands.main.args.extend(arguments.into_iter());
+    commands.main.args.extend(arguments);
     commands.main.sources_paths = target
         .sourceset()
         .sources
@@ -698,7 +698,6 @@ mod helpers {
             log::trace!("Module unit {file:?} will be rebuilt since we've detected that you are using Clang in Windows");
             return false;
         }
-        let cache = cache;
         // Check first if the file is already on the cache, and if it's last iteration was successful
         if let Some(cached_file) = cache.is_file_cached(file) {
             if cached_file.execution_result != CommandExecutionResult::Success

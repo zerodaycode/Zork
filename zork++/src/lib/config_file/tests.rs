@@ -1,4 +1,4 @@
-///! Tests attribute allows you to run the tests written for your application in a convenient way
+//! Tests attribute allows you to run the tests written for your application in a convenient way
 use serde::*;
 
 /// [`TestsAttribute`] - Tests attribute allows you to run the tests written for your application in a convenient way

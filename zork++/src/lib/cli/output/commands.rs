@@ -1,14 +1,14 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
+use std::slice::Iter;
 use std::{
     path::{Path, PathBuf},
     process::ExitStatus,
 };
-use std::fmt::Debug;
-use std::slice::Iter;
 
 use crate::bounds::TranslationUnit;
 use crate::cli::output::arguments::Arguments;
-///! Contains helpers and data structure to process in
+/// Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
 use crate::{
@@ -247,7 +247,9 @@ impl<'a> core::fmt::Display for Commands<'a> {
 }
 
 /// Convenient function to avoid code replication
-fn collect_source_command_line<'a>(iter: Iter<'a, SourceCommandLine<'a>>) -> impl Iterator + Debug + 'a {
+fn collect_source_command_line<'a>(
+    iter: Iter<'a, SourceCommandLine<'a>>,
+) -> impl Iterator + Debug + 'a {
     iter.map(|vec| {
         vec.args
             .iter()
