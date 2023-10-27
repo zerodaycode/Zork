@@ -5,12 +5,12 @@ use tempfile::tempdir;
 use zork::cli::input::CliArgs;
 
 #[test]
-#[ignore] // Ignore because the Clang's version in the VM's is older enought to not support module partitions
+// #[ignore] // Ignore because the Clang's version in the VM's isn't newer enough to not support module partitions
 fn test_clang_full_process() -> Result<()> {
     let temp = tempdir()?;
 
     assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "new", "clang_example", "--compiler", "clang"]),
+        &CliArgs::parse_from(["", "new", "clang_example", "--compiler", "clang", "--template", "basic"]),
         Path::new(temp.path())
     )
     .is_ok());
@@ -68,7 +68,7 @@ fn test_gcc_windows_full_process() -> Result<()> {
 
 #[cfg(target_os = "linux")]
 #[test]
-#[ignore]
+// #[ignore]
 /*
 In Manjaro, I am able to fully run this test using tempdir.
 
@@ -150,4 +150,34 @@ fn test_full_program_with_multi_config_files() -> Result<()> {
     }
 
     Ok(temp.close()?)
+}
+
+mod local_env_tests {
+    use std::env;
+    use super::*;
+
+    /// This test allows the developers to specify a path in local environments, having the opportunity
+    /// to debug the Zork++ source code from a concrete location.
+    ///
+    /// For example, we can use the `[Zero project source code](https://github.com/zerodaycode/Zero)`
+    /// in our local machines to debug the changes that we are making to Zork++ in real time,
+    /// so by specifying a path, we allow Zork++ to start it's job in another concrete location,
+    /// as if the binary where called from the specified path, and by running this test we can
+    /// use a debugger to figure out what our changes are doing and how are affecting the codebase.
+    #[test]
+    #[ignore]
+    fn test_clang_full_process_manually_by_specifying_the_project_root_on_linux() -> () {
+        // Using env::home_dir because this test should be Unix specific
+        // For any developer, change the path to whatever C++ project based on modules
+        // you want to test Zork++ against
+        #[allow(deprecated)] let mut path = env::home_dir().unwrap();
+            path.push("code");
+            path.push("c++");
+            path.push("Zero");
+        let process = zork::worker::run_zork(
+            &CliArgs::parse_from(["", "-vv", "--root", &path.display().to_string(), "--match-files", "local_linux", "run"]),
+            &path
+        );
+        assert!(process.is_ok());
+    }
 }

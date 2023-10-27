@@ -9,10 +9,11 @@ use clap::{Parser, Subcommand, ValueEnum};
 /// use zork::cli::input::{CliArgs, Command, CppCompiler};
 ///
 /// let parser = CliArgs::parse_from(
-///     ["", "-vv", "--match-files", "zork_linux.toml", "--clear-cache", "test"]
+///     ["", "-vv", "--match-files", "zork_linux.toml", "--root", ".", "--clear-cache", "test"]
 /// );
 /// assert_eq!(parser.command, Command::Test);
 /// assert_eq!(parser.verbose, 2);
+/// assert_eq!(parser.root, Some(String::from(".")));
 /// assert_eq!(parser.clear_cache, true);
 /// assert_eq!(parser.match_files, Some(String::from("zork_linux.toml")));
 ///
@@ -27,7 +28,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[derive(Parser, Debug, Default)]
 #[command(name = "Zork++")]
 #[command(author = "Zero Day Code")]
-#[command(version = "0.8.5")]
+#[command(version = "0.8.7")]
 #[command(
     about = "Zork++ is a build system for modern C++ projects",
     long_about = "Zork++ is a project of Zero Day Code. Find us: https://github.com/zerodaycode/Zork"
@@ -41,6 +42,9 @@ pub struct CliArgs {
 
     #[arg(short, long, help = "Removes all the entries stored in the cache")]
     pub clear_cache: bool,
+
+    #[arg(short, long, help = "Allows the user to specify the project's root")]
+    pub root: Option<String>,
 
     #[arg(
         short,
@@ -86,8 +90,8 @@ pub enum CppCompiler {
     GCC,
 }
 
-// Clippy warns to prefer implementing the From trait instead of Into.
-// That would require that the project model know about cli details, which is ugly.
+/// Clippy warns to prefer implementing the From trait instead of Into.
+/// That would require that the project model know about cli details, which is ugly.
 #[allow(clippy::from_over_into)]
 impl Into<project_model::compiler::CppCompiler> for CppCompiler {
     fn into(self) -> project_model::compiler::CppCompiler {

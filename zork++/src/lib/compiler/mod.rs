@@ -652,7 +652,6 @@ mod helpers {
             .map(|sys_module| {
                 let mut v = vec![
                     language_level.clone(),
-                    Argument::from("-fmodules-ts"),
                     Argument::from("-x"),
                     Argument::from("c++-system-header"),
                     Argument::from(*sys_module),

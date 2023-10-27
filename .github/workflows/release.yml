@@ -1,4 +1,4 @@
-name: Zork Release
+name: Zork++ Release
 
 on:
   push:
