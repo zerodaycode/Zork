@@ -675,9 +675,15 @@ mod helpers {
             })
             .collect::<Vec<_>>();
 
+        // Maps the generated command line flags generated for every system module,
+        // being the key the name of the system header
+        // TODO is completely unnecessary here a map. We can directly store the flags only one
+        // time in a list, because they will always be the same flags for every system module,
+        // and the system modules in another list
         for collection_args in sys_modules {
             commands.system_modules.insert(
-                collection_args[4].value.to_string(),
+                // [3] is for the 4th flag pushed to v
+                collection_args[3].value.to_string(),
                 Arguments::from_vec(collection_args),
             );
         }
