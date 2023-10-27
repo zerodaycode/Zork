@@ -452,7 +452,7 @@ mod test {
             compiler: CompilerModel {
                 cpp_compiler: CppCompiler::CLANG,
                 driver_name: "",
-                cpp_standard: LanguageLevel::CPP20,
+                cpp_standard: LanguageLevel::CPP2B,
                 std_lib: Some(StdLib::LIBCPP),
                 extra_args: vec![Argument::from("-Wall")],
             },
