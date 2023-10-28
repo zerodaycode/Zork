@@ -59,12 +59,19 @@ jobs:
 
       - name: Get the latest Clang version available
         run: |
+          set -e  # Exit on error
+          
           clang++ -v
           sudo apt update
           sudo apt install clang-15 --install-suggests
+          
+          sudo apt install clang-16 --install-suggests || true  # preparing for next Clang's releases
+          
+          sudo ln -s /usr/bin/clang-15 /usr/bin/clang++
+          clang++ --version
 
       - name: Running the tests for the project
         if: success() || failure()
         run: |
           cd zork++
-          cargo test --all
+          cargo test --all --test-threads=1
