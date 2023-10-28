@@ -116,11 +116,11 @@ pub mod worker {
                             &program_data.build.output_dir,
                             program_data.executable.executable_name,
                         )
-                    },
+                    }
                     Err(e) => {
                         log::error!("Error running the generated commands: {e:?}");
                         Err(e)
-                    },
+                    }
                 }
             }
             Command::Test => {
