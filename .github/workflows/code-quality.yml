@@ -61,17 +61,11 @@ jobs:
         run: |
           set -e  # Exit on error
           
-#          echo "removing the clang installed version for the VM"
-#          sudo apt remove clang
-          
           echo "updating the system packages" 
           sudo apt update
           
           echo "upgrading the system packages" 
           sudo apt upgrade
-          
-#          echo "installing clang"
-#          sudo apt install clang --install-suggests
           
           which clang++
           clang++ --version
