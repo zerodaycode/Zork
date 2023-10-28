@@ -204,7 +204,7 @@ pub mod worker {
                 .replace("<compiler>", "clang")
                 .replace('\\', "/");
             let zcf: ZorkConfigFile = toml::from_str(&normalized_cfg_file)?;
-            let cli_args = CliArgs::parse();
+            let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
             let model =
                 build_model(&zcf, &cli_args).with_context(|| "Error building the project model")?;
 

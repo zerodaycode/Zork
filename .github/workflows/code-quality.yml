@@ -61,11 +61,16 @@ jobs:
         run: |
           set -e  # Exit on error
           
-          echo "updating the system packages" 
+          echo "updating and upgrading the system packages" 
           sudo apt update
+          sudo apt upgrade
           
           echo "upgrading the system packages" 
-          sudo apt upgrade
+          sudo apt-get purge 'clang*'  # This will remove all packages starting with 'clang'
+          sudo apt-get autoremove
+          
+          echo "installing Clang as a fresh version"
+          sudo apt install clang --install-suggests
           
           which clang++
           clang++ --version
@@ -74,4 +79,4 @@ jobs:
         if: success() || failure()
         run: |
           cd zork++
-          cargo test --color=always --all -- --show-output --nocapture --test-threads=1
+          cargo test --all --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1
