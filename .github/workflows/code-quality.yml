@@ -65,12 +65,11 @@ jobs:
           sudo apt update
           sudo apt upgrade
           
-          echo "upgrading the system packages" 
-          sudo apt-get purge 'clang*'  # This will remove all packages starting with 'clang'
-          sudo apt-get autoremove
-          
           echo "installing Clang as a fresh version"
           sudo apt install clang-15 --install-suggests
+          
+          echo "adding Clang-15 to the path"
+          export PATH=$PATH:/usr/bin/clang-15
           
           which clang++
           clang++ --version
