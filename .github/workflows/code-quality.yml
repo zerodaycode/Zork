@@ -83,20 +83,15 @@ jobs:
           echo "-----> clang-15 installation directory"
           sudo apt install libc++-15-dev
           
-          echo "!)=·(!)($·/)$ ->>> "
+          echo "-----> ls clang lib things"
           ls /usr/lib/clang
-          ls /usr/lib/clang/14
-          ls /usr/lib/clang/15
-          ls /usr/lib/clang-15
           
-          sudo mv /usr/bin/clang /usr/bin/clang-14
-          sudo mv /usr/bin/clang-15 /usr/bin/clang-14
-          
-          echo "cleaning the path to don't clash both installations of clang"
-          export PATH=$(echo $PATH | sed 's/:\/usr\/bin//')
-
-          echo "adding Clang-15 to the path"
-          export PATH=$PATH:/usr/bin/clang
+          echo "-----> removing lib folders of clang old versions"
+          sudo rm -rf /usr/lib/clang/13
+          sudo rm -rf /usr/lib/clang/13.0.1
+          sudo rm -rf /usr/lib/clang/14
+          sudo rm -rf /usr/lib/clang/14.0.1
+          sudo rm -rf /usr/lib/clang/15
           
           echo "-----> clang-15 installation directory"
           which clang-15
