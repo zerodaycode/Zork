@@ -6,9 +6,8 @@ compilation_db = true
 
 [compiler]
 cpp_compiler = "<compiler>"
-cpp_standard = "20"
+cpp_standard = "2b"
 std_lib = "LIBCPP"
-extra_args = ["-fmodules-ts"]
 
 [build]
 output_dir = "<base_path>/out"
