@@ -78,6 +78,7 @@ jobs:
           
           echo "-----> cleaning the path to don't clash both installations of clang"
           export PATH=$(echo $PATH | sed 's/:\/usr\/bin//')
+          export PATH=$(echo $PATH | sed 's/:\/bin//')
           echo $PATH
 
           echo "-----> adding Clang-15 to the path"
