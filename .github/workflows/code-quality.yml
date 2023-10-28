@@ -70,11 +70,16 @@ jobs:
           echo "-----> installing Clang as a fresh version"
           sudo apt install clang-15 --install-suggests
           
+          echo "-----> Actually, the path contains:"
+          echo $PATH
+          
           echo "-----> cleaning the path to don't clash both installations of clang"
           export PATH=$(echo $PATH | sed 's/:\/usr\/bin//')
+          echo $PATH
 
           echo "-----> adding Clang-15 to the path"
           export PATH=$PATH:/usr/bin/clang-15
+          echo $PATH
           
           echo "-----> clang installation directory"
           which clang++
