@@ -28,6 +28,8 @@ fn test_clang_full_process() -> Result<()> {
         "clang++"
     };
 
+    println!("Driver: {driver_path:?}");
+
     assert!(zork::worker::run_zork(
         &CliArgs::parse_from(["", "-vv", "--driver-path", driver_path, "run"]),
         Path::new(temp.path())
