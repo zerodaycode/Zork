@@ -211,6 +211,7 @@ impl ZorkCache {
 
         self.generated_commands.push(commands_details);
 
+        log::debug!("Caché generated successfully");
         are_new_commands.iter().any(|b| *b)
     }
 
