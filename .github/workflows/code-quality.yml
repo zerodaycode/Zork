@@ -75,20 +75,15 @@ jobs:
           which clang-15
           echo "-----> Actually, the path contains:"
           echo $PATH
-          
-          echo "-----> cleaning the path to don't clash both installations of clang"
-          export PATH=$(echo $PATH | sed 's/:\/usr\/bin//')
-          export PATH=$(echo $PATH | sed 's/:\/bin//')
-          echo $PATH
 
           echo "-----> adding Clang-15 to the path"
           export PATH=$PATH:/usr/bin/clang-15
           echo $PATH
           
-          echo "-----> clang installation directory"
-          which clang++
+          echo "-----> clang-15 installation directory"
+          which clang-15
           echo "-----> clang binary version"
-          clang++ --version
+          clang-15 --version
 
       - name: Running the tests for the project
         if: success() || failure()

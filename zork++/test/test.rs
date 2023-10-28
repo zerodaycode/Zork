@@ -1,6 +1,6 @@
 use clap::Parser;
 use color_eyre::Result;
-use std::{fs, path::Path};
+use std::{env, fs, path::Path};
 use tempfile::tempdir;
 use zork::cli::input::CliArgs;
 
@@ -22,8 +22,14 @@ fn test_clang_full_process() -> Result<()> {
     )
     .is_ok());
 
+    let driver_path = if env::current_dir().unwrap().starts_with("/home/runner") {
+        "/usr/bin/clang-15/clang++"
+    } else {
+        "clang++"
+    };
+
     assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "-vv", "--driver-path", "clang++", "run"]),
+        &CliArgs::parse_from(["", "-vv", "--driver-path", driver_path, "run"]),
         Path::new(temp.path())
     )
     .is_ok());
