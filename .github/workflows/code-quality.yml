@@ -66,7 +66,12 @@ jobs:
           clang++ --version
           
           sudo apt update
+          
+          echo "-----> Removing Clang bins"
           sudo rm -rf /bin/clang
+          sudo rm /usr/bin/clang || true
+          sudo rm /usr/bin/clang-14 || true
+          sudo rm /usr/bin/clang++ || true
           
           echo "-----> installing Clang as a fresh version"
           sudo apt install clang-15 --install-suggests
@@ -75,6 +80,8 @@ jobs:
           which clang-15
           echo "-----> Actually, the path contains:"
           echo $PATH
+          echo "-----> Binaries on the Clang 15 installation"
+          ls /usr/bin/clang-15
 
           echo "-----> adding Clang-15 to the path"
           export PATH=$PATH:/usr/bin/clang-15
@@ -92,6 +99,8 @@ jobs:
           sudo rm -rf /usr/lib/clang/14
           sudo rm -rf /usr/lib/clang/14.0.1
           sudo rm -rf /usr/lib/clang/15
+          echo "-----> ls after the removes"
+          ls /usr/lib/clang
           
           echo "-----> clang-15 installation directory"
           which clang-15
