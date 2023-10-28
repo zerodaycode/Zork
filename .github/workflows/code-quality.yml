@@ -60,14 +60,14 @@ jobs:
       - name: Get the latest Clang version available
         run: |
           set -e  # Exit on error
-          
-          echo "updating and upgrading the system packages" 
           sudo apt update
-          sudo apt upgrade
           
           echo "installing Clang as a fresh version"
           sudo apt install clang-15 --install-suggests
           
+          echo "cleaning the path to don't clash both installations of clang"
+          export PATH=$(echo $PATH | sed 's/:\/usr\/bin//')
+
           echo "adding Clang-15 to the path"
           export PATH=$PATH:/usr/bin/clang-15
           
