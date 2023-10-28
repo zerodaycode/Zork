@@ -83,6 +83,12 @@ jobs:
           echo "-----> clang-15 installation directory"
           sudo apt install libc++-15-dev
           
+          echo "!)"=·(!)($·/)$ ->>> "
+          ls /usr/lib/clang
+          ls /usr/lib/clang/14
+          ls /usr/lib/clang/15
+          ls /usr/lib/clang-15
+          
           sudo mv /usr/bin/clang /usr/bin/clang-14
           sudo mv /usr/bin/clang-15 /usr/bin/clang-14
           
