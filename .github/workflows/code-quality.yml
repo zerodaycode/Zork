@@ -70,7 +70,7 @@ jobs:
           sudo apt-get autoremove
           
           echo "installing Clang as a fresh version"
-          sudo apt install clang --install-suggests
+          sudo apt install clang-15 --install-suggests
           
           which clang++
           clang++ --version
