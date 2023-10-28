@@ -84,9 +84,11 @@ jobs:
           which clang-15
           echo "-----> clang binary version"
           clang-15 --version
+          echo "-----> clang++-15 binary version"
+          /usr/bin/clang-15/clang++ --version
 
       - name: Running the tests for the project
         if: success() || failure()
         run: |
           cd zork++
-          cargo test --all --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1
+          RUST_LOG=debug cargo test --all --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1
