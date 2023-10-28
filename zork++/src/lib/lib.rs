@@ -109,12 +109,18 @@ pub mod worker {
                     .with_context(|| "Failed to build project")?;
 
                 match commands::run_generated_commands(program_data, commands, &mut cache, false) {
-                    Ok(_) => autorun_generated_binary(
-                        &program_data.compiler.cpp_compiler,
-                        &program_data.build.output_dir,
-                        program_data.executable.executable_name,
-                    ),
-                    Err(e) => Err(e),
+                    Ok(_) => {
+                        log::info!("Run the commands completed successfully");
+                        autorun_generated_binary(
+                            &program_data.compiler.cpp_compiler,
+                            &program_data.build.output_dir,
+                            program_data.executable.executable_name,
+                        )
+                    },
+                    Err(e) => {
+                        log::error!("Error running the generated commands: {e:?}");
+                        Err(e)
+                    },
                 }
             }
             Command::Test => {

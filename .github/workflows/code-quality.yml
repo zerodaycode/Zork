@@ -85,21 +85,9 @@ jobs:
           
           echo "-----> clang-15 installation directory"
           sudo apt install libc++-15-dev
-          
-          echo "-----> ls clang lib things"
-          ls /usr/lib/clang
-          
-          echo "-----> clang-15 installation directory"
-          which clang-15
-          echo "-----> clang-15 binary version"
-          clang-15 --version
-          echo "-----> clang++ installation directory"
-          which clang++
-          echo "-----> seeing the real clang++ driver version"
-          clang++ --version || true
 
       - name: Running the tests for the project
         if: success() || failure()
         run: |
           cd zork++
-          RUST_LOG=trace cargo test --all --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1
+          RUSTBACKTRACE=1 RUST_LOG=trace cargo test --all --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1
