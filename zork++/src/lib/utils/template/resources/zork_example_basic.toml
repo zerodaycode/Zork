@@ -31,7 +31,7 @@ interfaces = [
 ]
 base_impls_dir = "<base_path>/<project_name>/src"
 implementations = [
-    { file = 'math.cpp' },
+    { file = 'math.cpp', dependencies = ['math'] },
     { file = 'math2.cpp', dependencies = ['math'] }
 ]
 sys_modules = ['iostream']
