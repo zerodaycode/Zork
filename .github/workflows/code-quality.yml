@@ -67,11 +67,9 @@ jobs:
           
           sudo apt update
           
-          echo "-----> Removing Clang bins"
-          sudo rm -rf /bin/clang
-          sudo rm /usr/bin/clang || true
-          sudo rm /usr/bin/clang-14 || true
-          sudo rm /usr/bin/clang++ || true
+          echo "-----> removing Clang 14"
+          sudo apt remove clang-14
+          sudo apt autoremove && sudo apt clean
           
           echo "-----> installing Clang as a fresh version"
           sudo apt install clang-15 --install-suggests
@@ -91,15 +89,6 @@ jobs:
           sudo apt install libc++-15-dev
           
           echo "-----> ls clang lib things"
-          ls /usr/lib/clang
-          
-          echo "-----> removing lib folders of clang old versions"
-          sudo rm -rf /usr/lib/clang/13
-          sudo rm -rf /usr/lib/clang/13.0.1
-          sudo rm -rf /usr/lib/clang/14
-          sudo rm -rf /usr/lib/clang/14.0.1
-          sudo rm -rf /usr/lib/clang/15
-          echo "-----> ls after the removes"
           ls /usr/lib/clang
           
           echo "-----> clang-15 installation directory"
