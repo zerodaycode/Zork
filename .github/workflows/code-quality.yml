@@ -61,23 +61,26 @@ jobs:
         run: |
           set -e  # Exit on error
           
-          echo "removing the clang installed version for the VM"
-          sudo apt remove clang
+#          echo "removing the clang installed version for the VM"
+#          sudo apt remove clang
           
           echo "updating the system packages" 
           sudo apt update
           
-          echo "installing clang"
-          sudo apt install clang --install-suggests
+          echo "upgrading the system packages" 
+          sudo apt update
+          
+#          echo "installing clang"
+#          sudo apt install clang --install-suggests
           
           which_clangpp_path=$(which clang++)
           which_clangpp_version=$(clang++ --version)
       
-          echo "clang++ location: which_clangpp_path"
-          echo "clang-15 location: which_clangpp_version"
+          echo "clang++ location: $which_clangpp_path"
+          echo "clang++ version: $which_clangpp_version"
 
       - name: Running the tests for the project
         if: success() || failure()
         run: |
           cd zork++
-          cargo test --color=always --all -- --format=json --show-output --nocapture --test-threads=1
+          cargo test --color=always --all -- --show-output --nocapture --test-threads=1
