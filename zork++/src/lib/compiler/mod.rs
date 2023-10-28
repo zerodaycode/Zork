@@ -631,7 +631,8 @@ mod helpers {
         commands: &mut Commands<'a>,
         cache: &ZorkCache,
     ) {
-        if !cache.compilers_metadata.system_modules.is_empty() { // TODO BUG - this is not correct.
+        if !cache.compilers_metadata.system_modules.is_empty() {
+            // TODO BUG - this is not correct.
             // If user later adds a new module, it won't be processed
             log::info!(
                 "System modules already build: {:?}. They will be skipped!",

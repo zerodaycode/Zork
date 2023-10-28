@@ -65,9 +65,13 @@ jobs:
           sudo apt update
           sudo apt install clang-15 --install-suggests
           
+          which_clangpp=$(which clang++)
+          which_clang15=$(which clang-15)
+          echo "clang++ location: $which_clangpp"
+          echo "clang-15 location: $which_clang15"
+          
           sudo apt install clang-16 --install-suggests || true  # preparing for next Clang's releases
           
-          sudo ln -s /usr/bin/clang-15 /usr/bin/clang++
           clang++ --version
 
       - name: Running the tests for the project
