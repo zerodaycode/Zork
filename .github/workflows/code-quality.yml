@@ -60,18 +60,25 @@ jobs:
       - name: Get the latest Clang version available
         run: |
           set -e  # Exit on error
+          echo "-----> clang installation directory"
+          which clang++
+          echo "-----> clang binary version"
+          clang++ --version
+          
           sudo apt update
           
-          echo "installing Clang as a fresh version"
+          echo "-----> installing Clang as a fresh version"
           sudo apt install clang-15 --install-suggests
           
-          echo "cleaning the path to don't clash both installations of clang"
+          echo "-----> cleaning the path to don't clash both installations of clang"
           export PATH=$(echo $PATH | sed 's/:\/usr\/bin//')
 
-          echo "adding Clang-15 to the path"
+          echo "-----> adding Clang-15 to the path"
           export PATH=$PATH:/usr/bin/clang-15
           
+          echo "-----> clang installation directory"
           which clang++
+          echo "-----> clang binary version"
           clang++ --version
 
       - name: Running the tests for the project
