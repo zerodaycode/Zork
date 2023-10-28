@@ -9,12 +9,13 @@ use clap::{Parser, Subcommand, ValueEnum};
 /// use zork::cli::input::{CliArgs, Command, CppCompiler};
 ///
 /// let parser = CliArgs::parse_from(
-///     ["", "-vv", "--match-files", "zork_linux.toml", "--root", ".", "--clear-cache", "test"]
+///     ["", "-vv", "--match-files", "zork_linux.toml", "--root", ".", "--clear-cache", "--driver-path", "/usr/bin/clang-15/clang++", "test"]
 /// );
 /// assert_eq!(parser.command, Command::Test);
 /// assert_eq!(parser.verbose, 2);
 /// assert_eq!(parser.root, Some(String::from(".")));
 /// assert_eq!(parser.clear_cache, true);
+/// assert_eq!(parser.driver_path, Some(String::from("/usr/bin/clang-15/clang++")));
 /// assert_eq!(parser.match_files, Some(String::from("zork_linux.toml")));
 ///
 // Create Template Project
@@ -45,6 +46,9 @@ pub struct CliArgs {
 
     #[arg(short, long, help = "Allows the user to specify the project's root")]
     pub root: Option<String>,
+
+    #[arg(short, long, help = "Allows the user to specify the compilers frontend path")]
+    pub driver_path: Option<String>,
 
     #[arg(
         short,

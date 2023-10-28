@@ -11,7 +11,7 @@ use crate::project_model;
 /// They are represented by an enumerated type named [`CppCompiler`],
 /// that holds the different options where the user can choose
 ///
-/// * `driver_name` - The specific command line terminal identifier that will
+/// * `driver_path` - The specific command line terminal identifier that will
 /// call the compiler's binary. ie: clang++-15 will call a specific installation
 /// of Clang in the host machine corresponding to the version 15 of the compiler.
 /// This entry is particularly useful in Unix based OS or MinGW environments,
@@ -71,7 +71,7 @@ use crate::project_model;
 pub struct CompilerAttribute<'a> {
     pub cpp_compiler: CppCompiler,
     #[serde(borrow)]
-    pub driver_name: Option<&'a str>,
+    pub driver_path: Option<&'a str>,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
     #[serde(borrow)]

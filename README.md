@@ -378,7 +378,7 @@ ProjectAttribute {
 /// The [compiler] key 
 CompilerAttribute {
     cpp_compiler: CppCompiler, // clang, msvc or gcc
-    driver_name: Option<str>, // The invokable name for the compiler's binary
+    driver_path: Option<str>, // The invokable name for the compiler's binary
     cpp_standard: LanguageLevel, // but as a string, for ex: '20'
     std_lib: Option<str>, // libc++ or stdlibc++
     extra_args: Option<Vec<str>>
@@ -519,6 +519,9 @@ a minimal setup. This command includes some arguments to make it more flexible, 
 - `--match-files` => Accepts an string value that will be used to perform a filter to the detected `Zork++`
 configuration files present in the project. Acts like the classical `contains` method, by checking that the value
 that you passed in is a substring of some of the detected config files.
+- `--driver-path` => An optional flag to specify the location of the binary of the compiler's
+frontend that the user want's to use. This is similar to the `driver-name` compiler configuration,
+but passing it directly from the CMD.
 - `--template` => Accepts `basic` or `partitions`. The first is the default value is this flag is not present.
 Controls which kind of `C++` code template is generated.
 - `-v` ⇒ Outputs more information to stdout. The classical `verbose` command line flag. You have until

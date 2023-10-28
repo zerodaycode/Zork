@@ -65,17 +65,15 @@ jobs:
           sudo apt update
           sudo apt install clang-15 --install-suggests
           
-          which_clangpp=$(which clang++)
-          which_clang15=$(which clang-15)
-          echo "clang++ location: $which_clangpp"
-          echo "clang-15 location: $which_clang15"
+          sudo cp /usr/bin/clang-15/clang++ /usr/bin/clang-15/clang++-15
+          export PATH=$PATH:/usr/bin/clang-15
           
           sudo apt install clang-16 --install-suggests || true  # preparing for next Clang's releases
           
-          clang++ --version
+          /usr/bin/clang-15/clang++-15 --version
 
       - name: Running the tests for the project
         if: success() || failure()
         run: |
           cd zork++
-          cargo test --all -- --nocapture --test-threads=1
+          cargo test --color=always --all -- --format=json --show-output --nocapture --test-threads=1

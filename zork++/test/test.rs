@@ -23,8 +23,14 @@ fn test_clang_full_process() -> Result<()> {
     .is_ok());
 
     assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "-vv", "run"]),
-        Path::new(temp.path())
+        &CliArgs::parse_from([
+            "",
+            "-vv",
+            "--driver-path",
+            "clang++-15", // Care. This should be updated depending on the
+            // clang's version manually downloaded in the Github Action
+            "run"
+        ]), Path::new(temp.path())
     )
     .is_ok());
 
