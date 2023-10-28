@@ -78,4 +78,4 @@ jobs:
         if: success() || failure()
         run: |
           cd zork++
-          cargo test --all -- --test-threads=1
+          cargo test --all -- --nocapture --test-threads=1
