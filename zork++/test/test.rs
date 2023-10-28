@@ -5,7 +5,6 @@ use tempfile::tempdir;
 use zork::cli::input::CliArgs;
 
 #[test]
-// #[ignore] // Ignore because the Clang's version in the VM's isn't newer enough to not support module partitions
 fn test_clang_full_process() -> Result<()> {
     let temp = tempdir()?;
 

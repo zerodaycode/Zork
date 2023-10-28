@@ -33,7 +33,7 @@ pub fn build_project<'a>(
     // A registry of the generated command lines
     let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
-    if model.compiler.cpp_compiler != CppCompiler::MSVC {
+    if model.compiler.cpp_compiler != CppCompiler::MSVC && !model.modules.sys_modules.is_empty() {
         helpers::build_sys_modules(model, &mut commands, cache)
     }
 
@@ -57,6 +57,7 @@ fn build_executable<'a>(
 ) -> Result<()> {
     // TODO Check if the command line is the same as the previous? If there's no new sources?
     // And avoid re-executing?
+    // TODO refactor this code, just having the if-else branch inside the fn
     if tests {
         generate_main_command_line_args(model, commands, &model.tests)
     } else {
@@ -630,7 +631,8 @@ mod helpers {
         commands: &mut Commands<'a>,
         cache: &ZorkCache,
     ) {
-        if !cache.compilers_metadata.system_modules.is_empty() {
+        if !cache.compilers_metadata.system_modules.is_empty() { // TODO BUG - this is not correct.
+            // If user later adds a new module, it won't be processed
             log::info!(
                 "System modules already build: {:?}. They will be skipped!",
                 cache.compilers_metadata.system_modules
