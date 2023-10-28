@@ -81,6 +81,9 @@ jobs:
           echo $PATH
           
           echo "-----> clang-15 installation directory"
+          sudo apt install libc++-15-dev
+          
+          echo "-----> clang-15 installation directory"
           which clang-15
           echo "-----> clang binary version"
           clang-15 --version
