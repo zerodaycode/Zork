@@ -33,7 +33,7 @@ pub fn build_project<'a>(
     // A registry of the generated command lines
     let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
-    if model.compiler.cpp_compiler != CppCompiler::MSVC && !model.modules.sys_modules.is_empty() {
+    if model.compiler.cpp_compiler == CppCompiler::GCC && !model.modules.sys_modules.is_empty() {
         helpers::build_sys_modules(model, &mut commands, cache)
     }
 
