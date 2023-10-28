@@ -401,7 +401,8 @@ mod test {
         "#;
 
         let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
-        let model = build_model(&config, &CliArgs::parse());
+        let cli_args = CliArgs::parse();
+        let model = build_model(&config, &cli_args);
 
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
 
@@ -450,7 +451,8 @@ mod test {
     #[test]
     fn test_project_model_with_full_config() -> Result<()> {
         let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK)?;
-        let model = build_model(&config, &CliArgs::parse());
+        let cli_args = CliArgs::parse();
+        let model = build_model(&config, &cli_args);
 
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
 
