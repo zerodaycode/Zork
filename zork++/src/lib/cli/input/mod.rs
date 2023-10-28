@@ -47,7 +47,11 @@ pub struct CliArgs {
     #[arg(short, long, help = "Allows the user to specify the project's root")]
     pub root: Option<String>,
 
-    #[arg(short, long, help = "Allows the user to specify the compilers frontend path")]
+    #[arg(
+        short,
+        long,
+        help = "Allows the user to specify the compilers frontend path"
+    )]
     pub driver_path: Option<String>,
 
     #[arg(

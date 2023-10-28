@@ -1,3 +1,4 @@
+use crate::cli::input::CliArgs;
 use crate::project_model::sourceset::SourceFile;
 use crate::utils::fs::get_project_root_absolute_path;
 use crate::{
@@ -28,7 +29,6 @@ use crate::{
 use color_eyre::{eyre::eyre, Result};
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
-use crate::cli::input::CliArgs;
 
 use super::constants::DEFAULT_OUTPUT_DIR;
 
@@ -88,10 +88,7 @@ pub fn find_config_files(
     }
 }
 
-pub fn build_model<'a>(
-    config: &'a ZorkConfigFile,
-    cli_args: &'a CliArgs,
-) -> Result<ZorkModel<'a>> {
+pub fn build_model<'a>(config: &'a ZorkConfigFile, cli_args: &'a CliArgs) -> Result<ZorkModel<'a>> {
     let project = assemble_project_model(&config.project);
 
     let absolute_project_root = if cli_args.root.is_none() {
@@ -103,7 +100,7 @@ pub fn build_model<'a>(
         )?
     } else {
         Path::new(&cli_args.root.as_ref().unwrap()).to_path_buf()
-    } ;
+    };
 
     let compiler = assemble_compiler_model(&config.compiler, cli_args);
     let build = assemble_build_model(&config.build, &absolute_project_root);
@@ -134,7 +131,10 @@ fn assemble_project_model<'a>(config: &'a ProjectAttribute) -> ProjectModel<'a> 
     }
 }
 
-fn assemble_compiler_model<'a>(config: &'a CompilerAttribute, cli_args: &'a CliArgs) -> CompilerModel<'a> {
+fn assemble_compiler_model<'a>(
+    config: &'a CompilerAttribute,
+    cli_args: &'a CliArgs,
+) -> CompilerModel<'a> {
     let extra_args = config
         .extra_args
         .as_ref()
@@ -384,6 +384,7 @@ mod test {
         project_model::compiler::{CppCompiler, LanguageLevel, StdLib},
         utils,
     };
+    use clap::Parser;
 
     use super::*;
 
@@ -400,7 +401,7 @@ mod test {
         "#;
 
         let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
-        let model = build_model(&config, Path::new("."));
+        let model = build_model(&config, &CliArgs::parse());
 
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
 
@@ -449,7 +450,7 @@ mod test {
     #[test]
     fn test_project_model_with_full_config() -> Result<()> {
         let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK)?;
-        let model = build_model(&config, Path::new("."));
+        let model = build_model(&config, &CliArgs::parse());
 
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
 

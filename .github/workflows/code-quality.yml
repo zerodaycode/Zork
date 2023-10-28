@@ -65,7 +65,7 @@ jobs:
           sudo apt update
           sudo apt install clang-15 --install-suggests
           
-          sudo cp /usr/bin/clang-15/clang++ /usr/bin/clang-15/clang++-15
+          sudo cp -p /usr/bin/clang-15/clang++ /usr/bin/clang-15/clang++-15
           export PATH=$PATH:/usr/bin/clang-15
           
           sudo apt install clang-16 --install-suggests || true  # preparing for next Clang's releases

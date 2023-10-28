@@ -30,7 +30,8 @@ fn test_clang_full_process() -> Result<()> {
             "clang++-15", // Care. This should be updated depending on the
             // clang's version manually downloaded in the Github Action
             "run"
-        ]), Path::new(temp.path())
+        ]),
+        Path::new(temp.path())
     )
     .is_ok());
 
