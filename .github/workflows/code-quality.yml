@@ -66,6 +66,7 @@ jobs:
           clang++ --version
           
           sudo apt update
+          sudo rm -rf /bin/clang
           
           echo "-----> installing Clang as a fresh version"
           sudo apt install clang-15 --install-suggests
