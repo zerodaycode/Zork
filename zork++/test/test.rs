@@ -22,17 +22,11 @@ fn test_clang_full_process() -> Result<()> {
     )
     .is_ok());
 
-    let driver_path = if !env::current_dir().unwrap().starts_with("/home/runner") {
-        "/usr/bin/clang-15/clang++"
-    } else {
-        "clang++"
-    };
-
     env_logger::init();
     log::info!("Driver: {}", driver_path);
 
     assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "-vv", "--driver-path", driver_path, "run"]),
+        &CliArgs::parse_from(["", "-vv", "--driver-path", "clang-15", "run"]),
         Path::new(temp.path())
     )
     .is_ok());

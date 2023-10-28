@@ -85,7 +85,7 @@ jobs:
           echo "-----> clang binary version"
           clang-15 --version
           echo "-----> clang++-15 binary version"
-          /usr/bin/clang-15/clang++ --version
+          . /usr/bin/clang-15/clang++ --version
 
       - name: Running the tests for the project
         if: success() || failure()
