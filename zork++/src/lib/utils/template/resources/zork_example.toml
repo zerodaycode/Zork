@@ -2,7 +2,7 @@
 [project]
 name = "<project_name>"
 authors = [ "Zero Day Code" ]  # Replace this for the real authors
-compilation_db = true
+compilation_db = false
 
 [compiler]
 cpp_compiler = "<compiler>"

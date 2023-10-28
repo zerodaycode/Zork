@@ -89,8 +89,6 @@ jobs:
           echo "-----> ls clang lib things"
           ls /usr/lib/clang
           
-          echo "-----> clang version"
-          clang --version
           echo "-----> clang-15 installation directory"
           which clang-15
           echo "-----> clang-15 binary version"
@@ -98,7 +96,7 @@ jobs:
           echo "-----> clang++ installation directory"
           which clang++
           echo "-----> seeing the real clang++ driver version"
-          clang++ --version
+          clang++ --version || true
 
       - name: Running the tests for the project
         if: success() || failure()
