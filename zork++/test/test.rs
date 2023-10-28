@@ -25,7 +25,7 @@ fn test_clang_full_process() -> Result<()> {
     env_logger::init();
 
     assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "-vv", "--driver-path", "clang-15", "run"]),
+        &CliArgs::parse_from(["", "-vv", "run"]),
         Path::new(temp.path())
     )
     .is_ok());
