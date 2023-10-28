@@ -70,6 +70,8 @@ jobs:
           echo "-----> installing Clang as a fresh version"
           sudo apt install clang-15 --install-suggests
           
+          echo "-----> Clang-15 was installed on:"
+          which clang-15
           echo "-----> Actually, the path contains:"
           echo $PATH
           
