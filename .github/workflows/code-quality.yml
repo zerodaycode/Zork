@@ -68,7 +68,7 @@ jobs:
           sudo apt update
           
           echo "upgrading the system packages" 
-          sudo apt update
+          sudo apt upgrade
           
 #          echo "installing clang"
 #          sudo apt install clang --install-suggests
