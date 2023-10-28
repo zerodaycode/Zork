@@ -73,11 +73,8 @@ jobs:
 #          echo "installing clang"
 #          sudo apt install clang --install-suggests
           
-          which_clangpp_path=$(which clang++)
-          which_clangpp_version=$(clang++ --version)
-      
-          echo "clang++ location: $which_clangpp_path"
-          echo "clang++ version: $which_clangpp_version"
+          which clang++
+          clang++ --version
 
       - name: Running the tests for the project
         if: success() || failure()
