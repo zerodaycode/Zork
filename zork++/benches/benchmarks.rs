@@ -1,7 +1,7 @@
 //! Benchmarks tests for measuring the performance of the code
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use clap::Parser;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use zork::{
     cache::{self, ZorkCache},
     cli::input::CliArgs,

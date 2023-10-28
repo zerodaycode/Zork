@@ -205,8 +205,8 @@ pub mod worker {
                 .replace('\\', "/");
             let zcf: ZorkConfigFile = toml::from_str(&normalized_cfg_file)?;
             let cli_args = CliArgs::parse();
-            let model = build_model(&zcf, &cli_args)
-                .with_context(|| "Error building the project model")?;
+            let model =
+                build_model(&zcf, &cli_args).with_context(|| "Error building the project model")?;
 
             // This should create and out/ directory in the ./zork++ folder at the root of this project
             super::create_output_directory(&model)?;

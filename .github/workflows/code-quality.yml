@@ -61,16 +61,20 @@ jobs:
         run: |
           set -e  # Exit on error
           
-          clang++ -v
+          echo "removing the clang installed version for the VM"
+          sudo apt remove clang
+          
+          echo "updating the system packages" 
           sudo apt update
-          sudo apt install clang-15 --install-suggests
           
-          sudo cp -p /usr/bin/clang-15/clang++ /usr/bin/clang-15/clang++-15
-          export PATH=$PATH:/usr/bin/clang-15
+          echo "installing clang"
+          sudo apt install clang --install-suggests
           
-          sudo apt install clang-16 --install-suggests || true  # preparing for next Clang's releases
-          
-          /usr/bin/clang-15/clang++-15 --version
+          which_clangpp_path=$(which clang++)
+          which_clangpp_version=$(clang++ --version)
+      
+          echo "clang++ location: which_clangpp_path"
+          echo "clang-15 location: which_clangpp_version"
 
       - name: Running the tests for the project
         if: success() || failure()
