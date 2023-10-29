@@ -76,6 +76,8 @@ jobs:
           
           echo "-----> Clang-15 was installed on:"
           which clang-15
+          echo "-----> Clang++ on v15 was installed on:"
+          which clang++ || true
           echo "-----> Actually, the path contains:"
           echo $PATH
 
