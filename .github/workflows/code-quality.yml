@@ -69,28 +69,34 @@ jobs:
           
           echo "-----> removing Clang 14"
           sudo apt remove clang-14
-          sudo apt autoremove && sudo apt clean
           
           echo "-----> installing Clang as a fresh version"
           sudo apt install wget
           sudo wget https://apt.llvm.org/llvm.sh
           sudo chmod u+x llvm.sh
           sudo ./llvm.sh 17
-          which clang-17
-          sudo apt install locate
-          echo "-----> Finding clang++-17"
-          sudo locate clang++ || true
+          echo "-----> Adding clang lib install to the path"
+          export PATH=$PATH:/usr/lib/clang
           
-          echo "-----> Clang-15 was installed on:"
-          which clang-15
-          echo "-----> Clang++ on v15 was installed on:"
+          echo "-----> Clang-17 was installed on:"
+          which clang-17
+          echo "-----> Clang++ was installed on:"
           which clang++ || true
           echo "-----> Actually, the path contains:"
           echo $PATH
           
-          echo "-----> clang-15 installation directory"
+          echo "-----> Installing libc++"
           sudo apt install libc++-15-dev
           sudo apt install libc++-17-dev
+          
+          if [[ -n $(find / -type f -name "clang++" 2>/dev/null) ]]; then
+            found_path=$(find / -type f -name "clang++" 2>/dev/null)
+            echo "Found clang++ at: $found_path"
+            "$found_path" --version
+          else
+            echo "Unable to find clang++"
+          fi
+
 
       - name: Running the tests for the project
         run: |
