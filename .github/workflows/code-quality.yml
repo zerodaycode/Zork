@@ -82,7 +82,8 @@ jobs:
           sudo apt install libc++-17-dev libc++1-17 libc++abi1-17 libunwind-17 libunwind-17-dev
           
           echo "----> Getting the clang++ installation from the alternatives directly"
-          sudo mv /var/lib/dpkg/alternatives/clang++ /usr/bin/clang++
+          sudo mv /var/lib/dpkg/alternatives/clang++ /usr/bin
+          sudo chmod +x /usr/bin/clang++
           
           echo "-----> Actually, the path contains:"
           echo $PATH
