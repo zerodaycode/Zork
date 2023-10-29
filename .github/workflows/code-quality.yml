@@ -65,24 +65,28 @@ jobs:
           echo "-----> clang binary version"
           clang++ --version
           
-          echo "-----> installing Clang 17"
+          echo "-----> installing Clang 15"
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
           sudo apt update
-          sudo apt-add-repository "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-17 main"
-          sudo apt install --install-suggests clang-17
+          
+          echo "-----> Adding the LLVM repository for the version 15"
+          sudo apt-add-repository "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-15 main"
+          
+          echo "-----> Installing Clang 15"
+          sudo apt install --install-suggests clang-15
           
           echo "-----> Installing libc++"
-          sudo apt install libc++-17-dev libc++1-17 libc++abi1-17 libunwind-17 libunwind-17-dev
+          sudo apt install libc++-15-dev libc++1-15 libc++abi1-15 libunwind-15 libunwind-15-dev
           
           echo "-----> Removing the symbolic link to the default version"
           sudo rm -f /usr/bin/clang++
-          echo "-----> Creating the symbolic link to the new Clang 17 version"
-          sudo ln -s /usr/bin/clang++-17 /usr/bin/clang++
+          echo "-----> Creating the symbolic link to the new Clang 15 version"
+          sudo ln -s /usr/bin/clang++-15 /usr/bin/clang++
           
-          echo "-----> Clang-17 was installed on:"
-          which clang-17
+          echo "-----> Clang-15 was installed on:"
+          which clang-15
           echo "-----> Clang++ was installed on:"
-          which clang++-17
+          which clang++-15
 
       - name: Running the tests for the project
         run: |
