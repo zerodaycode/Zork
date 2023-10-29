@@ -65,32 +65,26 @@ jobs:
           echo "-----> clang binary version"
           clang++ --version
           
-          sudo apt update
-          
-          echo "-----> installing Clang as a fresh version"
+          echo "-----> installing Clang 17"
           sudo apt install wget
-          sudo wget https://apt.llvm.org/llvm.sh
-          sudo chmod u+x llvm.sh
-          sudo ./llvm.sh 17
-          echo "-----> Adding clang lib install to the path"
-          export PATH=$PATH:/usr/lib/clang
+          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          sudo apt update
+          sudo apt-add-repository "deb http://apt.llvm.org/wormbook/ llvm-toolchain-wormbook-17 main"
+          sudo apt install --install-suggests clang-17
           
           echo "-----> Installing libc++"
           sudo apt install libc++-17-dev libc++1-17 libc++abi1-17 libunwind-17 libunwind-17-dev
           
-          echo "----> Updating alternatives"
-          sudo update-alternatives --list clang++
-          sudo update-alternatives --set clang++ /usr/bin/clang-17
+          echo "-----> Removing the symbolic link to the default version"
+          sudo rm -f /usr/bin/clang++
+          echo "-----> Creating the symbolic link to the new Clang 17 version"
+          sudo ln -s /usr/bin/clang++-17 /usr/bin/clang++
           
-          echo "-----> Actually, the path contains:"
-          echo $PATH
           echo "-----> Clang-17 was installed on:"
           which clang-17
           echo "-----> Clang++ was installed on:"
-          which clang++
+          which clang++-17
 
-          echo "-----> Finding clang++"
-          find /usr/bin -type f -name "clang++" 2>/dev/null || true
       - name: Running the tests for the project
         run: |
           cd zork++
