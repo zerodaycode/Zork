@@ -7,6 +7,7 @@ use zork::cli::input::CliArgs;
 #[test]
 fn test_clang_full_process() -> Result<()> {
     let temp = tempdir()?;
+    env_logger::init();
 
     assert!(zork::worker::run_zork(
         &CliArgs::parse_from([
@@ -21,8 +22,6 @@ fn test_clang_full_process() -> Result<()> {
         Path::new(temp.path())
     )
     .is_ok());
-
-    env_logger::init();
 
     let process_result = zork::worker::run_zork(
         &CliArgs::parse_from(["", "-vv", "run"]),

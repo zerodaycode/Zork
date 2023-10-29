@@ -74,6 +74,13 @@ pub mod worker {
             let cache = cache::load(&program_data, cli_args)
                 .with_context(|| "Unable to load the Zork++ cache")?;
 
+            if !cfg!(target_os = "windows") {
+                log::trace!(
+                    "Listing the directories and files of the project: {:?}",
+                    std::process::Command::new("find").arg(path).spawn()?.wait()
+                );
+            }
+
             do_main_work_based_on_cli_input(cli_args, &program_data, cache).with_context(|| {
                 format!(
                     "Failed to build the project for the config file: {:?}",

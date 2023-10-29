@@ -109,16 +109,6 @@ pub fn create_templated_project(
         initialize_git_repository(&project_root)?
     }
 
-    let generated = std::process::Command::new("find")
-        .arg(&project_root)
-        .spawn();
-    let log = format!(
-        "[{compiler}] - Directories and files generated - {:?} - on: {:?} --> Generated dirs and files: {:?}",
-        project_name, &project_root, generated
-    );
-
-    log::trace!("{:?}", log);
-
     Ok(())
 }
 
