@@ -78,7 +78,8 @@ jobs:
           sudo ./llvm.sh 17
           which clang-17
           sudo apt install locate
-          locate clang++
+          echo "-----> Finding clang++-17"
+          sudo locate clang++ || true
           
           echo "-----> Clang-15 was installed on:"
           which clang-15
@@ -89,6 +90,7 @@ jobs:
           
           echo "-----> clang-15 installation directory"
           sudo apt install libc++-15-dev
+          sudo apt install libc++-17-dev
 
       - name: Running the tests for the project
         run: |
