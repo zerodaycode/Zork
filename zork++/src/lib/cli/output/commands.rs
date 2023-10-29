@@ -48,11 +48,6 @@ pub fn run_generated_commands(
         if !source_file.processed {
             let r = execute_command(compiler, program_data, &source_file.args, cache);
             source_file.execution_result = CommandExecutionResult::from(&r);
-            log::trace!(
-                "Source file: {:?} execution result: {:?}",
-                source_file.file,
-                source_file.execution_result
-            );
             total_exec_commands += 1;
             if let Err(e) = r {
                 cache::save(program_data, cache, commands, test_mode)?;

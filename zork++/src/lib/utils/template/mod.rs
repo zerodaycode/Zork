@@ -3,7 +3,7 @@ pub mod resources;
 use crate::project_model::compiler::CppCompiler;
 use crate::utils;
 use color_eyre::eyre::{bail, Context};
-use color_eyre::Result;
+use color_eyre::{Report, Result};
 use std::path::Path;
 use std::process::Command;
 
@@ -26,7 +26,7 @@ pub fn create_templated_project(
     git: bool,
     compiler: CppCompiler,
     template: &String,
-) -> Result<()> {
+) -> std::result::Result<(), Report> {
     let project_root = base_path.join(project_name);
 
     let path_ifc = project_root.join("ifc");
@@ -108,6 +108,16 @@ pub fn create_templated_project(
     if git {
         initialize_git_repository(&project_root)?
     }
+
+    let generated = std::process::Command::new("find")
+        .arg(&project_root)
+        .spawn();
+    let log = format!(
+        "[{compiler}] - Directories and files generated - {:?} - on: {:?} --> Generated dirs and files: {:?}",
+        project_name, &project_root, generated
+    );
+
+    log::trace!("{:?}", log);
 
     Ok(())
 }

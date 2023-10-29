@@ -32,11 +32,11 @@ pub mod worker {
             template::create_templated_project,
         },
     };
-    use color_eyre::{eyre::Context, Result};
+    use color_eyre::{eyre::Context, Report, Result};
 
     /// The main work of the project. Runs the tasks
     /// inputted in the CLI
-    pub fn run_zork(cli_args: &CliArgs, path: &Path) -> Result<()> {
+    pub fn run_zork(cli_args: &CliArgs, path: &Path) -> std::result::Result<(), Report> {
         if let Command::New {
             ref name,
             git,
