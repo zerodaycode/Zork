@@ -77,12 +77,11 @@ jobs:
           sudo ./llvm.sh 17
           echo "-----> Adding clang lib install to the path"
           export PATH=$PATH:/usr/lib/clang
+          export PATH=$PATH:/var/lib/dpkg/alternatives
           
           echo "-----> Installing libc++"
-          sudo apt install libc++-17-dev
+          sudo apt install libc++-17-dev libc++1-17 libc++abi1-17 libunwind-17 libunwind-17-dev
           
-          echo "-----> Finding clang++"
-          find / -type f -name "clang++" 2>/dev/null
           
           echo "-----> Actually, the path contains:"
           echo $PATH
@@ -91,6 +90,8 @@ jobs:
           echo "-----> Clang++ was installed on:"
           which clang++ || true
 
+          echo "-----> Finding clang++"
+          find / -type f -name "clang++" 2>/dev/null || true
       - name: Running the tests for the project
         run: |
           cd zork++
