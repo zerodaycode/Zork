@@ -78,25 +78,18 @@ jobs:
           echo "-----> Adding clang lib install to the path"
           export PATH=$PATH:/usr/lib/clang
           
+          echo "-----> Installing libc++"
+          sudo apt install --install-suggests libc++-17-dev
+          
+          echo "-----> Finding clang++"
+          find / -type f -name "clang++" 2>/dev/null
+          
+          echo "-----> Actually, the path contains:"
+          echo $PATH
           echo "-----> Clang-17 was installed on:"
           which clang-17
           echo "-----> Clang++ was installed on:"
           which clang++ || true
-          echo "-----> Actually, the path contains:"
-          echo $PATH
-          
-          echo "-----> Installing libc++"
-          sudo apt install libc++-15-dev
-          sudo apt install libc++-17-dev
-          
-          if [[ -n $(find / -type f -name "clang++" 2>/dev/null) ]]; then
-            found_path=$(find / -type f -name "clang++" 2>/dev/null)
-            echo "Found clang++ at: $found_path"
-            "$found_path" --version
-          else
-            echo "Unable to find clang++"
-          fi
-
 
       - name: Running the tests for the project
         run: |
