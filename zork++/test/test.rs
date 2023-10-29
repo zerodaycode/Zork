@@ -24,11 +24,11 @@ fn test_clang_full_process() -> Result<()> {
 
     env_logger::init();
 
-    assert!(zork::worker::run_zork(
+    let process_result = zork::worker::run_zork(
         &CliArgs::parse_from(["", "-vv", "run"]),
-        Path::new(temp.path())
-    )
-    .is_ok());
+        Path::new(temp.path()),
+    );
+    assert!(process_result.is_ok(), "{}", process_result.unwrap_err());
 
     Ok(temp.close()?)
 }
