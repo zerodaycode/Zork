@@ -72,8 +72,13 @@ jobs:
           sudo apt autoremove && sudo apt clean
           
           echo "-----> installing Clang as a fresh version"
-          sudo apt install clang-15 --install-suggests
-          sudo apt install clang-15 g++
+          sudo apt install wget
+          sudo wget https://apt.llvm.org/llvm.sh
+          sudo chmod u+x llvm.sh
+          sudo ./llvm.sh 17
+          which clang-17
+          which clang++
+          sudo locate clang-17
           
           echo "-----> Clang-15 was installed on:"
           which clang-15

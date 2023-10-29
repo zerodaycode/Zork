@@ -44,34 +44,34 @@ pub fn create_templated_project(
 
     utils::fs::create_file(
         &path_ifc,
-        &format!(
-            "{}.{}",
-            "partitions",
-            compiler.get_default_module_extension()
-        ),
-        resources::IFC_PART_FILE.as_bytes(),
-    )?;
-    utils::fs::create_file(
-        &path_ifc,
-        &format!(
-            "{}.{}",
-            "interface_partition",
-            compiler.get_default_module_extension()
-        ),
-        resources::IFC_PART_PARTITION_FILE.as_bytes(),
-    )?;
-    utils::fs::create_file(
-        &path_ifc,
-        &format!("{}.{}", "internal_partition", "cpp"),
-        resources::PARTITIONS_INTERNAL_PARTITION_FILE.as_bytes(),
-    )?;
-    utils::fs::create_file(
-        &path_ifc,
         &format!("{}.{}", "math", compiler.get_default_module_extension()),
         resources::IFC_MOD_FILE.as_bytes(),
     )?;
 
     if template.eq("partitions") {
+        utils::fs::create_file(
+            &path_ifc,
+            &format!(
+                "{}.{}",
+                "partitions",
+                compiler.get_default_module_extension()
+            ),
+            resources::IFC_PART_FILE.as_bytes(),
+        )?;
+        utils::fs::create_file(
+            &path_ifc,
+            &format!(
+                "{}.{}",
+                "interface_partition",
+                compiler.get_default_module_extension()
+            ),
+            resources::IFC_PART_PARTITION_FILE.as_bytes(),
+        )?;
+        utils::fs::create_file(
+            &path_ifc,
+            &format!("{}.{}", "internal_partition", "cpp"),
+            resources::PARTITIONS_INTERNAL_PARTITION_FILE.as_bytes(),
+        )?;
         utils::fs::create_file(&project_root, "main.cpp", resources::MAIN.as_bytes())?;
     } else {
         utils::fs::create_file(&project_root, "main.cpp", resources::MAIN_BASIC.as_bytes())?;

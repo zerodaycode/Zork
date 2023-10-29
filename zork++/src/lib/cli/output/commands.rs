@@ -148,9 +148,7 @@ fn execute_command(
         .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
     } else {
         let driver = compiler.get_driver(&model.compiler);
-        let command = std::process::Command::new(driver)
-            .args(arguments)
-            .spawn();
+        let command = std::process::Command::new(driver).args(arguments).spawn();
         let e = format!(
             "[{driver}] - Command {:?} executed! - Details: {:?}",
             arguments.join(" "),
