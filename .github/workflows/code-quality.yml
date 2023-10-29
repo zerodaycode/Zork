@@ -66,10 +66,9 @@ jobs:
           clang++ --version
           
           echo "-----> installing Clang 17"
-          sudo apt install wget
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
           sudo apt update
-          sudo apt-add-repository "deb http://apt.llvm.org/wormbook/ llvm-toolchain-wormbook-17 main"
+          sudo apt-add-repository "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-17 main"
           sudo apt install --install-suggests clang-17
           
           echo "-----> Installing libc++"
