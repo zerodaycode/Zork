@@ -67,9 +67,6 @@ jobs:
           
           sudo apt update
           
-          echo "-----> removing Clang 14"
-          sudo apt remove clang-14
-          
           echo "-----> installing Clang as a fresh version"
           sudo apt install wget
           sudo wget https://apt.llvm.org/llvm.sh
@@ -81,16 +78,16 @@ jobs:
           echo "-----> Installing libc++"
           sudo apt install libc++-17-dev libc++1-17 libc++abi1-17 libunwind-17 libunwind-17-dev
           
-          echo "----> Getting the clang++ installation from the alternatives directly"
-          sudo mv /var/lib/dpkg/alternatives/clang++ /usr/bin
-          sudo chmod +x /usr/bin/clang++
+          echo "----> Updating alternatives"
+          sudo update-alternatives --list clang++
+          sudo update-alternatives --set clang++ /usr/bin/clang-17
           
           echo "-----> Actually, the path contains:"
           echo $PATH
           echo "-----> Clang-17 was installed on:"
           which clang-17
           echo "-----> Clang++ was installed on:"
-          which clang++ || true
+          which clang++
 
           echo "-----> Finding clang++"
           find /usr/bin -type f -name "clang++" 2>/dev/null || true
