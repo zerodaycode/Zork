@@ -152,13 +152,16 @@ fn execute_command(
         .wait()
         .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
     } else {
-        let mut command = std::process::Command::new(compiler.get_driver(&model.compiler))
+        let command = std::process::Command::new(compiler.get_driver(&model.compiler))
             .args(arguments)
-            .spawn()?;
-        let e = format!("[{compiler}] - Command {:?} failed! - Reason: {:?}", arguments.join(" "), command);
+            .spawn();
+        let e = format!(
+            "[{compiler}] - Command {:?} failed! - Reason: {:?}",
+            arguments.join(" "),
+            command
+        );
         log::error!("{:?}", e);
-        command.wait()
-            .with_context(|| e)
+        command?.wait().with_context(|| e)
     }
 }
 
