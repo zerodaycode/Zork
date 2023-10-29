@@ -79,7 +79,7 @@ jobs:
           export PATH=$PATH:/usr/lib/clang
           
           echo "-----> Installing libc++"
-          sudo apt install --install-suggests libc++-17-dev
+          sudo apt install libc++-17-dev
           
           echo "-----> Finding clang++"
           find / -type f -name "clang++" 2>/dev/null
