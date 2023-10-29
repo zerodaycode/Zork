@@ -76,7 +76,7 @@ jobs:
           sudo apt install --install-suggests clang-15
           
           echo "-----> Installing libc++"
-          sudo apt install libc++-15-dev libc++1-15 libc++abi1-15 libunwind-15 libunwind-15-dev
+          sudo apt install libc++-15-dev libc++1-15 libc++abi1-15 libunwind-15 libunwind-15-dev libc6 libzstd1
           
           echo "-----> Removing the symbolic link to the default version"
           sudo rm -f /usr/bin/clang++
