@@ -156,6 +156,7 @@ fn execute_command(
             .args(arguments)
             .spawn()?;
         let e = format!("[{compiler}] - Command {:?} failed! - Reason: {:?}", arguments.join(" "), command);
+        log::error!("{:?}", e);
         command.wait()
             .with_context(|| e)
     }
