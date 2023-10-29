@@ -81,10 +81,6 @@ jobs:
           which clang++ || true
           echo "-----> Actually, the path contains:"
           echo $PATH
-
-          echo "-----> adding Clang-15 to the path"
-          export PATH=$PATH:/usr/bin/clang-15
-          echo $PATH
           
           echo "-----> clang-15 installation directory"
           sudo apt install libc++-15-dev
