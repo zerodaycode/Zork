@@ -77,8 +77,8 @@ jobs:
           sudo chmod u+x llvm.sh
           sudo ./llvm.sh 17
           which clang-17
-          which clang++
-          sudo locate clang-17
+          sudo apt install locate
+          locate clang++
           
           echo "-----> Clang-15 was installed on:"
           which clang-15
