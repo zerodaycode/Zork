@@ -1,3 +1,4 @@
+use crate::cli::input::CliArgs;
 use crate::project_model::sourceset::SourceFile;
 use crate::utils::fs::get_project_root_absolute_path;
 use crate::{
@@ -87,20 +88,21 @@ pub fn find_config_files(
     }
 }
 
-pub fn build_model<'a>(
-    config: &'a ZorkConfigFile,
-    project_root_from_cli: &Path,
-) -> Result<ZorkModel<'a>> {
+pub fn build_model<'a>(config: &'a ZorkConfigFile, cli_args: &'a CliArgs) -> Result<ZorkModel<'a>> {
     let project = assemble_project_model(&config.project);
 
-    let absolute_project_root = get_project_root_absolute_path(
-        project
-            .project_root
-            .map(Path::new)
-            .unwrap_or(project_root_from_cli),
-    )?;
+    let absolute_project_root = if cli_args.root.is_none() {
+        get_project_root_absolute_path(
+            project
+                .project_root
+                .map(Path::new)
+                .unwrap_or(Path::new(".")),
+        )?
+    } else {
+        Path::new(&cli_args.root.as_ref().unwrap()).to_path_buf()
+    };
 
-    let compiler = assemble_compiler_model(&config.compiler);
+    let compiler = assemble_compiler_model(&config.compiler, cli_args);
     let build = assemble_build_model(&config.build, &absolute_project_root);
     let executable =
         assemble_executable_model(project.name, &config.executable, &absolute_project_root);
@@ -129,16 +131,25 @@ fn assemble_project_model<'a>(config: &'a ProjectAttribute) -> ProjectModel<'a> 
     }
 }
 
-fn assemble_compiler_model<'a>(config: &'a CompilerAttribute) -> CompilerModel<'a> {
+fn assemble_compiler_model<'a>(
+    config: &'a CompilerAttribute,
+    cli_args: &'a CliArgs,
+) -> CompilerModel<'a> {
     let extra_args = config
         .extra_args
         .as_ref()
         .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
         .unwrap_or_default();
 
+    let cli_driver_path = cli_args.driver_path.as_ref();
+
     CompilerModel {
         cpp_compiler: config.cpp_compiler.clone().into(),
-        driver_name: config.driver_name.unwrap_or_default(),
+        driver_path: if let Some(driver_path) = cli_driver_path {
+            driver_path.as_str()
+        } else {
+            config.driver_path.unwrap_or_default()
+        },
         cpp_standard: config.cpp_standard.clone().into(),
         std_lib: config.std_lib.clone().map(|lib| lib.into()),
         extra_args,
@@ -373,6 +384,7 @@ mod test {
         project_model::compiler::{CppCompiler, LanguageLevel, StdLib},
         utils,
     };
+    use clap::Parser;
 
     use super::*;
 
@@ -389,7 +401,8 @@ mod test {
         "#;
 
         let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
-        let model = build_model(&config, Path::new("."));
+        let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
+        let model = build_model(&config, &cli_args);
 
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
 
@@ -402,7 +415,7 @@ mod test {
             },
             compiler: CompilerModel {
                 cpp_compiler: CppCompiler::CLANG,
-                driver_name: "",
+                driver_path: "",
                 cpp_standard: LanguageLevel::CPP20,
                 std_lib: None,
                 extra_args: vec![],
@@ -438,7 +451,8 @@ mod test {
     #[test]
     fn test_project_model_with_full_config() -> Result<()> {
         let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK)?;
-        let model = build_model(&config, Path::new("."));
+        let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
+        let model = build_model(&config, &cli_args);
 
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
 
@@ -451,8 +465,8 @@ mod test {
             },
             compiler: CompilerModel {
                 cpp_compiler: CppCompiler::CLANG,
-                driver_name: "",
-                cpp_standard: LanguageLevel::CPP20,
+                driver_path: "",
+                cpp_standard: LanguageLevel::CPP2B,
                 std_lib: Some(StdLib::LIBCPP),
                 extra_args: vec![Argument::from("-Wall")],
             },

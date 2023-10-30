@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
+use std::slice::Iter;
 use std::{
     path::{Path, PathBuf},
     process::ExitStatus,
@@ -6,7 +8,7 @@ use std::{
 
 use crate::bounds::TranslationUnit;
 use crate::cli::output::arguments::Arguments;
-///! Contains helpers and data structure to process in
+/// Contains helpers and data structure to process in
 /// a nice and neat way the commands generated to be executed
 /// by Zork++
 use crate::{
@@ -66,7 +68,6 @@ pub fn run_generated_commands(
 
         let r = execute_command(compiler, program_data, &commands.main.args, cache);
         commands.main.execution_result = CommandExecutionResult::from(&r);
-        total_exec_commands += 1;
 
         if let Err(e) = r {
             cache::save(program_data, cache, commands, test_mode)?;
@@ -79,7 +80,7 @@ pub fn run_generated_commands(
         }
     }
 
-    log::debug!("A total of: {total_exec_commands} command lines has been executed successfully");
+    log::debug!("A total of: {total_exec_commands} command lines has been executed");
     cache::save(program_data, cache, commands, test_mode)?;
     Ok(CommandExecutionResult::Success)
 }
@@ -237,29 +238,24 @@ impl<'a> core::fmt::Display for Commands<'a> {
             f,
             "Commands for [{}]:\n- Interfaces: {:?},\n- Implementations: {:?},\n- Sources: {:?}",
             self.compiler,
-            self.interfaces.iter().map(|vec| {
-                vec.args
-                    .iter()
-                    .map(|e| e.value)
-                    .collect::<Vec<_>>()
-                    .join(" ");
-            }),
-            self.implementations.iter().map(|vec| {
-                vec.args
-                    .iter()
-                    .map(|e| e.value)
-                    .collect::<Vec<_>>()
-                    .join(" ");
-            }),
-            self.sources.iter().map(|vec| {
-                vec.args
-                    .iter()
-                    .map(|e| e.value)
-                    .collect::<Vec<_>>()
-                    .join(" ");
-            }),
+            collect_source_command_line(self.interfaces.iter()),
+            collect_source_command_line(self.implementations.iter()),
+            collect_source_command_line(self.sources.iter())
         )
     }
+}
+
+/// Convenient function to avoid code replication
+fn collect_source_command_line<'a>(
+    iter: Iter<'a, SourceCommandLine<'a>>,
+) -> impl Iterator + Debug + 'a {
+    iter.map(|vec| {
+        vec.args
+            .iter()
+            .map(|e| e.value)
+            .collect::<Vec<_>>()
+            .join(" ");
+    })
 }
 
 /// Holds a custom representation of the execution of
@@ -281,30 +277,26 @@ pub enum CommandExecutionResult {
 
 impl From<Result<ExitStatus, Report>> for CommandExecutionResult {
     fn from(value: Result<ExitStatus, Report>) -> Self {
-        match value {
-            Ok(r) => {
-                if r.success() {
-                    CommandExecutionResult::Success
-                } else {
-                    CommandExecutionResult::Failed
-                }
-            }
-            Err(_) => CommandExecutionResult::Error,
-        }
+        handle_command_execution_result(&value)
     }
 }
 
 impl From<&Result<ExitStatus, Report>> for CommandExecutionResult {
     fn from(value: &Result<ExitStatus, Report>) -> Self {
-        match value {
-            Ok(r) => {
-                if r.success() {
-                    CommandExecutionResult::Success
-                } else {
-                    CommandExecutionResult::Failed
-                }
+        handle_command_execution_result(value)
+    }
+}
+
+/// Convenient way of handle a command execution result avoiding duplicate code
+fn handle_command_execution_result(value: &Result<ExitStatus>) -> CommandExecutionResult {
+    match value {
+        Ok(r) => {
+            if r.success() {
+                CommandExecutionResult::Success
+            } else {
+                CommandExecutionResult::Failed
             }
-            Err(_) => CommandExecutionResult::Error,
         }
+        Err(_) => CommandExecutionResult::Error,
     }
 }

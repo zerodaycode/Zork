@@ -1,4 +1,4 @@
-///! file that contains the configuration options available
+//! file that contains the configuration options available
 /// within Zork++ to configure the way of how it works
 /// the build process
 use serde::*;

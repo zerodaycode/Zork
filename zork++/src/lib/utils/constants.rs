@@ -26,7 +26,7 @@ compilation_db = true
 
 [compiler]
 cpp_compiler = "clang"
-cpp_standard = "20"
+cpp_standard = "2b"
 std_lib = "libc++"
 extra_args = [ "-Wall" ]
 

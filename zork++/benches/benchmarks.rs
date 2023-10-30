@@ -1,7 +1,7 @@
 //! Benchmarks tests for measuring the performance of the code
 
+use clap::Parser;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use std::path::Path;
 use zork::{
     cache::{self, ZorkCache},
     cli::input::CliArgs,
@@ -12,7 +12,8 @@ use zork::{
 
 pub fn build_project_benchmark(c: &mut Criterion) {
     let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK).unwrap();
-    let program_data = build_model(&config, Path::new(".")).unwrap();
+    let cli_args = CliArgs::parse();
+    let program_data = build_model(&config, &cli_args).unwrap();
     let cache = ZorkCache::default();
 
     c.bench_function("Build project", |b| {

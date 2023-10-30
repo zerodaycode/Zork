@@ -7,7 +7,7 @@ use crate::{bounds::ExtraArgs, cli::output::arguments::Argument};
 #[derive(Debug, PartialEq, Eq)]
 pub struct CompilerModel<'a> {
     pub cpp_compiler: CppCompiler,
-    pub driver_name: &'a str,
+    pub driver_path: &'a str,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
     pub extra_args: Vec<Argument<'a>>,
@@ -64,8 +64,8 @@ impl CppCompiler {
     /// Returns an &str representing the compiler driver that will be called
     /// in the command line to generate the build events
     pub fn get_driver<'a>(&self, compiler_model: &'a CompilerModel) -> &'a str {
-        if !compiler_model.driver_name.is_empty() {
-            compiler_model.driver_name
+        if !compiler_model.driver_path.is_empty() {
+            compiler_model.driver_path
         } else {
             match *self {
                 CppCompiler::CLANG => "clang++",

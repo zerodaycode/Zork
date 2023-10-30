@@ -1,4 +1,4 @@
-///! Metadata about the user's project
+//! Metadata about the user's project
 use serde::*;
 
 /// [`ProjectAttribute`] - Metadata about the user's project
