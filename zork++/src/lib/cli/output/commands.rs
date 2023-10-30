@@ -147,15 +147,11 @@ fn execute_command(
         .wait()
         .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
     } else {
-        let driver = compiler.get_driver(&model.compiler);
-        let command = std::process::Command::new(driver).args(arguments).spawn();
-        let e = format!(
-            "[{driver}] - Command {:?} executed! - Details: {:?}",
-            arguments.join(" "),
-            command
-        );
-        log::info!("{:?}", e);
-        command?.wait().with_context(|| e)
+        std::process::Command::new(compiler.get_driver(&model.compiler))
+            .args(arguments)
+            .spawn()?
+            .wait()
+            .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
     }
 }
 

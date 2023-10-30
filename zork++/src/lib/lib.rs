@@ -74,13 +74,6 @@ pub mod worker {
             let cache = cache::load(&program_data, cli_args)
                 .with_context(|| "Unable to load the Zork++ cache")?;
 
-            if !cfg!(target_os = "windows") {
-                log::trace!(
-                    "Listing the directories and files of the project: {:?}",
-                    std::process::Command::new("find").arg(path).spawn()?.wait()
-                );
-            }
-
             do_main_work_based_on_cli_input(cli_args, &program_data, cache).with_context(|| {
                 format!(
                     "Failed to build the project for the config file: {:?}",
@@ -116,18 +109,12 @@ pub mod worker {
                     .with_context(|| "Failed to build project")?;
 
                 match commands::run_generated_commands(program_data, commands, &mut cache, false) {
-                    Ok(_) => {
-                        log::info!("Run the commands completed successfully");
-                        autorun_generated_binary(
-                            &program_data.compiler.cpp_compiler,
-                            &program_data.build.output_dir,
-                            program_data.executable.executable_name,
-                        )
-                    }
-                    Err(e) => {
-                        log::error!("Error running the generated commands: {e:?}");
-                        Err(e)
-                    }
+                    Ok(_) => autorun_generated_binary(
+                        &program_data.compiler.cpp_compiler,
+                        &program_data.build.output_dir,
+                        program_data.executable.executable_name,
+                    ),
+                    Err(e) => Err(e),
                 }
             }
             Command::Test => {
