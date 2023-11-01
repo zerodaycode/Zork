@@ -66,10 +66,14 @@ jobs:
           chmod +x llvm.sh
           sudo ./llvm.sh ${{ matrix.clang_version }}
 
+          echo "-----> Installing libc++"
+          sudo apt-get install -y libc++-${{ matrix.clang_version }}-dev libc++abi-${{ matrix.clang_version }}-dev libunwind-${{ matrix.clang_version }} libunwind-${{ matrix.clang_version }}-dev libc6 libzstd1
+
           # Update the symbolic link to point to the newly installed Clang version
           echo "-----> Updating the symbolic link to point to Clang ${{ matrix.clang_version }}"
           sudo rm -f /usr/bin/clang++
           sudo ln -s /usr/bin/clang++-${{ matrix.clang_version }} /usr/bin/clang++
+  
 
           # Display the installation directory and version of the installed Clang
           echo "-----> Clang-${{ matrix.clang_version }} was installed on:"
