@@ -33,61 +33,53 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
       - name: Caching project dependencies
         id: project-cache
         uses: Swatinem/rust-cache@v2
-
       - uses: hecrj/setup-rust-action@v1
         with:
           components: rustfmt
-      
       - name: Checking the format sanity of the project
         run: |
           cd zork++
           cargo fmt --all -- --check
 
   tests:
-    name: Run the tests for the projects
+    name: Run the tests - Clang 
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        clang_version: [15, 16, 17]
     steps:
       - uses: actions/checkout@v3
-
       - name: Caching project dependencies
         id: project-cache
         uses: Swatinem/rust-cache@v2
-
-      - name: Get the latest Clang version available
+      - name: Install Clang ${{ matrix.clang_version }}
         run: |
-          set -e  # Exit on error
-          echo "-----> clang installation directory"
-          which clang++
-          echo "-----> clang binary version"
-          clang++ --version
-          
-          echo "-----> installing Clang 15"
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          sudo apt update
-          
-          echo "-----> Adding the LLVM repository for the version 15"
-          sudo apt-add-repository "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-15 main"
-          
-          echo "-----> Installing Clang 15"
-          sudo apt install --install-suggests clang-15
-          
-          echo "-----> Installing libc++"
-          sudo apt install libc++-15-dev libc++abi-15-dev libunwind-15 libunwind-15-dev libc6 libzstd1
-          
-          echo "-----> Removing the symbolic link to the default version"
-          sudo rm -f /usr/bin/clang++
-          echo "-----> Creating the symbolic link to the new Clang 15 version"
-          sudo ln -s /usr/bin/clang++-15 /usr/bin/clang++
-          
-          echo "-----> Clang-15 was installed on:"
-          which clang-15
-          echo "-----> Clang++ was installed on:"
-          which clang++-15
+          # Exit on error
+          set -e
+          # Download and execute the LLVM installation script for the specified Clang version
+          echo "-----> Downloading and executing the LLVM installation script for Clang ${{ matrix.clang_version }}"
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{ matrix.clang_version }}
 
+          echo "-----> Installing libc++"
+          sudo apt-get install -y libc++-${{ matrix.clang_version }}-dev libc++abi-${{ matrix.clang_version }}-dev libunwind-${{ matrix.clang_version }} libunwind-${{ matrix.clang_version }}-dev libc6 libzstd1
+
+          # Update the symbolic link to point to the newly installed Clang version
+          echo "-----> Updating the symbolic link to point to Clang ${{ matrix.clang_version }}"
+          sudo rm -f /usr/bin/clang++
+          sudo ln -s /usr/bin/clang++-${{ matrix.clang_version }} /usr/bin/clang++
+  
+
+          # Display the installation directory and version of the installed Clang
+          echo "-----> Clang-${{ matrix.clang_version }} was installed on:"
+          which clang-${{ matrix.clang_version }}
+          echo "-----> Clang++ was installed on:"
+          which clang++-${{ matrix.clang_version }}
       - name: Running the tests for the project
         run: |
           cd zork++
