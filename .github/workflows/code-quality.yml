@@ -45,12 +45,12 @@ jobs:
           cargo fmt --all -- --check
 
   tests:
-    name: Run the tests for the projects
+    name: Run the tests - Clang 
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        clang_version: [14, 15, 16, 17]
+        clang_version: [15, 16, 17]
     steps:
       - uses: actions/checkout@v3
       - name: Caching project dependencies
