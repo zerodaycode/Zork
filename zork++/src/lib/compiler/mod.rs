@@ -33,7 +33,7 @@ pub fn build_project<'a>(
     // A registry of the generated command lines
     let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
-    if model.compiler.cpp_compiler != CppCompiler::MSVC {
+    if model.compiler.cpp_compiler == CppCompiler::GCC && !model.modules.sys_modules.is_empty() {
         helpers::build_sys_modules(model, &mut commands, cache)
     }
 
@@ -57,6 +57,7 @@ fn build_executable<'a>(
 ) -> Result<()> {
     // TODO Check if the command line is the same as the previous? If there's no new sources?
     // And avoid re-executing?
+    // TODO refactor this code, just having the if-else branch inside the fn
     if tests {
         generate_main_command_line_args(model, commands, &model.tests)
     } else {
@@ -245,9 +246,9 @@ pub fn generate_main_command_line_args<'a>(
             ));
         }
     };
-    arguments.extend(commands.generated_files_paths.clone().into_iter());
+    arguments.extend(commands.generated_files_paths.clone());
 
-    commands.main.args.extend(arguments.into_iter());
+    commands.main.args.extend(arguments);
     commands.main.sources_paths = target
         .sourceset()
         .sources
@@ -631,6 +632,8 @@ mod helpers {
         cache: &ZorkCache,
     ) {
         if !cache.compilers_metadata.system_modules.is_empty() {
+            // TODO BUG - this is not correct.
+            // If user later adds a new module, it won't be processed
             log::info!(
                 "System modules already build: {:?}. They will be skipped!",
                 cache.compilers_metadata.system_modules
@@ -652,7 +655,6 @@ mod helpers {
             .map(|sys_module| {
                 let mut v = vec![
                     language_level.clone(),
-                    Argument::from("-fmodules-ts"),
                     Argument::from("-x"),
                     Argument::from("c++-system-header"),
                     Argument::from(*sys_module),
@@ -676,9 +678,15 @@ mod helpers {
             })
             .collect::<Vec<_>>();
 
+        // Maps the generated command line flags generated for every system module,
+        // being the key the name of the system header
+        // TODO is completely unnecessary here a map. We can directly store the flags only one
+        // time in a list, because they will always be the same flags for every system module,
+        // and the system modules in another list
         for collection_args in sys_modules {
             commands.system_modules.insert(
-                collection_args[4].value.to_string(),
+                // [3] is for the 4th flag pushed to v
+                collection_args[3].value.to_string(),
                 Arguments::from_vec(collection_args),
             );
         }
@@ -699,7 +707,6 @@ mod helpers {
             log::trace!("Module unit {file:?} will be rebuilt since we've detected that you are using Clang in Windows");
             return false;
         }
-        let cache = cache;
         // Check first if the file is already on the cache, and if it's last iteration was successful
         if let Some(cached_file) = cache.is_file_cached(file) {
             if cached_file.execution_result != CommandExecutionResult::Success

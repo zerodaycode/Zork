@@ -2,11 +2,12 @@
 [project]
 name = "<project_name>"
 authors = [ "Zero Day Code" ]  # Replace this for the real authors
-compilation_db = true
+compilation_db = false
 
 [compiler]
 cpp_compiler = "<compiler>"
-cpp_standard = "20"
+cpp_standard = "2b"
+std_lib = "LIBCPP"
 
 [build]
 output_dir = "<base_path>/out"
@@ -30,7 +31,7 @@ interfaces = [
 ]
 base_impls_dir = "<base_path>/<project_name>/src"
 implementations = [
-    { file = 'math.cpp' },
+    { file = 'math.cpp', dependencies = ['math'] },
     { file = 'math2.cpp', dependencies = ['math'] }
 ]
 sys_modules = ['iostream']

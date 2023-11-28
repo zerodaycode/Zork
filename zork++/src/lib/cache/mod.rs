@@ -147,7 +147,7 @@ impl ZorkCache {
         model: &ZorkModel,
         test_mode: bool,
     ) -> bool {
-        log::trace!("Storing in the cache the last generated command lines...");
+        log::debug!("Storing in the cache the last generated command lines...");
         self.compiler = commands.compiler;
         let process_no = if !self.generated_commands.is_empty() {
             self.generated_commands.last().unwrap().cached_process_num + 1

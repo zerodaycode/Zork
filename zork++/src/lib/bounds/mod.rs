@@ -1,15 +1,17 @@
+//! The higher abstractions of the program
+
 use core::fmt::Debug;
 use std::fmt::Display;
 use std::path::PathBuf;
 
 use crate::{cli::output::arguments::Argument, project_model::sourceset::SourceSet};
 
-///! The higher abstractions of the program
-
+/// Bound for the user defined arguments that are passed to the compiler
 pub trait ExtraArgs<'a> {
     fn extra_args(&'a self) -> &'a [Argument<'a>];
 }
 
+/// Contracts for the executable operations
 pub trait ExecutableTarget<'a>: ExtraArgs<'a> {
     fn name(&'a self) -> &'a str;
     fn sourceset(&'a self) -> &'a SourceSet;

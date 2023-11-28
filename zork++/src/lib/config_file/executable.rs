@@ -1,4 +1,4 @@
-///! Specify the execution configuration
+//! Specify the execution configuration
 use serde::*;
 
 /// [`ExecutableAttribute`] -  The core section to instruct the compiler to work with C++20 modules.
