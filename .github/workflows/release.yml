@@ -65,6 +65,14 @@ jobs:
         run: |
           cargo deb --no-build --output ./target/debian/zork.deb
           mv ./target/debian/zork.deb ./target/debian/zork++.deb
+      # TODO
+      - name: Sign binary Zork .deb
+        uses: lando/code-sign-action@v2
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          file: ./zork++/target/debian/zork++.deb
+          certificate-data: ${{ secrets.CERT_DATA }}
+          certificate-password: ${{ secrets.CERT_PASSWORD }}
 
       - name: Building the installer with Inno Setup
         if: ${{ matrix.os == 'windows-latest' }}
@@ -72,6 +80,14 @@ jobs:
           rename ".\zork++\target\release\zork.exe" "zork++.exe"
           "%programfiles(x86)%\Inno Setup 6\iscc.exe" ".\release-config\windows-installer-zork.iss"
         shell: cmd
+      # TODO
+      - name: Sign binary Zork windows installer
+        uses: lando/code-sign-action@v2
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          file: zork-installer.exe
+          certificate-data: ${{ secrets.CERT_DATA }}
+          certificate-password: ${{ secrets.CERT_PASSWORD }}
 
       - name: Make Zip for Windows
         if: ${{ matrix.os == 'windows-latest' }}
