@@ -9,6 +9,7 @@
 
 <div align="center">
 
+![Rust](https://img.shields.io/badge/rust-%23000000.svg?logo=rust&logoColor=white)
 ![C++](https://img.shields.io/badge/c++-%2300599C.svg?logo=c%2B%2B&logoColor=white)
 
 [![Windows Installer](https://github.com/zerodaycode/Zork/actions/workflows/release.yml/badge.svg)](https://github.com/zerodaycode/Zork/actions/workflows/release.yml)
