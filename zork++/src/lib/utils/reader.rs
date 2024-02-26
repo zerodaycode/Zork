@@ -29,6 +29,8 @@ use crate::{
 use color_eyre::{eyre::eyre, Result};
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
+use crate::config_file::workspace::WorkspaceAttribute;
+use crate::project_model::workspace::WorkspaceModel;
 
 use super::constants::DEFAULT_OUTPUT_DIR;
 
@@ -59,6 +61,21 @@ pub fn find_config_files(
     log::debug!("Searching for Zork++ configuration files...");
     let mut files = vec![];
 
+    /*
+    Opción A: Matcheamos con depth = 1, con lo cual solo puedes correr zork++ desde mínimo, dentro
+    de la raíz del projecto, PEEEERO... habría que buscar de nuevo las config files registradas
+    en el workspace
+
+    Opción B: Cargarlas todas. Parsear fuera del bucle principal. Organizar. En caso de haber
+    workspace, lógica 1. Else => otra lógica
+
+    Opción C: Buscar siempre con depth = 1. Si cuando salen los resultados, la config file es
+    un workspace, volver a buscar. Si no, ya estaríamos compilando el crate al que apunta "el tema"
+
+    Opción D: Al pasar la flag de workspace, sabemos que es de antemano un workspace. Eso implica menos
+    lógica de proceso, pero podría haber distintos zork por ahí aunque sea de puto milagro
+
+    */
     for e in WalkDir::new(base_path)
         .max_depth(2)
         .into_iter()
@@ -89,6 +106,11 @@ pub fn find_config_files(
 }
 
 pub fn build_model<'a>(config: &'a ZorkConfigFile, cli_args: &'a CliArgs) -> Result<ZorkModel<'a>> {
+pub fn build_model<'a>(
+    config: &'a ZorkConfigFile,
+    project_root_from_cli: &Path,
+) -> Result<ZorkModel<'a>> {
+    let workspace = assemble_workspace_model(&config.workspace);
     let project = assemble_project_model(&config.project);
 
     let absolute_project_root = if cli_args.root.is_none() {
@@ -110,6 +132,7 @@ pub fn build_model<'a>(config: &'a ZorkConfigFile, cli_args: &'a CliArgs) -> Res
     let tests = assemble_tests_model(project.name, &config.tests, &absolute_project_root);
 
     Ok(ZorkModel {
+        workspace,
         project,
         compiler,
         build,
@@ -117,6 +140,12 @@ pub fn build_model<'a>(config: &'a ZorkConfigFile, cli_args: &'a CliArgs) -> Res
         modules,
         tests,
     })
+}
+
+fn assemble_workspace_model<'a>(config: &'a Option<WorkspaceAttribute>) -> WorkspaceModel<'a> {
+    WorkspaceModel {
+        members: config.as_ref().unwrap_or(&WorkspaceAttribute::default()).members.clone()
+    }
 }
 
 fn assemble_project_model<'a>(config: &'a ProjectAttribute) -> ProjectModel<'a> {
@@ -407,6 +436,9 @@ mod test {
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
 
         let expected = ZorkModel {
+            workspace: WorkspaceModel {
+                members: vec![],
+            },
             project: ProjectModel {
                 name: "Zork++",
                 authors: &["zerodaycode.gz@gmail.com"],
@@ -457,6 +489,9 @@ mod test {
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
 
         let expected = ZorkModel {
+            workspace: WorkspaceModel {
+                members: vec![],
+            },
             project: ProjectModel {
                 name: "Zork++",
                 authors: &["zerodaycode.gz@gmail.com"],

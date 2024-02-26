@@ -6,10 +6,12 @@ pub mod executable;
 pub mod modules;
 pub mod project;
 pub mod tests;
+pub mod workspace;
 
 use std::fmt::Debug;
 
 use serde::Deserialize;
+use crate::config_file::workspace::WorkspaceAttribute;
 
 use self::{
     build::BuildAttribute, compiler::CompilerAttribute, executable::ExecutableAttribute,
@@ -42,8 +44,10 @@ use self::{
 /// The [`ZorkConfigFile`] is the type that holds
 /// the whole hierarchy of Zork++ config file attributes
 /// and properties
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug, Default, Clone)]
 pub struct ZorkConfigFile<'a> {
+    #[serde(borrow)]
+    pub workspace: Option<WorkspaceAttribute<'a>>,
     #[serde(borrow)]
     pub project: ProjectAttribute<'a>,
     #[serde(borrow)]
