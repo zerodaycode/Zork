@@ -69,7 +69,7 @@ jobs:
       - name: Signing Windows .exe
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          "C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" sign /f /ph ".\release-config\certificate_windows.pfx" /p ${{ secrets.WIN_CERT_PASSWORD }} /v ".\zork++\target\release\zork.exe"
+          "C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" sign /f ".\release-config\certificate_windows.pfx" /p ${{ secrets.WIN_CERT_PASSWORD }} /v ".\zork++\target\release\zork.exe"
         shell: cmd
       - name: Verify Windows Signing
         if: ${{ matrix.os == 'windows-latest' }}
