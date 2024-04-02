@@ -66,6 +66,12 @@ jobs:
           cargo deb --no-build --output ./target/debian/zork.deb
           mv ./target/debian/zork.deb ./target/debian/zork++.deb
 
+      - name: Signing .exe
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          'C:\Program Files (x86)\Windows Kits\10\bin\10.0.17763.0\x86\signtool.exe' sign /f ".\release-config\certificate_windows.pfx" /p ${{ secrets.WIN_CERT_PASSWORD }} /v ".\zork++\target\release\zork.exe"
+        shell: cmd
+
       - name: Building the installer with Inno Setup
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
