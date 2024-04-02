@@ -5,7 +5,7 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
-    
+
 jobs:
   generate-release:
     permissions:
@@ -13,16 +13,16 @@ jobs:
     runs-on: 'ubuntu-latest'
 
     steps:
-    - name: Generate release ${{ steps.version.outputs.version }}
-      uses: actions/create-release@v1
-      id: create-release
-      with:
-        draft: false
-        prerelease: false
-        release_name: ${{ steps.version.outputs.version }}
-        tag_name: ${{ github.ref }}
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
+      - name: Generate release ${{ steps.version.outputs.version }}
+        uses: actions/create-release@v1
+        id: create-release
+        with:
+          draft: false
+          prerelease: false
+          release_name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
     outputs:
       upload_url: ${{ steps.create-release.outputs.upload_url }}
 
@@ -32,7 +32,7 @@ jobs:
       contents: write
     strategy:
       matrix:
-        os: ['ubuntu-latest', 'windows-latest']
+        os: [ 'ubuntu-latest', 'windows-latest' ]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -40,7 +40,7 @@ jobs:
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.ref }}
-      
+
       - name: Caching cargo dependencies
         id: project-cache
         uses: Swatinem/rust-cache@v2
@@ -69,7 +69,12 @@ jobs:
       - name: Signing Windows .exe
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          "C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" sign /f ".\release-config\certificate_windows.pfx" /p ${{ secrets.WIN_CERT_PASSWORD }} /v ".\zork++\target\release\zork.exe"
+          "C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" sign /f /ph ".\release-config\certificate_windows.pfx" /p ${{ secrets.WIN_CERT_PASSWORD }} /v ".\zork++\target\release\zork.exe"
+        shell: cmd
+      - name: Verify Windows Signing
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          "C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" verify /v
         shell: cmd
 
       - name: Building the installer with Inno Setup
