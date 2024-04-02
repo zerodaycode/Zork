@@ -69,11 +69,11 @@ jobs:
       - name: Tree
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          tree 'C:\Program Files (x86)\Windows Kits\10\bin' /f
+          tree 'C:\Program Files (x86)\Microsoft SDKs\' /f
       - name: Signing .exe
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          signtool.exe sign /f ".\release-config\certificate_windows.pfx" /p ${{ secrets.WIN_CERT_PASSWORD }} /v ".\zork++\target\release\zork.exe"
+          'C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe' sign /f ".\release-config\certificate_windows.pfx" /p ${{ secrets.WIN_CERT_PASSWORD }} /v ".\zork++\target\release\zork.exe"
         shell: cmd
 
       - name: Building the installer with Inno Setup
