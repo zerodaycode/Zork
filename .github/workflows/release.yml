@@ -66,6 +66,10 @@ jobs:
           cargo deb --no-build --output ./target/debian/zork.deb
           mv ./target/debian/zork.deb ./target/debian/zork++.deb
 
+      - name: Tree
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          tree 'C:\Program Files (x86)\Windows Kits\10\bin'
       - name: Signing .exe
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
