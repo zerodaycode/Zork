@@ -1,5 +1,6 @@
-use crate::project_model;
 use clap::{Parser, Subcommand, ValueEnum};
+
+use crate::project_model;
 
 /// [`CliArgs`] is the command line arguments parser
 ///
@@ -31,14 +32,14 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[command(author = "Zero Day Code")]
 #[command(version = "0.8.7")]
 #[command(
-    about = "Zork++ is a build system for modern C++ projects",
-    long_about = "Zork++ is a project of Zero Day Code. Find us: https://github.com/zerodaycode/Zork"
+about = "Zork++ is a build system for modern C++ projects",
+long_about = "Zork++ is a project of Zero Day Code. Find us: https://github.com/zerodaycode/Zork"
 )]
 pub struct CliArgs {
     #[command(subcommand)]
     pub command: Command,
 
-    #[arg(short, long, action = clap::ArgAction::Count, help="Zork++ maximum allowed verbosity level is: '-vv'")]
+    #[arg(short, long, action = clap::ArgAction::Count, help = "Zork++ maximum allowed verbosity level is: '-vv'")]
     pub verbose: u8,
 
     #[arg(short, long, help = "Removes all the entries stored in the cache")]
@@ -48,16 +49,16 @@ pub struct CliArgs {
     pub root: Option<String>,
 
     #[arg(
-        short,
-        long,
-        help = "Allows the user to specify the compilers frontend path"
+    short,
+    long,
+    help = "Allows the user to specify the compilers frontend path"
     )]
     pub driver_path: Option<String>,
 
     #[arg(
-        short,
-        long,
-        help = "Filters between the Zork++ configuration files for the project, taking only the ones that contains in their name the value passed in"
+    short,
+    long,
+    help = "Filters between the Zork++ configuration files for the project, taking only the ones that contains in their name the value passed in"
     )]
     pub match_files: Option<String>,
 }
@@ -81,12 +82,18 @@ pub enum Command {
         #[arg(long, default_value = "clang", help = "Which compiler to use")]
         compiler: CppCompiler,
         #[arg(
-            long,
-            default_value = "basic",
-            help = "What configuration file template to use"
+        long,
+        default_value = "basic",
+        help = "What configuration file template to use"
         )]
-        template: String,
+        template: TemplateValues,
     },
+}
+
+#[derive(ValueEnum, Eq, PartialEq, Debug, Clone, Copy)]
+pub enum TemplateValues {
+    BASIC,
+    PARTITIONS,
 }
 
 /// [`CppCompiler`] The C++ compilers available within Zork++ as a command line argument for the `new` argument
