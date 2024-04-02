@@ -74,7 +74,7 @@ jobs:
       - name: Verify Windows Signing
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
-          "C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" verify /v
+          "C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" verify /v ".\zork++\target\release\zork.exe"
         shell: cmd
 
       - name: Building the installer with Inno Setup
