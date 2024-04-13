@@ -660,18 +660,24 @@ mod helpers {
                     Argument::from(*sys_module),
                 ];
 
-                if model.compiler.cpp_compiler.eq(&CppCompiler::CLANG) {
-                    v.push(Argument::from("-o"));
-                    v.push(Argument::from(
-                        Path::new(&model.build.output_dir)
-                            .join(model.compiler.cpp_compiler.as_ref())
-                            .join("modules")
-                            .join("interfaces")
-                            .join(sys_module)
-                            .with_extension(
-                                model.compiler.cpp_compiler.get_typical_bmi_extension(),
-                            ),
-                    ));
+                match model.compiler.cpp_compiler {
+                    CppCompiler::CLANG => {
+                        v.push(Argument::from("-o"));
+                        v.push(Argument::from(
+                            Path::new(&model.build.output_dir)
+                                .join(model.compiler.cpp_compiler.as_ref())
+                                .join("modules")
+                                .join("interfaces")
+                                .join(sys_module)
+                                .with_extension(
+                                    model.compiler.cpp_compiler.get_typical_bmi_extension(),
+                                ),
+                        ));
+                    }
+                    CppCompiler::GCC => {
+                        v.push(Argument::from("-fmodules-ts"));
+                    }
+                    _ => {}
                 }
 
                 v

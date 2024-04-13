@@ -1,8 +1,7 @@
 <p align="center">
   <a href="https://github.com/ZeroDayCode/Zork" rel="noopener">
- <img width=300px height=200px style="border-radius: 50%" src="./assets/zork++_logo.png" alt="Zork++ Logo"></a>
+ <img width=300px height=160px src="./assets/zork++_logo_short.png" alt="Zork++ Logo"></a>
 </p>
-
 <h1 align="center">The Zork++ project</h1>
 
 <h3 align="center"> A modern C++ project manager and build system for modern C++
@@ -10,50 +9,47 @@
 
 <div align="center">
 
-[![Code Quality](https://github.com/zerodaycode/Zork/actions/workflows/code-quality.yml/badge.svg?branch=main)](https://github.com/zerodaycode/Zork/actions/workflows/code-quality.yml)
-[![Windows Installer](https://github.com/zerodaycode/Zork/actions/workflows/release.yml/badge.svg)](https://github.com/zerodaycode/Zork/actions/workflows/release.yml)
-[![Coverage CD/CI](https://github.com/zerodaycode/Zork/actions/workflows/code-coverage.yml/badge.svg)](https://zerodaycode.github.io/Zork/index.html)
+![Rust](https://img.shields.io/badge/rust-%23000000.svg?logo=rust&logoColor=white)
+![C++](https://img.shields.io/badge/c++-%2300599C.svg?logo=c%2B%2B&logoColor=white)
 
-[![GitHub Issues](https://img.shields.io/github/issues/zerodaycode/Zork.svg)](https://github.com/zerodaycode/Zork/issues)</br>
+[![Windows Installer](https://github.com/zerodaycode/Zork/actions/workflows/release.yml/badge.svg)](https://github.com/zerodaycode/Zork/actions/workflows/release.yml)
+
+[![Code Quality](https://github.com/zerodaycode/Zork/actions/workflows/code-quality.yml/badge.svg?branch=main)](https://github.com/zerodaycode/Zork/actions/workflows/code-quality.yml)
+[![Coverage CD/CI](https://github.com/zerodaycode/Zork/actions/workflows/code-coverage.yml/badge.svg)](https://zerodaycode.github.io/Zork/index.html)
+[![Coverage CD/CI](https://zerodaycode.github.io/Zork/badges/flat.svg)](https://zerodaycode.github.io/Zork)
+
+[![GitHub Issues](https://img.shields.io/github/issues/zerodaycode/Zork.svg)](https://github.com/zerodaycode/Zork/issues)
 [![GitHub Pull Requests](https://img.shields.io/github/issues-pr/zerodaycode/Zork.svg)](https://github.com/zerodaycode/Zork/pulls)
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
-[![Coverage CD/CI](https://zerodaycode.github.io/Zork/badges/flat.svg)](https://zerodaycode.github.io/Zork)
 </div>
 
 ---
 
-# 📝 Table of Contents
+# :memo: Table of Contents
 
-- [About](#-about-a-hrefabouta)
-- [Getting Started](#-getting-started-a-href--gettingstarteda)
-- [A quick start example](#generating-a-new-c-project-a-href--gettingstartedexamplea)
-- [The `zork.toml` reference guide](#-the-zorktoml-reference-guide-a-hrefzorktomlreferencea)
-- [The `Zork++` command_line](#-the-zork-command-line-interface-a-hrefzorkcommandlinea)
-- [Compilation Database (`compile_commands.json`)](#-compilation-database-a-hrefcompilation-databasea)
-- [C++23 `import std;`](#-c23-import-std-feature-a-hrefimportstda)
-- [The developers and contributors guide](#-developers-guide-a-hrefdevguidea)
-- [The future features](#-todo-zone-a-href--todozonea)
-- [Built Using](#-built-using-a-href--builtusinga)
-- [Contributing](./CONTRIBUTING.md)
-- [License](./LICENSE)
-- [Authors](#-authors-a-href--authorsa)
-- [Acknowledgements](#-acknowledgements-a-href--acknowledgementa)
+<div align="center">
 
-# 🧐 About <a href="about"></a>
+[About](#-about-a-hrefabouta) **|** [Getting Started](#-getting-started-a-href--gettingstarteda) **|** [A quick start example](#generating-a-new-c-project-a-href--gettingstartedexamplea) **|** [The `zork.toml` reference guide](#-the-zorktoml-reference-guide-a-hrefzorktomlreferencea) **|** [The `Zork++` command_line](#-the-zork-command-line-interface-a-hrefzorkcommandlinea) **|** [Compilation Database (`compile_commands.json`)](#-compilation-database-a-hrefcompilation-databasea) **|** [C++23 `import std;`](#-c23-import-std-feature-a-hrefimportstda) **|** [The developers and contributors guide](#-developers-guide-a-hrefdevguidea) **|** [The future features](#-todo-zone-a-href--todozonea) **|** [Built Using](#-built-using-a-href--builtusinga) **|** [Contributing](./CONTRIBUTING.md) **|** [License](./LICENSE) **|** [Authors](#-authors-a-href--authorsa) **|** [Acknowledgements](#-acknowledgements-a-href--acknowledgementa)
+
+</div>
+
+
+# :monocle_face: About <a href="about"></a>
+
 
 `Zork++` was born out of the need to build `C++` projects with the *modules* feature, introduced in the `C++20` standard.
 
 The existing build systems have limitations and difficulties using the `C++20` modules consistently.
 So we started designing a tool that takes some `C++` files, generates the necessary compiler commands and invokes the compiler to produce the desired executable/library!
 
-# 🏁 Getting Started <a href = "getting_started"></a>
 
-## Installation
+# :checkered_flag: Getting Started <a href = "getting_started"></a>
 
-The easiest way to start with `Zork++` is to download the [latest release
-available](https://github.com/zerodaycode/Zork/releases) for your current operating system.
-The packages are built for the `x86_64` architecture.
+
+## :computer: Installation
+
+The easiest way to start with `Zork++` is to download the [latest release available](https://github.com/zerodaycode/Zork/releases) for your current operating system. The packages are built for the `x86_64` architecture.
 
 ### Windows
 
@@ -63,8 +59,7 @@ Simply download the `windows-installer.zip` artifact from the release page, extr
 
 ### Debian based Distributions
 
-We provide a `.deb` package for Debian based distributions.
-After downloading it from the release page, install it by running the command
+We provide a `.deb` package for Debian based distributions. After downloading it from the release page, install it by running the command
 
 ~~~bash
 $ sudo apt install ./zork++.deb
@@ -114,7 +109,8 @@ $ cargo build --frozen --release
 
 You can find the compiled binary inside the `target/release` directory.
 
-## Prerequisites
+
+## :pushpin: Prerequisites
 
 In order to work with `Zork++`, you will need a `C++` a compiler on your system.
 Currently, we are supporting the major three compilers in the ecosystem:
@@ -123,7 +119,8 @@ Currently, we are supporting the major three compilers in the ecosystem:
 - GNU's GCC
 - Microsoft's MSVC (only supported on Windows)
 
-## Generating a new C++ project <a href = "getting_started_example"></a>
+
+## :clap: Generating a new C++ project <a href = "getting_started_example"></a>
 
 You can use `Zork++` with an already existing project, or create a new project from the command line.
 
@@ -132,8 +129,7 @@ You can use `Zork++` with an already existing project, or create a new project f
 
 `$ zork++ new github_example`
 
-After a moment, a new project should be created in your desired directory, where Clang will be set as 
-the default compiler.
+After a moment, a new project should be created in your desired directory, where Clang will be set as the default compiler.
 If you prefer to use one of the other two alternatives, just use:
 
 `$ zork++ new github_example --compiler gcc` or `$ zork++ new github_example --msvc`
@@ -171,6 +167,7 @@ What happened here?
 *An autogenerated project using the `Zork++` command line*
 </p>
 
+
 ### An overview of the autogenerated project structure
 
 - `dependencies` ⇒ An empty folder. We recommend you to put your third-party or external libraries, headers, etc. in this folder.
@@ -181,12 +178,12 @@ What happened here?
 - `zork_clang.toml` ⇒ Finally! We arrived at the most important part that you will need to understand when working with `Zork++`.
 See [The zork.toml config file](#zork_conf) section to have a better understanding on how to write the configuration file and your project.
 
-> Note that this structure is just a guideline. You may prefer to organize your files in a completely different way. We are just providing a predefined layout, so you can quickly start working on your project.
+> [!NOTE]
+> 
+> This structure is just a guideline. You may prefer to organize your files in a completely different way. We are just providing a predefined layout, so you can quickly start working on your project.
 
->`Zork++` comes with this basic example by default, where is based on some driver code on the main file,
-a couple of module interfaces and module implementations. By passing `--template partitions` as a command line argument,
-you will have access to a more complex example, where module partitions and other module stuff appears, being 
-a more sophisticated C++ modules project example. 
+>`Zork++` comes with this basic example by default, where is based on some driver code on the main file, a couple of module interfaces and module implementations. By passing `--template partitions` as a command line argument, you will have access to a more complex example, where module partitions and other module stuff appears, being a more sophisticated C++ modules project example. 
+
 
 ## Let's explore the `out` directory a little
 
@@ -207,7 +204,8 @@ Let's go through the folders:
 - `zork/intrinsics` ⇒ this is a special one. Sometimes `Zork++` needs additional things to work properly. This is the place where those things live. See [Windows special requirements](#windows_special_requeriments) for more info.
 - `github_example.exe` ⇒ this is the binary, that is generated by the build process.
 
-# 🔧 The `zork.toml` config file <a href="usage"></a>
+
+# :wrench: The `zork.toml` config file <a href="usage"></a>
 
 The `zork.toml` configuration file is the core of the project.
 It is the most important part for working with `Zork++`.
@@ -259,6 +257,7 @@ This is `toml` table syntax. You may choose whatever `toml` available syntax you
 
 For a full reference of every property available under a specific section, please see the [zork.toml](#zork_toml_reference) reference guide.
 
+
 ## Let's briefly discuss every section, to get a general perspective of what we are building
 
 - `[project]` ⇒ Here you specify the metadata for the project. This could be potentially more relevant in the future, to allow users to auto-publish projects on some websites.
@@ -289,7 +288,8 @@ But for now, you must manually download the source files and pass them (if appli
 
 The optional `base_path` property allows you to specify a path where `Zork++` looks for your source files, so you don't have to specify the full path for every source.
 
-## Additional notes on the `[modules]` attribute
+
+## :bulb: Additional notes on the `[modules]` attribute
 
 > Whenever you declare a module interface or a module implementation in the configuration file, you must take in consideration that sometimes modules (both interfaces or implementations) depend on other modules. Dependencies of one or more modules are declared as shown below:
 
@@ -306,15 +306,13 @@ implementations = [
 
 > The *module interface units* can take any number of module dependencies as they wish, but there's no direct mapping on the no dependency declaration, because it's an interface unit.
 
-> On the implementations, if the relation has no declared dependencies,
-(meaning that only the file name of the *module implementation*
+> On the implementations, if the relation has no declared dependencies, (meaning that only the file name of the *module implementation*
 is declared here), `Zork++` will assume that the unique module interface that the module implementation depends on has the same name of the *file* property declared for the module implementation.
 
 > A *module implementation unit* always depends on at least one interface unit: the *module interface* that public declared the module.
 That's why `Zork++` assumes that if the implementation unit does not explicitly declare an interface unit, an interface unit exists with the same name in the interfaces' directory (without file extension).
 
-> If the user does not use the same file name for both
-the interface and the declaration and no direct dependency is declared, a compiler error will be thrown because `Zork++` does not care about wrongly specified dependencies.
+> If the user does not use the same file name for both the interface and the declaration and no direct dependency is declared, a compiler error will be thrown because `Zork++` does not care about wrongly specified dependencies.
 
 ## Module partitions
 
@@ -343,7 +341,9 @@ Some peculiarities by compiler at the time of writing:
 - MSVC ⇒ Basically, we take advantage of the fantastic `MSVC` implicit module lookup.
 This means that you aren't obligated to explicitly declare module names or module partition names... But, there's a specific case: `internal module partitions`. So, whenever you have an internal module partition, you must declare your translation unit as `partition`, and then provide at least `module` and `is_internal_partition` in order to make it work
 
-> Note that in future releases, things about module partitions may change drastically (or not!). For example, we are expecting Clang to implement a good way of making implicit declarations but having the opportunity to specify a concrete output directory, among other things in other compilers too.
+> [!NOTE]
+> 
+> In future releases, things about module partitions may change drastically (or not!). For example, we are expecting Clang to implement a good way of making implicit declarations but having the opportunity to specify a concrete output directory, among other things in other compilers too.
 
 ## The sys_modules property
 
@@ -351,7 +351,8 @@ This means that you aren't obligated to explicitly declare module names or modul
 For example, whenever you use `import <iostream>` instead of using `#include` directives.
 Every time you want to use `import<sys_module>` in your project, you can instruct `Zork` to precompile the corresponding system header in order to make it available as module.
 
-# 📑 The `zork.toml` reference guide <a href="zork_toml_reference"></a>
+
+# :bookmark_tabs: The `zork.toml` reference guide <a href="zork_toml_reference"></a>
 
 Here is an overview of all the attributes available in the `zork.toml` configuration file.
 The format is described as `Rust` types (simplified).
@@ -497,7 +498,8 @@ For example:
   - `gcc` ⇒ (alias = "MSVC", alias = "Msvc", alias = "msvc")
 - The supported standard libraries to link against (`compiler.std_lib`, only applies to `Clang`) ⇒ `stdlibc++` or `libc++`
 
-# 📑 The `Zork++` command line interface <a href="zork_command_line"></a>
+
+# :bookmark_tabs: The `Zork++` command line interface <a href="zork_command_line"></a>
 
 `Zork++` comes with a minimalistic yet powerful command line interface.
 Our direct intention was to mimic the standard way of working with `Rust`'s `Cargo` CLI,
@@ -514,7 +516,7 @@ a minimal setup. This command includes some arguments to make it more flexible, 
   - `--compiler <COMPILER>` ⇒ indicates which of the compilers available within `Zork++`
     should be used to set up the template
 
-#### Arguments (they should be place before the main subcommands described above)
+#### Arguments (they should be placed before the main subcommands described above)
 
 - `--match-files` => Accepts an string value that will be used to perform a filter to the detected `Zork++`
 configuration files present in the project. Acts like the classical `contains` method, by checking that the value
@@ -530,11 +532,10 @@ Controls which kind of `C++` code template is generated.
 must be processed again. This is useful after a lot of program iterations, when the cache starts
 to slow down the build process.
 
-# 📑 Compilation Database <a href="compilation-database"></a>
 
-`Zork++` is able to generate a compilation database file, commonly known as `compile_commands.json`. This file is typically
-used by static code analyzers, IDE's and other tools to provide information about the status, the quality, problems, errors,
-suggestions and all kind of crazy things that the linting tools are able to do.
+# :bookmark_tabs: Compilation Database <a href="compilation-database"></a>
+
+`Zork++` is able to generate a compilation database file, commonly known as `compile_commands.json`. This file is typically used by static code analyzers, IDE's and other tools to provide information about the status, the quality, problems, errors, suggestions and all kind of crazy things that the linting tools are able to do.
 
 To enable this feature, you will need to put a flag property, under the `#[project]` table, named `compilation_db`.
 
@@ -543,49 +544,42 @@ To enable this feature, you will need to put a flag property, under the `#[proje
 compilation_db = true
 ```
 
-The file will be automatically generated the first time that `Zork++` sees this property on the configuration file, and
-will be regularly updated when changes are detected in the generated command lines, or when files are added/dropped
-from your project.
+The file will be automatically generated the first time that `Zork++` sees this property on the configuration file, and will be regularly updated when changes are detected in the generated command lines, or when files are added/dropped from your project.
 
-# 📑 C++23 `import std;` feature <a href="import_std"></a>
+
+# :bookmark_tabs: C++23 `import std;` feature <a href="import_std"></a>
 
 The `C++23` standard is supposed to come with a nice feature to finally support modules in a real way, that is through the `import std;` statement.
 This means that the whole standard library will be available as a single nice and neat component.
 
-But this is not available in every compiler using `C++20`, and at the time of writing, they have only
-partial or no support at all for `C++23`, but some of them have their own kind of workarounds.
+But this is not available in every compiler using `C++20`, and at the time of writing, they have only partial or no support at all for `C++23`, but some of them have their own kind of workarounds.
 
 In `Zork++`, you have this feature enabled if:
 
 - You're working with `Clang` because the `modulemap` feature of `Clang`. So, in your project, you're able to:
-  - `import std;` This our preferred way, in line with the C++23 feature. Under *Windows*, this is made automatically,
-  because we manually generate a `module.modulemap` file that takes care to include the need system headers under
-  the `import std;` statement. In *Unix* kind of operating systems, this is automatically passed as a requirement
-  to `Clang` with a requirement. `libc++` must be installed in your machine. If there's no `libc++` or `libc++-dev`
-  library installed in your computer, you will see some error like: `import std; --> Error, module not found`
-  So, make sure that you installed the `Clang's` implementation of the *standard library* to take advantage of
-  this feature. On *Debian* based systems, you can just use `$ sudo apt install libc++-dev`. On *Arch* systems,
-  just `$ sudo pacman -Sy libc++`.
-  >In any case, make sure that you enabled *libc++* as your standard library in your **zork.toml** configuration file.
+  
+  - `import std;` This our preferred way, in line with the C++23 feature. Under *Windows*, this is made automatically, because we manually generate a `module.modulemap` file that takes care to include the need system headers under the `import std;` statement. In *Unix* kind of operating systems, this is automatically passed as a requirement to `Clang` with a requirement. `libc++` must be installed in your machine. If there's no `libc++` or `libc++-dev` library installed in your computer, you will see some error like: `import std; --> Error, module not found`
+  So, make sure that you installed the `Clang's` implementation of the *standard library* to take advantage of this feature. On *Debian* based systems, you can just use `$ sudo apt install libc++-dev`. On *Arch* systems, just `$ sudo pacman -Sy libc++`.
+
+  > In any case, make sure that you enabled *libc++* as your standard library in your **zork.toml** configuration file.
        
   - As alternative, you can use `import <system_header_name>;` This is, individually import some specific system header as a module. 
-  Needs an explicit pre-compilation process. This is supported by `Clang` and `GCC` (since we are not able
-  to do an `import std` for `GCC` builds).
+  Needs an explicit pre-compilation process. This is supported by `Clang` and `GCC` (since we are not able to do an `import std` for `GCC` builds).
   
 
-- You're working with `MSVC`, you are able to use `import std.core`, as a compiler specific
-feature. But this will allow you to use import statements instead of `#include` directives.
-In upcoming releases will we adapt to the real way on how
-Microsoft's compiler deals with this feature, so `Zork++` users will be able to correctly use `import std;`
-in their codebases with *MSVC*, not the workarounds existing up until this point.
+- You're working with `MSVC`, you are able to use `import std.core`, as a compiler specific feature. But this will allow you to use import statements instead of `#include` directives.
+In upcoming releases will we adapt to the real way on how Microsoft's compiler deals with this feature, so `Zork++` users will be able to correctly use `import std;` in their codebases with *MSVC*, not the workarounds existing up until this point.
 
-# 🎈 Developers Guide <a href="dev_guide"></a>
+
+
+# :balloon: Developers Guide <a href="dev_guide"></a>
 
 Contributing to `Zork++` is, technically, an easy task. You just have to open an issue and document some bug that you discovered or some feature that you would like to have.
 
 If you want to solve the bug or contribute with a new feature by yourself, after creating the issue, just fork the repository, link a new branch to your fork from the base branch, and when you're happy with the proposal, open a PR for us to review!
 
-## ☑️ Running the tests
+
+## :ballot_box_with_check: Running the tests
 
 We distinguish two kinds of tests in Zork:
 
@@ -603,9 +597,11 @@ Alternatively, you can always download the source code and run them in a local e
 You will need to have `Rust` installed and change into the `zork++` directory.
 Then you just need to run `$ cargo test --all`.
 
-# 📑 TODO ZONE <a href = "todo_zone"></a>
 
-## The things that we desire to implement or upgrade in Zork++
+# :bookmark_tabs: TODO ZONE <a href = "todo_zone"></a>
+
+
+## :sparkles: The things that we desire to implement or upgrade in Zork++
 
 - Support the Intel's C++ compiler (not a priority, but it would be nice)
 - Dump the commands generated in a text file different from the cache by a command line order
@@ -619,14 +615,16 @@ for the modified files
 - Include and offer test frameworks directly in the project. That means integrating
 third party test frameworks directly in `Zork++`
 
-# ⛏️ Built Using <a href = "built_using"></a>
+
+# :hammer: Built Using <a href = "built_using"></a>
 
 - [Rust](https://www.rust-lang.org/) - The full code is written on Rust
 - [TOML](https://www.toml.io/) - We are using `toml` for the program configuration files
 
 ## TODO - Motivations for the style, etc
 
-# ✍️ Authors <a href = "authors"></a>
+
+# :black_nib: Authors <a href = "authors"></a>
 
 - [@pyzyryab](https://github.com/pyzyryab) - Idea and core work
 - [@gbm25](https://github.com/gbm25) - Parsers and testing attribute integration
@@ -635,6 +633,7 @@ third party test frameworks directly in `Zork++`
 
 See also the list of [contributors](https://github.com/zerodaycode/Zork/contributors) who participated in this project.
 
-# 🎉 Acknowledgements <a href = "acknowledgement"></a>
+
+# :confetti_ball: Acknowledgements <a href = "acknowledgement"></a>
 
 - This project is largely inspired by [CMake](https://cmake.org/) and [Rust's Cargo](https://www.rust-lang.org/)

@@ -1,5 +1,6 @@
 pub mod resources;
 
+use crate::cli::input::TemplateValues;
 use crate::project_model::compiler::CppCompiler;
 use crate::utils;
 use color_eyre::eyre::{bail, Context};
@@ -25,7 +26,7 @@ pub fn create_templated_project(
     project_name: &str,
     git: bool,
     compiler: CppCompiler,
-    template: &String,
+    template: &TemplateValues,
 ) -> std::result::Result<(), Report> {
     let project_root = base_path.join(project_name);
 
@@ -48,41 +49,44 @@ pub fn create_templated_project(
         resources::IFC_MOD_FILE.as_bytes(),
     )?;
 
-    if template.eq("partitions") {
-        utils::fs::create_file(
-            &path_ifc,
-            &format!(
-                "{}.{}",
-                "partitions",
-                compiler.get_default_module_extension()
-            ),
-            resources::IFC_PART_FILE.as_bytes(),
-        )?;
-        utils::fs::create_file(
-            &path_ifc,
-            &format!(
-                "{}.{}",
-                "interface_partition",
-                compiler.get_default_module_extension()
-            ),
-            resources::IFC_PART_PARTITION_FILE.as_bytes(),
-        )?;
-        utils::fs::create_file(
-            &path_ifc,
-            &format!("{}.{}", "internal_partition", "cpp"),
-            resources::PARTITIONS_INTERNAL_PARTITION_FILE.as_bytes(),
-        )?;
-        utils::fs::create_file(&project_root, "main.cpp", resources::MAIN.as_bytes())?;
-    } else {
-        utils::fs::create_file(&project_root, "main.cpp", resources::MAIN_BASIC.as_bytes())?;
+    match template {
+        TemplateValues::BASIC => {
+            utils::fs::create_file(&project_root, "main.cpp", resources::MAIN_BASIC.as_bytes())?;
+        }
+        TemplateValues::PARTITIONS => {
+            utils::fs::create_file(
+                &path_ifc,
+                &format!(
+                    "{}.{}",
+                    "partitions",
+                    compiler.get_default_module_extension()
+                ),
+                resources::IFC_PART_FILE.as_bytes(),
+            )?;
+            utils::fs::create_file(
+                &path_ifc,
+                &format!(
+                    "{}.{}",
+                    "interface_partition",
+                    compiler.get_default_module_extension()
+                ),
+                resources::IFC_PART_PARTITION_FILE.as_bytes(),
+            )?;
+            utils::fs::create_file(
+                &path_ifc,
+                &format!("{}.{}", "internal_partition", "cpp"),
+                resources::PARTITIONS_INTERNAL_PARTITION_FILE.as_bytes(),
+            )?;
+            utils::fs::create_file(&project_root, "main.cpp", resources::MAIN.as_bytes())?;
+        }
     }
+
     utils::fs::create_file(&path_src, "math.cpp", resources::SRC_MOD_FILE.as_bytes())?;
     utils::fs::create_file(&path_src, "math2.cpp", resources::SRC_MOD_FILE_2.as_bytes())?;
 
-    let zork_conf = if template.eq("partitions") {
-        resources::CONFIG_FILE
-    } else {
-        resources::CONFIG_FILE_BASIC
+    let zork_conf = match template {
+        TemplateValues::BASIC => resources::CONFIG_FILE_BASIC,
+        TemplateValues::PARTITIONS => resources::CONFIG_FILE,
     }
     .replace("<compiler>", compiler.as_ref())
     .replace(
@@ -181,7 +185,7 @@ mod tests {
             PROJECT_NAME,
             false,
             CppCompiler::CLANG,
-            &String::from("basic"),
+            &TemplateValues::BASIC,
         );
         assert!(
             result.is_err(),
