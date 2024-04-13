@@ -13,12 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 is selected as the target standard library
 - implement the correct way of dealing with the `import std;` sentence when using `MSVC`
 
+## [0.8.8] - 2024 - 04 - 13
+
+### Bug
+
+- Fix a missing cmd flag when building *system modules* with `GCC`, thanks to @Property404
+
 ## [0.8.7] - 2023 - 10 - 27
 
 ### Feature
 
 - Added a new **CLI flag** to specify where Zork++ should start to work
-  version: bumped to the 0.8.7
 - Removed the `-fmodules-ts` Clang's command line flag, since it's deprecated since **Clang 16,** and it will
 be removed in **Clang 17**. Also, is actions are implied by set the **C++ standard version > 20**.
 
@@ -27,7 +32,7 @@ be removed in **Clang 17**. Also, is actions are implied by set the **C++ standa
 `Zork++` version
 
 ## Update
-- README description contains now a warning that **libc++** must be installed in Unix like systems to correctly be able 
+- README description contains now a warning that **libc++** must be installed in Unix like systems to correctly be able
 to use `import std`;
 
 ## [0.8.6] - 2023 - 04 - 05
@@ -105,7 +110,7 @@ file, which is used by static analyzers and IDE's to offer code completion and l
 - The overall performance of the cache process has been reviewed. We get rid of a cache clone that was affecting
 the performance, and making a huge impact the memory needed for the cache process during runtime
 by a factor of two.
-Now everything is smoothly handled by mutable and immutable reference types. 
+Now everything is smoothly handled by mutable and immutable reference types.
 - A command line flag `-c` has been included to reset the cache when the user requires.
 
 ### Update
