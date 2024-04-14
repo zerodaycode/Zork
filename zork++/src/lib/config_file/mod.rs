@@ -10,8 +10,8 @@ pub mod workspace;
 
 use std::fmt::Debug;
 
-use serde::Deserialize;
 use crate::config_file::workspace::WorkspaceAttribute;
+use serde::Deserialize;
 
 use self::{
     build::BuildAttribute, compiler::CompilerAttribute, executable::ExecutableAttribute,

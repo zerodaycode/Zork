@@ -35,5 +35,5 @@ use serde::Deserialize;
 #[serde(deny_unknown_fields)]
 pub struct WorkspaceAttribute<'a> {
     #[serde(borrow)]
-    pub members: Vec<&'a str>
+    pub members: Vec<&'a str>,
 }

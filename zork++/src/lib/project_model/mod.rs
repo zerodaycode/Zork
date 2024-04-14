@@ -7,8 +7,8 @@ pub mod sourceset;
 pub mod tests;
 pub mod workspace;
 
-use std::fmt::Debug;
 use crate::project_model::workspace::WorkspaceModel;
+use std::fmt::Debug;
 
 use self::{
     build::BuildModel, compiler::CompilerModel, executable::ExecutableModel, modules::ModulesModel,

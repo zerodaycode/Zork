@@ -1,6 +1,6 @@
 use clap::Parser;
 use color_eyre::Result;
-use std::{fs, path::Path};
+use std::{env, fs, path::Path};
 use tempfile::tempdir;
 use zork::cli::input::CliArgs;
 
@@ -144,12 +144,22 @@ fn test_full_program_with_multi_config_files() -> Result<()> {
     }
 
     assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "-vv", "--match-files", "gcc", "--driver-path", "clang++-16", "run"]),
+        &CliArgs::parse_from([
+            "",
+            "-vv",
+            "--match-files",
+            "clang",
+            /* "--driver-path",
+            "clang++-16", */
+            "run"
+        ]),
         Path::new(temp.path())
     )
     .is_ok());
 
     // GCC
+    env::set_current_dir(temp.path())?; // NOTE: Should this fix the problem that GCC saves the
+                                        // gcm.cache folder on the CWD?
     assert!(zork::worker::run_zork(
         &CliArgs::parse_from(["", "new", "gcc_example", "--compiler", "gcc"]),
         Path::new(temp.path())

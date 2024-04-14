@@ -53,7 +53,10 @@ pub mod worker {
         let config_files_raw = find_config_files(path, &cli_args.match_files)
             .with_context(|| "We didn't found a valid Zork++ configuration file")
             .unwrap();
-        let config_file_paths: Vec<_> = config_files_raw.iter().map(|cfg| cfg.path.clone()).collect();
+        let config_file_paths: Vec<_> = config_files_raw
+            .iter()
+            .map(|cfg| cfg.path.clone())
+            .collect();
         log::trace!("Config files found: {config_file_paths:?}");
 
         // Read the file contents and store them in a Vec of strings.
@@ -76,7 +79,7 @@ pub mod worker {
             zork_config_files.push(
                 toml::from_str::<ZorkConfigFile>(config_file_content)
                     .with_context(|| "Could not parse configuration file")
-                    .expect("UPS 2")
+                    .expect("UPS 2"),
             );
             // TODO from here, we should check if there's workspaces, and adapt the processing
             // workflow from here
@@ -90,7 +93,10 @@ pub mod worker {
                 .with_context(|| "Unable to load the Zork++ cache")?;
 
             do_main_work_based_on_cli_input(cli_args, &program_data, cache).with_context(|| {
-                format!("Failed to build the project: {:?}", zork_config_file.project.name)
+                format!(
+                    "Failed to build the project: {:?}",
+                    zork_config_file.project.name
+                )
             })?;
         }
 

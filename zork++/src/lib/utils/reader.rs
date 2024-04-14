@@ -1,5 +1,7 @@
 use crate::cli::input::CliArgs;
+use crate::config_file::workspace::WorkspaceAttribute;
 use crate::project_model::sourceset::SourceFile;
+use crate::project_model::workspace::WorkspaceModel;
 use crate::utils::fs::get_project_root_absolute_path;
 use crate::{
     cli::output::arguments::Argument,
@@ -29,8 +31,6 @@ use crate::{
 use color_eyre::{eyre::eyre, Result};
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
-use crate::config_file::workspace::WorkspaceAttribute;
-use crate::project_model::workspace::WorkspaceModel;
 
 use super::constants::DEFAULT_OUTPUT_DIR;
 
@@ -140,7 +140,11 @@ pub fn build_model<'a>(config: &'a ZorkConfigFile, cli_args: &'a CliArgs) -> Res
 
 fn assemble_workspace_model<'a>(config: &'a Option<WorkspaceAttribute>) -> WorkspaceModel<'a> {
     WorkspaceModel {
-        members: config.as_ref().unwrap_or(&WorkspaceAttribute::default()).members.clone()
+        members: config
+            .as_ref()
+            .unwrap_or(&WorkspaceAttribute::default())
+            .members
+            .clone(),
     }
 }
 
@@ -432,9 +436,7 @@ mod test {
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
 
         let expected = ZorkModel {
-            workspace: WorkspaceModel {
-                members: vec![],
-            },
+            workspace: WorkspaceModel { members: vec![] },
             project: ProjectModel {
                 name: "Zork++",
                 authors: &["zerodaycode.gz@gmail.com"],
@@ -485,9 +487,7 @@ mod test {
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
 
         let expected = ZorkModel {
-            workspace: WorkspaceModel {
-                members: vec![],
-            },
+            workspace: WorkspaceModel { members: vec![] },
             project: ProjectModel {
                 name: "Zork++",
                 authors: &["zerodaycode.gz@gmail.com"],
