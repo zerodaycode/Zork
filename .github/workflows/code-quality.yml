@@ -2,7 +2,7 @@ name: Code quality and sanity
 
 on:
   push:
-    branches: '*'
+    branches: 'main'
   pull_request:
     branches: '*'
 
@@ -22,12 +22,12 @@ jobs:
       - uses: hecrj/setup-rust-action@v1
         with:
           components: clippy
-      
-      - name: Verifiying the code quality with Clippy 
+
+      - name: Verifiying the code quality with Clippy
         run: |
           cd zork++
           cargo clippy --all-targets --all-features
-  
+
   rustfmt:
     name: Verify code formatting
     runs-on: ubuntu-latest
@@ -45,12 +45,12 @@ jobs:
           cargo fmt --all -- --check
 
   tests:
-    name: Run the tests - Clang 
+    name: Run the tests - Clang
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        clang_version: [15, 16, 17]
+        clang_version: [15, 16, 17, 18]
     steps:
       - uses: actions/checkout@v3
       - name: Caching project dependencies
@@ -73,7 +73,6 @@ jobs:
           echo "-----> Updating the symbolic link to point to Clang ${{ matrix.clang_version }}"
           sudo rm -f /usr/bin/clang++
           sudo ln -s /usr/bin/clang++-${{ matrix.clang_version }} /usr/bin/clang++
-  
 
           # Display the installation directory and version of the installed Clang
           echo "-----> Clang-${{ matrix.clang_version }} was installed on:"
