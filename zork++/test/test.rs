@@ -24,7 +24,8 @@ fn test_clang_full_process() -> Result<()> {
     .is_ok());
 
     let process_result = zork::worker::run_zork(
-        &CliArgs::parse_from(["", "-vv", "--driver-path", "clang++-16", "run"]),
+        //, "--driver-path", "clang++-16"
+        &CliArgs::parse_from(["", "-vv", "run"]),
         Path::new(temp.path()),
     );
     assert!(process_result.is_ok(), "{}", process_result.unwrap_err());
@@ -91,6 +92,9 @@ compilation terminated.
  */
 fn test_gcc_linux_full_process() -> Result<()> {
     let temp = tempdir()?;
+
+    env::set_current_dir(temp.path())?; // NOTE: Should this fix the problem that GCC saves the
+                                        // gcm.cache folder on the CWD?
 
     assert!(zork::worker::run_zork(
         &CliArgs::parse_from(["", "new", "gcc_example", "--compiler", "gcc"]),
