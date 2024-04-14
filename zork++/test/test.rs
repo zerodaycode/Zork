@@ -24,7 +24,7 @@ fn test_clang_full_process() -> Result<()> {
     .is_ok());
 
     let process_result = zork::worker::run_zork(
-        &CliArgs::parse_from(["", "-vv", "run"]),
+        &CliArgs::parse_from(["", "-vv", "--driver-path", "clang++-16", "run"]),
         Path::new(temp.path()),
     );
     assert!(process_result.is_ok(), "{}", process_result.unwrap_err());
@@ -76,7 +76,6 @@ fn test_gcc_windows_full_process() -> Result<()> {
 
 #[cfg(target_os = "linux")]
 #[test]
-#[ignore]
 /*
 In the GitHub's virtual machines, we are still unable, due
 to the gcm.cache path.
@@ -127,7 +126,6 @@ fn test_gcc_linux_full_process() -> Result<()> {
 }
 
 #[test]
-#[ignore] // TODO
 fn test_full_program_with_multi_config_files() -> Result<()> {
     let temp = tempdir()?;
 
@@ -146,27 +144,26 @@ fn test_full_program_with_multi_config_files() -> Result<()> {
     }
 
     assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "-vv", "run"]),
+        &CliArgs::parse_from(["", "-vv", "--match-files", "gcc", "--driver-path", "clang++-16", "run"]),
         Path::new(temp.path())
     )
     .is_ok());
 
-    // GCC specifics
-    if cfg!(target_os = "windows") {
-        assert!(zork::worker::run_zork(
-            &CliArgs::parse_from(["", "new", "gcc_example", "--compiler", "gcc"]),
-            Path::new(".")
-        )
-        .is_ok());
-        assert!(
-            zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]), Path::new("."))
-                .is_ok()
-        );
+    // GCC
+    assert!(zork::worker::run_zork(
+        &CliArgs::parse_from(["", "new", "gcc_example", "--compiler", "gcc"]),
+        Path::new(temp.path())
+    )
+    .is_ok());
+    assert!(zork::worker::run_zork(
+        &CliArgs::parse_from(["", "-vv", "--match-files", "gcc", "run"]),
+        Path::new(temp.path())
+    )
+    .is_ok());
 
-        fs::remove_dir_all("./gcc_example")?;
-        fs::remove_dir_all("./gcm.cache")?;
-        fs::remove_dir_all("./out")?;
-    }
+    // fs::remove_dir_all("./gcc_example")?;
+    fs::remove_dir_all("./gcm.cache")?;
+    // fs::remove_dir_all("./out")?;
 
     Ok(temp.close()?)
 }
@@ -202,6 +199,8 @@ mod local_env_tests {
                 &path.display().to_string(),
                 "--match-files",
                 "local_linux",
+                "--driver-path",
+                "clang++-16",
                 "run",
             ]),
             &path,

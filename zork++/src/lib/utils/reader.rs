@@ -106,10 +106,6 @@ pub fn find_config_files(
 }
 
 pub fn build_model<'a>(config: &'a ZorkConfigFile, cli_args: &'a CliArgs) -> Result<ZorkModel<'a>> {
-pub fn build_model<'a>(
-    config: &'a ZorkConfigFile,
-    project_root_from_cli: &Path,
-) -> Result<ZorkModel<'a>> {
     let workspace = assemble_workspace_model(&config.workspace);
     let project = assemble_project_model(&config.project);
 
