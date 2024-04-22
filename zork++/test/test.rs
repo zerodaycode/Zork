@@ -1,6 +1,6 @@
 use clap::Parser;
 use color_eyre::Result;
-use std::{fs, path::Path};
+use std::fs;
 use tempfile::tempdir;
 use zork::cli::input::CliArgs;
 
@@ -9,24 +9,18 @@ fn test_clang_full_process() -> Result<()> {
     let temp = tempdir()?;
     env_logger::init();
 
-    assert!(zork::worker::run_zork(
-        &CliArgs::parse_from([
-            "",
-            "new",
-            "clang_example",
-            "--compiler",
-            "clang",
-            "--template",
-            "basic"
-        ]),
-        Path::new(temp.path())
-    )
+    assert!(zork::worker::run_zork(&CliArgs::parse_from([
+        "",
+        "new",
+        "clang_example",
+        "--compiler",
+        "clang",
+        "--template",
+        "basic"
+    ]),)
     .is_ok());
 
-    let process_result = zork::worker::run_zork(
-        &CliArgs::parse_from(["", "-vv", "run"]),
-        Path::new(temp.path()),
-    );
+    let process_result = zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]));
     assert!(process_result.is_ok(), "{}", process_result.unwrap_err());
 
     Ok(temp.close()?)
@@ -56,7 +50,7 @@ fn test_msvc_full_process() -> Result<()> {
 #[test]
 fn test_gcc_windows_full_process() -> Result<()> {
     assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "new", "gcc_example", "--compiler", "gcc"]),
+        &CliArgs::parse
         Path::new(".") // Unable to run GCC tests because the gcm.cache folder, that
                        // we just wasn't able to discover how to specify a directory for it
     )
@@ -93,17 +87,16 @@ compilation terminated.
 fn test_gcc_linux_full_process() -> Result<()> {
     let temp = tempdir()?;
 
-    assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "new", "gcc_example", "--compiler", "gcc"]),
-        Path::new(temp.path())
-    )
+    assert!(zork::worker::run_zork(&CliArgs::parse_from([
+        "",
+        "new",
+        "gcc_example",
+        "--compiler",
+        "gcc"
+    ]),)
     .is_ok());
 
-    assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "-vv", "run"]),
-        Path::new(temp.path())
-    )
-    .is_ok());
+    assert!(zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]),).is_ok());
 
     Ok(temp.close()?)
 
@@ -131,37 +124,39 @@ fn test_gcc_linux_full_process() -> Result<()> {
 fn test_full_program_with_multi_config_files() -> Result<()> {
     let temp = tempdir()?;
 
-    assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "new", "clang_example", "--compiler", "clang"]),
-        Path::new(temp.path())
-    )
+    assert!(zork::worker::run_zork(&CliArgs::parse_from([
+        "",
+        "new",
+        "clang_example",
+        "--compiler",
+        "clang"
+    ]),)
     .is_ok());
 
     if cfg!(target_os = "windows") {
-        assert!(zork::worker::run_zork(
-            &CliArgs::parse_from(["", "new", "msvc_example", "--compiler", "msvc"]),
-            Path::new(temp.path())
-        )
+        assert!(zork::worker::run_zork(&CliArgs::parse_from([
+            "",
+            "new",
+            "msvc_example",
+            "--compiler",
+            "msvc"
+        ]),)
         .is_ok());
     }
 
-    assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "-vv", "run"]),
-        Path::new(temp.path())
-    )
-    .is_ok());
+    assert!(zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]),).is_ok());
 
     // GCC specifics
     if cfg!(target_os = "windows") {
-        assert!(zork::worker::run_zork(
-            &CliArgs::parse_from(["", "new", "gcc_example", "--compiler", "gcc"]),
-            Path::new(".")
-        )
+        assert!(zork::worker::run_zork(&CliArgs::parse_from([
+            "",
+            "new",
+            "gcc_example",
+            "--compiler",
+            "gcc"
+        ]),)
         .is_ok());
-        assert!(
-            zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]), Path::new("."))
-                .is_ok()
-        );
+        assert!(zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"])).is_ok());
 
         fs::remove_dir_all("./gcc_example")?;
         fs::remove_dir_all("./gcm.cache")?;
@@ -185,7 +180,7 @@ mod local_env_tests {
     /// use a debugger to figure out what our changes are doing and how are affecting the codebase.
     #[test]
     #[ignore]
-    fn test_clang_full_process_manually_by_specifying_the_project_root_on_linux() {
+    fn test_local_clang_full_process_manually_by_specifying_the_project_root_on_linux() {
         // Using env::home_dir because this test should be Unix specific
         // For any developer, change the path to whatever C++ project based on modules
         // you want to test Zork++ against
@@ -194,18 +189,16 @@ mod local_env_tests {
         path.push("code");
         path.push("c++");
         path.push("Zero");
-        let process = zork::worker::run_zork(
-            &CliArgs::parse_from([
-                "",
-                "-vv",
-                "--root",
-                &path.display().to_string(),
-                "--match-files",
-                "local_linux",
-                "run",
-            ]),
-            &path,
-        );
+
+        let process = zork::worker::run_zork(&CliArgs::parse_from([
+            "",
+            "-vv",
+            "--root",
+            &path.display().to_string(),
+            "--match-files",
+            "local_linux",
+            "run",
+        ]));
         assert!(process.is_ok());
     }
 }
