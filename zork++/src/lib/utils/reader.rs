@@ -394,9 +394,8 @@ mod test {
 
         let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
         let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
-        let model = build_model(&config, &cli_args, Path::new("."));
-
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
+        let model = build_model(&config, &cli_args, &abs_path_for_mock);
 
         let expected = ZorkModel {
             project: ProjectModel {
@@ -444,9 +443,8 @@ mod test {
     fn test_project_model_with_full_config() -> Result<()> {
         let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK)?;
         let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
-        let model = build_model(&config, &cli_args, Path::new("."));
-
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
+        let model = build_model(&config, &cli_args, &abs_path_for_mock);
 
         let expected = ZorkModel {
             project: ProjectModel {

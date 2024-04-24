@@ -210,8 +210,6 @@ pub mod worker {
 
     #[cfg(test)]
     mod tests {
-        use std::path::Path;
-
         use crate::cli::input::CliArgs;
         use clap::Parser;
         use color_eyre::{eyre::Context, Result};
@@ -229,7 +227,7 @@ pub mod worker {
                 .replace('\\', "/");
             let zcf: ZorkConfigFile = toml::from_str(&normalized_cfg_file)?;
             let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
-            let model = build_model(&zcf, &cli_args, Path::new("."))
+            let model = build_model(&zcf, &cli_args, temp.path())
                 .with_context(|| "Error building the project model")?;
 
             // This should create and out/ directory in the ./zork++ folder at the root of this project
