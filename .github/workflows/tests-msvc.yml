@@ -19,6 +19,11 @@ jobs:
         id: project-cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Setting up Rust
+        uses: hecrj/setup-rust-action@v1
+        with:
+          rust-version: stable
+
       - name: Running the tests for the project
         run: |
           cd zork++
