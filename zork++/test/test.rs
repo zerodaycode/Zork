@@ -1,3 +1,4 @@
+use std::fs;
 use clap::Parser;
 use color_eyre::Result;
 use tempfile::tempdir;
@@ -77,6 +78,8 @@ fn test_gcc_windows_full_process() -> Result<()> {
     assert!(
         zork::worker::run_zork(&CliArgs::parse_from(["", "--root", path, "-vv", "run"])).is_ok()
     );
+
+    fs::remove_dir_all("./gcm.cache")?;
 
     Ok(tempdir.close()?)
 }

@@ -49,4 +49,4 @@ jobs:
         name: Running the tests for the project
         run: |
           cd zork++
-          RUST_LOG=trace cargo test 2>&1 --all --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1
+          RUST_LOG=trace cargo test 2>&1 clang --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1

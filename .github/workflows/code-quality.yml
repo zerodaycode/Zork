@@ -36,10 +36,17 @@ jobs:
       - name: Caching project dependencies
         id: project-cache
         uses: Swatinem/rust-cache@v2
+
       - uses: hecrj/setup-rust-action@v1
         with:
           components: rustfmt
+
       - name: Checking the format sanity of the project
         run: |
           cd zork++
           cargo fmt --all -- --check
+
+      - name: Run Unit and Doc tests
+        run: |
+          cargo test --workspace --lib --color=always --no-fail-fast
+          cargo test --workspace --doc --color=always --no-fail-fast
