@@ -37,7 +37,7 @@ jobs:
         id: project-cache
         uses: Swatinem/rust-cache@v2
 
-      - uses: hecrj/setup-rust-action@v1
+      - uses: hecrj/setup-rust-action@v2
         with:
           components: rustfmt
 

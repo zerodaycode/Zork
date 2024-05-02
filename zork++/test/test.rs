@@ -1,6 +1,6 @@
-use std::fs;
 use clap::Parser;
 use color_eyre::Result;
+use std::fs;
 use tempfile::tempdir;
 use zork::cli::input::CliArgs;
 
@@ -125,7 +125,6 @@ fn test_gcc_full_process() -> Result<()> {
 
     Ok(tempdir.close()?)
 }
-
 
 #[cfg(target_os = "linux")]
 mod local_env_tests {
