@@ -126,7 +126,11 @@ fn test_gcc_full_process() -> Result<()> {
     Ok(tempdir.close()?)
 }
 
+
+#[cfg(target_os = "linux")]
 mod local_env_tests {
+    use super::*;
+    use std::env;
     /// This test allows the developers to specify a path in local environments, having the opportunity
     /// to debug the Zork++ source code from a concrete location.
     ///
