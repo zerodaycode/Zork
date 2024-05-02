@@ -6,24 +6,35 @@ use zork::cli::input::CliArgs;
 
 #[test]
 fn test_clang_full_process() -> Result<()> {
-    let temp = tempdir()?;
+    let tempdir = tempdir()?;
+    let path = tempdir.path().to_str().unwrap();
     env_logger::init();
 
     assert!(zork::worker::run_zork(&CliArgs::parse_from([
         "",
+        "--root",
+        path, // TODO: pass this path directly to the generated zork++ cfg template file
         "new",
         "clang_example",
         "--compiler",
         "clang",
         "--template",
-        "basic"
+        "basic",
     ]),)
     .is_ok());
 
-    let process_result = zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]));
+    let process_result = zork::worker::run_zork(&CliArgs::parse_from([
+        "",
+        "-vv",
+        "--root",
+        path,
+        /* "--driver-path",
+        "clang++-16", // Local cfg issues */
+        "run",
+    ]));
     assert!(process_result.is_ok(), "{}", process_result.unwrap_err());
 
-    Ok(temp.close()?)
+    Ok(tempdir.close()?)
 }
 
 #[cfg(target_os = "windows")]
@@ -60,17 +71,11 @@ fn test_gcc_windows_full_process() -> Result<()> {
         zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]), Path::new(".")).is_ok()
     );
 
-    // Clearing the GCC dirs
-    fs::remove_dir_all("./gcc_example")?;
-    fs::remove_dir_all("./gcm.cache")?;
-    fs::remove_dir_all("./out")?;
-
     Ok(())
 }
 
 #[cfg(target_os = "linux")]
 #[test]
-#[ignore]
 /*
 In the GitHub's virtual machines, we are still unable, due
 to the gcm.cache path.
@@ -84,86 +89,31 @@ In module imported at /tmp/.tmpGaFLnR/gcc_example/main.cpp:8:5:
 /usr/include/c++/13.2.1/iostream: fatal error: returning to the gate for a mechanical issue
 compilation terminated.
  */
-fn test_gcc_linux_full_process() -> Result<()> {
-    let temp = tempdir()?;
+fn test_gcc_full_process() -> Result<()> {
+    let tempdir = tempdir()?;
+    let path = tempdir.path().to_str().unwrap();
 
     assert!(zork::worker::run_zork(&CliArgs::parse_from([
         "",
+        "--root",
+        path,
         "new",
         "gcc_example",
         "--compiler",
-        "gcc"
+        "gcc",
     ]),)
     .is_ok());
 
-    assert!(zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]),).is_ok());
+    assert!(
+        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "--root", path, "run"]),).is_ok()
+    );
 
-    Ok(temp.close()?)
-
-    /*
-    assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "new", "gcc_example", "--compiler", "gcc"]),
-        Path::new(".")
-    )
-    .is_ok());
-
-    let res = zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]), Path::new("."));
-
-    fs::remove_dir_all("./gcc_example")?;
+    // Clearing the GCC modules cache (weird, isn't generated at the invoked project's root)
+    // maybe we should change dir? but that collide with the purpose of specifiying the project
+    // root clearly
     fs::remove_dir_all("./gcm.cache")?;
-    fs::remove_dir_all("./out")?;
 
-    assert!(res.is_ok());
-
-    Ok(())
-    */
-}
-
-#[test]
-#[ignore] // TODO
-fn test_full_program_with_multi_config_files() -> Result<()> {
-    let temp = tempdir()?;
-
-    assert!(zork::worker::run_zork(&CliArgs::parse_from([
-        "",
-        "new",
-        "clang_example",
-        "--compiler",
-        "clang"
-    ]),)
-    .is_ok());
-
-    if cfg!(target_os = "windows") {
-        assert!(zork::worker::run_zork(&CliArgs::parse_from([
-            "",
-            "new",
-            "msvc_example",
-            "--compiler",
-            "msvc"
-        ]),)
-        .is_ok());
-    }
-
-    assert!(zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]),).is_ok());
-
-    // GCC specifics
-    if cfg!(target_os = "windows") {
-        assert!(zork::worker::run_zork(&CliArgs::parse_from([
-            "",
-            "new",
-            "gcc_example",
-            "--compiler",
-            "gcc"
-        ]),)
-        .is_ok());
-        assert!(zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"])).is_ok());
-
-        fs::remove_dir_all("./gcc_example")?;
-        fs::remove_dir_all("./gcm.cache")?;
-        fs::remove_dir_all("./out")?;
-    }
-
-    Ok(temp.close()?)
+    Ok(tempdir.close()?)
 }
 
 mod local_env_tests {
@@ -195,6 +145,8 @@ mod local_env_tests {
             "-vv",
             "--root",
             &path.display().to_string(),
+            "--driver-path",
+            "clang++-16",
             "--match-files",
             "local_linux",
             "run",
