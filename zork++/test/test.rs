@@ -24,10 +24,7 @@ fn test_clang_full_process() -> Result<()> {
     .is_ok());
 
     let process_result = zork::worker::run_zork(&CliArgs::parse_from([
-        "",
-        "-vv",
-        "--root",
-        path,
+        "", "-vv", "--root", path,
         /* "--driver-path",
         "clang++-16", // Local cfg issues */
         "run",
