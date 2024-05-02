@@ -2,7 +2,6 @@ use crate::cli::input::CliArgs;
 use crate::config_file::workspace::WorkspaceAttribute;
 use crate::project_model::sourceset::SourceFile;
 use crate::project_model::workspace::WorkspaceModel;
-use crate::utils::fs::get_project_root_absolute_path;
 use crate::{
     cli::output::arguments::Argument,
     config_file::{
@@ -105,27 +104,20 @@ pub fn find_config_files(
     }
 }
 
-pub fn build_model<'a>(config: &'a ZorkConfigFile, cli_args: &'a CliArgs) -> Result<ZorkModel<'a>> {
+pub fn build_model<'a>(
+    config: &'a ZorkConfigFile,
+    cli_args: &'a CliArgs,
+    absolute_project_root: &Path,
+) -> Result<ZorkModel<'a>> {
     let workspace = assemble_workspace_model(&config.workspace);
     let project = assemble_project_model(&config.project);
 
-    let absolute_project_root = if cli_args.root.is_none() {
-        get_project_root_absolute_path(
-            project
-                .project_root
-                .map(Path::new)
-                .unwrap_or(Path::new(".")),
-        )?
-    } else {
-        Path::new(&cli_args.root.as_ref().unwrap()).to_path_buf()
-    };
-
     let compiler = assemble_compiler_model(&config.compiler, cli_args);
-    let build = assemble_build_model(&config.build, &absolute_project_root);
+    let build = assemble_build_model(&config.build, absolute_project_root);
     let executable =
-        assemble_executable_model(project.name, &config.executable, &absolute_project_root);
-    let modules = assemble_modules_model(&config.modules, &absolute_project_root);
-    let tests = assemble_tests_model(project.name, &config.tests, &absolute_project_root);
+        assemble_executable_model(project.name, &config.executable, absolute_project_root);
+    let modules = assemble_modules_model(&config.modules, absolute_project_root);
+    let tests = assemble_tests_model(project.name, &config.tests, absolute_project_root);
 
     Ok(ZorkModel {
         workspace,
@@ -431,9 +423,8 @@ mod test {
 
         let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
         let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
-        let model = build_model(&config, &cli_args);
-
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
+        let model = build_model(&config, &cli_args, &abs_path_for_mock);
 
         let expected = ZorkModel {
             workspace: WorkspaceModel { members: vec![] },
@@ -482,9 +473,8 @@ mod test {
     fn test_project_model_with_full_config() -> Result<()> {
         let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK)?;
         let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
-        let model = build_model(&config, &cli_args);
-
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
+        let model = build_model(&config, &cli_args, &abs_path_for_mock);
 
         let expected = ZorkModel {
             workspace: WorkspaceModel { members: vec![] },
