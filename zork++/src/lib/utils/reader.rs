@@ -1,5 +1,7 @@
 use crate::cli::input::CliArgs;
+use crate::config_file::workspace::WorkspaceAttribute;
 use crate::project_model::sourceset::SourceFile;
+use crate::project_model::workspace::WorkspaceModel;
 use crate::{
     cli::output::arguments::Argument,
     config_file::{
@@ -58,6 +60,21 @@ pub fn find_config_files(
     log::debug!("Searching for Zork++ configuration files...");
     let mut files = vec![];
 
+    /*
+    Opción A: Matcheamos con depth = 1, con lo cual solo puedes correr zork++ desde mínimo, dentro
+    de la raíz del projecto, PEEEERO... habría que buscar de nuevo las config files registradas
+    en el workspace
+
+    Opción B: Cargarlas todas. Parsear fuera del bucle principal. Organizar. En caso de haber
+    workspace, lógica 1. Else => otra lógica
+
+    Opción C: Buscar siempre con depth = 1. Si cuando salen los resultados, la config file es
+    un workspace, volver a buscar. Si no, ya estaríamos compilando el crate al que apunta "el tema"
+
+    Opción D: Al pasar la flag de workspace, sabemos que es de antemano un workspace. Eso implica menos
+    lógica de proceso, pero podría haber distintos zork por ahí aunque sea de puto milagro
+
+    */
     for e in WalkDir::new(base_path)
         .max_depth(2)
         .into_iter()
@@ -92,6 +109,7 @@ pub fn build_model<'a>(
     cli_args: &'a CliArgs,
     absolute_project_root: &Path,
 ) -> Result<ZorkModel<'a>> {
+    let workspace = assemble_workspace_model(&config.workspace);
     let project = assemble_project_model(&config.project);
 
     let compiler = assemble_compiler_model(&config.compiler, cli_args);
@@ -102,6 +120,7 @@ pub fn build_model<'a>(
     let tests = assemble_tests_model(project.name, &config.tests, absolute_project_root);
 
     Ok(ZorkModel {
+        workspace,
         project,
         compiler,
         build,
@@ -109,6 +128,16 @@ pub fn build_model<'a>(
         modules,
         tests,
     })
+}
+
+fn assemble_workspace_model<'a>(config: &'a Option<WorkspaceAttribute>) -> WorkspaceModel<'a> {
+    WorkspaceModel {
+        members: config
+            .as_ref()
+            .unwrap_or(&WorkspaceAttribute::default())
+            .members
+            .clone(),
+    }
 }
 
 fn assemble_project_model<'a>(config: &'a ProjectAttribute) -> ProjectModel<'a> {
@@ -398,6 +427,7 @@ mod test {
         let model = build_model(&config, &cli_args, &abs_path_for_mock);
 
         let expected = ZorkModel {
+            workspace: WorkspaceModel { members: vec![] },
             project: ProjectModel {
                 name: "Zork++",
                 authors: &["zerodaycode.gz@gmail.com"],
@@ -447,6 +477,7 @@ mod test {
         let model = build_model(&config, &cli_args, &abs_path_for_mock);
 
         let expected = ZorkModel {
+            workspace: WorkspaceModel { members: vec![] },
             project: ProjectModel {
                 name: "Zork++",
                 authors: &["zerodaycode.gz@gmail.com"],

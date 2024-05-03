@@ -204,7 +204,7 @@ impl ZorkCache {
             .entry(PathBuf::from(named_target))
             .and_modify(|e| {
                 if !(*e).eq(&commands_details.main.command) {
-                    *e = commands_details.main.command.clone()
+                    e.clone_from(&commands_details.main.command)
                 }
             })
             .or_insert(commands_details.main.command.clone());

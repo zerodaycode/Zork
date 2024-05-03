@@ -29,7 +29,7 @@ pub mod worker {
         project_model::{compiler::CppCompiler, ZorkModel},
         utils::{
             self,
-            reader::{build_model, find_config_files, ConfigFile},
+            reader::{build_model, find_config_files},
             template::create_templated_project,
         },
     };
@@ -63,35 +63,44 @@ pub mod worker {
             );
         };
 
-        /* let project_root = if cli_args.root.is_none() {
-            project
-                .project_root
-                .map(Path::new)
-                .unwrap_or(Path::new("."))
-        } else {
-            Path::new(cli_args.root.as_ref().unwrap())
-        }; */
+        // Find and store the config file paths directly.
+        let config_files_raw = find_config_files(project_root, &cli_args.match_files)
+            .with_context(|| "We didn't found a valid Zork++ configuration file")
+            .unwrap();
+        let config_file_paths: Vec<_> = config_files_raw
+            .iter()
+            .map(|cfg| cfg.path.clone())
+            .collect();
+        log::trace!("Config files found: {config_file_paths:?}");
 
-        let config_files: Vec<ConfigFile> = find_config_files(project_root, &cli_args.match_files)
-            .with_context(|| "We didn't found a valid Zork++ configuration file")?;
-        log::trace!("Config files found: {config_files:?}");
+        // Read the file contents and store them in a Vec of strings.
+        let mut config_file_contents: Vec<String> = Vec::new();
+        for config_file_path in &config_file_paths {
+            let contents = fs::read_to_string(config_file_path)
+                .with_context(|| {
+                    format!(
+                        "An error happened parsing the configuration file: {:?}",
+                        config_file_path.file_name()
+                    )
+                })
+                .expect("UPS");
+            config_file_contents.push(contents);
+        }
 
-        for config_file in config_files {
-            log::debug!(
-                "Launching a Zork++ work event for the configuration file: {:?}, located at: {:?}\n",
-                config_file.dir_entry.file_name(),
-                config_file.path
+        // Deserialize the config files one by one, passing references to the strings in the Vec.
+        let mut zork_config_files = vec![];
+        for config_file_content in &config_file_contents {
+            zork_config_files.push(
+                toml::from_str::<ZorkConfigFile>(config_file_content)
+                    .with_context(|| "Could not parse configuration file")
+                    .expect("UPS 2"),
             );
-            let raw_file = fs::read_to_string(config_file.path).with_context(|| {
-                format!(
-                    "An error happened parsing the configuration file: {:?}",
-                    config_file.dir_entry.file_name()
-                )
-            })?;
+            // TODO from here, we should check if there's workspaces, and adapt the processing
+            // workflow from here
+        }
 
-            let config: ZorkConfigFile = toml::from_str(raw_file.as_str())
-                .with_context(|| "Could not parse configuration file")?;
-            let program_data = build_model(&config, cli_args, &abs_project_root)?;
+        for zork_config_file in zork_config_files {
+            let program_data = build_model(&zork_config_file, cli_args, &abs_project_root)?;
             create_output_directory(&program_data)?;
 
             let cache = cache::load(&program_data, cli_args)
@@ -99,8 +108,8 @@ pub mod worker {
 
             do_main_work_based_on_cli_input(cli_args, &program_data, cache).with_context(|| {
                 format!(
-                    "Failed to build the project for the config file: {:?}",
-                    config_file.dir_entry.file_name()
+                    "Failed to build the project: {:?}",
+                    zork_config_file.project.name
                 )
             })?;
         }

@@ -38,7 +38,7 @@ use serde::*;
 ///
 /// For a test over a real example, please look at the
 /// [`zork::config_file::ZorkConfigFile`] doc-test
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Deserialize, Debug, PartialEq, Clone)]
 pub struct TestsAttribute<'a> {
     #[serde(borrow)]
     pub test_executable_name: Option<&'a str>,
