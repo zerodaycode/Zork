@@ -86,20 +86,7 @@ fn test_gcc_windows_full_process() -> Result<()> {
 
 #[cfg(target_os = "linux")]
 #[test]
-/*
-In the GitHub's virtual machines, we are still unable, due
-to the gcm.cache path.
-
-cc1plus: fatal error: iostream: No such file or directory
-compilation terminated.
-In module imported at /tmp/.tmpGaFLnR/gcc_example/main.cpp:8:5:
-/usr/include/c++/13.2.1/iostream: error: failed to read compiled module: No such file or directory
-/usr/include/c++/13.2.1/iostream: note: compiled module file is ‘gcm.cache/./usr/include/c++/13.2.1/iostream.gcm’
-/usr/include/c++/13.2.1/iostream: note: imports must be built before being imported
-/usr/include/c++/13.2.1/iostream: fatal error: returning to the gate for a mechanical issue
-compilation terminated.
- */
-fn test_gcc_full_process() -> Result<()> {
+fn test_gcc_linux_full_process() -> Result<()> {
     let tempdir = tempdir()?;
     let path = tempdir.path().to_str().unwrap();
 
