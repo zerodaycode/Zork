@@ -66,22 +66,22 @@ jobs:
           cargo deb --no-build --output ./target/debian/zork.deb
           mv ./target/debian/zork.deb ./target/debian/zork++.deb
 
-      - name: Signing Windows .exe
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: |
-          "C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" sign /f ".\release-config\certificate_windows.pfx" /p ${{ secrets.WIN_CERT_PASSWORD }} /v ".\zork++\target\release\zork.exe"
-        shell: cmd
-      - name: Verify Windows Signing
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: |
-          "C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" verify /v ".\zork++\target\release\zork.exe"
-        shell: cmd
-
       - name: Building the installer with Inno Setup
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
           rename ".\zork++\target\release\zork.exe" "zork++.exe"
           "%programfiles(x86)%\Inno Setup 6\iscc.exe" ".\release-config\windows-installer-zork.iss"
+        shell: cmd
+
+      - name: Signing Windows .exe
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          "C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" sign /f ".\release-config\certificate_windows.pfx" /p ${{ secrets.WIN_CERT_PASSWORD }} /v zork-installer.exe
+        shell: cmd
+      - name: Verify Windows Signing
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          "C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" verify /v ".\zork++\target\release\zork.exe"
         shell: cmd
 
       - name: Make Zip for Windows
