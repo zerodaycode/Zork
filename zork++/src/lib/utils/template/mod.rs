@@ -87,7 +87,7 @@ pub fn create_templated_project(
     let zork_conf = match template {
         TemplateValues::BASIC => resources::CONFIG_FILE_BASIC,
         TemplateValues::PARTITIONS => resources::CONFIG_FILE,
-    }
+    } // TODO: load this with serde and procedurally change the values
     .replace("<compiler>", compiler.as_ref())
     .replace("<project_name>", project_name)
     .replace("<autog_test>", project_name)
