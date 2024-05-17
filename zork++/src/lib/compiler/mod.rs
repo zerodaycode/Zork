@@ -33,9 +33,14 @@ pub fn build_project<'a>(
     // A registry of the generated command lines
     let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
+    // Pre-tasks
     if model.compiler.cpp_compiler == CppCompiler::GCC && !model.modules.sys_modules.is_empty() {
         helpers::build_sys_modules(model, &mut commands, cache)
     }
+
+    // Build the std library as a module
+    build_modular_stdlib(model, cache); // TODO: ward it with an if for only call this fn for the
+                                        // supported compilers atm. TODO: Cache it
 
     // 1st - Build the modules
     build_modules(model, cache, &mut commands)?;
@@ -47,6 +52,18 @@ pub fn build_project<'a>(
     Ok(commands)
 }
 
+/// Builds the C++ standard library as a pre-step acording to the specification
+/// of each compiler vendor
+fn build_modular_stdlib(model: &'a ZorkModel, cache: &'a ZorkCache) {
+    match model.compiler.cpp_compiler {
+        Clang => todo!(),
+        GCC => todo!(),
+        MSVC => {
+
+        }
+    }
+}
+
 /// Triggers the build process for compile the source files declared for the project
 /// If this flow is enabled by the Cli arg `Tests`, then the executable will be generated
 /// for the files and properties declared for the tests section in the configuration file
@@ -55,7 +72,7 @@ fn build_executable<'a>(
     commands: &'_ mut Commands<'a>,
     tests: bool,
 ) -> Result<()> {
-    // TODO Check if the command line is the same as the previous? If there's no new sources?
+    // TODO: Check if the command line is the same as the previous? If there's no new sources?
     // And avoid re-executing?
     // TODO refactor this code, just having the if-else branch inside the fn
     if tests {

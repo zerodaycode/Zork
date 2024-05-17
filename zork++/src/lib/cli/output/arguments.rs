@@ -7,7 +7,7 @@ use std::{borrow::Borrow, ffi::OsStr, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-/// Type for represent a command line argument
+/// Wrapper type for represent and storing a command line argument
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Argument<'a> {
     pub value: &'a str,
@@ -27,14 +27,6 @@ impl<'a> From<String> for Argument<'a> {
     }
 }
 
-impl<'a> Deref for Argument<'a> {
-    type Target = &'a str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.value
-    }
-}
-
 impl<'a> From<&'a Path> for Argument<'a> {
     fn from(value: &'a Path) -> Self {
         Self::from(format!("{}", value.display()))
@@ -50,6 +42,14 @@ impl<'a> From<PathBuf> for Argument<'a> {
 impl<'a> From<&PathBuf> for Argument<'a> {
     fn from(value: &PathBuf) -> Self {
         Self::from(format!("{}", value.display()))
+    }
+}
+
+impl<'a> Deref for Argument<'a> {
+    type Target = &'a str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
     }
 }
 
@@ -96,7 +96,8 @@ impl<'a> Arguments<'a> {
     /// Appends a new [`Argument`] to the end of this collection
     pub fn push(&mut self, arg: Argument<'a>) {
         self.0.push(arg)
-    }
+    } // TODO: aren't this one and the one above redundant? Wouldn't be better to unify both
+      // interfaces in only one method call? With a better name, btw? Like <add> or <add_new>
 
     /// Given an optional, adds the wrapper inner value if there's some element,
     /// otherwise leaves
@@ -134,6 +135,9 @@ impl<'a> IntoIterator for Arguments<'a> {
     }
 }
 
+/// Isolated module to storing custom procedures to easy create and add new command line arguments
+/// or flags specific to Clang, that otherwise, will be bloating the main procedures with a lot
+/// of cognitive complexity
 pub mod clang_args {
     use std::path::Path;
 

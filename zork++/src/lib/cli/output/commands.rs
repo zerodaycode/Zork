@@ -34,7 +34,8 @@ pub fn run_generated_commands(
     let mut total_exec_commands = 0;
     let compiler = commands.compiler;
 
-    for sys_module in &commands.system_modules {
+    for sys_module in &commands.system_modules { // Will only have elements if they exists and they
+                                                 // aren't cached yet
         execute_command(compiler, program_data, sys_module.1, cache)?;
     }
 
