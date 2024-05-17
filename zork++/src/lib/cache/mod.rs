@@ -229,7 +229,12 @@ impl ZorkCache {
                             .map(|filename| filename.contains(constants::MS_ENV_VARS_BAT))
                             .unwrap_or(false)
                     })
-                    .map(|e| e.path().to_string_lossy().replace(constants::MSVC_REGULAR_BASE_PATH, constants::MSVC_REGULAR_BASE_SCAPED_PATH));
+                    .map(|e| {
+                        e.path().to_string_lossy().replace(
+                            constants::MSVC_REGULAR_BASE_PATH,
+                            constants::MSVC_REGULAR_BASE_SCAPED_PATH,
+                        )
+                    });
         }
     }
 

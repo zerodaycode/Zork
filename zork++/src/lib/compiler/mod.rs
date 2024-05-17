@@ -39,8 +39,8 @@ pub fn build_project<'a>(
     }
 
     // Build the std library as a module
-    build_modular_stdlib(model, cache); // TODO: ward it with an if for only call this fn for the
-                                        // supported compilers atm. TODO: Cache it
+    build_modular_stdlib(model, cache, &mut commands); // TODO: ward it with an if for only call this fn for the
+                                                       // supported compilers atm. TODO: Cache it
 
     // 1st - Build the modules
     build_modules(model, cache, &mut commands)?;
@@ -54,14 +54,37 @@ pub fn build_project<'a>(
 
 /// Builds the C++ standard library as a pre-step acording to the specification
 /// of each compiler vendor
-fn build_modular_stdlib(model: &'a ZorkModel, cache: &'a ZorkCache) {
-    match model.compiler.cpp_compiler {
-        Clang => todo!(),
-        GCC => todo!(),
-        MSVC => {
+fn build_modular_stdlib<'a>(
+    model: &'a ZorkModel<'_>,
+    _cache: &ZorkCache,
+    commands: &mut Commands<'a>,
+) {
+    let mut arguments = Arguments::default();
+    let compiler = model.compiler.cpp_compiler;
+    let output_dir = &model.build.output_dir;
 
-        }
+    match compiler {
+        MSVC => {
+            arguments.push(model.compiler.language_level_arg());
+            arguments.create_and_push("/EHsc");
+            arguments.create_and_push("/nologo");
+            arguments.create_and_push("/W4");
+            arguments.create_and_push("/c");
+            arguments.create_and_push(format!{
+                "{}",
+                output_dir
+                    .join(compiler.as_ref())
+                    .join("modules")
+                    .join("std")
+                    .with_extension(compiler.get_typical_bmi_extension())
+                    .display()
+            });
+        },
+        _GCC => todo!(),
+        _CLANG => todo!(),
     }
+
+    commands.pre_tasks.push(arguments);
 }
 
 /// Triggers the build process for compile the source files declared for the project
@@ -173,7 +196,9 @@ fn build_module_implementations<'a>(
             );
 
             log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
-            commands.implementations.push(command_line);
+            commands.implementations.push(command_line); // TODO:: There's other todo where we
+                                                         // explain why we should change this code
+                                                         // (and the other similar ones)
             commands.generated_files_paths.push(Argument::from(helpers::generate_impl_obj_file(
                 model.compiler.cpp_compiler, &model.build.output_dir, module_impl
             )))
@@ -585,7 +610,7 @@ mod helpers {
     /// `export module dotted.module`, in Clang, due to the expected `.pcm` extension, the final path
     /// will be generated as `dotted.pcm`, instead `dotted.module.pcm`.
     ///
-    /// For MSVC, we are relying in the autogenerate of the BMI automatically by the compiler,
+    /// For MSVC, we are relying in the autogeneration feature of the BMI automatically by the compiler,
     /// so the output file that we need is an obj file (.obj), and not the
     /// binary module interface (.ifc)
     pub(crate) fn generate_prebuilt_miu(
@@ -643,6 +668,7 @@ mod helpers {
     /// generate commands for the non processed elements yet.
     ///
     /// This is for `GCC` and `Clang`
+    /// TODO: With the inclusion of std named modules, want we to support this anymore?
     pub(crate) fn build_sys_modules<'a>(
         model: &'a ZorkModel,
         commands: &mut Commands<'a>,
@@ -703,9 +729,11 @@ mod helpers {
 
         // Maps the generated command line flags generated for every system module,
         // being the key the name of the system header
-        // TODO is completely unnecessary here a map. We can directly store the flags only one
+        // TODO: is completely unnecessary here a map. We can directly store the flags only one
         // time in a list, because they will always be the same flags for every system module,
         // and the system modules in another list
+        // Newest TODO: Can we just store them as Argument(s) in an Arguments? For example, with
+        // the new pre-tasks (and therefore, being cached in an unified way?)
         for collection_args in sys_modules {
             commands.system_modules.insert(
                 // [3] is for the 4th flag pushed to v
@@ -717,7 +745,7 @@ mod helpers {
 
     /// Marks the given source file as already processed,
     /// or if it should be reprocessed again due to a previous failure status,
-    /// to avoid losing time rebuilding that module if the source file
+    /// to avoid losing time rebuilding it if the translation unit
     /// hasn't been modified since the last build process iteration.
     ///
     /// True means already processed and previous iteration Success
@@ -727,6 +755,9 @@ mod helpers {
         file: &Path,
     ) -> bool {
         if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
+            // TODO: Review this
+            // with the new Clang
+            // versions
             log::trace!("Module unit {file:?} will be rebuilt since we've detected that you are using Clang in Windows");
             return false;
         }

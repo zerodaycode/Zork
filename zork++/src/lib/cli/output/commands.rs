@@ -34,8 +34,9 @@ pub fn run_generated_commands(
     let mut total_exec_commands = 0;
     let compiler = commands.compiler;
 
-    for sys_module in &commands.system_modules { // Will only have elements if they exists and they
-                                                 // aren't cached yet
+    for sys_module in &commands.system_modules {
+        // Will only have elements if they exists and they
+        // aren't cached yet
         execute_command(compiler, program_data, sys_module.1, cache)?;
     }
 
@@ -172,7 +173,12 @@ pub struct SourceCommandLine<'a> {
 impl<'a> SourceCommandLine<'a> {
     pub fn from_translation_unit(
         tu: impl TranslationUnit,
-        args: Arguments<'a>,
+        args: Arguments<'a>, // TODO: maybe this should be an option? Cached arguments are passed
+        // here as default. So probably, even better than having an optional,
+        // we must replicate this to have a separate entity like
+        // CachedSourceCommandLine, and them just call them over any kind of
+        // <T> constrained over some bound that wraps the operation of
+        // distinguish between them or not
         processed: bool,
         execution_result: CommandExecutionResult,
     ) -> Self {
@@ -213,6 +219,8 @@ impl<'a> Default for ExecutableCommandLine<'a> {
 #[derive(Debug)]
 pub struct Commands<'a> {
     pub compiler: CppCompiler,
+    pub pre_tasks: Vec<Arguments<'a>>, // TODO: Arguments strong typing over this isn't too explicit nor
+                                       // specific, right?
     pub system_modules: HashMap<String, Arguments<'a>>,
     pub interfaces: Vec<SourceCommandLine<'a>>,
     pub implementations: Vec<SourceCommandLine<'a>>,
@@ -225,6 +233,7 @@ impl<'a> Commands<'a> {
     pub fn new(compiler: &'a CppCompiler) -> Self {
         Self {
             compiler: *compiler,
+            pre_tasks: Vec::new(),
             system_modules: HashMap::with_capacity(0),
             interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
