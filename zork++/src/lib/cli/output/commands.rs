@@ -133,20 +133,22 @@ fn execute_command(
     );
 
     if compiler.eq(&CppCompiler::MSVC) {
-        std::process::Command::new(
-            cache
-                .compilers_metadata
-                .msvc
-                .dev_commands_prompt
-                .as_ref()
-                .expect("Zork++ wasn't able to found a correct installation of MSVC"),
-        )
-        .arg("&&")
-        .arg(compiler.get_driver(&model.compiler))
-        .args(arguments)
-        .spawn()?
-        .wait()
-        .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
+        std::process::Command::new(constants::WIN_CMD)
+            .arg("/c")
+            .arg(
+                cache
+                    .compilers_metadata
+                    .msvc
+                    .dev_commands_prompt
+                    .as_ref()
+                    .expect("Zork++ wasn't unable to initialize the VS env vars"),
+            )
+            .arg("&&")
+            .arg(compiler.get_driver(&model.compiler))
+            .args(arguments)
+            .spawn()?
+            .wait()
+            .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
     } else {
         std::process::Command::new(compiler.get_driver(&model.compiler))
             .args(arguments)

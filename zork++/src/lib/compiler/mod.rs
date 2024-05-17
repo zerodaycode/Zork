@@ -229,7 +229,7 @@ pub fn generate_main_command_line_args<'a>(
             // If /std:c++20 this, else should be the direct options
             // available on C++23 to use directly import std by pre-compiling the standard library
             arguments.create_and_push("/experimental:module");
-            arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
+            // arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
             arguments.create_and_push("/ifcSearchDir");
             arguments.create_and_push(
                 out_dir
@@ -325,7 +325,7 @@ mod sources {
                 // If /std:c++20 this, else should be the direct options
                 // available on C++23 to use directly import std by pre-compiling the standard library
                 arguments.create_and_push("/experimental:module");
-                arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
+                // arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
 
                 arguments.create_and_push("/ifcSearchDir");
                 arguments.create_and_push(
@@ -409,7 +409,7 @@ mod sources {
                 arguments.create_and_push("/EHsc");
                 arguments.create_and_push("/nologo");
                 arguments.create_and_push("/experimental:module");
-                arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
+                // arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
                 arguments.create_and_push("/c");
 
                 let implicit_lookup_mius_path = out_dir
@@ -513,7 +513,7 @@ mod sources {
                 arguments.create_and_push("/nologo");
                 arguments.create_and_push("-c");
                 arguments.create_and_push("/experimental:module");
-                arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
+                // arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
                 arguments.create_and_push("/ifcSearchDir");
                 arguments.create_and_push(
                     out_dir

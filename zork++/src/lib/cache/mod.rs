@@ -215,26 +215,28 @@ impl ZorkCache {
     }
 
     /// If Windows is the current OS, and the compiler is MSVC, then we will try
-    /// to locate the path os the vcvars64.bat scripts that launches the
-    /// Developers Command Prompt
+    /// to locate the path of the `vcvars64.bat` script that will set a set of environmental
+    /// variables that are required to work effortlessly with the Microsoft's compiler
     fn load_msvc_metadata(&mut self) {
         if self.compilers_metadata.msvc.dev_commands_prompt.is_none() {
             self.compilers_metadata.msvc.dev_commands_prompt =
-                WalkDir::new(constants::MSVC_BASE_PATH)
+                WalkDir::new(constants::MSVC_REGULAR_BASE_PATH)
                     .into_iter()
                     .filter_map(Result::ok)
                     .find(|file| {
                         file.file_name()
                             .to_str()
-                            .map(|filename| filename.eq(constants::MS_DEVS_PROMPT_BAT))
+                            .map(|filename| filename.contains(constants::MS_ENV_VARS_BAT))
                             .unwrap_or(false)
                     })
-                    .map(|e| e.path().display().to_string());
+                    .map(|e| e.path().to_string_lossy().replace(constants::MSVC_REGULAR_BASE_PATH, constants::MSVC_REGULAR_BASE_SCAPED_PATH));
         }
     }
 
     /// Looks for the already precompiled `GCC` or `Clang` system headers,
     /// to avoid recompiling them on every process
+    /// NOTE: This feature should be deprecated an therefore, removed from Zork++ when GCC and
+    /// Clang fully implement the required procedures to build the C++ std library as a module
     fn track_system_modules<'a>(
         program_data: &'a ZorkModel<'_>,
     ) -> impl Iterator<Item = String> + 'a {
