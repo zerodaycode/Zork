@@ -61,16 +61,18 @@ fn build_modular_stdlib<'a>(
 ) {
     let mut arguments = Arguments::default();
     let compiler = model.compiler.cpp_compiler;
-    let output_dir = &model.build.output_dir;
+    // let output_dir = &model.build.output_dir;
 
     match compiler {
-        MSVC => {
+        CppCompiler::MSVC => {
             arguments.push(model.compiler.language_level_arg());
             arguments.create_and_push("/EHsc");
             arguments.create_and_push("/nologo");
             arguments.create_and_push("/W4");
             arguments.create_and_push("/c");
-            arguments.create_and_push(format!{
+
+            arguments.create_and_push("%VCToolsInstallDir%\\modules\\std.ixx");
+            /* arguments.create_and_push(format!{
                 "{}",
                 output_dir
                     .join(compiler.as_ref())
@@ -78,15 +80,36 @@ fn build_modular_stdlib<'a>(
                     .join("std")
                     .with_extension(compiler.get_typical_bmi_extension())
                     .display()
-            });
-        },
-        _GCC => todo!(),
-        _CLANG => todo!(),
+            }); */
+        }
+        CppCompiler::CLANG => todo!(),
+        CppCompiler::GCC => todo!(),
     }
 
     commands.pre_tasks.push(arguments);
 }
 
+/* pub fn expand_env_vars(s:&str) -> std::io::Result<String>  {
+    let ENV_VAR: Regex = Regex::new("%([[:word:]]*)%").expect("Invalid Regex");
+
+
+    let result: String = ENV_VAR.replace_all(s, |c:&Captures| match &c[1] {
+        "" => String::from("%"),
+        varname => env::var(varname).expect("Bad Var Name")
+    }).into();
+
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn expand_win_envvar() {
+        assert_eq!("C:\\\"Program Files\"\\\"Microsoft Visual Studio\"\\2022\\Community\\VC\\Tools\\MSVC\\14.39.33519\\modules\\std.ixx, expand_env_vars(s))
+    }
+} */
 /// Triggers the build process for compile the source files declared for the project
 /// If this flow is enabled by the Cli arg `Tests`, then the executable will be generated
 /// for the files and properties declared for the tests section in the configuration file
@@ -251,10 +274,6 @@ pub fn generate_main_command_line_args<'a>(
         CppCompiler::MSVC => {
             arguments.create_and_push("/EHsc");
             arguments.create_and_push("/nologo");
-            // If /std:c++20 this, else should be the direct options
-            // available on C++23 to use directly import std by pre-compiling the standard library
-            arguments.create_and_push("/experimental:module");
-            // arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
             arguments.create_and_push("/ifcSearchDir");
             arguments.create_and_push(
                 out_dir
@@ -347,11 +366,6 @@ mod sources {
             CppCompiler::MSVC => {
                 arguments.create_and_push("/EHsc");
                 arguments.create_and_push(Argument::from("/nologo"));
-                // If /std:c++20 this, else should be the direct options
-                // available on C++23 to use directly import std by pre-compiling the standard library
-                arguments.create_and_push("/experimental:module");
-                // arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
-
                 arguments.create_and_push("/ifcSearchDir");
                 arguments.create_and_push(
                     out_dir
@@ -433,8 +447,6 @@ mod sources {
             CppCompiler::MSVC => {
                 arguments.create_and_push("/EHsc");
                 arguments.create_and_push("/nologo");
-                arguments.create_and_push("/experimental:module");
-                // arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
                 arguments.create_and_push("/c");
 
                 let implicit_lookup_mius_path = out_dir
@@ -537,8 +549,6 @@ mod sources {
                 arguments.create_and_push("/EHsc");
                 arguments.create_and_push("/nologo");
                 arguments.create_and_push("-c");
-                arguments.create_and_push("/experimental:module");
-                // arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
                 arguments.create_and_push("/ifcSearchDir");
                 arguments.create_and_push(
                     out_dir

@@ -20,8 +20,8 @@ pub const MSVC_REGULAR_BASE_SCAPED_PATH: &str =
     "C:\\\"Program Files\"\\\"Microsoft Visual Studio\"";
 pub const MSVC_REGULAR_BASE_PATH: &str = "C:\\Program Files\\Microsoft Visual Studio";
 pub const MS_ENV_VARS_BAT: &str = "vcvars64.bat";
-
 pub const CONFIG_FILE_MOCK: &str = r#"
+
 [project]
 name = "Zork++"
 authors = ["zerodaycode.gz@gmail.com"]

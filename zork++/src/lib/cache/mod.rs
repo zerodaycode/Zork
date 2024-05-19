@@ -50,7 +50,9 @@ pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCach
     let mut cache: ZorkCache = utils::fs::load_and_deserialize(&cache_path)
         .with_context(|| "Error loading the Zork++ cache")?;
 
-    cache.run_tasks(program_data);
+    cache
+        .run_tasks(program_data)
+        .with_context(|| "Error running the cache tasks")?;
 
     Ok(cache)
 }
@@ -104,16 +106,19 @@ impl ZorkCache {
     }
 
     /// The tasks associated with the cache after load it from the file system
-    pub fn run_tasks(&mut self, program_data: &ZorkModel<'_>) {
+    pub fn run_tasks(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
         let compiler = program_data.compiler.cpp_compiler;
         if cfg!(target_os = "windows") && compiler == CppCompiler::MSVC {
-            self.load_msvc_metadata()
+            self.load_msvc_metadata(program_data)?
         }
+
         if compiler != CppCompiler::MSVC {
             let i = Self::track_system_modules(program_data);
             self.compilers_metadata.system_modules.clear();
             self.compilers_metadata.system_modules.extend(i);
         }
+
+        Ok(())
     }
 
     /// Runs the tasks just before end the program and save the cache
@@ -216,8 +221,12 @@ impl ZorkCache {
 
     /// If Windows is the current OS, and the compiler is MSVC, then we will try
     /// to locate the path of the `vcvars64.bat` script that will set a set of environmental
-    /// variables that are required to work effortlessly with the Microsoft's compiler
-    fn load_msvc_metadata(&mut self) {
+    /// variables that are required to work effortlessly with the Microsoft's compiler.
+    ///
+    /// After such effort, we will dump those env vars to a custom temporary file where every
+    /// env var is registered there in a key-value format, so we can load it into the cache and
+    /// run this process once per new cache created (cache action 1)
+    fn load_msvc_metadata(&mut self, _program_data: &ZorkModel<'_>) -> Result<()> {
         if self.compilers_metadata.msvc.dev_commands_prompt.is_none() {
             self.compilers_metadata.msvc.dev_commands_prompt =
                 WalkDir::new(constants::MSVC_REGULAR_BASE_PATH)
@@ -235,7 +244,55 @@ impl ZorkCache {
                             constants::MSVC_REGULAR_BASE_SCAPED_PATH,
                         )
                     });
+            // TODO: decouple the execution calls from the commands file and then pass it with msvc arg?
+            let output = std::process::Command::new(constants::WIN_CMD)
+            .arg("/c")
+            .arg(
+                self
+                    .compilers_metadata
+                    .msvc
+                    .dev_commands_prompt
+                    .as_ref() // TODO: Custom getter at ZorkCache level (direct mapping) that
+                              // returns shared reference
+                    .expect("Zork++ wasn't unable to find the VS env vars"), // TODO: same msg with
+                                                                             // please open an...
+                                                                             // etc
+            )
+            .arg("&&")
+            .arg("set")
+            .output()
+            .with_context(|| "Unable to load MSVC pre-requisites. Please, open an issue with the details on upstream")?; // TODO general zdc url with description on constans
+
+            self.compilers_metadata.msvc.env_vars =
+                Self::load_env_vars_from_cmd_output(&output.stdout)?;
+            /* log::warn!(
+                "MSVC ENV VARS: {:?}",
+                &self.compilers_metadata.msvc.env_vars
+            ); */
         }
+
+        Ok(())
+    }
+
+    fn load_env_vars_from_cmd_output(stdout: &Vec<u8>) -> Result<HashMap<String, String>> {
+        let env_vars_str = std::str::from_utf8(stdout)?;
+
+        let mut env_vars: HashMap<String, String> = HashMap::new();
+        for line in env_vars_str.lines() {
+            // Parse the key-value pair from each line
+            let mut parts = line.splitn(2, '=');
+            let key = parts.next().expect("Failed to get key").trim();
+
+            if key.is_ascii() {
+                let value = parts.next().unwrap_or_default().trim().replace(
+                    constants::MSVC_REGULAR_BASE_PATH,
+                    constants::MSVC_REGULAR_BASE_SCAPED_PATH,
+                );
+                env_vars.insert(key.to_string(), value);
+            }
+        }
+
+        return Ok(env_vars);
     }
 
     /// Looks for the already precompiled `GCC` or `Clang` system headers,
@@ -376,4 +433,5 @@ pub struct CompilersMetadata {
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct MsvcMetadata {
     pub dev_commands_prompt: Option<String>,
+    pub env_vars: HashMap<String, String>,
 }

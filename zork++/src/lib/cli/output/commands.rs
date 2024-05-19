@@ -34,6 +34,10 @@ pub fn run_generated_commands(
     let mut total_exec_commands = 0;
     let compiler = commands.compiler;
 
+    for pre_task in &commands.pre_tasks {
+        execute_command(compiler, program_data, pre_task, cache)?;
+    }
+
     for sys_module in &commands.system_modules {
         // Will only have elements if they exists and they
         // aren't cached yet
@@ -136,17 +140,9 @@ fn execute_command(
     if compiler.eq(&CppCompiler::MSVC) {
         std::process::Command::new(constants::WIN_CMD)
             .arg("/c")
-            .arg(
-                cache
-                    .compilers_metadata
-                    .msvc
-                    .dev_commands_prompt
-                    .as_ref()
-                    .expect("Zork++ wasn't unable to initialize the VS env vars"),
-            )
-            .arg("&&")
             .arg(compiler.get_driver(&model.compiler))
             .args(arguments)
+            .envs(&cache.compilers_metadata.msvc.env_vars)
             .spawn()?
             .wait()
             .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
@@ -220,7 +216,7 @@ impl<'a> Default for ExecutableCommandLine<'a> {
 pub struct Commands<'a> {
     pub compiler: CppCompiler,
     pub pre_tasks: Vec<Arguments<'a>>, // TODO: Arguments strong typing over this isn't too explicit nor
-                                       // specific, right?
+    // specific, right?
     pub system_modules: HashMap<String, Arguments<'a>>,
     pub interfaces: Vec<SourceCommandLine<'a>>,
     pub implementations: Vec<SourceCommandLine<'a>>,
