@@ -137,22 +137,12 @@ fn execute_command(
         )
     );
 
-    if compiler.eq(&CppCompiler::MSVC) {
-        std::process::Command::new(constants::WIN_CMD)
-            .arg("/c")
-            .arg(compiler.get_driver(&model.compiler))
-            .args(arguments)
-            .envs(&cache.compilers_metadata.msvc.env_vars)
-            .spawn()?
-            .wait()
-            .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
-    } else {
-        std::process::Command::new(compiler.get_driver(&model.compiler))
-            .args(arguments)
-            .spawn()?
-            .wait()
-            .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
-    }
+    std::process::Command::new(compiler.get_driver(&model.compiler))
+        .args(arguments)
+        .envs(&cache.get_process_env_args())
+        .spawn()?
+        .wait()
+        .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
 }
 
 /// The pieces and details for the generated command line for

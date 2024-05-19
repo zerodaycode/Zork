@@ -27,13 +27,13 @@ use walkdir::WalkDir;
 
 /// Standalone utility for retrieve the Zork++ cache file
 pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCache> {
-    let compiler = program_data.compiler.cpp_compiler.as_ref();
+    let compiler = program_data.compiler.cpp_compiler;
     let cache_path = &program_data
         .build
         .output_dir
         .join("zork")
         .join("cache")
-        .join(compiler);
+        .join(compiler.as_ref());
 
     let cache_file_path = cache_path.join(constants::ZORK_CACHE_FILENAME);
 
@@ -49,6 +49,7 @@ pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCach
 
     let mut cache: ZorkCache = utils::fs::load_and_deserialize(&cache_path)
         .with_context(|| "Error loading the Zork++ cache")?;
+    cache.compiler = compiler;
 
     cache
         .run_tasks(program_data)
@@ -390,6 +391,14 @@ impl ZorkCache {
         }));
 
         new_commands
+    }
+
+    pub fn get_process_env_args(&self) -> HashMap<String, String> {
+        match self.compiler {
+            CppCompiler::MSVC => self.compilers_metadata.msvc.env_vars.clone(), // TODO: review the
+            CppCompiler::CLANG => HashMap::with_capacity(0),
+            CppCompiler::GCC => HashMap::with_capacity(0),
+        }
     }
 }
 
