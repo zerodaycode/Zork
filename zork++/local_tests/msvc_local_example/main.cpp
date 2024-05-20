@@ -2,17 +2,16 @@
 const char* compiler =
 #if defined(__clang__)
     "Clang";
-    // import std;
+    import std;
 #elif (defined(__GNUC__) || defined(__GNUG__)) && !defined(__clang__)
     "GCC";
-    // import <iostream>;
+    import <iostream>;
 #elif defined(_MSC_VER)
     "MSVC";
-    // #pragma warning(disable:5050)
-    // import std;
+    #pragma warning(disable:5050)
+    import std.core;
 #endif
 
-import std;
 import math;
 
 int main() {
