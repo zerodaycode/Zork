@@ -4,6 +4,7 @@ pub mod compile_commands;
 
 use chrono::{DateTime, Utc};
 use color_eyre::{eyre::Context, Result};
+use regex::Regex;
 use std::collections::HashMap;
 use std::{
     fs,
@@ -210,7 +211,7 @@ impl ZorkCache {
             .entry(PathBuf::from(named_target))
             .and_modify(|e| {
                 if !(*e).eq(&commands_details.main.command) {
-                    *e = commands_details.main.command.clone()
+                    e.clone_from(&commands_details.main.command)
                 }
             })
             .or_insert(commands_details.main.command.clone());
@@ -227,56 +228,61 @@ impl ZorkCache {
     /// After such effort, we will dump those env vars to a custom temporary file where every
     /// env var is registered there in a key-value format, so we can load it into the cache and
     /// run this process once per new cache created (cache action 1)
-    fn load_msvc_metadata(&mut self, _program_data: &ZorkModel<'_>) -> Result<()> {
-        if self.compilers_metadata.msvc.dev_commands_prompt.is_none() {
-            self.compilers_metadata.msvc.dev_commands_prompt =
-                WalkDir::new(constants::MSVC_REGULAR_BASE_PATH)
-                    .into_iter()
-                    .filter_map(Result::ok)
-                    .find(|file| {
-                        file.file_name()
-                            .to_str()
-                            .map(|filename| filename.contains(constants::MS_ENV_VARS_BAT))
-                            .unwrap_or(false)
-                    })
-                    .map(|e| {
-                        e.path().to_string_lossy().replace(
-                            constants::MSVC_REGULAR_BASE_PATH,
-                            constants::MSVC_REGULAR_BASE_SCAPED_PATH,
-                        )
-                    });
+    fn load_msvc_metadata(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
+        let msvc = &mut self.compilers_metadata.msvc;
+        let compiler = program_data.compiler.cpp_compiler;
+
+        if msvc.dev_commands_prompt.is_none() {
+            msvc.dev_commands_prompt = utils::fs::find_file(
+                Path::new(constants::MSVC_REGULAR_BASE_PATH),
+                constants::MS_ENV_VARS_BAT,
+            )
+            .map(|walkdir_entry| {
+                walkdir_entry.path().to_string_lossy().replace(
+                    constants::MSVC_REGULAR_BASE_PATH,
+                    constants::MSVC_REGULAR_BASE_SCAPED_PATH,
+                )
+            });
             // TODO: decouple the execution calls from the commands file and then pass it with msvc arg?
             let output = std::process::Command::new(constants::WIN_CMD)
-            .arg("/c")
-            .arg(
-                self
-                    .compilers_metadata
-                    .msvc
-                    .dev_commands_prompt
-                    .as_ref() // TODO: Custom getter at ZorkCache level (direct mapping) that
-                              // returns shared reference
-                    .expect("Zork++ wasn't unable to find the VS env vars"), // TODO: same msg with
+                .arg("/c")
+                .arg(
+                    msvc // TODO: check better if we found the vsvar before, and remove the Option
+                         // wrapper
+                        .dev_commands_prompt
+                        .as_ref() // TODO: Custom getter at ZorkCache level (direct mapping) that
+                                  // returns shared reference
+                        .expect("Zork++ wasn't unable to find the VS env vars"), // TODO: same msg with
                                                                              // please open an...
                                                                              // etc
             )
             .arg("&&")
             .arg("set")
             .output()
-            .with_context(|| "Unable to load MSVC pre-requisites. Please, open an issue with the details on upstream")?; // TODO general zdc url with description on constans
+            .with_context(|| "Unable to load MSVC pre-requisites. Please, open an issue with the details on upstream")?; // TODO: general zdc url with description on constans
 
-            self.compilers_metadata.msvc.env_vars =
-                Self::load_env_vars_from_cmd_output(&output.stdout)?;
-            /* log::warn!(
-                "MSVC ENV VARS: {:?}",
-                &self.compilers_metadata.msvc.env_vars
-            ); */
+            msvc.env_vars = Self::load_env_vars_from_cmd_output(&output.stdout)?;
+            // Cloning the useful ones for quick access at call site
+            msvc.compiler_version = msvc.env_vars.get("VisualStudioVersion").cloned();
+            msvc.modular_stdlib_path = msvc.env_vars.get("VCToolsInstallDir").cloned();
+
+            let modular_stdlib_byproducts_path = Path::new(&program_data.build.output_dir)
+                .join(compiler.as_ref())
+                .join("modules")
+                .join("std") // folder
+                .join("std");
+            msvc.stdlib_bmi_path =
+                modular_stdlib_byproducts_path.with_extension(compiler.get_typical_bmi_extension());
+            msvc.stdlib_obj_path =
+                modular_stdlib_byproducts_path.with_extension(compiler.get_obj_file_extension());
         }
 
         Ok(())
     }
 
-    fn load_env_vars_from_cmd_output(stdout: &Vec<u8>) -> Result<HashMap<String, String>> {
+    fn load_env_vars_from_cmd_output(stdout: &[u8]) -> Result<HashMap<String, String>> {
         let env_vars_str = std::str::from_utf8(stdout)?;
+        let filter = Regex::new(r"^[a-zA-Z_]+$").unwrap();
 
         let mut env_vars: HashMap<String, String> = HashMap::new();
         for line in env_vars_str.lines() {
@@ -284,16 +290,13 @@ impl ZorkCache {
             let mut parts = line.splitn(2, '=');
             let key = parts.next().expect("Failed to get key").trim();
 
-            if key.is_ascii() {
-                let value = parts.next().unwrap_or_default().trim().replace(
-                    constants::MSVC_REGULAR_BASE_PATH,
-                    constants::MSVC_REGULAR_BASE_SCAPED_PATH,
-                );
+            if filter.is_match(key) {
+                let value = parts.next().unwrap_or_default().trim().to_string();
                 env_vars.insert(key.to_string(), value);
             }
         }
 
-        return Ok(env_vars);
+        Ok(env_vars)
     }
 
     /// Looks for the already precompiled `GCC` or `Clang` system headers,
@@ -393,11 +396,14 @@ impl ZorkCache {
         new_commands
     }
 
-    pub fn get_process_env_args(&self) -> HashMap<String, String> {
+    /// Method that returns the HashMap that holds the enviromental variables that must be passed
+    /// to the underlying shell
+    pub fn get_process_env_args(&self) -> &EnvVars {
         match self.compiler {
-            CppCompiler::MSVC => self.compilers_metadata.msvc.env_vars.clone(), // TODO: review the
-            CppCompiler::CLANG => HashMap::with_capacity(0),
-            CppCompiler::GCC => HashMap::with_capacity(0),
+            CppCompiler::MSVC => &self.compilers_metadata.msvc.env_vars, // TODO: review the
+            /* CppCompiler::CLANG => HashMap::with_capacity(0),
+            CppCompiler::GCC => HashMap::with_capacity(0), */
+            _ => todo!(),
         }
     }
 }
@@ -433,14 +439,21 @@ pub struct MainCommandLineDetail {
     command: String,
 }
 
+/// Type alias for the underlying key-value based collection of environmental variables
+pub type EnvVars = HashMap<String, String>;
+
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CompilersMetadata {
     pub msvc: MsvcMetadata,
-    pub system_modules: Vec<String>,
+    pub system_modules: Vec<String>, // TODO: This hopefully will dissappear soon
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct MsvcMetadata {
+    pub compiler_version: Option<String>,
     pub dev_commands_prompt: Option<String>,
-    pub env_vars: HashMap<String, String>,
+    pub modular_stdlib_path: Option<String>,
+    pub stdlib_bmi_path: PathBuf,
+    pub stdlib_obj_path: PathBuf,
+    pub env_vars: EnvVars,
 }

@@ -1,6 +1,5 @@
 use clap::Parser;
 use color_eyre::Result;
-use std::fs;
 use tempfile::tempdir;
 use zork::cli::input::CliArgs;
 
@@ -20,7 +19,7 @@ fn test_clang_full_process() -> Result<()> {
         "clang",
         "--template",
         "basic",
-    ]),)
+    ]))
     .is_ok());
 
     let process_result = zork::worker::run_zork(&CliArgs::parse_from([
@@ -36,39 +35,78 @@ fn test_clang_full_process() -> Result<()> {
 
 #[cfg(target_os = "windows")]
 #[test]
+fn test_msvc_process_basic_template() -> Result<()> {
+    let tempdir = tempdir()?;
+    let path = tempdir.path().to_str().unwrap();
+
+    assert!(zork::worker::run_zork(&CliArgs::parse_from([
+        "",
+        "--root",
+        path,
+        "new",
+        "msvc_example",
+        "--compiler",
+        "msvc",
+        "--template",
+        "basic"
+    ]))
+    .is_ok());
+
+    assert!(
+        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run", "--root", path])).is_ok()
+    );
+
+    Ok(tempdir.close()?)
+}
+
+#[cfg(target_os = "windows")]
+#[test]
 fn test_msvc_full_process() -> Result<()> {
-    let temp = tempdir()?;
+    let tempdir = tempdir()?;
+    let path = tempdir.path().to_str().unwrap();
 
-    assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "new", "msvc_example", "--compiler", "msvc"]),
-        Path::new(temp.path())
-    )
+    assert!(zork::worker::run_zork(&CliArgs::parse_from([
+        "",
+        "--root",
+        path,
+        "new",
+        "msvc_example",
+        "--compiler",
+        "msvc"
+    ]))
     .is_ok());
 
-    assert!(zork::worker::run_zork(
-        &CliArgs::parse_from(["", "-vv", "run"]),
-        Path::new(temp.path())
-    )
-    .is_ok());
+    assert!(
+        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run", "--root", path])).is_ok()
+    );
 
-    Ok(temp.close()?)
+    Ok(tempdir.close()?)
 }
 
 #[cfg(target_os = "windows")]
 #[test]
 fn test_gcc_windows_full_process() -> Result<()> {
-    assert!(zork::worker::run_zork(
-        &CliArgs::parse
-        Path::new(".") // Unable to run GCC tests because the gcm.cache folder, that
-                       // we just wasn't able to discover how to specify a directory for it
-    )
+    let tempdir = tempdir()?;
+    let path = tempdir.path().to_str().unwrap();
+
+    assert!(zork::worker::run_zork(&CliArgs::parse_from([
+        "",
+        "--root",
+        path,
+        "new",
+        "gcc_example",
+        "--compiler",
+        "gcc",
+        "--template",
+        "basic"
+    ]))
     .is_ok());
 
     assert!(
-        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run"]), Path::new(".")).is_ok()
+        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run", "--root", path])).is_ok()
     );
 
-    Ok(())
+    Ok(tempdir.close()?)
 }
 
 #[cfg(target_os = "linux")]

@@ -9,7 +9,7 @@ const char* compiler =
 #elif defined
     "MSVC";
     #pragma warning(disable:5050)
-    import std.core;
+    import std;
 #endif
 
 import math;
@@ -23,7 +23,7 @@ int main() {
     std::cout << "RESULT of 2 * 8 = " << math::multiply(2, 8) << std::endl;
     std::cout << "RESULT of 2 / 2 = " << math::divide(2, 2) << std::endl << std::endl;
 
-    std::cout << "Testing interface module partitions, by just returning a 42: " 
+    std::cout << "Testing interface module partitions, by just returning a 42: "
         << just_a_42() << std::endl;
     return 0;
 }

@@ -9,7 +9,7 @@ pub mod tests;
 
 use std::fmt::Debug;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use self::{
     build::BuildAttribute, compiler::CompilerAttribute, executable::ExecutableAttribute,
@@ -42,7 +42,7 @@ use self::{
 /// The [`ZorkConfigFile`] is the type that holds
 /// the whole hierarchy of Zork++ config file attributes
 /// and properties
-#[derive(Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ZorkConfigFile<'a> {
     #[serde(borrow)]
     pub project: ProjectAttribute<'a>,

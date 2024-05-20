@@ -39,8 +39,7 @@ pub fn run_generated_commands(
     }
 
     for sys_module in &commands.system_modules {
-        // Will only have elements if they exists and they
-        // aren't cached yet
+        // TODO: will be deprecated soon, hopefully
         execute_command(compiler, program_data, sys_module.1, cache)?;
     }
 
@@ -56,6 +55,7 @@ pub fn run_generated_commands(
             source_file.execution_result = CommandExecutionResult::from(&r);
             total_exec_commands += 1;
             if let Err(e) = r {
+                // TODO: replace this with a match pattern (much more readable)
                 cache::save(program_data, cache, commands, test_mode)?;
                 return Err(e);
             } else if !r.as_ref().unwrap().success() {
@@ -139,7 +139,7 @@ fn execute_command(
 
     std::process::Command::new(compiler.get_driver(&model.compiler))
         .args(arguments)
-        .envs(&cache.get_process_env_args())
+        .envs(cache.get_process_env_args())
         .spawn()?
         .wait()
         .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))

@@ -37,17 +37,15 @@ pub fn build_project<'a>(
     if model.compiler.cpp_compiler == CppCompiler::GCC && !model.modules.sys_modules.is_empty() {
         helpers::build_sys_modules(model, &mut commands, cache)
     }
-
     // Build the std library as a module
     build_modular_stdlib(model, cache, &mut commands); // TODO: ward it with an if for only call this fn for the
-                                                       // supported compilers atm. TODO: Cache it
 
     // 1st - Build the modules
     build_modules(model, cache, &mut commands)?;
     // 2nd - Build the non module sources
     build_sources(model, cache, &mut commands, tests)?;
     // 3rd - Build the executable or the tests
-    build_executable(model, &mut commands, tests)?;
+    build_executable(model, cache, &mut commands, tests)?;
 
     Ok(commands)
 }
@@ -56,65 +54,65 @@ pub fn build_project<'a>(
 /// of each compiler vendor
 fn build_modular_stdlib<'a>(
     model: &'a ZorkModel<'_>,
-    _cache: &ZorkCache,
+    cache: &ZorkCache,
     commands: &mut Commands<'a>,
 ) {
     let mut arguments = Arguments::default();
     let compiler = model.compiler.cpp_compiler;
-    // let output_dir = &model.build.output_dir;
+    let output_dir = &model.build.output_dir;
 
-    match compiler {
-        CppCompiler::MSVC => {
-            arguments.push(model.compiler.language_level_arg());
-            arguments.create_and_push("/EHsc");
-            arguments.create_and_push("/nologo");
-            arguments.create_and_push("/W4");
-            arguments.create_and_push("/c");
+    // TODO: remaining ones: Clang, GCC
+    if compiler.eq(&CppCompiler::MSVC) {
+        arguments.push(model.compiler.language_level_arg());
+        arguments.create_and_push("/EHsc");
+        arguments.create_and_push("/nologo");
+        arguments.create_and_push("/W4");
+        arguments.create_and_push("/c");
 
-            arguments.create_and_push("%VCToolsInstallDir%\\modules\\std.ixx");
-            /* arguments.create_and_push(format!{
-                "{}",
-                output_dir
-                    .join(compiler.as_ref())
-                    .join("modules")
-                    .join("std")
-                    .with_extension(compiler.get_typical_bmi_extension())
-                    .display()
-            }); */
-        }
-        CppCompiler::CLANG => todo!(),
-        CppCompiler::GCC => todo!(),
+        let msvc_std_ifc_path = Path::new(
+            cache
+                .compilers_metadata
+                .msvc
+                .modular_stdlib_path
+                .as_ref()
+                .unwrap(),
+        )
+        .join("modules")
+        .join("std")
+        .with_extension(compiler.get_default_module_extension());
+        arguments.create_and_push(msvc_std_ifc_path);
+        arguments.create_and_push("/ifcOutput");
+        arguments.create_and_push(format! {
+            "{}",
+            output_dir
+                .join(compiler.as_ref())
+                .join("modules")
+                .join("std")
+                .join("std")
+                .with_extension(compiler.get_typical_bmi_extension())
+                .display()
+        });
+        arguments.create_and_push(format! {
+            "/Fo{}",
+            output_dir
+                .join(compiler.as_ref())
+                .join("modules")
+                .join("std")
+                .join("std")
+                .with_extension(compiler.get_obj_file_extension())
+                .display()
+        });
     }
 
     commands.pre_tasks.push(arguments);
 }
 
-/* pub fn expand_env_vars(s:&str) -> std::io::Result<String>  {
-    let ENV_VAR: Regex = Regex::new("%([[:word:]]*)%").expect("Invalid Regex");
-
-
-    let result: String = ENV_VAR.replace_all(s, |c:&Captures| match &c[1] {
-        "" => String::from("%"),
-        varname => env::var(varname).expect("Bad Var Name")
-    }).into();
-
-    Ok(result)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn expand_win_envvar() {
-        assert_eq!("C:\\\"Program Files\"\\\"Microsoft Visual Studio\"\\2022\\Community\\VC\\Tools\\MSVC\\14.39.33519\\modules\\std.ixx, expand_env_vars(s))
-    }
-} */
 /// Triggers the build process for compile the source files declared for the project
 /// If this flow is enabled by the Cli arg `Tests`, then the executable will be generated
 /// for the files and properties declared for the tests section in the configuration file
 fn build_executable<'a>(
     model: &'a ZorkModel<'_>,
+    cache: &ZorkCache,
     commands: &'_ mut Commands<'a>,
     tests: bool,
 ) -> Result<()> {
@@ -122,9 +120,9 @@ fn build_executable<'a>(
     // And avoid re-executing?
     // TODO refactor this code, just having the if-else branch inside the fn
     if tests {
-        generate_main_command_line_args(model, commands, &model.tests)
+        generate_main_command_line_args(model, cache, commands, &model.tests)
     } else {
-        generate_main_command_line_args(model, commands, &model.executable)
+        generate_main_command_line_args(model, cache, commands, &model.executable)
     }
 }
 
@@ -232,6 +230,7 @@ fn build_module_implementations<'a>(
 /// Generates the command line arguments for the desired target
 pub fn generate_main_command_line_args<'a>(
     model: &'a ZorkModel,
+    cache: &ZorkCache,
     commands: &mut Commands<'a>,
     target: &'a impl ExecutableTarget<'a>,
 ) -> Result<()> {
@@ -293,6 +292,8 @@ pub fn generate_main_command_line_args<'a>(
                     .with_extension(constants::BINARY_EXTENSION)
                     .display()
             ));
+            // Add the .obj file of the modular stdlib to the linker command
+            arguments.create_and_push(&cache.compilers_metadata.msvc.stdlib_obj_path);
         }
         CppCompiler::GCC => {
             arguments.create_and_push("-fmodules-ts");
@@ -351,7 +352,11 @@ mod sources {
 
         let mut arguments = Arguments::default();
         arguments.push(model.compiler.language_level_arg());
-        arguments.create_and_push("-c");
+        arguments.create_and_push(if compiler.eq(&CppCompiler::MSVC) {
+            "/c"
+        } else {
+            "-c"
+        });
         arguments.extend_from_slice(model.compiler.extra_args());
         arguments.extend_from_slice(target.extra_args());
 
@@ -365,7 +370,18 @@ mod sources {
             }
             CppCompiler::MSVC => {
                 arguments.create_and_push("/EHsc");
-                arguments.create_and_push(Argument::from("/nologo"));
+                arguments.create_and_push("/nologo");
+                arguments.create_and_push("/reference");
+                arguments.create_and_push(format! {
+                    "std={}",
+                    out_dir
+                        .join(compiler.as_ref())
+                        .join("modules")
+                        .join("std")
+                        .join("std")
+                        .with_extension(compiler.get_typical_bmi_extension())
+                        .display()
+                });
                 arguments.create_and_push("/ifcSearchDir");
                 arguments.create_and_push(
                     out_dir
@@ -448,6 +464,18 @@ mod sources {
                 arguments.create_and_push("/EHsc");
                 arguments.create_and_push("/nologo");
                 arguments.create_and_push("/c");
+
+                arguments.create_and_push("/reference");
+                arguments.create_and_push(format! {
+                    "std={}",
+                    out_dir
+                        .join(compiler.as_ref())
+                        .join("modules")
+                        .join("std")
+                        .join("std")
+                        .with_extension(compiler.get_typical_bmi_extension())
+                        .display()
+                });
 
                 let implicit_lookup_mius_path = out_dir
                     .join(compiler.as_ref())
@@ -548,7 +576,18 @@ mod sources {
             CppCompiler::MSVC => {
                 arguments.create_and_push("/EHsc");
                 arguments.create_and_push("/nologo");
-                arguments.create_and_push("-c");
+                arguments.create_and_push("/c");
+                arguments.create_and_push("/reference");
+                arguments.create_and_push(format! {
+                    "std={}",
+                    out_dir
+                        .join(compiler.as_ref())
+                        .join("modules")
+                        .join("std")
+                        .join("std")
+                        .with_extension(compiler.get_typical_bmi_extension())
+                        .display()
+                });
                 arguments.create_and_push("/ifcSearchDir");
                 arguments.create_and_push(
                     out_dir

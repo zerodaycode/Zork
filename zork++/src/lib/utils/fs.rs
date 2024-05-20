@@ -6,6 +6,7 @@ use std::{
     io::{BufReader, Write},
     path::{Path, PathBuf},
 };
+use walkdir::WalkDir;
 
 use super::constants;
 
@@ -21,6 +22,19 @@ pub fn create_file<'a>(path: &Path, filename: &'a str, buff_write: &'a [u8]) -> 
     } else {
         Ok(())
     }
+}
+
+/// Tries fo find a file from a given root path by its filename
+pub fn find_file(search_root: &Path, target_filename: &str) -> Option<walkdir::DirEntry> {
+    WalkDir::new(search_root)
+        .into_iter()
+        .filter_map(Result::ok)
+        .find(|file| {
+            file.file_name()
+                .to_str()
+                .map(|filename| filename.contains(target_filename))
+                .unwrap_or(false)
+        })
 }
 
 /// Recursively creates a new directory pointed at the value of target if not exists yet

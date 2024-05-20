@@ -83,7 +83,7 @@ pub enum Command {
         compiler: CppCompiler,
         #[arg(
             long,
-            default_value = "basic",
+            default_value = "partitions",
             help = "What configuration file template to use"
         )]
         template: TemplateValues,
