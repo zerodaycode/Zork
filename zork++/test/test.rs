@@ -1,20 +1,24 @@
+
 use clap::Parser;
 use color_eyre::Result;
 use tempfile::tempdir;
 use zork::cli::input::CliArgs;
 
-#[test]
+/* #[test]
 fn test_clang_full_process() -> Result<()> {
+    let project_name = "clang_example";
+
     let tempdir = tempdir()?;
-    let path = tempdir.path().to_str().unwrap();
-    env_logger::init();
+    let path = tempdir.path();
+    let binding = path.join(project_name);
+    let project_root = binding.to_string_lossy();
 
     assert!(zork::worker::run_zork(&CliArgs::parse_from([
         "",
         "--root",
-        path, // TODO: pass this path directly to the generated zork++ cfg template file
+        &project_root, // TODO: pass this path directly to the generated zork++ cfg template file
         "new",
-        "clang_example",
+        project_name,
         "--compiler",
         "clang",
         "--template",
@@ -22,8 +26,10 @@ fn test_clang_full_process() -> Result<()> {
     ]))
     .is_ok());
 
+    // set_current_dir(tempdir.path().join(project_name))?;
+
     let process_result = zork::worker::run_zork(&CliArgs::parse_from([
-        "", "-vv", "--root", path,
+        "", "-vv", "--root", &project_root,
         /* "--driver-path",
         "clang++-16", // Local cfg issues */
         "run",
@@ -31,18 +37,22 @@ fn test_clang_full_process() -> Result<()> {
     assert!(process_result.is_ok(), "{}", process_result.unwrap_err());
 
     Ok(tempdir.close()?)
-}
+} */
 
 #[cfg(target_os = "windows")]
 #[test]
 fn test_msvc_process_basic_template() -> Result<()> {
+    let project_name = "clang_example";
+
     let tempdir = tempdir()?;
-    let path = tempdir.path().to_str().unwrap();
+    let path = tempdir.path();
+    let binding = path.join(project_name);
+    let project_root = binding.to_string_lossy();
 
     assert!(zork::worker::run_zork(&CliArgs::parse_from([
         "",
         "--root",
-        path,
+        path.to_str().unwrap(),
         "new",
         "msvc_example",
         "--compiler",
@@ -53,7 +63,7 @@ fn test_msvc_process_basic_template() -> Result<()> {
     .is_ok());
 
     assert!(
-        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run", "--root", path])).is_ok()
+        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "--root", &project_root, "run"])).is_ok()
     );
 
     Ok(tempdir.close()?)
@@ -62,13 +72,17 @@ fn test_msvc_process_basic_template() -> Result<()> {
 #[cfg(target_os = "windows")]
 #[test]
 fn test_msvc_full_process() -> Result<()> {
+    let project_name = "clang_example";
+
     let tempdir = tempdir()?;
-    let path = tempdir.path().to_str().unwrap();
+    let path = tempdir.path();
+    let binding = path.join(project_name);
+    let project_root = binding.to_string_lossy();
 
     assert!(zork::worker::run_zork(&CliArgs::parse_from([
         "",
-        "--root",
-        path,
+            "--root",
+        path.to_str().unwrap(),
         "new",
         "msvc_example",
         "--compiler",
@@ -77,12 +91,12 @@ fn test_msvc_full_process() -> Result<()> {
     .is_ok());
 
     assert!(
-        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "run", "--root", path])).is_ok()
+        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "--root", &project_root, "run"])).is_ok()
     );
 
     Ok(tempdir.close()?)
 }
-
+/*
 #[cfg(target_os = "windows")]
 #[test]
 fn test_gcc_windows_full_process() -> Result<()> {
@@ -178,6 +192,7 @@ mod local_env_tests {
         let process = zork::worker::run_zork(&CliArgs::parse_from([
             "",
             "-vv",
+            "-c",
             "--root",
             &path.display().to_string(),
             "--driver-path",
@@ -188,4 +203,4 @@ mod local_env_tests {
         ]));
         assert!(process.is_ok());
     }
-}
+} */

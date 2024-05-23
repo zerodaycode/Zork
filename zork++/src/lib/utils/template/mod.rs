@@ -1,14 +1,10 @@
 pub mod resources;
 
 use crate::cli::input::TemplateValues;
-use crate::config_file::compiler::CppCompiler as CfgCppCompiler;
-use crate::config_file::compiler::{LanguageLevel, StdLib};
-use crate::config_file::ZorkConfigFile;
 use crate::project_model::compiler::CppCompiler;
 use crate::utils;
 use color_eyre::eyre::{bail, Context};
 use color_eyre::{Report, Result};
-use std::borrow::Borrow;
 use std::path::Path;
 use std::process::Command;
 
@@ -93,14 +89,46 @@ pub fn create_templated_project(
     utils::fs::create_file(&path_src, "math.cpp", resources::SRC_MOD_FILE.as_bytes())?;
     utils::fs::create_file(&path_src, "math2.cpp", resources::SRC_MOD_FILE_2.as_bytes())?;
 
-    let template = match template {
-        TemplateValues::BASIC => resources::CONFIG_FILE_BASIC,
-        TemplateValues::PARTITIONS => resources::CONFIG_FILE,
-    };
+    let template = match compiler {
+        CppCompiler::MSVC => match template {
+                TemplateValues::BASIC => resources::CONFIG_FILE_BASIC_MSVC,
+                TemplateValues::PARTITIONS => resources::CONFIG_FILE_MSVC,
+            },
+        CppCompiler::CLANG | CppCompiler::GCC => {
+            match template {
+                TemplateValues::BASIC => resources::CONFIG_FILE_BASIC,
+                TemplateValues::PARTITIONS => resources::CONFIG_FILE,
+            }
+        }
+    }.replace("<project_name>", project_name);
 
-    let mut config: ZorkConfigFile =
-        toml::from_str(template).with_context(|| "Could not parse configuration file")?;
+    utils::fs::create_file(
+        &project_root,
+        &format!(
+            "{}_{}{}",
+            utils::constants::CONFIG_FILE_NAME,
+            compiler.as_ref(),
+            utils::constants::CONFIG_FILE_EXT
+        ),
+        template.as_bytes(),
+    )?;
 
+    if git {
+        initialize_git_repository(&project_root)?
+    }
+
+    Ok(())
+}
+
+/*
+ * TODO: pending to be implemented when we decide if it's worth to update to the newest trash
+ * versions of the crate `toml`, and procedurally generate the config files (w/o templates)
+ *
+    let mut config: ZorkConfigFile<'_> = config_file::zork_cfg_from_file(template)
+        .with_context(|| "Could not parse the template configuration file")?;
+    println!("Zork config loaded: {:?}", &config);
+
+    config.project.name = project_name;
     match compiler {
         CppCompiler::CLANG => {
             config.compiler.cpp_compiler = CfgCppCompiler::CLANG;
@@ -130,28 +158,13 @@ pub fn create_templated_project(
     modules.base_ifcs_dir = Some("ifc");
     modules.base_impls_dir = Some("src");
 
+    println!("Zork config after: {:?}", &config);
     let conf_as_str = toml::to_string(config.borrow())
         .with_context(|| "Failed to serialize the `ZorkConfigFile` of the template")?
         .replace("cppm", compiler.get_default_module_extension()); // TODO: yet this legacy
                                                                    // replace...
 
-    utils::fs::create_file(
-        &project_root,
-        &format!(
-            "{}_{}{}",
-            utils::constants::CONFIG_FILE_NAME,
-            compiler.as_ref(),
-            utils::constants::CONFIG_FILE_EXT
-        ),
-        conf_as_str.as_bytes(),
-    )?;
-
-    if git {
-        initialize_git_repository(&project_root)?
-    }
-
-    Ok(())
-}
+ */
 
 fn check_project_root_available(project_root: &Path) -> Result<()> {
     if !project_root.exists() {

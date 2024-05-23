@@ -1,5 +1,6 @@
 //! Metadata about the user's project
-use serde::*;
+
+use serde::{Serialize, Deserialize};
 
 /// [`ProjectAttribute`] - Metadata about the user's project
 /// * `name` - The C++ project's name
@@ -38,9 +39,12 @@ use serde::*;
 #[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ProjectAttribute<'a> {
+    #[serde(borrow)]
     pub name: &'a str,
     #[serde(borrow)]
     pub authors: Option<Vec<&'a str>>,
     pub compilation_db: Option<bool>,
+    #[serde(borrow)]
     pub project_root: Option<&'a str>,
 }
+

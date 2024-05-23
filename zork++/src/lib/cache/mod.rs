@@ -3,6 +3,7 @@
 pub mod compile_commands;
 
 use chrono::{DateTime, Utc};
+use color_eyre::eyre::OptionExt;
 use color_eyre::{eyre::Context, Result};
 use regex::Regex;
 use std::collections::HashMap;
@@ -243,23 +244,13 @@ impl ZorkCache {
                     constants::MSVC_REGULAR_BASE_SCAPED_PATH,
                 )
             });
-            // TODO: decouple the execution calls from the commands file and then pass it with msvc arg?
             let output = std::process::Command::new(constants::WIN_CMD)
                 .arg("/c")
-                .arg(
-                    msvc // TODO: check better if we found the vsvar before, and remove the Option
-                         // wrapper
-                        .dev_commands_prompt
-                        .as_ref() // TODO: Custom getter at ZorkCache level (direct mapping) that
-                                  // returns shared reference
-                        .expect("Zork++ wasn't unable to find the VS env vars"), // TODO: same msg with
-                                                                             // please open an...
-                                                                             // etc
-            )
-            .arg("&&")
-            .arg("set")
-            .output()
-            .with_context(|| "Unable to load MSVC pre-requisites. Please, open an issue with the details on upstream")?; // TODO: general zdc url with description on constans
+                .arg(msvc.dev_commands_prompt.as_ref().ok_or_eyre("Zork++ wasn't unable to find the VS env vars")?)
+                .arg("&&")
+                .arg("set")
+                .output()
+                .with_context(|| "Unable to load MSVC pre-requisites. Please, open an issue with the details on upstream")?;
 
             msvc.env_vars = Self::load_env_vars_from_cmd_output(&output.stdout)?;
             // Cloning the useful ones for quick access at call site
@@ -280,6 +271,8 @@ impl ZorkCache {
         Ok(())
     }
 
+    /// Convenient helper to manipulate and store the environmental variables as result of invoking
+    /// the Windows `SET` cmd command
     fn load_env_vars_from_cmd_output(stdout: &[u8]) -> Result<HashMap<String, String>> {
         let env_vars_str = std::str::from_utf8(stdout)?;
         let filter = Regex::new(r"^[a-zA-Z_]+$").unwrap();
@@ -400,10 +393,9 @@ impl ZorkCache {
     /// to the underlying shell
     pub fn get_process_env_args(&self) -> &EnvVars {
         match self.compiler {
-            CppCompiler::MSVC => &self.compilers_metadata.msvc.env_vars, // TODO: review the
-            /* CppCompiler::CLANG => HashMap::with_capacity(0),
-            CppCompiler::GCC => HashMap::with_capacity(0), */
-            _ => todo!(),
+            CppCompiler::MSVC => &self.compilers_metadata.msvc.env_vars,
+            CppCompiler::CLANG => &self.compilers_metadata.clang.env_vars,
+            CppCompiler::GCC => &self.compilers_metadata.gcc.env_vars,
         }
     }
 }
@@ -445,8 +437,13 @@ pub type EnvVars = HashMap<String, String>;
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CompilersMetadata {
     pub msvc: MsvcMetadata,
+    pub clang: ClangMetadata,
+    pub gcc: GccMetadata,
     pub system_modules: Vec<String>, // TODO: This hopefully will dissappear soon
 }
+
+// TODO: review someday how to better structure the metadata per compiler
+// and generalize this structures
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct MsvcMetadata {
@@ -455,5 +452,15 @@ pub struct MsvcMetadata {
     pub modular_stdlib_path: Option<String>,
     pub stdlib_bmi_path: PathBuf,
     pub stdlib_obj_path: PathBuf,
+    pub env_vars: EnvVars,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct ClangMetadata {
+    pub env_vars: EnvVars,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+pub struct GccMetadata {
     pub env_vars: EnvVars,
 }

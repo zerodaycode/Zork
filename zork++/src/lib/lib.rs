@@ -15,7 +15,7 @@ pub mod utils;
 /// without having to do fancy work about checking the
 /// data sent to stdout/stderr
 pub mod worker {
-    use crate::utils::fs::get_project_root_absolute_path;
+    use crate::{config_file, utils::fs::get_project_root_absolute_path};
     use std::{fs, path::Path};
 
     use crate::{
@@ -25,7 +25,6 @@ pub mod worker {
             output::commands::{self, autorun_generated_binary, CommandExecutionResult, Commands},
         },
         compiler::build_project,
-        config_file::ZorkConfigFile,
         project_model::{compiler::CppCompiler, ZorkModel},
         utils::{
             self,
@@ -37,7 +36,7 @@ pub mod worker {
 
     /// The main work of the project. Runs the tasks
     /// inputted in the CLI
-    pub fn run_zork(cli_args: &CliArgs) -> std::result::Result<(), Report> {
+    pub fn run_zork<'a>(cli_args: &'a CliArgs) -> std::result::Result<(), Report> {
         let project_root = cli_args
             .root
             .as_deref()
@@ -80,7 +79,7 @@ pub mod worker {
                 )
             })?;
 
-            let config: ZorkConfigFile = toml::from_str(raw_file.as_str())
+            let config = config_file::zork_cfg_from_file(raw_file.as_str())
                 .with_context(|| "Could not parse configuration file")?;
             let program_data = build_model(&config, cli_args, &abs_project_root)?;
             create_output_directory(&program_data)?;
@@ -210,7 +209,7 @@ pub mod worker {
         use color_eyre::{eyre::Context, Result};
         use tempfile::tempdir;
 
-        use crate::config_file::ZorkConfigFile;
+        use crate::config_file::{self, ZorkConfigFile};
         use crate::utils::{reader::build_model, template::resources::CONFIG_FILE};
 
         #[test]
@@ -223,7 +222,7 @@ pub mod worker {
                 .replace("<compiler>", "clang")
                 .replace("<std_lib>", "LIBCPP")
                 .replace('\\', "/");
-            let zcf: ZorkConfigFile = toml::from_str(&normalized_cfg_file)?;
+            let zcf: ZorkConfigFile = config_file::zork_cfg_from_file(&normalized_cfg_file)?;
             let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
             let model = build_model(&zcf, &cli_args, temp_path)
                 .with_context(|| "Error building the project model")?;

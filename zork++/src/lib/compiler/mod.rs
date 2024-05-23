@@ -102,9 +102,9 @@ fn build_modular_stdlib<'a>(
                 .with_extension(compiler.get_obj_file_extension())
                 .display()
         });
+        commands.pre_tasks.push(arguments);
     }
 
-    commands.pre_tasks.push(arguments);
 }
 
 /// Triggers the build process for compile the source files declared for the project
