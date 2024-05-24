@@ -8,6 +8,7 @@ const char* compiler =
 #elif defined(_MSC_VER)
     "MSVC";
     import std;
+    import std.compat;
 #endif
 
 import math;
@@ -19,6 +20,10 @@ int main() {
     std::cout << "RESULT of 8 - 2 = " << math::subtract(8, 2) << std::endl;
     std::cout << "RESULT of 2 * 8 = " << math::multiply(2, 8) << std::endl;
     std::cout << "RESULT of 2 / 2 = " << math::divide(2, 2) << std::endl << std::endl;
+
+    #if defined(_MSC_VER)
+        printf("Import std.compat to get global names like printf()\n");
+    #endif
 
     return 0;
 }

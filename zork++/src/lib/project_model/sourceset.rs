@@ -1,18 +1,29 @@
 use core::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::bounds::TranslationUnit;
 use color_eyre::{eyre::Context, Result};
+use serde::{Deserialize, Serialize};
 
 use crate::cli::output::arguments::Argument;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Source {
-    File(PathBuf),
-    Glob(GlobPattern),
+// Since every file on the system has a path, this acts as a cheap conceptual
+// conversion to unifify PATH querying operations over anything that can be
+// saved on a persistence system with an access route
+pub trait File {
+    fn get_path(&self) -> PathBuf;
 }
 
-#[derive(Debug, PartialEq, Eq)]
+impl File for Path {
+    fn get_path(&self) -> PathBuf { self.to_path_buf() }
+}
+
+impl File for PathBuf {
+    fn get_path(&self) -> PathBuf { self.to_path_buf() }
+}
+
+
+#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
 pub struct SourceFile {
     pub path: PathBuf,
     pub file_stem: String,
@@ -22,7 +33,7 @@ pub struct SourceFile {
 impl TranslationUnit for SourceFile {
     fn file(&self) -> PathBuf {
         let mut tmp = self.path.join(&self.file_stem).into_os_string();
-        tmp.push(".");
+        tmp.push("."); // TODO: use the correct PATH APIs
         tmp.push(&self.extension);
         PathBuf::from(tmp)
     }
@@ -69,6 +80,12 @@ impl fmt::Display for SourceFile {
             self.path, self.file_stem, self.extension
         )
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Source {
+    File(PathBuf),
+    Glob(GlobPattern),
 }
 
 impl Source {

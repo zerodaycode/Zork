@@ -7,9 +7,10 @@ use color_eyre::Result;
 use std::path::Path;
 
 use crate::bounds::{ExecutableTarget, ExtraArgs, TranslationUnit};
-use crate::cli::output::arguments::{clang_args, Arguments};
+use crate::cli::output::arguments::{clang_args, msvc_args, Arguments};
 use crate::cli::output::commands::{CommandExecutionResult, SourceCommandLine};
 use crate::compiler::helpers::flag_source_file_without_changes;
+use crate::project_model::compiler::StdLibMode;
 use crate::utils::constants;
 use crate::{
     cache::ZorkCache,
@@ -57,54 +58,20 @@ fn build_modular_stdlib<'a>(
     cache: &ZorkCache,
     commands: &mut Commands<'a>,
 ) {
-    let mut arguments = Arguments::default();
     let compiler = model.compiler.cpp_compiler;
-    let output_dir = &model.build.output_dir;
 
     // TODO: remaining ones: Clang, GCC
     if compiler.eq(&CppCompiler::MSVC) {
-        arguments.push(model.compiler.language_level_arg());
-        arguments.create_and_push("/EHsc");
-        arguments.create_and_push("/nologo");
-        arguments.create_and_push("/W4");
-        arguments.create_and_push("/c");
+        if !cache.compilers_metadata.msvc.is_loaded() {
+            return;
+        }
 
-        let msvc_std_ifc_path = Path::new(
-            cache
-                .compilers_metadata
-                .msvc
-                .modular_stdlib_path
-                .as_ref()
-                .unwrap(),
-        )
-        .join("modules")
-        .join("std")
-        .with_extension(compiler.get_default_module_extension());
-        arguments.create_and_push(msvc_std_ifc_path);
-        arguments.create_and_push("/ifcOutput");
-        arguments.create_and_push(format! {
-            "{}",
-            output_dir
-                .join(compiler.as_ref())
-                .join("modules")
-                .join("std")
-                .join("std")
-                .with_extension(compiler.get_typical_bmi_extension())
-                .display()
-        });
-        arguments.create_and_push(format! {
-            "/Fo{}",
-            output_dir
-                .join(compiler.as_ref())
-                .join("modules")
-                .join("std")
-                .join("std")
-                .with_extension(compiler.get_obj_file_extension())
-                .display()
-        });
-        commands.pre_tasks.push(arguments);
+        let cpp_stdlib = msvc_args::generate_std_cmd_args(model, cache, StdLibMode::Cpp);
+        commands.pre_tasks.push(cpp_stdlib);
+
+        let c_cpp_stdlib = msvc_args::generate_std_cmd_args(model, cache, StdLibMode::CCompat);
+        commands.pre_tasks.push(c_cpp_stdlib);
     }
-
 }
 
 /// Triggers the build process for compile the source files declared for the project
@@ -140,7 +107,7 @@ fn build_sources<'a>(
     };
 
     srcs.iter().for_each(|src| if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &src.file()) {
-        sources::generate_sources_arguments(model, commands, &model.tests, src);
+        sources::generate_sources_arguments(model, commands, cache, &model.tests, src);
     } else {
         let command_line = SourceCommandLine::from_translation_unit(
             src, Arguments::default(), true, CommandExecutionResult::Cached
@@ -185,7 +152,7 @@ fn build_module_interfaces<'a>(
 ) {
     interfaces.iter().for_each(|module_interface| {
         if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file()) {
-            sources::generate_module_interfaces_args(model, module_interface, commands);
+            sources::generate_module_interfaces_args(model, cache, module_interface, commands);
         } else {
             let command_line = SourceCommandLine::from_translation_unit(
                 module_interface, Arguments::default(), true, CommandExecutionResult::Cached
@@ -210,7 +177,7 @@ fn build_module_implementations<'a>(
 ) {
     impls.iter().for_each(|module_impl| {
         if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file()) {
-            sources::generate_module_implementation_args(model, module_impl, commands);
+            sources::generate_module_implementation_args(model, cache, module_impl, commands);
         } else {
             let command_line = SourceCommandLine::from_translation_unit(
                 module_impl, Arguments::default(), true, CommandExecutionResult::Cached
@@ -294,6 +261,7 @@ pub fn generate_main_command_line_args<'a>(
             ));
             // Add the .obj file of the modular stdlib to the linker command
             arguments.create_and_push(&cache.compilers_metadata.msvc.stdlib_obj_path);
+            arguments.create_and_push(&cache.compilers_metadata.msvc.c_stdlib_obj_path);
         }
         CppCompiler::GCC => {
             arguments.create_and_push("-fmodules-ts");
@@ -325,6 +293,7 @@ pub fn generate_main_command_line_args<'a>(
 mod sources {
     use super::helpers;
     use crate::bounds::ExtraArgs;
+    use crate::cache::ZorkCache;
     use crate::cli::output::arguments::Arguments;
     use crate::project_model::sourceset::SourceFile;
     use crate::{
@@ -344,6 +313,7 @@ mod sources {
     pub fn generate_sources_arguments<'a>(
         model: &'a ZorkModel,
         commands: &mut Commands<'a>,
+        cache: &ZorkCache,
         target: &'a impl ExecutableTarget<'a>,
         source: &'a SourceFile,
     ) {
@@ -373,14 +343,11 @@ mod sources {
                 arguments.create_and_push("/nologo");
                 arguments.create_and_push("/reference");
                 arguments.create_and_push(format! {
-                    "std={}",
-                    out_dir
-                        .join(compiler.as_ref())
-                        .join("modules")
-                        .join("std")
-                        .join("std")
-                        .with_extension(compiler.get_typical_bmi_extension())
-                        .display()
+                    "std={}", cache.compilers_metadata.msvc.stdlib_bmi_path.display()
+                });
+                arguments.create_and_push("/reference");
+                arguments.create_and_push(format! {
+                    "std.compat={}", cache.compilers_metadata.msvc.c_stdlib_bmi_path.display()
                 });
                 arguments.create_and_push("/ifcSearchDir");
                 arguments.create_and_push(
@@ -420,6 +387,7 @@ mod sources {
     /// Generates the expected arguments for precompile the BMIs depending on self
     pub fn generate_module_interfaces_args<'a>(
         model: &'a ZorkModel,
+        cache: &ZorkCache,
         interface: &'a ModuleInterfaceModel,
         commands: &mut Commands<'a>,
     ) {
@@ -467,16 +435,12 @@ mod sources {
 
                 arguments.create_and_push("/reference");
                 arguments.create_and_push(format! {
-                    "std={}",
-                    out_dir
-                        .join(compiler.as_ref())
-                        .join("modules")
-                        .join("std")
-                        .join("std")
-                        .with_extension(compiler.get_typical_bmi_extension())
-                        .display()
+                    "std={}", cache.compilers_metadata.msvc.stdlib_bmi_path.display()
                 });
-
+                arguments.create_and_push("/reference");
+                arguments.create_and_push(format! {
+                    "std.compat={}", cache.compilers_metadata.msvc.c_stdlib_bmi_path.display()
+                });
                 let implicit_lookup_mius_path = out_dir
                     .join(compiler.as_ref())
                     .join("modules")
@@ -535,6 +499,7 @@ mod sources {
     /// Generates the expected arguments for compile the implementation module files
     pub fn generate_module_implementation_args<'a>(
         model: &'a ZorkModel,
+        cache: &ZorkCache,
         implementation: &'a ModuleImplementationModel,
         commands: &mut Commands<'a>,
     ) {
@@ -579,14 +544,11 @@ mod sources {
                 arguments.create_and_push("/c");
                 arguments.create_and_push("/reference");
                 arguments.create_and_push(format! {
-                    "std={}",
-                    out_dir
-                        .join(compiler.as_ref())
-                        .join("modules")
-                        .join("std")
-                        .join("std")
-                        .with_extension(compiler.get_typical_bmi_extension())
-                        .display()
+                    "std={}", cache.compilers_metadata.msvc.stdlib_bmi_path.display()
+                });
+                arguments.create_and_push("/reference");
+                arguments.create_and_push(format! {
+                    "std.compat={}", cache.compilers_metadata.msvc.c_stdlib_bmi_path.display()
                 });
                 arguments.create_and_push("/ifcSearchDir");
                 arguments.create_and_push(
@@ -797,7 +759,7 @@ mod helpers {
     /// to avoid losing time rebuilding it if the translation unit
     /// hasn't been modified since the last build process iteration.
     ///
-    /// True means already processed and previous iteration Success
+    /// True means 'already processed with previous iteration: Success' and stored on the cache
     pub(crate) fn flag_source_file_without_changes(
         compiler: &CppCompiler,
         cache: &ZorkCache,

@@ -196,3 +196,64 @@ pub mod clang_args {
         });
     }
 }
+
+pub mod msvc_args {
+    use crate::{
+        bounds::TranslationUnit,
+        cache::ZorkCache,
+        cli::output::commands::{CommandExecutionResult, SourceCommandLine},
+        project_model::{compiler::StdLibMode, ZorkModel},
+    };
+
+    use super::Arguments;
+
+    pub(crate) fn generate_std_cmd_args<'a>(
+        model: &'a ZorkModel<'_>,
+        cache: &ZorkCache,
+        stdlib_mode: StdLibMode,
+    ) -> SourceCommandLine<'a> {
+        let mut arguments = Arguments::default();
+        let msvc = &cache.compilers_metadata.msvc;
+
+        let (stdlib_sf, stdlib_bmi_path, stdlib_obj_path) = if stdlib_mode.eq(&StdLibMode::Cpp) {
+            (
+                msvc.vs_stdlib_path.as_ref().unwrap(),
+                &msvc.stdlib_bmi_path,
+                &msvc.stdlib_obj_path,
+            )
+        } else {
+            (
+                msvc.vs_c_stdlib_path.as_ref().unwrap(),
+                &msvc.c_stdlib_bmi_path,
+                &msvc.c_stdlib_obj_path,
+            )
+        };
+
+        arguments.push(model.compiler.language_level_arg());
+        arguments.create_and_push("/EHsc");
+        arguments.create_and_push("/nologo");
+        arguments.create_and_push("/W4");
+
+        arguments.create_and_push("/reference");
+        arguments.create_and_push(format! {
+            "std={}", msvc.stdlib_bmi_path.display()
+        });
+
+        arguments.create_and_push("/c");
+        arguments.create_and_push(stdlib_sf.file());
+        arguments.create_and_push("/ifcOutput");
+        arguments.create_and_push(format! {
+            "{}", stdlib_bmi_path.display()
+        });
+        arguments.create_and_push(format! {
+            "/Fo{}", stdlib_obj_path.display()
+        });
+
+        SourceCommandLine::from_translation_unit(
+            stdlib_sf,
+            arguments,
+            false,
+            CommandExecutionResult::default(),
+        )
+    }
+}

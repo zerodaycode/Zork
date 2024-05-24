@@ -31,37 +31,34 @@ pub fn run_generated_commands(
     test_mode: bool,
 ) -> Result<CommandExecutionResult> {
     log::info!("Proceeding to execute the generated commands...");
-    let mut total_exec_commands = 0;
     let compiler = commands.compiler;
 
-    for pre_task in &commands.pre_tasks {
+    /* for pre_task in &commands.pre_tasks {
         execute_command(compiler, program_data, pre_task, cache)?;
-    }
+    } */
 
     for sys_module in &commands.system_modules {
         // TODO: will be deprecated soon, hopefully
         execute_command(compiler, program_data, sys_module.1, cache)?;
     }
 
-    let sources = commands
-        .interfaces
+    let translation_units = commands.pre_tasks
         .iter_mut()
+        .chain(commands.interfaces.iter_mut())
         .chain(commands.implementations.iter_mut())
         .chain(commands.sources.iter_mut());
 
-    for source_file in sources {
-        if !source_file.processed {
-            let r = execute_command(compiler, program_data, &source_file.args, cache);
-            source_file.execution_result = CommandExecutionResult::from(&r);
-            total_exec_commands += 1;
+    for translation_unit in translation_units {
+        if !translation_unit.processed {
+            let r = execute_command(compiler, program_data, &translation_unit.args, cache);
+            translation_unit.execution_result = CommandExecutionResult::from(&r);
             if let Err(e) = r {
-                // TODO: replace this with a match pattern (much more readable)
                 cache::save(program_data, cache, commands, test_mode)?;
                 return Err(e);
             } else if !r.as_ref().unwrap().success() {
                 let err = eyre!(
                     "Ending the program, because the build of: {:?} wasn't ended successfully",
-                    source_file.file
+                    translation_unit.filename
                 );
                 cache::save(program_data, cache, commands, test_mode)?;
                 return Err(err);
@@ -86,7 +83,6 @@ pub fn run_generated_commands(
         }
     }
 
-    log::debug!("A total of: {total_exec_commands} command lines has been executed");
     cache::save(program_data, cache, commands, test_mode)?;
     Ok(CommandExecutionResult::Success)
 }
@@ -150,7 +146,7 @@ fn execute_command(
 #[derive(Debug)]
 pub struct SourceCommandLine<'a> {
     pub directory: PathBuf,
-    pub file: String,
+    pub filename: String,
     pub args: Arguments<'a>,
     pub processed: bool,
     pub execution_result: CommandExecutionResult,
@@ -170,7 +166,7 @@ impl<'a> SourceCommandLine<'a> {
     ) -> Self {
         Self {
             directory: tu.path(),
-            file: tu.file_with_extension(),
+            filename: tu.file_with_extension(),
             args,
             processed,
             execution_result,
@@ -178,7 +174,7 @@ impl<'a> SourceCommandLine<'a> {
     }
 
     pub fn path(&self) -> PathBuf {
-        self.directory.join(Path::new(&self.file))
+        self.directory.join(Path::new(&self.filename))
     }
 }
 
@@ -205,8 +201,7 @@ impl<'a> Default for ExecutableCommandLine<'a> {
 #[derive(Debug)]
 pub struct Commands<'a> {
     pub compiler: CppCompiler,
-    pub pre_tasks: Vec<Arguments<'a>>, // TODO: Arguments strong typing over this isn't too explicit nor
-    // specific, right?
+    pub pre_tasks: Vec<SourceCommandLine<'a>>,
     pub system_modules: HashMap<String, Arguments<'a>>,
     pub interfaces: Vec<SourceCommandLine<'a>>,
     pub implementations: Vec<SourceCommandLine<'a>>,
@@ -219,7 +214,7 @@ impl<'a> Commands<'a> {
     pub fn new(compiler: &'a CppCompiler) -> Self {
         Self {
             compiler: *compiler,
-            pre_tasks: Vec::new(),
+            pre_tasks: Vec::with_capacity(0),
             system_modules: HashMap::with_capacity(0),
             interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
@@ -270,7 +265,7 @@ pub enum CommandExecutionResult {
     Error,
     /// A previous state before executing a command line
     #[default]
-    Unreached,
+    Unprocessed,
 }
 
 impl From<Result<ExitStatus, Report>> for CommandExecutionResult {

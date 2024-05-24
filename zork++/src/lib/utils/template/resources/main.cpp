@@ -8,6 +8,7 @@ const char* compiler =
 #elif defined(_MSC_VER)
     "MSVC";
     import std;
+    import std.compat;
 #endif
 
 import math;
@@ -23,6 +24,10 @@ int main() {
 
     std::cout << "Testing interface module partitions, by just returning the number: "
         << just_a_42() << std::endl;
+
+    #if defined(_MSC_VER)
+        printf("Import std.compat to get global names like printf()\n");
+    #endif
 
     return 0;
 }

@@ -13,6 +13,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::project_model::sourceset::SourceFile;
 use crate::{
     cli::{
         input::CliArgs,
@@ -255,17 +256,37 @@ impl ZorkCache {
             msvc.env_vars = Self::load_env_vars_from_cmd_output(&output.stdout)?;
             // Cloning the useful ones for quick access at call site
             msvc.compiler_version = msvc.env_vars.get("VisualStudioVersion").cloned();
-            msvc.modular_stdlib_path = msvc.env_vars.get("VCToolsInstallDir").cloned();
 
+            let vs_stdlib_path = Path::new(msvc.env_vars.get("VCToolsInstallDir").unwrap()).join("modules");
+            msvc.vs_stdlib_path = Some(SourceFile {
+                path: vs_stdlib_path.clone(),
+                file_stem: String::from("std"),
+                extension: compiler.get_default_module_extension().to_string(),
+            });
+            msvc.vs_c_stdlib_path = Some(SourceFile {
+                path: vs_stdlib_path,
+                file_stem: String::from("std.compat"),
+                extension: compiler.get_default_module_extension().to_string(),
+            });
             let modular_stdlib_byproducts_path = Path::new(&program_data.build.output_dir)
                 .join(compiler.as_ref())
                 .join("modules")
                 .join("std") // folder
-                .join("std");
+                .join("std"); // filename
+
+            // Saving the paths to the precompiled bmi and obj files of the MSVC std implementation
+            // that will be used to reference the build of the std as a module
             msvc.stdlib_bmi_path =
                 modular_stdlib_byproducts_path.with_extension(compiler.get_typical_bmi_extension());
             msvc.stdlib_obj_path =
                 modular_stdlib_byproducts_path.with_extension(compiler.get_obj_file_extension());
+
+            let c_modular_stdlib_byproducts_path = modular_stdlib_byproducts_path;
+            let compat = String::from("compat.");
+            msvc.c_stdlib_bmi_path =
+                c_modular_stdlib_byproducts_path.with_extension(compat.clone() + compiler.get_typical_bmi_extension());
+            msvc.c_stdlib_obj_path =
+                c_modular_stdlib_byproducts_path.with_extension(compat + compiler.get_obj_file_extension());
         }
 
         Ok(())
@@ -345,7 +366,7 @@ impl ZorkCache {
     ) -> CommandExecutionResult {
         if module_command_line
             .execution_result
-            .eq(&CommandExecutionResult::Unreached)
+            .eq(&CommandExecutionResult::Unprocessed)
         {
             if let Some(prev_entry) = self.is_file_cached(module_command_line.path()) {
                 prev_entry.execution_result
@@ -381,7 +402,7 @@ impl ZorkCache {
                     .to_str()
                     .unwrap_or_default()
                     .to_string(),
-                file: source_command_line.file.clone(),
+                file: source_command_line.filename.clone(),
                 execution_result: self.normalize_execution_result_status(source_command_line),
             }
         }));
@@ -449,10 +470,22 @@ pub struct CompilersMetadata {
 pub struct MsvcMetadata {
     pub compiler_version: Option<String>,
     pub dev_commands_prompt: Option<String>,
-    pub modular_stdlib_path: Option<String>,
-    pub stdlib_bmi_path: PathBuf,
-    pub stdlib_obj_path: PathBuf,
+    pub vs_stdlib_path: Option<SourceFile>, // std.ixx path for the MSVC std lib location
+    pub vs_c_stdlib_path: Option<SourceFile>, // std.compat.ixx path for the MSVC std lib location
+    pub stdlib_bmi_path: PathBuf, // BMI byproduct after build in it at the target out dir of
+    // the user
+    pub stdlib_obj_path: PathBuf, // Same for the .obj file
+    // Same as the ones defined for the C++ std lib, but for the C std lib
+    pub c_stdlib_bmi_path: PathBuf,
+    pub c_stdlib_obj_path: PathBuf,
+    // The environmental variables that will be injected to the underlying invoking shell
     pub env_vars: EnvVars,
+}
+
+impl MsvcMetadata {
+    pub fn is_loaded(&self) -> bool {
+        self.dev_commands_prompt.is_some() && self.vs_stdlib_path.is_some()
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
