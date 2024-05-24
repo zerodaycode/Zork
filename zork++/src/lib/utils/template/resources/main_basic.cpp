@@ -1,4 +1,3 @@
-
 const char* compiler =
 #if defined(__clang__)
     "Clang";

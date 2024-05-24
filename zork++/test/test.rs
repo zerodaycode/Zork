@@ -42,7 +42,7 @@ fn test_clang_full_process() -> Result<()> {
 #[cfg(target_os = "windows")]
 #[test]
 fn test_msvc_process_basic_template() -> Result<()> {
-    let project_name = "clang_example";
+    let project_name = "msvc_example_basic";
 
     let tempdir = tempdir()?;
     let path = tempdir.path();
@@ -54,7 +54,7 @@ fn test_msvc_process_basic_template() -> Result<()> {
         "--root",
         path.to_str().unwrap(),
         "new",
-        "msvc_example",
+        project_name,
         "--compiler",
         "msvc",
         "--template",
@@ -72,7 +72,7 @@ fn test_msvc_process_basic_template() -> Result<()> {
 #[cfg(target_os = "windows")]
 #[test]
 fn test_msvc_full_process() -> Result<()> {
-    let project_name = "clang_example";
+    let project_name = "msvc_example";
 
     let tempdir = tempdir()?;
     let path = tempdir.path();
@@ -81,10 +81,10 @@ fn test_msvc_full_process() -> Result<()> {
 
     assert!(zork::worker::run_zork(&CliArgs::parse_from([
         "",
-            "--root",
+        "--root",
         path.to_str().unwrap(),
         "new",
-        "msvc_example",
+        project_name,
         "--compiler",
         "msvc"
     ]))
@@ -96,6 +96,7 @@ fn test_msvc_full_process() -> Result<()> {
 
     Ok(tempdir.close()?)
 }
+
 /*
 #[cfg(target_os = "windows")]
 #[test]
