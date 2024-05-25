@@ -1,6 +1,6 @@
 //! Metadata about the user's project
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// [`ProjectAttribute`] - Metadata about the user's project
 /// * `name` - The C++ project's name
@@ -47,4 +47,3 @@ pub struct ProjectAttribute<'a> {
     #[serde(borrow)]
     pub project_root: Option<&'a str>,
 }
-

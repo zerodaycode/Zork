@@ -42,7 +42,8 @@ pub fn run_generated_commands(
         execute_command(compiler, program_data, sys_module.1, cache)?;
     }
 
-    let translation_units = commands.pre_tasks
+    let translation_units = commands
+        .pre_tasks
         .iter_mut()
         .chain(commands.interfaces.iter_mut())
         .chain(commands.implementations.iter_mut())

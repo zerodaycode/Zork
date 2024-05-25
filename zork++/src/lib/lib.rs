@@ -36,7 +36,7 @@ pub mod worker {
 
     /// The main work of the project. Runs the tasks
     /// inputted in the CLI
-    pub fn run_zork<'a>(cli_args: &'a CliArgs) -> std::result::Result<(), Report> {
+    pub fn run_zork(cli_args: &CliArgs) -> std::result::Result<(), Report> {
         let project_root = cli_args
             .root
             .as_deref()

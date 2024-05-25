@@ -58,7 +58,6 @@ pub struct ZorkConfigFile<'a> {
     pub tests: Option<TestsAttribute<'a>>,
 }
 
-pub fn zork_cfg_from_file(cfg: &'_ str) -> Result<ZorkConfigFile<'_>, toml::de::Error>
-{
+pub fn zork_cfg_from_file(cfg: &'_ str) -> Result<ZorkConfigFile<'_>, toml::de::Error> {
     <ZorkConfigFile>::deserialize(&mut toml::Deserializer::new(cfg))
 }

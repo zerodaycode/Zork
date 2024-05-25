@@ -113,7 +113,7 @@ pub fn build_model<'a>(
 
 fn assemble_project_model<'a>(config: &'a ProjectAttribute) -> ProjectModel<'a> {
     ProjectModel {
-        name: &config.name,
+        name: config.name,
         authors: config
             .authors
             .as_ref()
@@ -442,7 +442,8 @@ mod test {
 
     #[test]
     fn test_project_model_with_full_config() -> Result<()> {
-        let config: ZorkConfigFile = config_file::zork_cfg_from_file(utils::constants::CONFIG_FILE_MOCK)?;
+        let config: ZorkConfigFile =
+            config_file::zork_cfg_from_file(utils::constants::CONFIG_FILE_MOCK)?;
         let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
         let model = build_model(&config, &cli_args, &abs_path_for_mock);

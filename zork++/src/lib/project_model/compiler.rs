@@ -150,6 +150,6 @@ impl AsRef<str> for StdLib {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum StdLibMode {
-    Cpp, //< The C++ STD library implemented for every vendor
-    CCompat //< Same, but extending it with the C ISO standard library
+    Cpp,     //< The C++ STD library implemented for every vendor
+    CCompat, //< Same, but extending it with the C ISO standard library
 }

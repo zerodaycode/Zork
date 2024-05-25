@@ -33,4 +33,3 @@ implementations = [
     { file = 'math.cpp', dependencies = ['math'] },
     { file = 'math2.cpp', dependencies = ['math'] },
 ]
-sys_modules = ['iostream']

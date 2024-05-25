@@ -13,7 +13,8 @@ use zork::{
 };
 
 pub fn build_project_benchmark(c: &mut Criterion) {
-    let config: ZorkConfigFile = config_file::zork_cfg_from_file(utils::constants::CONFIG_FILE_MOCK).unwrap();
+    let config: ZorkConfigFile =
+        config_file::zork_cfg_from_file(utils::constants::CONFIG_FILE_MOCK).unwrap();
     let cli_args = CliArgs::parse();
     let program_data = build_model(&config, &cli_args, Path::new(".")).unwrap();
     let cache = ZorkCache::default();

@@ -10,9 +10,11 @@ pub const MAIN: &str = include_str!("main.cpp");
 pub const MAIN_BASIC: &str = include_str!("main_basic.cpp");
 
 pub const CONFIG_FILE: &str = include_str!("zork_example.toml");
+pub const CONFIG_FILE_GCC: &str = include_str!("zork_example_gcc.toml");
 pub const CONFIG_FILE_MSVC: &str = include_str!("zork_example_msvc.toml");
 pub const CONFIG_FILE_BASIC: &str = include_str!("zork_example_basic.toml");
 pub const CONFIG_FILE_BASIC_MSVC: &str = include_str!("zork_example_basic_msvc.toml");
+pub const CONFIG_FILE_BASIC_GCC: &str = include_str!("zork_example_basic_gcc.toml");
 
 pub const STD_HEADER: &str = include_str!("std.h");
 pub const ZORK_MODULEMAP: &str = include_str!("zork.modulemap");

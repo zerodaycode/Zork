@@ -15,13 +15,16 @@ pub trait File {
 }
 
 impl File for Path {
-    fn get_path(&self) -> PathBuf { self.to_path_buf() }
+    fn get_path(&self) -> PathBuf {
+        self.to_path_buf()
+    }
 }
 
 impl File for PathBuf {
-    fn get_path(&self) -> PathBuf { self.to_path_buf() }
+    fn get_path(&self) -> PathBuf {
+        self.to_path_buf()
+    }
 }
-
 
 #[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
 pub struct SourceFile {

@@ -257,7 +257,8 @@ impl ZorkCache {
             // Cloning the useful ones for quick access at call site
             msvc.compiler_version = msvc.env_vars.get("VisualStudioVersion").cloned();
 
-            let vs_stdlib_path = Path::new(msvc.env_vars.get("VCToolsInstallDir").unwrap()).join("modules");
+            let vs_stdlib_path =
+                Path::new(msvc.env_vars.get("VCToolsInstallDir").unwrap()).join("modules");
             msvc.vs_stdlib_path = Some(SourceFile {
                 path: vs_stdlib_path.clone(),
                 file_stem: String::from("std"),
@@ -283,10 +284,10 @@ impl ZorkCache {
 
             let c_modular_stdlib_byproducts_path = modular_stdlib_byproducts_path;
             let compat = String::from("compat.");
-            msvc.c_stdlib_bmi_path =
-                c_modular_stdlib_byproducts_path.with_extension(compat.clone() + compiler.get_typical_bmi_extension());
-            msvc.c_stdlib_obj_path =
-                c_modular_stdlib_byproducts_path.with_extension(compat + compiler.get_obj_file_extension());
+            msvc.c_stdlib_bmi_path = c_modular_stdlib_byproducts_path
+                .with_extension(compat.clone() + compiler.get_typical_bmi_extension());
+            msvc.c_stdlib_obj_path = c_modular_stdlib_byproducts_path
+                .with_extension(compat + compiler.get_obj_file_extension());
         }
 
         Ok(())

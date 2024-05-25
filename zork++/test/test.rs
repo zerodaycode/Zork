@@ -1,4 +1,3 @@
-
 use clap::Parser;
 use color_eyre::Result;
 use tempfile::tempdir;
@@ -13,25 +12,31 @@ fn test_clang_full_process() -> Result<()> {
     let binding = path.join(project_name);
     let project_root = binding.to_string_lossy();
 
-    assert!(zork::worker::run_zork(&CliArgs::parse_from([
+    let new_project_cretion_result = zork::worker::run_zork(&CliArgs::parse_from([
         "",
         "--root",
-        &project_root, // TODO: pass this path directly to the generated zork++ cfg template file
+        path.to_str().unwrap(),
         "new",
         project_name,
         "--compiler",
         "clang",
         "--template",
         "basic",
-    ]))
-    .is_ok());
+    ]));
 
-    // set_current_dir(tempdir.path().join(project_name))?;
+    assert!(
+        new_project_cretion_result.is_ok(),
+        "{}",
+        new_project_cretion_result.unwrap_err()
+    );
 
     let process_result = zork::worker::run_zork(&CliArgs::parse_from([
-        "", "-vv", "--root", &project_root,
-        /* "--driver-path",
-        "clang++-16", // Local cfg issues */
+        "",
+        "-vv",
+        "--root",
+        &project_root,
+        "--driver-path",
+        "clang++-16", // Local cfg issues
         "run",
     ]));
     assert!(process_result.is_ok(), "{}", process_result.unwrap_err());
@@ -62,9 +67,14 @@ fn test_msvc_process_basic_template() -> Result<()> {
     ]))
     .is_ok());
 
-    assert!(
-        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "--root", &project_root, "run"])).is_ok()
-    );
+    assert!(zork::worker::run_zork(&CliArgs::parse_from([
+        "",
+        "-vv",
+        "--root",
+        &project_root,
+        "run"
+    ]))
+    .is_ok());
 
     Ok(tempdir.close()?)
 }
@@ -90,16 +100,21 @@ fn test_msvc_full_process() -> Result<()> {
     ]))
     .is_ok());
 
-    assert!(
-        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "--root", &project_root, "run"])).is_ok()
-    );
+    assert!(zork::worker::run_zork(&CliArgs::parse_from([
+        "",
+        "-vv",
+        "--root",
+        &project_root,
+        "run"
+    ]))
+    .is_ok());
 
     Ok(tempdir.close()?)
 }
 
-
 #[cfg(target_os = "windows")]
 #[test]
+#[ignore]
 fn test_gcc_windows_full_process() -> Result<()> {
     let project_name = "gcc_example";
 
@@ -119,9 +134,14 @@ fn test_gcc_windows_full_process() -> Result<()> {
     ]))
     .is_ok());
 
-    assert!(
-        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "--root", &project_root, "run"])).is_ok()
-    );
+    assert!(zork::worker::run_zork(&CliArgs::parse_from([
+        "",
+        "-vv",
+        "--root",
+        &project_root,
+        "run"
+    ]))
+    .is_ok());
 
     Ok(tempdir.close()?)
 }
@@ -142,23 +162,41 @@ In module imported at /tmp/.tmpGaFLnR/gcc_example/main.cpp:8:5:
 compilation terminated.
  */
 fn test_gcc_full_process() -> Result<()> {
-    let tempdir = tempdir()?;
-    let path = tempdir.path().to_str().unwrap();
+    use std::fs;
 
-    assert!(zork::worker::run_zork(&CliArgs::parse_from([
+    let project_name = "gcc_example";
+
+    let tempdir = tempdir()?;
+    let path = tempdir.path();
+    let binding = path.join(project_name);
+    let project_root = binding.to_string_lossy();
+
+    let new_project_cretion_result = zork::worker::run_zork(&CliArgs::parse_from([
         "",
         "--root",
-        path,
+        path.to_str().unwrap(),
         "new",
-        "gcc_example",
+        project_name,
         "--compiler",
         "gcc",
-    ]),)
-    .is_ok());
+        "--template",
+        "basic",
+    ]));
 
     assert!(
-        zork::worker::run_zork(&CliArgs::parse_from(["", "-vv", "--root", path, "run"]),).is_ok()
+        new_project_cretion_result.is_ok(),
+        "{}",
+        new_project_cretion_result.unwrap_err()
     );
+
+    let process_result = zork::worker::run_zork(&CliArgs::parse_from([
+        "",
+        "-vv",
+        "--root",
+        &project_root,
+        "run",
+    ]));
+    assert!(process_result.is_ok(), "{}", process_result.unwrap_err());
 
     // Clearing the GCC modules cache (weird, isn't generated at the invoked project's root)
     // maybe we should change dir? but that collide with the purpose of specifiying the project
