@@ -24,8 +24,8 @@ jobs:
           components: clippy
 
       - name: Verifiying the code quality with Clippy
+        working-directory: zork++
         run: |
-          cd zork++
           cargo clippy --all-targets --all-features
 
   rustfmt:
@@ -42,11 +42,25 @@ jobs:
           components: rustfmt
 
       - name: Checking the format sanity of the project
+        working-directory: zork++
         run: |
-          cd zork++
           cargo fmt --all -- --check
 
+  unit-and-doc-tests:
+    name: Verify code formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Caching project dependencies
+        id: project-cache
+        uses: Swatinem/rust-cache@v2
+
+      - uses: hecrj/setup-rust-action@v2
+        with:
+          components: rustfmt
+
       - name: Run Unit and Doc tests
+        working-directory: zork++
         run: |
           cargo test --workspace --lib --color=always --no-fail-fast
           cargo test --workspace --doc --color=always --no-fail-fast
