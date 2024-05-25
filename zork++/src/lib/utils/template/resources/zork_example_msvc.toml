@@ -5,9 +5,8 @@ authors = [ "Zero Day Code" ]  # Replace this for the real authors
 compilation_db = true
 
 [compiler]
-cpp_compiler = "clang"
-cpp_standard = "2b"
-std_lib = "LIBCPP"
+cpp_compiler = "msvc"
+cpp_standard = "latest"
 
 [build]
 output_dir = "out"
@@ -23,10 +22,13 @@ sources = [ "*.cpp" ]
 [modules]
 base_ifcs_dir = "ifc"
 interfaces = [
-    { file = 'math.cppm'}
+    { file = 'math.ixx' },
+    { file = 'interface_partition.ixx', partition = { module = 'partitions' } },
+    { file = 'internal_partition.cpp', partition = { module = 'partitions', partition_name = 'internal_partition', is_internal_partition = true } },
+    { file = 'partitions.ixx' }
 ]
 base_impls_dir = "src"
 implementations = [
     { file = 'math.cpp', dependencies = ['math'] },
-    { file = 'math2.cpp', dependencies = ['math'] }
+    { file = 'math2.cpp', dependencies = ['math'] },
 ]

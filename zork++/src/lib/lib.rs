@@ -15,7 +15,7 @@ pub mod utils;
 /// without having to do fancy work about checking the
 /// data sent to stdout/stderr
 pub mod worker {
-    use crate::utils::fs::get_project_root_absolute_path;
+    use crate::{config_file, utils::fs::get_project_root_absolute_path};
     use std::{fs, path::Path};
 
     use crate::{
@@ -25,7 +25,6 @@ pub mod worker {
             output::commands::{self, autorun_generated_binary, CommandExecutionResult, Commands},
         },
         compiler::build_project,
-        config_file::ZorkConfigFile,
         project_model::{compiler::CppCompiler, ZorkModel},
         utils::{
             self,
@@ -63,15 +62,6 @@ pub mod worker {
             );
         };
 
-        /* let project_root = if cli_args.root.is_none() {
-            project
-                .project_root
-                .map(Path::new)
-                .unwrap_or(Path::new("."))
-        } else {
-            Path::new(cli_args.root.as_ref().unwrap())
-        }; */
-
         let config_files: Vec<ConfigFile> = find_config_files(project_root, &cli_args.match_files)
             .with_context(|| "We didn't found a valid Zork++ configuration file")?;
         log::trace!("Config files found: {config_files:?}");
@@ -89,7 +79,7 @@ pub mod worker {
                 )
             })?;
 
-            let config: ZorkConfigFile = toml::from_str(raw_file.as_str())
+            let config = config_file::zork_cfg_from_file(raw_file.as_str())
                 .with_context(|| "Could not parse configuration file")?;
             let program_data = build_model(&config, cli_args, &abs_project_root)?;
             create_output_directory(&program_data)?;
@@ -162,8 +152,10 @@ pub mod worker {
     }
 
     /// Creates the directory for output the elements generated
-    /// during the build process. Also, it will generate the
-    /// ['output_build_dir'/zork], which is a subfolder
+    /// during the build process based on the client specification.
+    ///
+    /// Also, it will generate the
+    /// ['<output_build_dir>'/zork], which is a subfolder
     /// where Zork dumps the things that needs to work correctly
     /// under different conditions.
     ///
@@ -187,17 +179,19 @@ pub mod worker {
 
         utils::fs::create_directory(&modules_path.join("interfaces"))?;
         utils::fs::create_directory(&modules_path.join("implementations"))?;
+        utils::fs::create_directory(&modules_path.join("std"))?;
         utils::fs::create_directory(&out_dir.join(compiler.as_ref()).join("sources"))?;
         utils::fs::create_directory(&zork_cache_path.join(model.compiler.cpp_compiler.as_ref()))?;
         utils::fs::create_directory(&zork_intrinsics_path)?;
 
-        // TODO This possibly would be temporary
+        // TODO: This possibly gonna be temporary
         if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
             utils::fs::create_file(
                 &zork_intrinsics_path,
                 "std.h",
                 utils::template::resources::STD_HEADER.as_bytes(),
             )?;
+
             utils::fs::create_file(
                 &zork_intrinsics_path,
                 "zork.modulemap",
@@ -215,28 +209,33 @@ pub mod worker {
         use color_eyre::{eyre::Context, Result};
         use tempfile::tempdir;
 
-        use crate::config_file::ZorkConfigFile;
+        use crate::config_file::{self, ZorkConfigFile};
         use crate::utils::{reader::build_model, template::resources::CONFIG_FILE};
 
         #[test]
         fn test_creation_directories() -> Result<()> {
             let temp = tempdir()?;
+            let temp_path = temp.path();
+            let out_path = temp_path.join("out");
 
             let normalized_cfg_file = CONFIG_FILE
                 .replace("<compiler>", "clang")
+                .replace("<std_lib>", "LIBCPP")
                 .replace('\\', "/");
-            let zcf: ZorkConfigFile = toml::from_str(&normalized_cfg_file)?;
+            let zcf: ZorkConfigFile = config_file::zork_cfg_from_file(&normalized_cfg_file)?;
             let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
-            let model = build_model(&zcf, &cli_args, temp.path())
+            let model = build_model(&zcf, &cli_args, temp_path)
                 .with_context(|| "Error building the project model")?;
 
             // This should create and out/ directory in the ./zork++ folder at the root of this project
             super::create_output_directory(&model)?;
 
-            assert!(temp.path().join("out").exists());
-            assert!(temp.path().join("out/zork").exists());
-            assert!(temp.path().join("out/zork/cache").exists());
-            assert!(temp.path().join("out/zork/intrinsics").exists());
+            assert!(out_path.exists());
+            assert!(out_path.join("clang").exists());
+
+            assert!(out_path.join("zork").exists());
+            assert!(out_path.join("zork").join("cache").exists());
+            assert!(out_path.join("zork").join("intrinsics").exists());
 
             Ok(())
         }

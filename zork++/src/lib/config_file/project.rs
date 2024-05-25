@@ -1,5 +1,6 @@
 //! Metadata about the user's project
-use serde::*;
+
+use serde::{Deserialize, Serialize};
 
 /// [`ProjectAttribute`] - Metadata about the user's project
 /// * `name` - The C++ project's name
@@ -35,12 +36,14 @@ use serde::*;
 ///
 /// For a test over a real example, please look at the
 /// [`zork::config_file::ZorkConfigFile`] doc-test
-#[derive(Deserialize, Debug, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ProjectAttribute<'a> {
+    #[serde(borrow)]
     pub name: &'a str,
     #[serde(borrow)]
     pub authors: Option<Vec<&'a str>>,
     pub compilation_db: Option<bool>,
+    #[serde(borrow)]
     pub project_root: Option<&'a str>,
 }

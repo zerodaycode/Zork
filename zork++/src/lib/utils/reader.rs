@@ -371,6 +371,7 @@ fn get_sourceset_for(srcs: Vec<&str>, project_root: &Path) -> SourceSet {
 
 #[cfg(test)]
 mod test {
+    use crate::config_file;
     use crate::utils::fs;
     use crate::{
         project_model::compiler::{CppCompiler, LanguageLevel, StdLib},
@@ -392,7 +393,7 @@ mod test {
             cpp_standard = '20'
         "#;
 
-        let config: ZorkConfigFile = toml::from_str(CONFIG_FILE_MOCK)?;
+        let config: ZorkConfigFile = config_file::zork_cfg_from_file(CONFIG_FILE_MOCK)?;
         let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
         let model = build_model(&config, &cli_args, &abs_path_for_mock);
@@ -441,7 +442,8 @@ mod test {
 
     #[test]
     fn test_project_model_with_full_config() -> Result<()> {
-        let config: ZorkConfigFile = toml::from_str(utils::constants::CONFIG_FILE_MOCK)?;
+        let config: ZorkConfigFile =
+            config_file::zork_cfg_from_file(utils::constants::CONFIG_FILE_MOCK)?;
         let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
         let model = build_model(&config, &cli_args, &abs_path_for_mock);

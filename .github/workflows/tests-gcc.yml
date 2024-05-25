@@ -1,0 +1,25 @@
+name: GCC Tests For Linux builds
+
+on:
+  push:
+    branches: 'main'
+  pull_request:
+    branches: '*'
+
+jobs:
+  tests:
+    name: Run the tests - GCC
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Caching project dependencies
+        id: project-cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Running the tests for the project
+        run: |
+          cd zork++
+          RUST_LOG=trace cargo test 2>&1 gcc --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1

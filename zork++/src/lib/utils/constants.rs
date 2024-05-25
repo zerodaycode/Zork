@@ -15,10 +15,13 @@ pub const COMPILATION_DATABASE: &str = "compile_commands.json";
 
 pub const GCC_CACHE_DIR: &str = "gcm.cache";
 
-pub const MSVC_BASE_PATH: &str = "C:\\Program Files\\Microsoft Visual Studio";
-pub const MS_DEVS_PROMPT_BAT: &str = "vcvars64.bat";
-
+pub const WIN_CMD: &str = "C:\\Windows\\system32\\cmd";
+pub const MSVC_REGULAR_BASE_SCAPED_PATH: &str =
+    "C:\\\"Program Files\"\\\"Microsoft Visual Studio\"";
+pub const MSVC_REGULAR_BASE_PATH: &str = "C:\\Program Files\\Microsoft Visual Studio";
+pub const MS_ENV_VARS_BAT: &str = "vcvars64.bat";
 pub const CONFIG_FILE_MOCK: &str = r#"
+
 [project]
 name = "Zork++"
 authors = ["zerodaycode.gz@gmail.com"]

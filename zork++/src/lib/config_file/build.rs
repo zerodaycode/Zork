@@ -23,7 +23,7 @@ use serde::*;
 ///
 /// assert_eq!(config.output_dir, Some("out"));
 /// ```
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct BuildAttribute<'a> {
     #[serde(borrow)]

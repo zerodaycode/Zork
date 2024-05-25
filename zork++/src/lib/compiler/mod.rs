@@ -7,9 +7,10 @@ use color_eyre::Result;
 use std::path::Path;
 
 use crate::bounds::{ExecutableTarget, ExtraArgs, TranslationUnit};
-use crate::cli::output::arguments::{clang_args, Arguments};
+use crate::cli::output::arguments::{clang_args, msvc_args, Arguments};
 use crate::cli::output::commands::{CommandExecutionResult, SourceCommandLine};
 use crate::compiler::helpers::flag_source_file_without_changes;
+use crate::project_model::compiler::StdLibMode;
 use crate::utils::constants;
 use crate::{
     cache::ZorkCache,
@@ -33,18 +34,44 @@ pub fn build_project<'a>(
     // A registry of the generated command lines
     let mut commands = Commands::new(&model.compiler.cpp_compiler);
 
+    // Pre-tasks
     if model.compiler.cpp_compiler == CppCompiler::GCC && !model.modules.sys_modules.is_empty() {
         helpers::build_sys_modules(model, &mut commands, cache)
     }
+    // Build the std library as a module
+    build_modular_stdlib(model, cache, &mut commands); // TODO: ward it with an if for only call this fn for the
 
     // 1st - Build the modules
     build_modules(model, cache, &mut commands)?;
     // 2nd - Build the non module sources
     build_sources(model, cache, &mut commands, tests)?;
     // 3rd - Build the executable or the tests
-    build_executable(model, &mut commands, tests)?;
+    build_executable(model, cache, &mut commands, tests)?;
 
     Ok(commands)
+}
+
+/// Builds the C++ standard library as a pre-step acording to the specification
+/// of each compiler vendor
+fn build_modular_stdlib<'a>(
+    model: &'a ZorkModel<'_>,
+    cache: &ZorkCache,
+    commands: &mut Commands<'a>,
+) {
+    let compiler = model.compiler.cpp_compiler;
+
+    // TODO: remaining ones: Clang, GCC
+    if compiler.eq(&CppCompiler::MSVC) {
+        if !cache.compilers_metadata.msvc.is_loaded() {
+            return;
+        }
+
+        let cpp_stdlib = msvc_args::generate_std_cmd_args(model, cache, StdLibMode::Cpp);
+        commands.pre_tasks.push(cpp_stdlib);
+
+        let c_cpp_stdlib = msvc_args::generate_std_cmd_args(model, cache, StdLibMode::CCompat);
+        commands.pre_tasks.push(c_cpp_stdlib);
+    }
 }
 
 /// Triggers the build process for compile the source files declared for the project
@@ -52,16 +79,17 @@ pub fn build_project<'a>(
 /// for the files and properties declared for the tests section in the configuration file
 fn build_executable<'a>(
     model: &'a ZorkModel<'_>,
+    cache: &ZorkCache,
     commands: &'_ mut Commands<'a>,
     tests: bool,
 ) -> Result<()> {
-    // TODO Check if the command line is the same as the previous? If there's no new sources?
+    // TODO: Check if the command line is the same as the previous? If there's no new sources?
     // And avoid re-executing?
     // TODO refactor this code, just having the if-else branch inside the fn
     if tests {
-        generate_main_command_line_args(model, commands, &model.tests)
+        generate_main_command_line_args(model, cache, commands, &model.tests)
     } else {
-        generate_main_command_line_args(model, commands, &model.executable)
+        generate_main_command_line_args(model, cache, commands, &model.executable)
     }
 }
 
@@ -79,7 +107,7 @@ fn build_sources<'a>(
     };
 
     srcs.iter().for_each(|src| if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &src.file()) {
-        sources::generate_sources_arguments(model, commands, &model.tests, src);
+        sources::generate_sources_arguments(model, commands, cache, &model.tests, src);
     } else {
         let command_line = SourceCommandLine::from_translation_unit(
             src, Arguments::default(), true, CommandExecutionResult::Cached
@@ -124,7 +152,7 @@ fn build_module_interfaces<'a>(
 ) {
     interfaces.iter().for_each(|module_interface| {
         if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file()) {
-            sources::generate_module_interfaces_args(model, module_interface, commands);
+            sources::generate_module_interfaces_args(model, cache, module_interface, commands);
         } else {
             let command_line = SourceCommandLine::from_translation_unit(
                 module_interface, Arguments::default(), true, CommandExecutionResult::Cached
@@ -149,14 +177,16 @@ fn build_module_implementations<'a>(
 ) {
     impls.iter().for_each(|module_impl| {
         if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file()) {
-            sources::generate_module_implementation_args(model, module_impl, commands);
+            sources::generate_module_implementation_args(model, cache, module_impl, commands);
         } else {
             let command_line = SourceCommandLine::from_translation_unit(
                 module_impl, Arguments::default(), true, CommandExecutionResult::Cached
             );
 
             log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
-            commands.implementations.push(command_line);
+            commands.implementations.push(command_line); // TODO:: There's other todo where we
+                                                         // explain why we should change this code
+                                                         // (and the other similar ones)
             commands.generated_files_paths.push(Argument::from(helpers::generate_impl_obj_file(
                 model.compiler.cpp_compiler, &model.build.output_dir, module_impl
             )))
@@ -167,6 +197,7 @@ fn build_module_implementations<'a>(
 /// Generates the command line arguments for the desired target
 pub fn generate_main_command_line_args<'a>(
     model: &'a ZorkModel,
+    cache: &ZorkCache,
     commands: &mut Commands<'a>,
     target: &'a impl ExecutableTarget<'a>,
 ) -> Result<()> {
@@ -209,10 +240,6 @@ pub fn generate_main_command_line_args<'a>(
         CppCompiler::MSVC => {
             arguments.create_and_push("/EHsc");
             arguments.create_and_push("/nologo");
-            // If /std:c++20 this, else should be the direct options
-            // available on C++23 to use directly import std by pre-compiling the standard library
-            arguments.create_and_push("/experimental:module");
-            arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
             arguments.create_and_push("/ifcSearchDir");
             arguments.create_and_push(
                 out_dir
@@ -232,6 +259,9 @@ pub fn generate_main_command_line_args<'a>(
                     .with_extension(constants::BINARY_EXTENSION)
                     .display()
             ));
+            // Add the .obj file of the modular stdlib to the linker command
+            arguments.create_and_push(&cache.compilers_metadata.msvc.stdlib_obj_path);
+            arguments.create_and_push(&cache.compilers_metadata.msvc.c_stdlib_obj_path);
         }
         CppCompiler::GCC => {
             arguments.create_and_push("-fmodules-ts");
@@ -263,6 +293,7 @@ pub fn generate_main_command_line_args<'a>(
 mod sources {
     use super::helpers;
     use crate::bounds::ExtraArgs;
+    use crate::cache::ZorkCache;
     use crate::cli::output::arguments::Arguments;
     use crate::project_model::sourceset::SourceFile;
     use crate::{
@@ -282,6 +313,7 @@ mod sources {
     pub fn generate_sources_arguments<'a>(
         model: &'a ZorkModel,
         commands: &mut Commands<'a>,
+        cache: &ZorkCache,
         target: &'a impl ExecutableTarget<'a>,
         source: &'a SourceFile,
     ) {
@@ -290,7 +322,11 @@ mod sources {
 
         let mut arguments = Arguments::default();
         arguments.push(model.compiler.language_level_arg());
-        arguments.create_and_push("-c");
+        arguments.create_and_push(if compiler.eq(&CppCompiler::MSVC) {
+            "/c"
+        } else {
+            "-c"
+        });
         arguments.extend_from_slice(model.compiler.extra_args());
         arguments.extend_from_slice(target.extra_args());
 
@@ -304,12 +340,15 @@ mod sources {
             }
             CppCompiler::MSVC => {
                 arguments.create_and_push("/EHsc");
-                arguments.create_and_push(Argument::from("/nologo"));
-                // If /std:c++20 this, else should be the direct options
-                // available on C++23 to use directly import std by pre-compiling the standard library
-                arguments.create_and_push("/experimental:module");
-                arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
-
+                arguments.create_and_push("/nologo");
+                arguments.create_and_push("/reference");
+                arguments.create_and_push(format! {
+                    "std={}", cache.compilers_metadata.msvc.stdlib_bmi_path.display()
+                });
+                arguments.create_and_push("/reference");
+                arguments.create_and_push(format! {
+                    "std.compat={}", cache.compilers_metadata.msvc.c_stdlib_bmi_path.display()
+                });
                 arguments.create_and_push("/ifcSearchDir");
                 arguments.create_and_push(
                     out_dir
@@ -348,6 +387,7 @@ mod sources {
     /// Generates the expected arguments for precompile the BMIs depending on self
     pub fn generate_module_interfaces_args<'a>(
         model: &'a ZorkModel,
+        cache: &ZorkCache,
         interface: &'a ModuleInterfaceModel,
         commands: &mut Commands<'a>,
     ) {
@@ -391,10 +431,16 @@ mod sources {
             CppCompiler::MSVC => {
                 arguments.create_and_push("/EHsc");
                 arguments.create_and_push("/nologo");
-                arguments.create_and_push("/experimental:module");
-                arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
                 arguments.create_and_push("/c");
 
+                arguments.create_and_push("/reference");
+                arguments.create_and_push(format! {
+                    "std={}", cache.compilers_metadata.msvc.stdlib_bmi_path.display()
+                });
+                arguments.create_and_push("/reference");
+                arguments.create_and_push(format! {
+                    "std.compat={}", cache.compilers_metadata.msvc.c_stdlib_bmi_path.display()
+                });
                 let implicit_lookup_mius_path = out_dir
                     .join(compiler.as_ref())
                     .join("modules")
@@ -453,6 +499,7 @@ mod sources {
     /// Generates the expected arguments for compile the implementation module files
     pub fn generate_module_implementation_args<'a>(
         model: &'a ZorkModel,
+        cache: &ZorkCache,
         implementation: &'a ModuleImplementationModel,
         commands: &mut Commands<'a>,
     ) {
@@ -494,9 +541,15 @@ mod sources {
             CppCompiler::MSVC => {
                 arguments.create_and_push("/EHsc");
                 arguments.create_and_push("/nologo");
-                arguments.create_and_push("-c");
-                arguments.create_and_push("/experimental:module");
-                arguments.create_and_push("/stdIfcDir \"$(VC_IFCPath)\"");
+                arguments.create_and_push("/c");
+                arguments.create_and_push("/reference");
+                arguments.create_and_push(format! {
+                    "std={}", cache.compilers_metadata.msvc.stdlib_bmi_path.display()
+                });
+                arguments.create_and_push("/reference");
+                arguments.create_and_push(format! {
+                    "std.compat={}", cache.compilers_metadata.msvc.c_stdlib_bmi_path.display()
+                });
                 arguments.create_and_push("/ifcSearchDir");
                 arguments.create_and_push(
                     out_dir
@@ -568,7 +621,7 @@ mod helpers {
     /// `export module dotted.module`, in Clang, due to the expected `.pcm` extension, the final path
     /// will be generated as `dotted.pcm`, instead `dotted.module.pcm`.
     ///
-    /// For MSVC, we are relying in the autogenerate of the BMI automatically by the compiler,
+    /// For MSVC, we are relying in the autogeneration feature of the BMI automatically by the compiler,
     /// so the output file that we need is an obj file (.obj), and not the
     /// binary module interface (.ifc)
     pub(crate) fn generate_prebuilt_miu(
@@ -626,6 +679,7 @@ mod helpers {
     /// generate commands for the non processed elements yet.
     ///
     /// This is for `GCC` and `Clang`
+    /// TODO: With the inclusion of std named modules, want we to support this anymore?
     pub(crate) fn build_sys_modules<'a>(
         model: &'a ZorkModel,
         commands: &mut Commands<'a>,
@@ -686,9 +740,11 @@ mod helpers {
 
         // Maps the generated command line flags generated for every system module,
         // being the key the name of the system header
-        // TODO is completely unnecessary here a map. We can directly store the flags only one
+        // TODO: is completely unnecessary here a map. We can directly store the flags only one
         // time in a list, because they will always be the same flags for every system module,
         // and the system modules in another list
+        // Newest TODO: Can we just store them as Argument(s) in an Arguments? For example, with
+        // the new pre-tasks (and therefore, being cached in an unified way?)
         for collection_args in sys_modules {
             commands.system_modules.insert(
                 // [3] is for the 4th flag pushed to v
@@ -700,16 +756,19 @@ mod helpers {
 
     /// Marks the given source file as already processed,
     /// or if it should be reprocessed again due to a previous failure status,
-    /// to avoid losing time rebuilding that module if the source file
+    /// to avoid losing time rebuilding it if the translation unit
     /// hasn't been modified since the last build process iteration.
     ///
-    /// True means already processed and previous iteration Success
+    /// True means 'already processed with previous iteration: Success' and stored on the cache
     pub(crate) fn flag_source_file_without_changes(
         compiler: &CppCompiler,
         cache: &ZorkCache,
         file: &Path,
     ) -> bool {
         if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
+            // TODO: Review this
+            // with the new Clang
+            // versions
             log::trace!("Module unit {file:?} will be rebuilt since we've detected that you are using Clang in Windows");
             return false;
         }

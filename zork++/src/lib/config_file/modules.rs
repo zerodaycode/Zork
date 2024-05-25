@@ -1,5 +1,5 @@
 //!!  The core section to instruct the compiler to work with C++20 modules. The most important are the base path to the interfaces and implementation files
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// [`ModulesAttribute`] -  The core section to instruct the compiler to work with C++20 modules. The most important are the base path to the interfaces and implementation files
 /// * `base_ifcs_dir`- Base directory to shortcut the path of the implementation files
@@ -17,7 +17,7 @@ use serde::Deserialize;
 /// const CONFIG_FILE_MOCK: &str = r#"
 ///     base_ifcs_dir = "./ifc"
 ///     interfaces = [
-///         { file = 'math.cppm' }, { file = 'some_module.cppm', module_name = 'math' }    
+///         { file = 'math.cppm' }, { file = 'some_module.cppm', module_name = 'math' }
 ///     ]
 ///     base_impls_dir = './src'
 ///     implementations = [
@@ -40,7 +40,7 @@ use serde::Deserialize;
 /// assert_eq!(ifc_1.file, "some_module.cppm");
 /// assert_eq!(ifc_1.module_name, Some("math"));
 ///
-///  
+///
 /// assert_eq!(config.base_impls_dir, Some("./src"));
 ///
 /// let impls = config.implementations.unwrap();
@@ -59,7 +59,7 @@ use serde::Deserialize;
 /// assert_eq!(&gcc_sys_headers[3], &"type_traits");
 /// assert_eq!(&gcc_sys_headers[4], &"functional");
 /// ```
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct ModulesAttribute<'a> {
     #[serde(borrow)]
     pub base_ifcs_dir: Option<&'a str>,
@@ -132,7 +132,7 @@ pub struct ModulesAttribute<'a> {
 /// assert_eq!(ifc_3.file, "some_module_part.cppm");
 /// assert_eq!(ifc_3.module_name, Some("math_part"));
 /// ```
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct ModuleInterface<'a> {
     #[serde(borrow)]
@@ -158,7 +158,7 @@ pub struct ModuleInterface<'a> {
 /// * `is_internal_partition` - Optional field for declare that the module is actually
 /// a module for hold implementation details, known as module implementation partitions.
 /// This option only takes effect with MSVC
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct ModulePartition<'a> {
     #[serde(borrow)]
     pub module: &'a str,
@@ -200,7 +200,7 @@ pub struct ModulePartition<'a> {
 /// assert_eq!(deps[1], "type_traits");
 /// assert_eq!(deps[2], "iostream");
 /// ```
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct ModuleImplementation<'a> {
     #[serde(borrow)]
     pub file: &'a str,

@@ -9,7 +9,7 @@ pub mod tests;
 
 use std::fmt::Debug;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use self::{
     build::BuildAttribute, compiler::CompilerAttribute, executable::ExecutableAttribute,
@@ -42,7 +42,7 @@ use self::{
 /// The [`ZorkConfigFile`] is the type that holds
 /// the whole hierarchy of Zork++ config file attributes
 /// and properties
-#[derive(Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ZorkConfigFile<'a> {
     #[serde(borrow)]
     pub project: ProjectAttribute<'a>,
@@ -56,4 +56,8 @@ pub struct ZorkConfigFile<'a> {
     pub modules: Option<ModulesAttribute<'a>>,
     #[serde(borrow)]
     pub tests: Option<TestsAttribute<'a>>,
+}
+
+pub fn zork_cfg_from_file(cfg: &'_ str) -> Result<ZorkConfigFile<'_>, toml::de::Error> {
+    <ZorkConfigFile>::deserialize(&mut toml::Deserializer::new(cfg))
 }

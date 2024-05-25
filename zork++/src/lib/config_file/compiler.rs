@@ -1,6 +1,6 @@
 //! file for represent the available configuration properties within Zork++
 //! for setting up the target compiler
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::project_model;
 
@@ -66,7 +66,7 @@ use crate::project_model;
 ///
 /// For a test over a real example, please look at the
 /// [`zork::config_file::ZorkConfigFile`] doc-test
-#[derive(Deserialize, Debug, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
 #[serde(deny_unknown_fields)]
 pub struct CompilerAttribute<'a> {
     pub cpp_compiler: CppCompiler,
@@ -81,7 +81,7 @@ pub struct CompilerAttribute<'a> {
 }
 
 /// The C++ compilers available within Zork++
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub enum CppCompiler {
     #[serde(alias = "CLANG", alias = "Clang", alias = "clang")]
     #[default]
@@ -114,7 +114,7 @@ impl Into<project_model::compiler::CppCompiler> for CppCompiler {
 ///
 /// Variant *LATEST* is the `MSVC` specific way of set the language
 /// standard level to the latest features available in Microsoft's compiler
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub enum LanguageLevel {
     #[serde(alias = "20")]
     #[default]
@@ -146,7 +146,7 @@ impl Into<project_model::compiler::LanguageLevel> for LanguageLevel {
 
 /// The standard library (compiler specific) that the user
 /// desires to link against
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum StdLib {
     #[serde(alias = "libstdc++", alias = "gccstdlib", alias = "libstdcpp")]
     STDLIBCPP,
