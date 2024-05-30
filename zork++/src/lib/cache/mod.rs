@@ -170,10 +170,18 @@ impl ZorkCache {
             interfaces: Vec::with_capacity(commands.interfaces.len()),
             implementations: Vec::with_capacity(commands.implementations.len()),
             sources: Vec::with_capacity(commands.sources.len()),
+            pre_tasks: Vec::with_capacity(commands.pre_tasks.len()),
             main: MainCommandLineDetail::default(),
         };
 
-        let mut are_new_commands = Vec::with_capacity(3);
+        let mut are_new_commands = Vec::with_capacity(4);
+        let pre_tasks_has_new_commands = self.extend_collection_of_source_file_details(
+            model,
+            &mut commands_details.pre_tasks,
+            &mut commands.pre_tasks,
+            commands.compiler,
+        );
+        are_new_commands.push(pre_tasks_has_new_commands);
         let interfaces_has_new_commands = self.extend_collection_of_source_file_details(
             model,
             &mut commands_details.interfaces,
@@ -232,9 +240,10 @@ impl ZorkCache {
     /// run this process once per new cache created (cache action 1)
     fn load_msvc_metadata(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
         let msvc = &mut self.compilers_metadata.msvc;
-        let compiler = program_data.compiler.cpp_compiler;
 
         if msvc.dev_commands_prompt.is_none() {
+            let compiler = program_data.compiler.cpp_compiler;
+
             msvc.dev_commands_prompt = utils::fs::find_file(
                 Path::new(constants::MSVC_REGULAR_BASE_PATH),
                 constants::MS_ENV_VARS_BAT,
@@ -283,7 +292,7 @@ impl ZorkCache {
                 modular_stdlib_byproducts_path.with_extension(compiler.get_obj_file_extension());
 
             let c_modular_stdlib_byproducts_path = modular_stdlib_byproducts_path;
-            let compat = String::from("compat.");
+            let compat = String::from("compat."); // TODO: find a better way
             msvc.c_stdlib_bmi_path = c_modular_stdlib_byproducts_path
                 .with_extension(compat.clone() + compiler.get_typical_bmi_extension());
             msvc.c_stdlib_obj_path = c_modular_stdlib_byproducts_path
@@ -429,6 +438,7 @@ pub struct CommandsDetails {
     interfaces: Vec<CommandDetail>,
     implementations: Vec<CommandDetail>,
     sources: Vec<CommandDetail>,
+    pre_tasks: Vec<CommandDetail>,
     main: MainCommandLineDetail,
 }
 

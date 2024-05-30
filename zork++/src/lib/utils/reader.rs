@@ -44,7 +44,7 @@ pub struct ConfigFile {
 /// Checks for the existence of the `zork_<any>.toml` configuration files
 /// present in the same directory when the binary is called, and
 /// returns a collection of the ones found.
-///
+//
 /// *base_path* - A parameter for receive an input via command line
 /// parameter to indicate where the configuration files lives in
 /// the client's project. Defaults to `.`
@@ -52,8 +52,10 @@ pub struct ConfigFile {
 /// This function fails if there's no configuration file
 /// (or isn't present in any directory of the project)
 pub fn find_config_files(
-    base_path: &Path,
-    filename_match: &Option<String>,
+    base_path: &Path, // TODO: create the cfg arg to specifically receive where's located the
+    // user's Zork config files if they're not in the root of the project
+    // nor matches the tree structure from user's root cmd arg value
+    filename_match: &Option<String>, // TODO: this shoudn't be necessary
 ) -> Result<Vec<ConfigFile>> {
     log::debug!("Searching for Zork++ configuration files...");
     let mut files = vec![];

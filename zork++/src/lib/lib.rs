@@ -112,13 +112,13 @@ pub mod worker {
 
         match cli_args.command {
             Command::Build => {
-                commands = build_project(program_data, &cache, false)
+                commands = build_project(program_data, &mut cache, false)
                     .with_context(|| "Failed to build project")?;
 
                 commands::run_generated_commands(program_data, commands, &mut cache, false)
             }
             Command::Run => {
-                commands = build_project(program_data, &cache, false)
+                commands = build_project(program_data, &mut cache, false)
                     .with_context(|| "Failed to build project")?;
 
                 match commands::run_generated_commands(program_data, commands, &mut cache, false) {
@@ -131,7 +131,7 @@ pub mod worker {
                 }
             }
             Command::Test => {
-                commands = build_project(program_data, &cache, true)
+                commands = build_project(program_data, &mut cache, true)
                     .with_context(|| "Failed to build project")?;
 
                 match commands::run_generated_commands(program_data, commands, &mut cache, true) {

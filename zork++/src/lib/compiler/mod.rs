@@ -28,7 +28,7 @@ use crate::{
 /// configuration file will be build
 pub fn build_project<'a>(
     model: &'a ZorkModel<'a>,
-    cache: &ZorkCache,
+    cache: &mut ZorkCache,
     tests: bool,
 ) -> Result<Commands<'a>> {
     // A registry of the generated command lines
@@ -55,21 +55,57 @@ pub fn build_project<'a>(
 /// of each compiler vendor
 fn build_modular_stdlib<'a>(
     model: &'a ZorkModel<'_>,
-    cache: &ZorkCache,
+    cache: &mut ZorkCache,
     commands: &mut Commands<'a>,
 ) {
     let compiler = model.compiler.cpp_compiler;
 
     // TODO: remaining ones: Clang, GCC
     if compiler.eq(&CppCompiler::MSVC) {
-        if !cache.compilers_metadata.msvc.is_loaded() {
-            return;
-        }
-
-        let cpp_stdlib = msvc_args::generate_std_cmd_args(model, cache, StdLibMode::Cpp);
+        let built_stdlib_path = &cache.compilers_metadata.msvc.stdlib_bmi_path;
+        let cpp_stdlib = if !built_stdlib_path.exists() {
+            log::trace!(
+                "Building the {:?} C++ standard library implementation",
+                compiler
+            );
+            msvc_args::generate_std_cmd_args(model, cache, StdLibMode::Cpp)
+        } else {
+            let source_command_line = SourceCommandLine {
+                directory: built_stdlib_path.file_stem().unwrap().into(),
+                filename: built_stdlib_path
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string(),
+                args: Arguments::default(),
+                processed: true,
+                execution_result: CommandExecutionResult::Cached,
+            };
+            source_command_line
+        };
         commands.pre_tasks.push(cpp_stdlib);
 
-        let c_cpp_stdlib = msvc_args::generate_std_cmd_args(model, cache, StdLibMode::CCompat);
+        let built_stdlib_path = &cache.compilers_metadata.msvc.stdlib_bmi_path;
+        let c_cpp_stdlib = if !built_stdlib_path.exists() {
+            log::trace!(
+                "Building the {:?} C ISO standard library implementation",
+                compiler
+            );
+            msvc_args::generate_std_cmd_args(model, cache, StdLibMode::CCompat)
+        } else {
+            let source_command_line = SourceCommandLine {
+                directory: built_stdlib_path.file_stem().unwrap().into(),
+                filename: built_stdlib_path
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string(),
+                args: Arguments::default(),
+                processed: true,
+                execution_result: CommandExecutionResult::Cached,
+            };
+            source_command_line
+        };
         commands.pre_tasks.push(c_cpp_stdlib);
     }
 }
