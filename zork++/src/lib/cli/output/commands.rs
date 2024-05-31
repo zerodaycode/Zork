@@ -33,10 +33,6 @@ pub fn run_generated_commands(
     log::info!("Proceeding to execute the generated commands...");
     let compiler = commands.compiler;
 
-    /* for pre_task in &commands.pre_tasks {
-        execute_command(compiler, program_data, pre_task, cache)?;
-    } */
-
     for sys_module in &commands.system_modules {
         // TODO: will be deprecated soon, hopefully
         execute_command(compiler, program_data, sys_module.1, cache)?;
@@ -151,6 +147,7 @@ pub struct SourceCommandLine<'a> {
     pub args: Arguments<'a>,
     pub processed: bool,
     pub execution_result: CommandExecutionResult,
+    // TODO an enum with the Kind OF TU that is generating this scl?
 }
 
 impl<'a> SourceCommandLine<'a> {

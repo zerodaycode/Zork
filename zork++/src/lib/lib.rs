@@ -82,7 +82,7 @@ pub mod worker {
             let config = config_file::zork_cfg_from_file(raw_file.as_str())
                 .with_context(|| "Could not parse configuration file")?;
             let program_data = build_model(&config, cli_args, &abs_project_root)?;
-            create_output_directory(&program_data)?;
+            create_output_directory(&program_data)?; // TODO avoid this call without check if exists
 
             let cache = cache::load(&program_data, cli_args)
                 .with_context(|| "Unable to load the Zork++ cache")?;

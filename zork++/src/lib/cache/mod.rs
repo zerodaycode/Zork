@@ -88,10 +88,24 @@ pub struct ZorkCache {
     pub compiler: CppCompiler,
     pub last_program_execution: DateTime<Utc>,
     pub compilers_metadata: CompilersMetadata,
-    pub last_generated_commands: HashMap<PathBuf, Vec<String>>,
-    pub last_generated_linker_commands: HashMap<PathBuf, String>,
-    pub generated_commands: Vec<CommandsDetails>,
+    pub last_generated_commands: HashMap<PathBuf, Vec<String>>, // TODO remove it. Is only valid for translate our cache args fmt
+    pub last_generated_linker_commands: HashMap<PathBuf, String>, // TODO set it with the generated_commands
+    pub generated_commands: Vec<CommandsDetails>, // TODO meter todo aquí
+    // TODO meter al status ::Cached un valor dentro que indica cacheado desde hace cuanto?
+    // TODO meter un unique hash para el 'is_file_cached', para evitar matchear strings? Se le puede asignar un hash único desde
+    // la creación del project_model => ESO implica cachear el project model, ojo, no nos pasemos de listos, que solo se le puede
+    // poner a los que NO estén ya trackeados por el project model de Zork
 }
+
+// TODO la idea buena. Diferentes niveles de -c, por ejemplo -c No vuelve a generar los comandos PERO los manda a compilar
+// y -cc sería un clear_cache
+
+// ORDEN:
+// 1 - Arreglar el formato de entradas, para que tenga todos los datos del json del compile_commands
+// 2 - Zumbarse los últimos commands
+// 3 - pre_tasks no está mal, pero mejor un named que refleje las librerías standard
+// 4 - cachear el project model
+// 5 - meter la última del jota-son no del tomto-ml y testear rendimiento serializando todo tipos owned
 
 impl ZorkCache {
     /// Returns a [`Option`] of [`CommandDetails`] if the file is persisted already in the cache
@@ -231,145 +245,6 @@ impl ZorkCache {
         are_new_commands.iter().any(|b| *b)
     }
 
-    /// If Windows is the current OS, and the compiler is MSVC, then we will try
-    /// to locate the path of the `vcvars64.bat` script that will set a set of environmental
-    /// variables that are required to work effortlessly with the Microsoft's compiler.
-    ///
-    /// After such effort, we will dump those env vars to a custom temporary file where every
-    /// env var is registered there in a key-value format, so we can load it into the cache and
-    /// run this process once per new cache created (cache action 1)
-    fn load_msvc_metadata(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
-        let msvc = &mut self.compilers_metadata.msvc;
-
-        if msvc.dev_commands_prompt.is_none() {
-            let compiler = program_data.compiler.cpp_compiler;
-
-            msvc.dev_commands_prompt = utils::fs::find_file(
-                Path::new(constants::MSVC_REGULAR_BASE_PATH),
-                constants::MS_ENV_VARS_BAT,
-            )
-            .map(|walkdir_entry| {
-                walkdir_entry.path().to_string_lossy().replace(
-                    constants::MSVC_REGULAR_BASE_PATH,
-                    constants::MSVC_REGULAR_BASE_SCAPED_PATH,
-                )
-            });
-            let output = std::process::Command::new(constants::WIN_CMD)
-                .arg("/c")
-                .arg(msvc.dev_commands_prompt.as_ref().ok_or_eyre("Zork++ wasn't unable to find the VS env vars")?)
-                .arg("&&")
-                .arg("set")
-                .output()
-                .with_context(|| "Unable to load MSVC pre-requisites. Please, open an issue with the details on upstream")?;
-
-            msvc.env_vars = Self::load_env_vars_from_cmd_output(&output.stdout)?;
-            // Cloning the useful ones for quick access at call site
-            msvc.compiler_version = msvc.env_vars.get("VisualStudioVersion").cloned();
-
-            let vs_stdlib_path =
-                Path::new(msvc.env_vars.get("VCToolsInstallDir").unwrap()).join("modules");
-            msvc.vs_stdlib_path = Some(SourceFile {
-                path: vs_stdlib_path.clone(),
-                file_stem: String::from("std"),
-                extension: compiler.get_default_module_extension().to_string(),
-            });
-            msvc.vs_c_stdlib_path = Some(SourceFile {
-                path: vs_stdlib_path,
-                file_stem: String::from("std.compat"),
-                extension: compiler.get_default_module_extension().to_string(),
-            });
-            let modular_stdlib_byproducts_path = Path::new(&program_data.build.output_dir)
-                .join(compiler.as_ref())
-                .join("modules")
-                .join("std") // folder
-                .join("std"); // filename
-
-            // Saving the paths to the precompiled bmi and obj files of the MSVC std implementation
-            // that will be used to reference the build of the std as a module
-            msvc.stdlib_bmi_path =
-                modular_stdlib_byproducts_path.with_extension(compiler.get_typical_bmi_extension());
-            msvc.stdlib_obj_path =
-                modular_stdlib_byproducts_path.with_extension(compiler.get_obj_file_extension());
-
-            let c_modular_stdlib_byproducts_path = modular_stdlib_byproducts_path;
-            let compat = String::from("compat."); // TODO: find a better way
-            msvc.c_stdlib_bmi_path = c_modular_stdlib_byproducts_path
-                .with_extension(compat.clone() + compiler.get_typical_bmi_extension());
-            msvc.c_stdlib_obj_path = c_modular_stdlib_byproducts_path
-                .with_extension(compat + compiler.get_obj_file_extension());
-        }
-
-        Ok(())
-    }
-
-    /// Convenient helper to manipulate and store the environmental variables as result of invoking
-    /// the Windows `SET` cmd command
-    fn load_env_vars_from_cmd_output(stdout: &[u8]) -> Result<HashMap<String, String>> {
-        let env_vars_str = std::str::from_utf8(stdout)?;
-        let filter = Regex::new(r"^[a-zA-Z_]+$").unwrap();
-
-        let mut env_vars: HashMap<String, String> = HashMap::new();
-        for line in env_vars_str.lines() {
-            // Parse the key-value pair from each line
-            let mut parts = line.splitn(2, '=');
-            let key = parts.next().expect("Failed to get key").trim();
-
-            if filter.is_match(key) {
-                let value = parts.next().unwrap_or_default().trim().to_string();
-                env_vars.insert(key.to_string(), value);
-            }
-        }
-
-        Ok(env_vars)
-    }
-
-    /// Looks for the already precompiled `GCC` or `Clang` system headers,
-    /// to avoid recompiling them on every process
-    /// NOTE: This feature should be deprecated an therefore, removed from Zork++ when GCC and
-    /// Clang fully implement the required procedures to build the C++ std library as a module
-    fn track_system_modules<'a>(
-        program_data: &'a ZorkModel<'_>,
-    ) -> impl Iterator<Item = String> + 'a {
-        let root = if program_data.compiler.cpp_compiler == CppCompiler::GCC {
-            Path::new(GCC_CACHE_DIR).to_path_buf()
-        } else {
-            program_data
-                .build
-                .output_dir
-                .join("clang")
-                .join("modules")
-                .join("interfaces")
-        };
-
-        WalkDir::new(root)
-            .into_iter()
-            .filter_map(Result::ok)
-            .filter(|file| {
-                if file
-                    .metadata()
-                    .expect("Error retrieving metadata")
-                    .is_file()
-                {
-                    program_data
-                        .modules
-                        .sys_modules
-                        .iter()
-                        .any(|sys_mod| file.file_name().to_str().unwrap().starts_with(sys_mod))
-                } else {
-                    false
-                }
-            })
-            .map(|dir_entry| {
-                dir_entry
-                    .file_name()
-                    .to_str()
-                    .unwrap()
-                    .split('.')
-                    .collect::<Vec<_>>()[0]
-                    .to_string()
-            })
-    }
-
     fn normalize_execution_result_status(
         &self,
         module_command_line: &SourceCommandLine,
@@ -429,6 +304,53 @@ impl ZorkCache {
             CppCompiler::GCC => &self.compilers_metadata.gcc.env_vars,
         }
     }
+
+    /// Looks for the already precompiled `GCC` or `Clang` system headers,
+    /// to avoid recompiling them on every process
+    /// NOTE: This feature should be deprecated an therefore, removed from Zork++ when GCC and
+    /// Clang fully implement the required procedures to build the C++ std library as a module
+    fn track_system_modules<'a>(
+        program_data: &'a ZorkModel<'_>,
+    ) -> impl Iterator<Item = String> + 'a {
+        let root = if program_data.compiler.cpp_compiler == CppCompiler::GCC {
+            Path::new(GCC_CACHE_DIR).to_path_buf()
+        } else {
+            program_data
+                .build
+                .output_dir
+                .join("clang")
+                .join("modules")
+                .join("interfaces")
+        };
+
+        WalkDir::new(root)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|file| {
+                if file
+                    .metadata()
+                    .expect("Error retrieving metadata")
+                    .is_file()
+                {
+                    program_data
+                        .modules
+                        .sys_modules
+                        .iter()
+                        .any(|sys_mod| file.file_name().to_str().unwrap().starts_with(sys_mod))
+                } else {
+                    false
+                }
+            })
+            .map(|dir_entry| {
+                dir_entry
+                    .file_name()
+                    .to_str()
+                    .unwrap()
+                    .split('.')
+                    .collect::<Vec<_>>()[0]
+                    .to_string()
+            })
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
@@ -474,9 +396,6 @@ pub struct CompilersMetadata {
     pub system_modules: Vec<String>, // TODO: This hopefully will dissappear soon
 }
 
-// TODO: review someday how to better structure the metadata per compiler
-// and generalize this structures
-
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct MsvcMetadata {
     pub compiler_version: Option<String>,
@@ -507,4 +426,109 @@ pub struct ClangMetadata {
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct GccMetadata {
     pub env_vars: EnvVars,
+}
+
+/// Helper procedures to process cache data for Microsoft's MSVC
+mod msvc {
+    use std::collections::HashMap;
+    use std::path::Path;
+    use color_eyre::eyre::{Context, OptionExt};
+    use regex::Regex;
+    use crate::cache::ZorkCache;
+    use crate::project_model::sourceset::SourceFile;
+    use crate::project_model::ZorkModel;
+    use crate::utils;
+    use crate::utils::constants;
+
+    /// If Windows is the current OS, and the compiler is MSVC, then we will try
+    /// to locate the path of the `vcvars64.bat` script that will set a set of environmental
+    /// variables that are required to work effortlessly with the Microsoft's compiler.
+    ///
+    /// After such effort, we will dump those env vars to a custom temporary file where every
+    /// env var is registered there in a key-value format, so we can load it into the cache and
+    /// run this process once per new cache created (cache action 1)
+    fn load_metadata(cache: &mut ZorkCache, program_data: &ZorkModel<'_>) -> color_eyre::Result<()> {
+        let msvc = &mut cache.compilers_metadata.msvc;
+
+        if msvc.dev_commands_prompt.is_none() {
+            let compiler = program_data.compiler.cpp_compiler;
+
+            msvc.dev_commands_prompt = utils::fs::find_file(
+                Path::new(constants::MSVC_REGULAR_BASE_PATH),
+                constants::MS_ENV_VARS_BAT,
+            )
+                .map(|walkdir_entry| {
+                    walkdir_entry.path().to_string_lossy().replace(
+                        constants::MSVC_REGULAR_BASE_PATH,
+                        constants::MSVC_REGULAR_BASE_SCAPED_PATH,
+                    )
+                });
+            let output = std::process::Command::new(constants::WIN_CMD)
+                .arg("/c")
+                .arg(msvc.dev_commands_prompt.as_ref().ok_or_eyre("Zork++ wasn't unable to find the VS env vars")?)
+                .arg("&&")
+                .arg("set")
+                .output()
+                .with_context(|| "Unable to load MSVC pre-requisites. Please, open an issue with the details on upstream")?;
+
+            msvc.env_vars = Self::load_env_vars_from_cmd_output(&output.stdout)?;
+            // Cloning the useful ones for quick access at call site
+            msvc.compiler_version = msvc.env_vars.get("VisualStudioVersion").cloned();
+
+            let vs_stdlib_path =
+                Path::new(msvc.env_vars.get("VCToolsInstallDir").unwrap()).join("modules");
+            msvc.vs_stdlib_path = Some(SourceFile {
+                path: vs_stdlib_path.clone(),
+                file_stem: String::from("std"),
+                extension: compiler.get_default_module_extension().to_string(),
+            });
+            msvc.vs_c_stdlib_path = Some(SourceFile {
+                path: vs_stdlib_path,
+                file_stem: String::from("std.compat"),
+                extension: compiler.get_default_module_extension().to_string(),
+            });
+            let modular_stdlib_byproducts_path = Path::new(&program_data.build.output_dir)
+                .join(compiler.as_ref())
+                .join("modules")
+                .join("std") // folder
+                .join("std"); // filename
+
+            // Saving the paths to the precompiled bmi and obj files of the MSVC std implementation
+            // that will be used to reference the build of the std as a module
+            msvc.stdlib_bmi_path =
+                modular_stdlib_byproducts_path.with_extension(compiler.get_typical_bmi_extension());
+            msvc.stdlib_obj_path =
+                modular_stdlib_byproducts_path.with_extension(compiler.get_obj_file_extension());
+
+            let c_modular_stdlib_byproducts_path = modular_stdlib_byproducts_path;
+            let compat = String::from("compat."); // TODO: find a better way
+            msvc.c_stdlib_bmi_path = c_modular_stdlib_byproducts_path
+                .with_extension(compat.clone() + compiler.get_typical_bmi_extension());
+            msvc.c_stdlib_obj_path = c_modular_stdlib_byproducts_path
+                .with_extension(compat + compiler.get_obj_file_extension());
+        }
+
+        Ok(())
+    }
+
+    /// Convenient helper to manipulate and store the environmental variables as result of invoking
+    /// the Windows `SET` cmd command
+    fn load_env_vars_from_cmd_output(stdout: &[u8]) -> color_eyre::Result<HashMap<String, String>> {
+        let env_vars_str = std::str::from_utf8(stdout)?;
+        let filter = Regex::new(r"^[a-zA-Z_]+$").unwrap();
+
+        let mut env_vars: HashMap<String, String> = HashMap::new();
+        for line in env_vars_str.lines() {
+            // Parse the key-value pair from each line
+            let mut parts = line.splitn(2, '=');
+            let key = parts.next().expect("Failed to get key").trim();
+
+            if filter.is_match(key) {
+                let value = parts.next().unwrap_or_default().trim().to_string();
+                env_vars.insert(key.to_string(), value);
+            }
+        }
+
+        Ok(env_vars)
+    }
 }

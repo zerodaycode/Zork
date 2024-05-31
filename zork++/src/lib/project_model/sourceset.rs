@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::cli::output::arguments::Argument;
 
 // Since every file on the system has a path, this acts as a cheap conceptual
-// conversion to unifify PATH querying operations over anything that can be
+// conversion to unify PATH querying operations over anything that can be
 // saved on a persistence system with an access route
 pub trait File {
     fn get_path(&self) -> PathBuf;
