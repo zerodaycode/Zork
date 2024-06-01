@@ -30,9 +30,9 @@ pub fn build_project<'a>(
     model: &'a ZorkModel<'a>,
     cache: &mut ZorkCache,
     tests: bool,
-) -> Result<Commands<'a>> {
+) -> Result<Commands> {
     // A registry of the generated command lines
-    let mut commands = Commands::new(&model.compiler.cpp_compiler);
+    let mut commands = Commands::new(model.compiler.cpp_compiler);
 
     // Pre-tasks
     if model.compiler.cpp_compiler == CppCompiler::GCC && !model.modules.sys_modules.is_empty() {
@@ -53,11 +53,7 @@ pub fn build_project<'a>(
 
 /// Builds the C++ standard library as a pre-step acording to the specification
 /// of each compiler vendor
-fn build_modular_stdlib<'a>(
-    model: &'a ZorkModel<'_>,
-    cache: &mut ZorkCache,
-    commands: &mut Commands<'a>,
-) {
+fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache, commands: &mut Commands) {
     let compiler = model.compiler.cpp_compiler;
 
     // TODO: remaining ones: Clang, GCC
@@ -70,6 +66,7 @@ fn build_modular_stdlib<'a>(
             );
             msvc_args::generate_std_cmd_args(model, cache, StdLibMode::Cpp)
         } else {
+            // TODO: p.ej: existe y además tiene status cached? modificar por &mut
             let source_command_line = SourceCommandLine {
                 directory: built_stdlib_path.file_stem().unwrap().into(),
                 filename: built_stdlib_path
@@ -113,10 +110,10 @@ fn build_modular_stdlib<'a>(
 /// Triggers the build process for compile the source files declared for the project
 /// If this flow is enabled by the Cli arg `Tests`, then the executable will be generated
 /// for the files and properties declared for the tests section in the configuration file
-fn build_executable<'a>(
-    model: &'a ZorkModel<'_>,
+fn build_executable(
+    model: &ZorkModel<'_>,
     cache: &ZorkCache,
-    commands: &'_ mut Commands<'a>,
+    commands: &'_ mut Commands,
     tests: bool,
 ) -> Result<()> {
     // TODO: Check if the command line is the same as the previous? If there's no new sources?
@@ -129,10 +126,10 @@ fn build_executable<'a>(
     }
 }
 
-fn build_sources<'a>(
-    model: &'a ZorkModel<'_>,
+fn build_sources(
+    model: &ZorkModel<'_>,
     cache: &ZorkCache,
-    commands: &'_ mut Commands<'a>,
+    commands: &'_ mut Commands,
     tests: bool,
 ) -> Result<()> {
     log::info!("Building the source files...");
@@ -151,9 +148,9 @@ fn build_sources<'a>(
 
         log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &src.file());
         commands.sources.push(command_line);
-        commands.generated_files_paths.push(Argument::from(helpers::generate_obj_file(
+        commands.add_linker_file_path_owned(helpers::generate_obj_file_path(
             model.compiler.cpp_compiler, &model.build.output_dir, src
-        ).to_string()))
+        ))
     });
 
     Ok(())
@@ -164,11 +161,7 @@ fn build_sources<'a>(
 /// This function acts like a operation result processor, by running instances
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses>
-fn build_modules<'a>(
-    model: &'a ZorkModel,
-    cache: &ZorkCache,
-    commands: &mut Commands<'a>,
-) -> Result<()> {
+fn build_modules(model: &ZorkModel, cache: &ZorkCache, commands: &mut Commands) -> Result<()> {
     log::info!("Building the module interfaces and partitions...");
     build_module_interfaces(model, cache, &model.modules.interfaces, commands);
 
@@ -184,7 +177,7 @@ fn build_module_interfaces<'a>(
     model: &'a ZorkModel<'_>,
     cache: &ZorkCache,
     interfaces: &'a [ModuleInterfaceModel],
-    commands: &mut Commands<'a>,
+    commands: &mut Commands,
 ) {
     interfaces.iter().for_each(|module_interface| {
         if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file()) {
@@ -196,9 +189,9 @@ fn build_module_interfaces<'a>(
 
             log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
             commands.interfaces.push(command_line);
-            commands.generated_files_paths.push(Argument::from(helpers::generate_prebuilt_miu(
+            commands.linker.add_owned_buildable_at(helpers::generate_prebuilt_miu(
                 model.compiler.cpp_compiler, &model.build.output_dir, module_interface
-            )))
+            ))
         }
     });
 }
@@ -209,7 +202,7 @@ fn build_module_implementations<'a>(
     model: &'a ZorkModel,
     cache: &ZorkCache,
     impls: &'a [ModuleImplementationModel],
-    commands: &mut Commands<'a>,
+    commands: &mut Commands,
 ) {
     impls.iter().for_each(|module_impl| {
         if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file()) {
@@ -223,9 +216,9 @@ fn build_module_implementations<'a>(
             commands.implementations.push(command_line); // TODO:: There's other todo where we
                                                          // explain why we should change this code
                                                          // (and the other similar ones)
-            commands.generated_files_paths.push(Argument::from(helpers::generate_impl_obj_file(
+            commands.linker.add_owned_buildable_at(helpers::generate_impl_obj_file(
                 model.compiler.cpp_compiler, &model.build.output_dir, module_impl
-            )))
+            ))
         }
     });
 }
@@ -234,7 +227,7 @@ fn build_module_implementations<'a>(
 pub fn generate_main_command_line_args<'a>(
     model: &'a ZorkModel,
     cache: &ZorkCache,
-    commands: &mut Commands<'a>,
+    commands: &mut Commands,
     target: &'a impl ExecutableTarget<'a>,
 ) -> Result<()> {
     log::info!("Generating the main command line...");
@@ -312,10 +305,11 @@ pub fn generate_main_command_line_args<'a>(
             ));
         }
     };
-    arguments.extend(commands.generated_files_paths.clone());
 
-    commands.main.args.extend(arguments);
-    commands.main.sources_paths = target
+    arguments.extend(commands.linker.built_files.iter().map(Argument::from)); // TODO can't we avoid this, and just add the pathbufs?
+
+    commands.linker.args.extend(arguments);
+    commands.linker.built_files = target
         .sourceset()
         .sources
         .iter()
@@ -335,7 +329,7 @@ mod sources {
     use crate::{
         bounds::{ExecutableTarget, TranslationUnit},
         cli::output::{
-            arguments::{clang_args, Argument},
+            arguments::clang_args,
             commands::{CommandExecutionResult, Commands, SourceCommandLine},
         },
         project_model::{
@@ -348,7 +342,7 @@ mod sources {
     /// Generates the command line arguments for non-module source files
     pub fn generate_sources_arguments<'a>(
         model: &'a ZorkModel,
-        commands: &mut Commands<'a>,
+        commands: &mut Commands,
         cache: &ZorkCache,
         target: &'a impl ExecutableTarget<'a>,
         source: &'a SourceFile,
@@ -399,13 +393,13 @@ mod sources {
             }
         };
 
-        let obj_file = helpers::generate_obj_file(compiler, out_dir, source);
+        let obj_file = helpers::generate_obj_file_path(compiler, out_dir, source);
         let fo = if compiler.eq(&CppCompiler::MSVC) {
             "/Fo"
         } else {
             ""
         };
-        arguments.create_and_push(format!("{fo}{obj_file}"));
+        arguments.create_and_push(format!("{fo}{}", obj_file.display()));
         arguments.create_and_push(source.file());
 
         let command_line = SourceCommandLine::from_translation_unit(
@@ -415,9 +409,7 @@ mod sources {
             CommandExecutionResult::default(),
         );
         commands.sources.push(command_line);
-        commands
-            .generated_files_paths
-            .push(Argument::from(obj_file.to_string()))
+        commands.add_linker_file_path_owned(obj_file)
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
@@ -425,7 +417,7 @@ mod sources {
         model: &'a ZorkModel,
         cache: &ZorkCache,
         interface: &'a ModuleInterfaceModel,
-        commands: &mut Commands<'a>,
+        commands: &mut Commands,
     ) {
         let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir.as_ref();
@@ -457,10 +449,9 @@ mod sources {
                 // The resultant BMI as a .pcm file
                 arguments.create_and_push("-o");
                 // The output file
-                let miu_file_path =
-                    Argument::from(helpers::generate_prebuilt_miu(compiler, out_dir, interface));
-                commands.generated_files_paths.push(miu_file_path.clone());
-                arguments.push(miu_file_path);
+                let obj_file = helpers::generate_prebuilt_miu(compiler, out_dir, interface);
+                arguments.create_and_push(&obj_file);
+                commands.add_linker_file_path_owned(obj_file);
                 // The input file
                 arguments.create_and_push(interface.file());
             }
@@ -489,10 +480,9 @@ mod sources {
                 arguments.create_and_push(implicit_lookup_mius_path);
 
                 // The output .obj file
-                let obj_file =
-                    Argument::from(helpers::generate_prebuilt_miu(compiler, out_dir, interface));
-                commands.generated_files_paths.push(obj_file.clone());
-                arguments.create_and_push(format!("/Fo{obj_file}"));
+                let obj_file = helpers::generate_prebuilt_miu(compiler, out_dir, interface);
+                arguments.create_and_push(format!("/Fo{}", obj_file.display()));
+                commands.add_linker_file_path_owned(obj_file);
 
                 if let Some(partition) = &interface.partition {
                     if partition.is_internal_partition {
@@ -516,10 +506,9 @@ mod sources {
                 arguments.create_and_push(interface.file());
                 // The output file
                 arguments.create_and_push("-o");
-                let miu_file_path =
-                    Argument::from(helpers::generate_prebuilt_miu(compiler, out_dir, interface));
-                commands.generated_files_paths.push(miu_file_path.clone());
-                arguments.push(miu_file_path);
+                let obj_file = helpers::generate_prebuilt_miu(compiler, out_dir, interface);
+                arguments.create_and_push(&obj_file);
+                commands.add_linker_file_path_owned(obj_file);
             }
         }
 
@@ -537,7 +526,7 @@ mod sources {
         model: &'a ZorkModel,
         cache: &ZorkCache,
         implementation: &'a ModuleImplementationModel,
-        commands: &mut Commands<'a>,
+        commands: &mut Commands,
     ) {
         let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir.as_ref();
@@ -556,13 +545,14 @@ mod sources {
 
                 // The resultant object file
                 arguments.create_and_push("-o");
-                let obj_file_path = Argument::from(helpers::generate_impl_obj_file(
+                let obj_file_path = helpers::generate_impl_obj_file(
+                    // TODO review this ones, since they module impl are just raw cpp sources
                     compiler,
                     out_dir,
                     implementation,
-                ));
-                commands.generated_files_paths.push(obj_file_path.clone());
-                arguments.push(obj_file_path);
+                );
+                commands.add_linker_file_path(&obj_file_path);
+                arguments.create_and_push(obj_file_path);
 
                 clang_args::add_direct_module_interfaces_dependencies(
                     &implementation.dependencies,
@@ -596,16 +586,14 @@ mod sources {
                 // The input file
                 arguments.create_and_push(implementation.file());
                 // The output .obj file
-                let obj_file_path = out_dir
+                let obj_file_path = out_dir // TODO use the helper
                     .join(compiler.as_ref())
                     .join("modules")
                     .join("implementations")
                     .join(implementation.file_stem())
                     .with_extension(compiler.get_obj_file_extension());
 
-                commands
-                    .generated_files_paths
-                    .push(Argument::from(obj_file_path.clone()));
+                commands.add_linker_file_path(&obj_file_path);
                 arguments.create_and_push(format!("/Fo{}", obj_file_path.display()));
             }
             CppCompiler::GCC => {
@@ -615,13 +603,10 @@ mod sources {
                 arguments.create_and_push(implementation.file());
                 // The output file
                 arguments.create_and_push("-o");
-                let obj_file_path = Argument::from(helpers::generate_impl_obj_file(
-                    compiler,
-                    out_dir,
-                    implementation,
-                ));
-                commands.generated_files_paths.push(obj_file_path.clone());
-                arguments.push(obj_file_path);
+                let obj_file_path =
+                    helpers::generate_impl_obj_file(compiler, out_dir, implementation);
+                commands.add_linker_file_path(&obj_file_path);
+                arguments.create_and_push(obj_file_path);
             }
         }
 
@@ -640,7 +625,6 @@ mod sources {
 /// generate.
 mod helpers {
     use chrono::{DateTime, Utc};
-    use std::fmt::Display;
 
     use super::*;
     use crate::project_model::sourceset::SourceFile;
@@ -716,11 +700,7 @@ mod helpers {
     ///
     /// This is for `GCC` and `Clang`
     /// TODO: With the inclusion of std named modules, want we to support this anymore?
-    pub(crate) fn build_sys_modules<'a>(
-        model: &'a ZorkModel,
-        commands: &mut Commands<'a>,
-        cache: &ZorkCache,
-    ) {
+    pub(crate) fn build_sys_modules(model: &ZorkModel, commands: &mut Commands, cache: &ZorkCache) {
         if !cache.compilers_metadata.system_modules.is_empty() {
             // TODO BUG - this is not correct.
             // If user later adds a new module, it won't be processed
@@ -784,7 +764,7 @@ mod helpers {
         for collection_args in sys_modules {
             commands.system_modules.insert(
                 // [3] is for the 4th flag pushed to v
-                collection_args[3].value.to_string(),
+                collection_args[3].value().to_string(),
                 Arguments::from_vec(collection_args),
             );
         }
@@ -809,13 +789,14 @@ mod helpers {
             return false;
         }
         // Check first if the file is already on the cache, and if it's last iteration was successful
-        if let Some(cached_file) = cache.is_file_cached(file) {
-            if cached_file.execution_result != CommandExecutionResult::Success
-                && cached_file.execution_result != CommandExecutionResult::Cached
+        if let Some(cached_compiled_file) = cache.is_file_cached(file) {
+            let execution_result = cached_compiled_file.execution_result();
+            if execution_result != CommandExecutionResult::Success
+                && execution_result != CommandExecutionResult::Cached
             {
                 log::trace!(
                     "File {file:?} with status: {:?}. Marked to reprocess",
-                    cached_file.execution_result
+                    execution_result
                 );
                 return false;
             };
@@ -841,19 +822,15 @@ mod helpers {
         }
     }
 
-    pub(crate) fn generate_obj_file(
+    pub(crate) fn generate_obj_file_path(
         compiler: CppCompiler,
         out_dir: &Path,
         source: &SourceFile,
-    ) -> impl Display {
-        format!(
-            "{}",
-            out_dir
-                .join(compiler.as_ref())
-                .join("sources")
-                .join(source.file_stem())
-                .with_extension(compiler.get_obj_file_extension())
-                .display()
-        )
+    ) -> PathBuf {
+        out_dir
+            .join(compiler.as_ref())
+            .join("sources")
+            .join(source.file_stem())
+            .with_extension(compiler.get_obj_file_extension())
     }
 }

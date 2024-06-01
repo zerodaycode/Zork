@@ -3,10 +3,10 @@
 pub mod compile_commands;
 
 use chrono::{DateTime, Utc};
-use color_eyre::eyre::OptionExt;
 use color_eyre::{eyre::Context, Result};
-use regex::Regex;
+
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::{
     fs,
     fs::File,
@@ -45,7 +45,7 @@ pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCach
     } else if Path::new(cache_path).exists() && cli_args.clear_cache {
         fs::remove_dir_all(cache_path).with_context(|| "Error cleaning the Zork++ cache")?;
         fs::create_dir(cache_path)
-            .with_context(|| "Error creating the cache subdir for {compiler}")?;
+            .with_context(|| "Error creating the cache subdirectory for {compiler}")?;
         File::create(cache_file_path)
             .with_context(|| "Error creating the cache file after cleaning the cache")?;
     }
@@ -65,7 +65,7 @@ pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCach
 pub fn save(
     program_data: &ZorkModel<'_>,
     cache: &mut ZorkCache,
-    commands: Commands<'_>,
+    commands: Commands,
     test_mode: bool,
 ) -> Result<()> {
     let cache_path = &program_data
@@ -83,43 +83,28 @@ pub fn save(
         .with_context(move || "Error saving data to the Zork++ cache")
 }
 
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct ZorkCache {
     pub compiler: CppCompiler,
     pub last_program_execution: DateTime<Utc>,
     pub compilers_metadata: CompilersMetadata,
-    pub last_generated_commands: HashMap<PathBuf, Vec<String>>, // TODO remove it. Is only valid for translate our cache args fmt
-    pub last_generated_linker_commands: HashMap<PathBuf, String>, // TODO set it with the generated_commands
-    pub generated_commands: Vec<CommandsDetails>, // TODO meter todo aquí
-    // TODO meter al status ::Cached un valor dentro que indica cacheado desde hace cuanto?
-    // TODO meter un unique hash para el 'is_file_cached', para evitar matchear strings? Se le puede asignar un hash único desde
-    // la creación del project_model => ESO implica cachear el project model, ojo, no nos pasemos de listos, que solo se le puede
-    // poner a los que NO estén ya trackeados por el project model de Zork
+    pub generated_commands: Vec<Commands>,
 }
-
-// TODO la idea buena. Diferentes niveles de -c, por ejemplo -c No vuelve a generar los comandos PERO los manda a compilar
-// y -cc sería un clear_cache
-
-// ORDEN:
-// 1 - Arreglar el formato de entradas, para que tenga todos los datos del json del compile_commands
-// 2 - Zumbarse los últimos commands
-// 3 - pre_tasks no está mal, pero mejor un named que refleje las librerías standard
-// 4 - cachear el project model
-// 5 - meter la última del jota-son no del tomto-ml y testear rendimiento serializando todo tipos owned
 
 impl ZorkCache {
     /// Returns a [`Option`] of [`CommandDetails`] if the file is persisted already in the cache
-    pub fn is_file_cached(&self, path: impl AsRef<Path>) -> Option<&CommandDetail> {
-        let last_iteration_details = self.generated_commands.last();
+    pub fn is_file_cached(&self, _path: impl AsRef<Path>) -> Option<&CommandDetail> {
+        // let last_iteration_details = self.generated_commands.last();
 
-        if let Some(last_iteration) = last_iteration_details {
-            return last_iteration
-                .interfaces
-                .iter()
-                .chain(last_iteration.implementations.iter())
-                .chain(last_iteration.sources.iter())
-                .find(|comm_det| comm_det.file_path().eq(path.as_ref()));
-        }
+        // TODO: what a cost. We need to join them for every iteration and every file
+        // if let Some(last_iteration) = last_iteration_details {
+        //     return last_iteration
+        //         .interfaces
+        //         .iter()
+        //         .chain(last_iteration.implementations.iter())
+        //         .chain(last_iteration.sources.iter())
+        //         .find(|comm_det| comm_det.file_path().eq(path.as_ref()));
+        // }
         None
     }
 
@@ -127,7 +112,7 @@ impl ZorkCache {
     pub fn run_tasks(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
         let compiler = program_data.compiler.cpp_compiler;
         if cfg!(target_os = "windows") && compiler == CppCompiler::MSVC {
-            self.load_msvc_metadata(program_data)?
+            msvc::load_metadata(self, program_data)?
         }
 
         if compiler != CppCompiler::MSVC {
@@ -140,13 +125,13 @@ impl ZorkCache {
     }
 
     /// Runs the tasks just before end the program and save the cache
-    pub fn run_final_tasks(
+    fn run_final_tasks(
         &mut self,
         program_data: &ZorkModel<'_>,
-        mut commands: Commands<'_>,
+        commands: Commands,
         test_mode: bool,
     ) -> Result<()> {
-        if self.save_generated_commands(&mut commands, program_data, test_mode)
+        if self.save_generated_commands(commands, program_data, test_mode)
             && program_data.project.compilation_db
         {
             compile_commands::map_generated_commands_to_compilation_db(self)?;
@@ -164,88 +149,40 @@ impl ZorkCache {
         Ok(())
     }
 
+    /// Stores the generated commands for the process in the Cache.
+    /// ### Return:
+    /// a boolean indicating whether there's new generated commands (non cached), so
+    /// the compile commands must be regenerated
     fn save_generated_commands(
         &mut self,
-        commands: &mut Commands<'_>,
-        model: &ZorkModel,
-        test_mode: bool,
+        commands: Commands,
+        _model: &ZorkModel,
+        _test_mode: bool, // TODO: tests linker cmd?
     ) -> bool {
         log::debug!("Storing in the cache the last generated command lines...");
         self.compiler = commands.compiler;
-        let process_no = if !self.generated_commands.is_empty() {
-            self.generated_commands.last().unwrap().cached_process_num + 1
+        let _process_no = if !self.generated_commands.is_empty() {
+            // TODO: do we now need this one?
+            // self.generated_commands.last().unwrap().cached_process_num + 1
+            0
         } else {
             1
         };
 
-        let mut commands_details = CommandsDetails {
-            cached_process_num: process_no,
-            generated_at: Utc::now(),
-            interfaces: Vec::with_capacity(commands.interfaces.len()),
-            implementations: Vec::with_capacity(commands.implementations.len()),
-            sources: Vec::with_capacity(commands.sources.len()),
-            pre_tasks: Vec::with_capacity(commands.pre_tasks.len()),
-            main: MainCommandLineDetail::default(),
-        };
+        // TODO missing the one that determines if there's a new compilation database that must be generated
+        // something like and iter that counts if at least one has been modified ??
+        // let at_least_one_changed = commands.
+        self.generated_commands.push(commands);
 
-        let mut are_new_commands = Vec::with_capacity(4);
-        let pre_tasks_has_new_commands = self.extend_collection_of_source_file_details(
-            model,
-            &mut commands_details.pre_tasks,
-            &mut commands.pre_tasks,
-            commands.compiler,
-        );
-        are_new_commands.push(pre_tasks_has_new_commands);
-        let interfaces_has_new_commands = self.extend_collection_of_source_file_details(
-            model,
-            &mut commands_details.interfaces,
-            &mut commands.interfaces,
-            commands.compiler,
-        );
-        are_new_commands.push(interfaces_has_new_commands);
-        let implementations_has_new_commands = self.extend_collection_of_source_file_details(
-            model,
-            &mut commands_details.implementations,
-            &mut commands.implementations,
-            commands.compiler,
-        );
-        are_new_commands.push(implementations_has_new_commands);
-        let sources_has_new_commands = self.extend_collection_of_source_file_details(
-            model,
-            &mut commands_details.sources,
-            &mut commands.sources,
-            commands.compiler,
-        );
-        are_new_commands.push(sources_has_new_commands);
-
-        commands_details.main = MainCommandLineDetail {
-            files: commands.main.sources_paths.clone(),
-            execution_result: commands.main.execution_result,
-            command: commands
-                .main
-                .args
-                .iter()
-                .map(|arg| arg.value.to_string())
-                .collect::<Vec<_>>()
-                .join(" "),
-        };
-
-        let named_target = if test_mode { "test_main" } else { "main" };
-        self.last_generated_linker_commands
-            .entry(PathBuf::from(named_target))
-            .and_modify(|e| {
-                if !(*e).eq(&commands_details.main.command) {
-                    e.clone_from(&commands_details.main.command)
-                }
-            })
-            .or_insert(commands_details.main.command.clone());
-
-        self.generated_commands.push(commands_details);
-
-        are_new_commands.iter().any(|b| *b)
+        self.get_all_commands_iter()// TODO: Review the conditions and ensure that are the ones that we're looking for
+            .any(|cmd| cmd.processed || cmd.execution_result.eq(&CommandExecutionResult::Success))
+        
+        // INSTEAD OF THIS, we just can return an Optional with the compilation database, so we can serialize the args in the compile_commands.json
+        // format and then join them in a one-liner string, so they're easy to read and/or copy
     }
 
-    fn normalize_execution_result_status(
+    fn _normalize_execution_result_status(
+        // TODO: pending to re-implement it
         &self,
         module_command_line: &SourceCommandLine,
     ) -> CommandExecutionResult {
@@ -263,39 +200,7 @@ impl ZorkCache {
         }
     }
 
-    fn extend_collection_of_source_file_details(
-        &mut self,
-        model: &ZorkModel,
-        collection: &mut Vec<CommandDetail>,
-        target: &mut [SourceCommandLine],
-        compiler: CppCompiler,
-    ) -> bool {
-        let mut new_commands = false;
-        collection.extend(target.iter().map(|source_command_line| {
-            self.last_generated_commands
-                .entry(source_command_line.path())
-                .or_insert_with(|| {
-                    new_commands = true;
-                    let mut arguments = Vec::with_capacity(source_command_line.args.len() + 1);
-                    arguments.push(compiler.get_driver(&model.compiler).to_string());
-                    arguments.extend(source_command_line.args.iter().map(|e| e.value.to_string()));
-                    arguments
-                });
-            CommandDetail {
-                directory: source_command_line
-                    .directory
-                    .to_str()
-                    .unwrap_or_default()
-                    .to_string(),
-                file: source_command_line.filename.clone(),
-                execution_result: self.normalize_execution_result_status(source_command_line),
-            }
-        }));
-
-        new_commands
-    }
-
-    /// Method that returns the HashMap that holds the enviromental variables that must be passed
+    /// Method that returns the HashMap that holds the environmental variables that must be passed
     /// to the underlying shell
     pub fn get_process_env_args(&self) -> &EnvVars {
         match self.compiler {
@@ -305,11 +210,33 @@ impl ZorkCache {
         }
     }
 
+    // TODO:
+    pub fn get_all_commands_iter(&self) -> impl Iterator<Item = &SourceCommandLine> + Debug + '_ {
+        let latest = self.generated_commands.last().unwrap();
+        latest
+            .pre_tasks
+            .iter()
+            .chain(latest.interfaces.iter())
+            .chain(latest.implementations.iter())
+            .chain(latest.sources.iter())
+    }
+
+    pub fn count_total_generated_commands(&self) -> usize {
+        let latest_commands = self.generated_commands.last().unwrap();
+
+        latest_commands.interfaces.len()
+            + latest_commands.implementations.len()
+            + latest_commands.sources.len()
+            + latest_commands.pre_tasks.len()
+            + 1 // TODO: the linker one
+    }
+
     /// Looks for the already precompiled `GCC` or `Clang` system headers,
     /// to avoid recompiling them on every process
     /// NOTE: This feature should be deprecated an therefore, removed from Zork++ when GCC and
     /// Clang fully implement the required procedures to build the C++ std library as a module
     fn track_system_modules<'a>(
+        // TODO move it to helpers
         program_data: &'a ZorkModel<'_>,
     ) -> impl Iterator<Item = String> + 'a {
         let root = if program_data.compiler.cpp_compiler == CppCompiler::GCC {
@@ -368,13 +295,19 @@ pub struct CommandsDetails {
 pub struct CommandDetail {
     directory: String,
     file: String,
-    pub execution_result: CommandExecutionResult,
+    command_line: String,
+    execution_result: CommandExecutionResult,
 }
 
 impl CommandDetail {
     #[inline(always)]
     pub fn file_path(&self) -> PathBuf {
         Path::new(&self.directory).join(&self.file)
+    }
+
+    #[inline]
+    pub fn execution_result(&self) -> CommandExecutionResult {
+        self.execution_result
     }
 }
 
@@ -390,6 +323,7 @@ pub type EnvVars = HashMap<String, String>;
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CompilersMetadata {
+    // ALL of them must be optional, since only exists
     pub msvc: MsvcMetadata,
     pub clang: ClangMetadata,
     pub gcc: GccMetadata,
@@ -430,15 +364,15 @@ pub struct GccMetadata {
 
 /// Helper procedures to process cache data for Microsoft's MSVC
 mod msvc {
-    use std::collections::HashMap;
-    use std::path::Path;
-    use color_eyre::eyre::{Context, OptionExt};
-    use regex::Regex;
-    use crate::cache::ZorkCache;
+    use crate::cache::{msvc, ZorkCache};
     use crate::project_model::sourceset::SourceFile;
     use crate::project_model::ZorkModel;
     use crate::utils;
     use crate::utils::constants;
+    use color_eyre::eyre::{Context, OptionExt};
+    use regex::Regex;
+    use std::collections::HashMap;
+    use std::path::Path;
 
     /// If Windows is the current OS, and the compiler is MSVC, then we will try
     /// to locate the path of the `vcvars64.bat` script that will set a set of environmental
@@ -447,7 +381,10 @@ mod msvc {
     /// After such effort, we will dump those env vars to a custom temporary file where every
     /// env var is registered there in a key-value format, so we can load it into the cache and
     /// run this process once per new cache created (cache action 1)
-    fn load_metadata(cache: &mut ZorkCache, program_data: &ZorkModel<'_>) -> color_eyre::Result<()> {
+    pub(crate) fn load_metadata(
+        cache: &mut ZorkCache,
+        program_data: &ZorkModel<'_>,
+    ) -> color_eyre::Result<()> {
         let msvc = &mut cache.compilers_metadata.msvc;
 
         if msvc.dev_commands_prompt.is_none() {
@@ -457,12 +394,12 @@ mod msvc {
                 Path::new(constants::MSVC_REGULAR_BASE_PATH),
                 constants::MS_ENV_VARS_BAT,
             )
-                .map(|walkdir_entry| {
-                    walkdir_entry.path().to_string_lossy().replace(
-                        constants::MSVC_REGULAR_BASE_PATH,
-                        constants::MSVC_REGULAR_BASE_SCAPED_PATH,
-                    )
-                });
+            .map(|walkdir_entry| {
+                walkdir_entry.path().to_string_lossy().replace(
+                    constants::MSVC_REGULAR_BASE_PATH,
+                    constants::MSVC_REGULAR_BASE_SCAPED_PATH,
+                )
+            });
             let output = std::process::Command::new(constants::WIN_CMD)
                 .arg("/c")
                 .arg(msvc.dev_commands_prompt.as_ref().ok_or_eyre("Zork++ wasn't unable to find the VS env vars")?)
@@ -471,7 +408,7 @@ mod msvc {
                 .output()
                 .with_context(|| "Unable to load MSVC pre-requisites. Please, open an issue with the details on upstream")?;
 
-            msvc.env_vars = Self::load_env_vars_from_cmd_output(&output.stdout)?;
+            msvc.env_vars = msvc::load_env_vars_from_cmd_output(&output.stdout)?;
             // Cloning the useful ones for quick access at call site
             msvc.compiler_version = msvc.env_vars.get("VisualStudioVersion").cloned();
 

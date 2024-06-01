@@ -26,7 +26,7 @@ use super::arguments::Argument;
 
 pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
-    mut commands: Commands<'_>,
+    mut commands: Commands, // TODO: &mut, and then directly store them?
     cache: &mut ZorkCache,
     test_mode: bool,
 ) -> Result<CommandExecutionResult> {
@@ -63,11 +63,11 @@ pub fn run_generated_commands(
         }
     }
 
-    if !commands.main.args.is_empty() {
-        log::debug!("Executing the main command line...");
+    if !commands.linker.args.is_empty() {
+        log::debug!("Executing the main command line..."); // TODO: this refers to the linker
 
-        let r = execute_command(compiler, program_data, &commands.main.args, cache);
-        commands.main.execution_result = CommandExecutionResult::from(&r);
+        let r = execute_command(compiler, program_data, &commands.linker.args, cache);
+        commands.linker.execution_result = CommandExecutionResult::from(&r);
 
         if let Err(e) = r {
             cache::save(program_data, cache, commands, test_mode)?;
@@ -118,7 +118,7 @@ pub fn autorun_generated_binary(
 fn execute_command(
     compiler: CppCompiler,
     model: &ZorkModel,
-    arguments: &[Argument<'_>],
+    arguments: &[Argument],
     cache: &ZorkCache,
 ) -> Result<ExitStatus, Report> {
     log::trace!(
@@ -138,22 +138,25 @@ fn execute_command(
         .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
 }
 
-/// The pieces and details for the generated command line for
+/// The pieces and details for the generated command line
 /// for some translation unit
-#[derive(Debug)]
-pub struct SourceCommandLine<'a> {
+///
+/// * args* : member that holds all the cmd arguments that will be passed to the compiler driver
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SourceCommandLine {
     pub directory: PathBuf,
     pub filename: String,
-    pub args: Arguments<'a>,
+    pub args: Arguments,
     pub processed: bool,
     pub execution_result: CommandExecutionResult,
     // TODO an enum with the Kind OF TU that is generating this scl?
 }
 
-impl<'a> SourceCommandLine<'a> {
+impl SourceCommandLine {
     pub fn from_translation_unit(
+        // TODO init it as a args holder, but doesn't have the status yet
         tu: impl TranslationUnit,
-        args: Arguments<'a>, // TODO: maybe this should be an option? Cached arguments are passed
+        args: Arguments, // TODO: maybe this should be an option? Cached arguments are passed
         // here as default. So probably, even better than having an optional,
         // we must replicate this to have a separate entity like
         // CachedSourceCommandLine, and them just call them over any kind of
@@ -176,54 +179,66 @@ impl<'a> SourceCommandLine<'a> {
     }
 }
 
-#[derive(Debug)]
-pub struct ExecutableCommandLine<'a> {
-    pub main: &'a Path,
-    pub sources_paths: Vec<PathBuf>,
-    pub args: Vec<Argument<'a>>,
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct LinkerCommandLine {
+    // pub main: &'a Path, // TODO: can't this disappear? At the end of the day, is just another obj file
+    pub built_files: Vec<PathBuf>,
+    pub args: Vec<Argument>,
     pub execution_result: CommandExecutionResult,
 }
 
-impl<'a> Default for ExecutableCommandLine<'a> {
-    fn default() -> Self {
-        Self {
-            main: Path::new("."),
-            sources_paths: Vec::with_capacity(0),
-            args: Vec::with_capacity(0),
-            execution_result: Default::default(),
-        }
+impl LinkerCommandLine {
+    /// Saves the path at which a compilation product of any translation unit will be placed,
+    /// in order to add it to the files that will be linked to generate the final product
+    /// in the two-phase compilation model
+    pub fn add_buildable_at(&mut self, path: &Path) {
+        self.built_files.push(path.to_path_buf());
+    }
+
+    /// Owned version of TODO link
+    pub fn add_owned_buildable_at(&mut self, path: PathBuf) {
+        self.built_files.push(path);
     }
 }
 
 /// Holds the generated command line arguments for a concrete compiler
-#[derive(Debug)]
-pub struct Commands<'a> {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Commands {
     pub compiler: CppCompiler,
-    pub pre_tasks: Vec<SourceCommandLine<'a>>,
-    pub system_modules: HashMap<String, Arguments<'a>>,
-    pub interfaces: Vec<SourceCommandLine<'a>>,
-    pub implementations: Vec<SourceCommandLine<'a>>,
-    pub sources: Vec<SourceCommandLine<'a>>,
-    pub main: ExecutableCommandLine<'a>,
-    pub generated_files_paths: Arguments<'a>,
+    pub pre_tasks: Vec<SourceCommandLine>, // TODO: since there's no really pre-tasks (only build the std_lib), create named entries for std and std.compat
+    pub system_modules: HashMap<String, Arguments>,
+    pub interfaces: Vec<SourceCommandLine>,
+    pub implementations: Vec<SourceCommandLine>,
+    pub sources: Vec<SourceCommandLine>,
+    pub linker: LinkerCommandLine,
 }
 
-impl<'a> Commands<'a> {
-    pub fn new(compiler: &'a CppCompiler) -> Self {
+impl Commands {
+    pub fn new(compiler: CppCompiler) -> Self {
         Self {
-            compiler: *compiler,
+            // TODO: try to see if its possible to move around the code and have a From<T>, avoiding default initialization,
+            // since this will always cause reallocations, and from may be able to allocate at the exact required capacity
+            // of every collection
+            compiler,
             pre_tasks: Vec::with_capacity(0),
             system_modules: HashMap::with_capacity(0),
             interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
             sources: Vec::with_capacity(0),
-            main: ExecutableCommandLine::default(),
-            generated_files_paths: Arguments::default(),
+            linker: LinkerCommandLine::default(),
         }
+    }
+
+    pub fn add_linker_file_path(&mut self, path: &Path) {
+        self.linker.add_buildable_at(path);
+    }
+
+    pub fn add_linker_file_path_owned(&mut self, path: PathBuf) {
+        self.linker.add_owned_buildable_at(path);
     }
 }
 
-impl<'a> core::fmt::Display for Commands<'a> {
+impl core::fmt::Display for Commands {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -237,13 +252,13 @@ impl<'a> core::fmt::Display for Commands<'a> {
 }
 
 /// Convenient function to avoid code replication
-fn collect_source_command_line<'a>(
-    iter: Iter<'a, SourceCommandLine<'a>>,
-) -> impl Iterator + Debug + 'a {
+fn collect_source_command_line(
+    iter: Iter<'_, SourceCommandLine>, // TODO: review this, for see if it's possible to consume the value and not cloning it
+) -> impl Iterator + Debug + '_ {
     iter.map(|vec| {
         vec.args
             .iter()
-            .map(|e| e.value)
+            .map(|arg| arg.value().clone())
             .collect::<Vec<_>>()
             .join(" ");
     })

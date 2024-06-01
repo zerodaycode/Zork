@@ -12,11 +12,11 @@ pub struct ModulesModel<'a> {
     pub base_impls_dir: &'a Path,
     pub implementations: Vec<ModuleImplementationModel<'a>>,
     pub sys_modules: Vec<&'a str>,
-    pub extra_args: Vec<Argument<'a>>,
+    pub extra_args: Vec<Argument>,
 }
 
 impl<'a> ExtraArgs<'a> for ModulesModel<'a> {
-    fn extra_args(&'a self) -> &'a [Argument<'a>] {
+    fn extra_args(&'a self) -> &'a [Argument] {
         &self.extra_args
     }
 }

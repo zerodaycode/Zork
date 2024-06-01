@@ -10,7 +10,7 @@ pub struct CompilerModel<'a> {
     pub driver_path: &'a str,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
-    pub extra_args: Vec<Argument<'a>>,
+    pub extra_args: Vec<Argument>,
 }
 
 impl<'a> CompilerModel<'a> {
@@ -31,7 +31,7 @@ impl<'a> CompilerModel<'a> {
 }
 
 impl<'a> ExtraArgs<'a> for CompilerModel<'a> {
-    fn extra_args(&'a self) -> &'a [Argument<'a>] {
+    fn extra_args(&'a self) -> &'a [Argument] {
         &self.extra_args
     }
 }

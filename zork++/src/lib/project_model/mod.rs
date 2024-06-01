@@ -20,5 +20,5 @@ pub struct ZorkModel<'a> {
     pub build: BuildModel,
     pub executable: ExecutableModel<'a>,
     pub modules: ModulesModel<'a>,
-    pub tests: TestsModel<'a>,
+    pub tests: TestsModel,
 }

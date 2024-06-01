@@ -1,4 +1,6 @@
 use crate::cache::ZorkCache;
+use crate::cli::output::arguments::Arguments;
+use crate::cli::output::commands::SourceCommandLine;
 use crate::utils;
 use crate::utils::constants::COMPILATION_DATABASE;
 use color_eyre::eyre::{Context, Result};
@@ -11,9 +13,12 @@ use std::path::{Path, PathBuf};
 /// the generated commands for the translation units
 pub(crate) fn map_generated_commands_to_compilation_db(cache: &ZorkCache) -> Result<()> {
     log::trace!("Generating the compilation database...");
-    let mut compilation_db_entries = Vec::with_capacity(cache.last_generated_commands.len());
+    let generated_commands = cache.get_all_commands_iter();
+    let mut compilation_db_entries: Vec<CompileCommands> =
+        Vec::with_capacity(cache.count_total_generated_commands());
+    // compilation_db_entries.push(latest_commands.linker)
 
-    for command in cache.last_generated_commands.iter() {
+    for command in generated_commands {
         compilation_db_entries.push(CompileCommands::from(command));
     }
 
@@ -30,22 +35,30 @@ pub(crate) fn map_generated_commands_to_compilation_db(cache: &ZorkCache) -> Res
 /// to the `compile_commands.json` compilation database file
 #[derive(Serialize, Debug, Default, Clone)]
 pub struct CompileCommands {
-    pub directory: String,
+    pub directory: PathBuf,
     pub file: String,
-    pub arguments: Vec<String>,
+    pub arguments: Arguments,
 }
 
-impl From<(&'_ PathBuf, &'_ Vec<String>)> for CompileCommands {
-    fn from(value: (&PathBuf, &Vec<String>)) -> Self {
-        let dir = value.0.parent().unwrap_or(Path::new("."));
-        let mut file = value.0.file_stem().unwrap_or_default().to_os_string();
-        file.push(".");
-        file.push(value.0.extension().unwrap_or_default());
-
+impl From<&SourceCommandLine> for CompileCommands {
+    fn from(value: &SourceCommandLine) -> Self {
+        let value = value.clone();
         Self {
-            directory: dir.to_str().unwrap_or_default().to_string(),
-            file: file.to_str().unwrap_or_default().to_string(),
-            arguments: value.1.clone(),
+            directory: value.directory,
+            file: value.filename,
+            arguments: value.args,
         }
     }
 }
+
+// TODO review how the linker command line must be specified for the compile_commands.json
+// impl From<&LinkerCommandLine> for CompileCommands {
+//     fn from(value: &LinkerCommandLine) -> Self {
+//         let value = value.clone();
+//         Self {
+//             directory: value.directory,
+//             file: value.filename,
+//             arguments: value.args,
+//         }
+//     }
+// }

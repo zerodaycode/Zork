@@ -315,7 +315,7 @@ fn assemble_tests_model<'a>(
     project_name: &'a str,
     config: &'a Option<TestsAttribute>,
     project_root: &Path,
-) -> TestsModel<'a> {
+) -> TestsModel {
     let config = config.as_ref();
 
     let test_executable_name = config.and_then(|exe| exe.test_executable_name).map_or_else(

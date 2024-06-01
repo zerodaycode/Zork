@@ -119,7 +119,7 @@ pub struct SourceSet {
 }
 
 impl SourceSet {
-    pub fn as_args_to(&self, dst: &mut Vec<Argument<'_>>) -> Result<()> {
+    pub fn as_args_to(&self, dst: &mut Vec<Argument>) -> Result<()> {
         let args = self.sources.iter().map(|sf| sf.file()).map(Argument::from);
 
         dst.extend(args);

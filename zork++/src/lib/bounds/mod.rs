@@ -8,7 +8,7 @@ use crate::{cli::output::arguments::Argument, project_model::sourceset::SourceSe
 
 /// Bound for the user defined arguments that are passed to the compiler
 pub trait ExtraArgs<'a> {
-    fn extra_args(&'a self) -> &'a [Argument<'a>];
+    fn extra_args(&'a self) -> &'a [Argument];
 }
 
 /// Contracts for the executable operations

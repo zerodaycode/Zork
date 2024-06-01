@@ -9,11 +9,11 @@ use super::sourceset::SourceSet;
 pub struct ExecutableModel<'a> {
     pub executable_name: &'a str,
     pub sourceset: SourceSet,
-    pub extra_args: Vec<Argument<'a>>,
+    pub extra_args: Vec<Argument>,
 }
 
 impl<'a> ExtraArgs<'a> for ExecutableModel<'a> {
-    fn extra_args(&'a self) -> &'a [Argument<'a>] {
+    fn extra_args(&'a self) -> &'a [Argument] {
         &self.extra_args
     }
 }
