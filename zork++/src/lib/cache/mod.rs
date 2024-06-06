@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 use crate::bounds::TranslationUnit;
 use crate::cache::compile_commands::CompileCommands;
-use crate::project_model::modules::ModuleInterfaceModel;
+use crate::project_model::modules::{ModuleImplementationModel, ModuleInterfaceModel};
 
 /// Standalone utility for load from the file system the Zork++ cache file
 /// for the target [`CppCompiler`]
@@ -99,11 +99,24 @@ impl ZorkCache {
     pub fn last_program_execution(&self) -> &DateTime<Utc> {
         &self.last_program_execution
     }
-    pub fn get_cached_module_ifc_cmd(&self, module_interface_model: &ModuleInterfaceModel) -> Option<&SourceCommandLine>{
+    pub fn get_module_ifc_cmd(&self, module_interface_model: &ModuleInterfaceModel) -> Option<&SourceCommandLine>{
         self.generated_commands.interfaces.iter().find(|mi|
             module_interface_model.file() == (*mi).path()
         )
     }
+
+    pub fn get_module_impl_cmd(&self, module_impl_model: &ModuleImplementationModel) -> Option<&SourceCommandLine>{
+        self.generated_commands.implementations.iter().find(|mi|
+            module_impl_model.file() == (*mi).path()
+        )
+    }
+
+    // pub fn get_source_cmd(&self, module_impl_model: &Source) -> Option<&SourceCommandLine>{
+    //     self.generated_commands.implementations.iter().find(|mi|
+    //         module_impl_model.file() == (*mi).path()
+    //     )
+    // }
+    
     /// Returns a [`Option`] of [`CommandDetails`] if the file is persisted already in the cache
     pub fn is_file_cached(&self, _path: impl AsRef<Path>) -> Option<&CommandDetail> {
         // let last_iteration_details = self.generated_commands.last();

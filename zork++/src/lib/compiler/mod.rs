@@ -194,7 +194,7 @@ fn build_modules(model: &ZorkModel, cache: &mut ZorkCache, commands: &mut Comman
 }
 
 /// Parses the configuration in order to build the BMIs declared for the project,
-/// by precompiling the module interface units
+/// by pre-compiling the module interface units
 fn build_module_interfaces<'a>(
     model: &'a ZorkModel<'_>,
     cache: &mut ZorkCache,
@@ -206,7 +206,7 @@ fn build_module_interfaces<'a>(
         let lpe = cache.last_program_execution();
         let command_line = if let Some(generated_cmd) = cache.get_cached_module_ifc_cmd(module_interface) {
             let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_rebuilt(compiler, lpe, generated_cmd, &module_interface.file());
-            log::trace!("Source file:{:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &module_interface.file());
+            log::trace!("Source file: {:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &module_interface.file());
 
             if !translation_unit_must_be_rebuilt { log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
             }
@@ -238,21 +238,26 @@ fn build_module_implementations<'a>(
     commands: &mut Commands,
 ) {
     impls.iter().for_each(|module_impl| {
-        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_impl.file()) {
-            sources::generate_module_implementation_args(model, cache, module_impl, commands);
-        } else {
-            let command_line = SourceCommandLine::from_translation_unit(
-                module_impl, Arguments::default(), true, CommandExecutionResult::Cached
-            );
+        let compiler = cache.compiler;
+        let lpe = cache.last_program_execution();
+        let command_line = if let Some(generated_cmd) = cache.get_module_impl_cmd(module_impl) {
+            let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_rebuilt(compiler, lpe, generated_cmd, &module_impl.file());
+            log::trace!("Source file: {:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &module_impl.file());
 
-            log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
-            commands.implementations.push(command_line); // TODO:: There's other todo where we
-                                                         // explain why we should change this code
-                                                         // (and the other similar ones)
-            commands.linker.add_owned_buildable_at(helpers::generate_impl_obj_file(
-                model.compiler.cpp_compiler, &model.build.output_dir, module_impl
-            ))
-        }
+            if !translation_unit_must_be_rebuilt {
+                log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
+            }
+            let mut cached_cmd_line = generated_cmd.clone(); // TODO: somehow, we should manage to solve this on the future
+            cached_cmd_line.need_to_build = translation_unit_must_be_rebuilt;
+            commands.linker.add_owned_buildable_at(helpers::generate_impl_obj_file( // TODO: extremely provisional
+                                                                                   model.compiler.cpp_compiler, &model.build.output_dir, module_impl
+            ));
+            cached_cmd_line
+        } else {
+            sources::generate_module_implementation_cmd(model, cache, module_impl, commands)
+        };
+        
+        commands.interfaces.push(command_line);
     });
 }
 
@@ -446,7 +451,7 @@ mod sources {
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
-    pub fn generate_module_interfaces_cmd_args<'a>(
+    pub fn generate_module_interfaces_cmd<'a>(
         model: &'a ZorkModel,
         cache: &ZorkCache,
         interface: &'a ModuleInterfaceModel,
@@ -557,12 +562,12 @@ mod sources {
     }
 
     /// Generates the expected arguments for compile the implementation module files
-    pub fn generate_module_implementation_args<'a>(
+    pub fn generate_module_implementation_cmd<'a>(
         model: &'a ZorkModel,
         cache: &ZorkCache,
         implementation: &'a ModuleImplementationModel,
         commands: &mut Commands,
-    ) {
+    ) -> SourceCommandLine {
         let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir.as_ref();
 
@@ -645,13 +650,13 @@ mod sources {
             }
         }
 
-        let command_line = SourceCommandLine::from_translation_unit(
+        let command_line = SourceCommandLine::for_translation_unit(
             implementation,
-            arguments,
-            false,
-            CommandExecutionResult::default(),
+            arguments
         );
-        commands.implementations.push(command_line);
+        // commands.implementations.push(command_line);
+
+        command_line
     }
 }
 
