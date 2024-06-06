@@ -33,6 +33,7 @@ pub fn build_project<'a>(
 ) -> Result<Commands> {
     // A registry of the generated command lines
     let mut commands = Commands::new(model.compiler.cpp_compiler);
+    // TODO from cache, and find them here instead from the cache
 
     // Pre-tasks
     if model.compiler.cpp_compiler == CppCompiler::GCC && !model.modules.sys_modules.is_empty() {
@@ -64,9 +65,10 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache, commands: 
                 "Building the {:?} C++ standard library implementation",
                 compiler
             );
-            msvc_args::generate_std_cmd_args(model, cache, StdLibMode::Cpp)
+            msvc_args::generate_std_cmd(model, cache, StdLibMode::Cpp) // TODO move mod msvc_args to commands
         } else {
             // TODO: p.ej: existe y además tiene status cached? modificar por &mut
+            // TODO: no será mejor sacarla de la caché?
             let source_command_line = SourceCommandLine {
                 directory: built_stdlib_path.file_stem().unwrap().into(),
                 filename: built_stdlib_path
@@ -75,7 +77,7 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache, commands: 
                     .to_string_lossy()
                     .to_string(),
                 args: Arguments::default(),
-                processed: true,
+                need_to_build: true,
                 execution_result: CommandExecutionResult::Cached,
             };
             source_command_line
@@ -88,7 +90,7 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache, commands: 
                 "Building the {:?} C ISO standard library implementation",
                 compiler
             );
-            msvc_args::generate_std_cmd_args(model, cache, StdLibMode::CCompat)
+            msvc_args::generate_std_cmd(model, cache, StdLibMode::CCompat)
         } else {
             let source_command_line = SourceCommandLine {
                 directory: built_stdlib_path.file_stem().unwrap().into(),
@@ -98,7 +100,7 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache, commands: 
                     .to_string_lossy()
                     .to_string(),
                 args: Arguments::default(),
-                processed: true,
+                need_to_build: true,
                 execution_result: CommandExecutionResult::Cached,
             };
             source_command_line
@@ -161,7 +163,27 @@ fn build_sources(
 /// This function acts like a operation result processor, by running instances
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses>
-fn build_modules(model: &ZorkModel, cache: &ZorkCache, commands: &mut Commands) -> Result<()> {
+/// 
+/// TODO: all this fns should be conceptually named and used for something like -> generate_commands_for
+fn build_modules(model: &ZorkModel, cache: &mut ZorkCache, commands: &mut Commands) -> Result<()> {
+    // TODO: the great idea (for all of modules and sources) it to know what of the translation units
+    // are already on the cache (that means, the commands has already been generated)
+    // for example:
+    // TODO: shouldn't be better to check when the project_model is built to use the generated, processed or whatever flag
+    // and set its command?
+    
+    // TODO: so, to summarize, we need something like a cache to Commands mapper or similar
+    // so, kind of preload the cache for commands. Commands must come pre-filled?
+    
+    // TODO: siguiente actualización. En realidad, creo que la idea legendaria no es nada de lo de arriba exactamente.
+    // Por ejemplo, y si buildeamos en una data-structure un prototype para cada uno de ellos? Así, además de usar el patrón de diseño
+    // prototype, lo único que hacemos es inyectarle partes concretas, como -> añade los extra args (si son nuevos) y podríamos hacer
+    // el check todas las veces por cada mínima parte, pero el prototipo podía estar cacheado y solo inyectarle cambios?
+    // EJ: module_interface_prototype(cpp_compiler...) y puede ser una puta clase en si mismo, con cada cosa detallada, en vez de un
+    // vector con todo a palo seco (INCLUSO UNA CLASE BUILDER :D)
+    // revisa la signature de arriba. build_modules -> build_module_interface_command_prototype? Y a la puta cache
+    // Entonces, después cacheamos todos (como ahora) pero ADEMÁS inyectamos gratis
+    // let non_tracked_commands_for_translation_units = 
     log::info!("Building the module interfaces and partitions...");
     build_module_interfaces(model, cache, &model.modules.interfaces, commands);
 
@@ -175,26 +197,37 @@ fn build_modules(model: &ZorkModel, cache: &ZorkCache, commands: &mut Commands) 
 /// by precompiling the module interface units
 fn build_module_interfaces<'a>(
     model: &'a ZorkModel<'_>,
-    cache: &ZorkCache,
+    cache: &mut ZorkCache,
     interfaces: &'a [ModuleInterfaceModel],
     commands: &mut Commands,
 ) {
     interfaces.iter().for_each(|module_interface| {
-        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &module_interface.file()) {
-            sources::generate_module_interfaces_args(model, cache, module_interface, commands);
-        } else {
-            let command_line = SourceCommandLine::from_translation_unit(
-                module_interface, Arguments::default(), true, CommandExecutionResult::Cached
-            );
+        let compiler = cache.compiler;
+        let lpe = cache.last_program_execution();
+        let command_line = if let Some(generated_cmd) = cache.get_cached_module_ifc_cmd(module_interface) {
+            let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_rebuilt(compiler, lpe, generated_cmd, &module_interface.file());
+            log::trace!("Source file:{:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &module_interface.file());
 
-            log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
-            commands.interfaces.push(command_line);
-            commands.linker.add_owned_buildable_at(helpers::generate_prebuilt_miu(
+            if !translation_unit_must_be_rebuilt { log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
+            }
+            let mut cached_cmd_line = generated_cmd.clone(); // TODO: somehow, we should manage to solve this on the future
+            cached_cmd_line.need_to_build = translation_unit_must_be_rebuilt;
+            commands.linker.add_owned_buildable_at(helpers::generate_prebuilt_miu( // TODO: extremely provisional
                 model.compiler.cpp_compiler, &model.build.output_dir, module_interface
-            ))
-        }
+            ));
+            cached_cmd_line
+        } else {
+            sources::generate_module_interfaces_cmd_args(model, cache, module_interface, commands)
+        };
+
+        commands.interfaces.push(command_line);
+        // commands.linker.add_owned_buildable_at(helpers::generate_prebuilt_miu(
+        //     model.compiler.cpp_compiler, &model.build.output_dir, module_interface
+        // ))
     });
 }
+
+
 
 /// Parses the configuration in order to compile the module implementation
 /// translation units declared for the project
@@ -413,12 +446,12 @@ mod sources {
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
-    pub fn generate_module_interfaces_args<'a>(
+    pub fn generate_module_interfaces_cmd_args<'a>(
         model: &'a ZorkModel,
         cache: &ZorkCache,
         interface: &'a ModuleInterfaceModel,
         commands: &mut Commands,
-    ) {
+    ) -> SourceCommandLine {
         let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir.as_ref();
 
@@ -518,7 +551,9 @@ mod sources {
             false,
             CommandExecutionResult::default(),
         );
-        commands.interfaces.push(command_line);
+        // commands.interfaces.push(command_line); // TODO move commands out of here and later just add the linker
+        
+        command_line
     }
 
     /// Generates the expected arguments for compile the implementation module files
@@ -776,11 +811,11 @@ mod helpers {
     /// hasn't been modified since the last build process iteration.
     ///
     /// True means 'already processed with previous iteration: Success' and stored on the cache
-    pub(crate) fn flag_source_file_without_changes(
+    pub(crate) fn flag_source_file_without_changes( // TODO: kind of `look_for_tu_on_cache_or_generate_command
         compiler: &CppCompiler,
         cache: &ZorkCache,
         file: &Path,
-    ) -> bool {
+    ) -> bool { // TODO: it should return an Optional with the SourceCommandLine from the cache if its already there
         if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
             // TODO: Review this
             // with the new Clang
@@ -819,6 +854,45 @@ mod helpers {
             }
         } else {
             false
+        }
+    }
+
+    /// TODO
+    pub(crate) fn translation_unit_must_be_rebuilt(compiler: CppCompiler,
+                                            last_process_execution: &DateTime<Utc>,
+                                            cached_source_cmd: &SourceCommandLine,
+                                            file: &Path,
+) -> bool {
+        if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
+            log::trace!("Module unit {:?} will be rebuilt since we've detected that you are using Clang in Windows", cached_source_cmd.path());
+            return true;
+        }
+        
+        let execution_result = cached_source_cmd.execution_result;
+        if execution_result != CommandExecutionResult::Success
+            && execution_result != CommandExecutionResult::Cached
+        {
+            log::trace!(
+                    "File {file:?} build process failed previously with status: {:?}. It will be rebuilt again",
+                    execution_result
+                );
+            return true;
+        };
+
+        // If exists and was successful, let's see if has been modified after the program last iteration
+        let file_metadata = file.metadata();
+        match file_metadata {
+            Ok(m) => match m.modified() {
+                Ok(modified) => DateTime::<Utc>::from(modified) > *last_process_execution,
+                Err(e) => {
+                    log::error!("An error happened trying to get the last time that the {file:?} was modified. Processing it anyway because {e:?}");
+                    true
+                }
+            },
+            Err(e) => {
+                log::error!("An error happened trying to retrieve the metadata of {file:?}. Processing it anyway because {e:?}");
+                true
+            }
         }
     }
 

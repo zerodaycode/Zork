@@ -201,7 +201,7 @@ pub mod msvc_args {
 
     use super::Arguments;
 
-    pub(crate) fn generate_std_cmd_args(
+    pub(crate) fn generate_std_cmd(
         model: &ZorkModel<'_>,
         cache: &ZorkCache,
         stdlib_mode: StdLibMode,

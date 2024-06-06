@@ -45,17 +45,17 @@ pub fn run_generated_commands(
         .chain(commands.implementations.iter_mut())
         .chain(commands.sources.iter_mut());
 
-    for translation_unit in translation_units {
-        if !translation_unit.processed {
-            let r = execute_command(compiler, program_data, &translation_unit.args, cache);
-            translation_unit.execution_result = CommandExecutionResult::from(&r);
+    for translation_unit_cmd in translation_units {
+        if translation_unit_cmd.need_to_build {
+            let r = execute_command(compiler, program_data, &translation_unit_cmd.args, cache);
+            translation_unit_cmd.execution_result = CommandExecutionResult::from(&r);
             if let Err(e) = r {
                 cache::save(program_data, cache, commands, test_mode)?;
                 return Err(e);
             } else if !r.as_ref().unwrap().success() {
                 let err = eyre!(
                     "Ending the program, because the build of: {:?} wasn't ended successfully",
-                    translation_unit.filename
+                    translation_unit_cmd.filename
                 );
                 cache::save(program_data, cache, commands, test_mode)?;
                 return Err(err);
@@ -64,7 +64,7 @@ pub fn run_generated_commands(
     }
 
     if !commands.linker.args.is_empty() {
-        log::debug!("Executing the main command line..."); // TODO: this refers to the linker
+        log::debug!("Processing the linker command line...");
 
         let r = execute_command(compiler, program_data, &commands.linker.args, cache);
         commands.linker.execution_result = CommandExecutionResult::from(&r);
@@ -75,7 +75,7 @@ pub fn run_generated_commands(
         } else if !r.as_ref().unwrap().success() {
             cache::save(program_data, cache, commands, test_mode)?;
             return Err(eyre!(
-                "Ending the program, because the main command line execution wasn't ended successfully",
+                "Ending the program, because the linker command line execution wasn't ended successfully",
             ));
         }
     }
@@ -147,7 +147,7 @@ pub struct SourceCommandLine {
     pub directory: PathBuf,
     pub filename: String,
     pub args: Arguments,
-    pub processed: bool,
+    pub need_to_build: bool,
     pub execution_result: CommandExecutionResult,
     // TODO an enum with the Kind OF TU that is generating this scl?
 }
@@ -169,8 +169,22 @@ impl SourceCommandLine {
             directory: tu.path(),
             filename: tu.file_with_extension(),
             args,
-            processed,
+            need_to_build: !processed,
             execution_result,
+        }
+    }
+
+    pub fn for_translation_unit(
+                                  // TODO init it as a args holder, but doesn't have the status yet
+                                  tu: impl TranslationUnit,
+                                  args: Arguments
+    ) -> Self {
+        Self {
+            directory: tu.path(),
+            filename: tu.file_with_extension(),
+            args,
+            need_to_build: true,
+            execution_result: CommandExecutionResult::Unprocessed,
         }
     }
 
@@ -202,7 +216,7 @@ impl LinkerCommandLine {
 }
 
 /// Holds the generated command line arguments for a concrete compiler
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Commands {
     pub compiler: CppCompiler,
     pub pre_tasks: Vec<SourceCommandLine>, // TODO: since there's no really pre-tasks (only build the std_lib), create named entries for std and std.compat

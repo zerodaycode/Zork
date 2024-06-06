@@ -65,6 +65,7 @@ pub mod worker {
         let config_files: Vec<ConfigFile> = find_config_files(project_root, &cli_args.match_files)
             .with_context(|| "We didn't found a valid Zork++ configuration file")?;
         log::trace!("Config files found: {config_files:?}");
+        // TODO add the last modified time
 
         for config_file in config_files {
             log::debug!(
@@ -107,7 +108,7 @@ pub mod worker {
         cli_args: &'a CliArgs,
         program_data: &'a ZorkModel<'_>,
         mut cache: ZorkCache,
-    ) -> Result<CommandExecutionResult> {
+    ) -> Result<CommandExecutionResult> { // TODO: the return type isn't as clever as it could be
         let commands: Commands;
 
         match cli_args.command {

@@ -27,8 +27,12 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
+use crate::bounds::TranslationUnit;
+use crate::cache::compile_commands::CompileCommands;
+use crate::project_model::modules::ModuleInterfaceModel;
 
-/// Standalone utility for retrieve the Zork++ cache file
+/// Standalone utility for load from the file system the Zork++ cache file
+/// for the target [`CppCompiler`]
 pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCache> {
     let compiler = program_data.compiler.cpp_compiler;
     let cache_path = &program_data
@@ -88,10 +92,18 @@ pub struct ZorkCache {
     pub compiler: CppCompiler,
     pub last_program_execution: DateTime<Utc>,
     pub compilers_metadata: CompilersMetadata,
-    pub generated_commands: Vec<Commands>,
+    pub generated_commands: Commands,
 }
 
 impl ZorkCache {
+    pub fn last_program_execution(&self) -> &DateTime<Utc> {
+        &self.last_program_execution
+    }
+    pub fn get_cached_module_ifc_cmd(&self, module_interface_model: &ModuleInterfaceModel) -> Option<&SourceCommandLine>{
+        self.generated_commands.interfaces.iter().find(|mi|
+            module_interface_model.file() == (*mi).path()
+        )
+    }
     /// Returns a [`Option`] of [`CommandDetails`] if the file is persisted already in the cache
     pub fn is_file_cached(&self, _path: impl AsRef<Path>) -> Option<&CommandDetail> {
         // let last_iteration_details = self.generated_commands.last();
@@ -131,10 +143,16 @@ impl ZorkCache {
         commands: Commands,
         test_mode: bool,
     ) -> Result<()> {
-        if self.save_generated_commands(commands, program_data, test_mode)
-            && program_data.project.compilation_db
-        {
-            compile_commands::map_generated_commands_to_compilation_db(self)?;
+        // if self.save_generated_commands(commands, program_data, test_mode)
+        //     && program_data.project.compilation_db
+        // {
+        //     compile_commands::map_generated_commands_to_compilation_db(self)?;
+        // }
+        // 
+        if let Some(_new_commands) = self.save_generated_commands(commands, program_data, test_mode) {
+            if program_data.project.compilation_db { // TODO:: pass the new commands
+                compile_commands::map_generated_commands_to_compilation_db(self)?;
+            }
         }
 
         if !(program_data.compiler.cpp_compiler == CppCompiler::MSVC) {
@@ -151,38 +169,54 @@ impl ZorkCache {
 
     /// Stores the generated commands for the process in the Cache.
     /// ### Return:
-    /// a boolean indicating whether there's new generated commands (non cached), so
+    /// a [`Option<CompileCommands> `] indicating whether there's new generated commands (non cached), so
     /// the compile commands must be regenerated
     fn save_generated_commands(
         &mut self,
         commands: Commands,
         _model: &ZorkModel,
         _test_mode: bool, // TODO: tests linker cmd?
-    ) -> bool {
+    ) -> Option<CompileCommands> {
         log::debug!("Storing in the cache the last generated command lines...");
         self.compiler = commands.compiler;
-        let _process_no = if !self.generated_commands.is_empty() {
-            // TODO: do we now need this one?
-            // self.generated_commands.last().unwrap().cached_process_num + 1
-            0
-        } else {
-            1
-        };
+        // let _process_no = if !self.generated_commands.is_empty() {
+        //     // TODO: do we now need this one?
+        //     // self.generated_commands.last().unwrap().cached_process_num + 1
+        //     0
+        // } else {
+        //     1
+        // };
+        
+        // Generating the compilation database if enabled, and some file has been added, modified
+        // or comes from a previous failure status
+        
+        // TODO: oh, fk, I get it finally. We should only regenerate the compilation database if
+        // the generated command line has changed! (which is highly unlikely)
+        // TODO: Create a wrapper enumerated over the Vec<Command>, so that we can store in the
+        // array full cached process, and have a variant that only points to the initial file
 
         // TODO missing the one that determines if there's a new compilation database that must be generated
         // something like and iter that counts if at least one has been modified ??
         // let at_least_one_changed = commands.
-        self.generated_commands.push(commands);
+        self.generated_commands = commands;
 
         self.get_all_commands_iter()// TODO: Review the conditions and ensure that are the ones that we're looking for
-            .any(|cmd| cmd.processed || cmd.execution_result.eq(&CommandExecutionResult::Success))
+            .any(|cmd| cmd.need_to_build || cmd.execution_result.eq(&CommandExecutionResult::Success));
         
         // INSTEAD OF THIS, we just can return an Optional with the compilation database, so we can serialize the args in the compile_commands.json
         // format and then join them in a one-liner string, so they're easy to read and/or copy
+        None
     }
 
     fn _normalize_execution_result_status(
         // TODO: pending to re-implement it
+        // ALe, don't read again this. We just need to fix the implementation when the commands
+        // are generated, or even better, bring them from the cache
+        // So maybe, we can start by fix the thing on early stages
+        // discard cache if the target zork cfg file has been modified would be awesome
+        // then, we can have all of them paired in a hashmap with a unique autoincremental
+        // generated, and split by interfaces and so on and so forth, and read the commands
+        // from the cache
         &self,
         module_command_line: &SourceCommandLine,
     ) -> CommandExecutionResult {
@@ -210,30 +244,31 @@ impl ZorkCache {
         }
     }
 
-    // TODO:
+    // TODO: read_only_iterator (better name) and docs pls
     pub fn get_all_commands_iter(&self) -> impl Iterator<Item = &SourceCommandLine> + Debug + '_ {
-        let latest = self.generated_commands.last().unwrap();
-        latest
+        let generated_commands = &self.generated_commands;
+        
+        generated_commands
             .pre_tasks
             .iter()
-            .chain(latest.interfaces.iter())
-            .chain(latest.implementations.iter())
-            .chain(latest.sources.iter())
+            .chain(generated_commands.interfaces.iter())
+            .chain(generated_commands.implementations.iter())
+            .chain(generated_commands.sources.iter())
     }
 
     pub fn count_total_generated_commands(&self) -> usize {
-        let latest_commands = self.generated_commands.last().unwrap();
+        let latest_commands = &self.generated_commands;
 
         latest_commands.interfaces.len()
             + latest_commands.implementations.len()
             + latest_commands.sources.len()
             + latest_commands.pre_tasks.len()
-            + 1 // TODO: the linker one
+            + 1 // TODO: the linker one? Does it supports it clangd?
     }
 
     /// Looks for the already precompiled `GCC` or `Clang` system headers,
     /// to avoid recompiling them on every process
-    /// NOTE: This feature should be deprecated an therefore, removed from Zork++ when GCC and
+    /// NOTE: This feature should be deprecated and therefore, removed from Zork++ when GCC and
     /// Clang fully implement the required procedures to build the C++ std library as a module
     fn track_system_modules<'a>(
         // TODO move it to helpers
