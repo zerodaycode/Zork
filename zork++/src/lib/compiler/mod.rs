@@ -134,7 +134,7 @@ fn build_sources(
     commands: &'_ mut Commands,
     tests: bool,
 ) -> Result<()> {
-    log::info!("Building the source files...");
+    log::info!("Generating the commands for the source files...");
     let srcs = if tests {
         &model.tests.sourceset.sources
     } else {
@@ -166,14 +166,6 @@ fn build_sources(
 /// 
 /// TODO: all this fns should be conceptually named and used for something like -> generate_commands_for
 fn build_modules(model: &ZorkModel, cache: &mut ZorkCache, commands: &mut Commands) -> Result<()> {
-    // TODO: the great idea (for all of modules and sources) it to know what of the translation units
-    // are already on the cache (that means, the commands has already been generated)
-    // for example:
-    // TODO: shouldn't be better to check when the project_model is built to use the generated, processed or whatever flag
-    // and set its command?
-    
-    // TODO: so, to summarize, we need something like a cache to Commands mapper or similar
-    // so, kind of preload the cache for commands. Commands must come pre-filled?
     
     // TODO: siguiente actualización. En realidad, creo que la idea legendaria no es nada de lo de arriba exactamente.
     // Por ejemplo, y si buildeamos en una data-structure un prototype para cada uno de ellos? Así, además de usar el patrón de diseño
@@ -181,21 +173,18 @@ fn build_modules(model: &ZorkModel, cache: &mut ZorkCache, commands: &mut Comman
     // el check todas las veces por cada mínima parte, pero el prototipo podía estar cacheado y solo inyectarle cambios?
     // EJ: module_interface_prototype(cpp_compiler...) y puede ser una puta clase en si mismo, con cada cosa detallada, en vez de un
     // vector con todo a palo seco (INCLUSO UNA CLASE BUILDER :D)
-    // revisa la signature de arriba. build_modules -> build_module_interface_command_prototype? Y a la puta cache
-    // Entonces, después cacheamos todos (como ahora) pero ADEMÁS inyectamos gratis
-    // let non_tracked_commands_for_translation_units = 
-    log::info!("Building the module interfaces and partitions...");
-    build_module_interfaces(model, cache, &model.modules.interfaces, commands);
+    log::info!("Generating the commands for the module interfaces and partitions...");
+    process_module_interfaces(model, cache, &model.modules.interfaces, commands);
 
-    log::info!("Building the module implementations...");
-    build_module_implementations(model, cache, &model.modules.implementations, commands);
+    log::info!("Generating the commands for the module implementations and partitions...");
+    process_module_implementations(model, cache, &model.modules.implementations, commands);
 
     Ok(())
 }
 
 /// Parses the configuration in order to build the BMIs declared for the project,
 /// by pre-compiling the module interface units
-fn build_module_interfaces<'a>(
+fn process_module_interfaces<'a>(
     model: &'a ZorkModel<'_>,
     cache: &mut ZorkCache,
     interfaces: &'a [ModuleInterfaceModel],
@@ -204,7 +193,7 @@ fn build_module_interfaces<'a>(
     interfaces.iter().for_each(|module_interface| {
         let compiler = cache.compiler;
         let lpe = cache.last_program_execution();
-        let command_line = if let Some(generated_cmd) = cache.get_cached_module_ifc_cmd(module_interface) {
+        let command_line = if let Some(generated_cmd) = cache.get_module_ifc_cmd(module_interface) {
             let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_rebuilt(compiler, lpe, generated_cmd, &module_interface.file());
             log::trace!("Source file: {:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &module_interface.file());
 
@@ -217,7 +206,7 @@ fn build_module_interfaces<'a>(
             ));
             cached_cmd_line
         } else {
-            sources::generate_module_interfaces_cmd_args(model, cache, module_interface, commands)
+            sources::generate_module_interface_cmd(model, cache, module_interface, commands)
         };
 
         commands.interfaces.push(command_line);
@@ -231,7 +220,7 @@ fn build_module_interfaces<'a>(
 
 /// Parses the configuration in order to compile the module implementation
 /// translation units declared for the project
-fn build_module_implementations<'a>(
+fn process_module_implementations<'a>(
     model: &'a ZorkModel,
     cache: &ZorkCache,
     impls: &'a [ModuleImplementationModel],
@@ -347,7 +336,7 @@ pub fn generate_main_command_line_args<'a>(
     arguments.extend(commands.linker.built_files.iter().map(Argument::from)); // TODO can't we avoid this, and just add the pathbufs?
 
     commands.linker.args.extend(arguments);
-    commands.linker.built_files = target
+    commands.linker.built_files = target // TODO: built_files means raw cpp sources
         .sourceset()
         .sources
         .iter()
@@ -451,7 +440,7 @@ mod sources {
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
-    pub fn generate_module_interfaces_cmd<'a>(
+    pub fn generate_module_interface_cmd<'a>(
         model: &'a ZorkModel,
         cache: &ZorkCache,
         interface: &'a ModuleInterfaceModel,
