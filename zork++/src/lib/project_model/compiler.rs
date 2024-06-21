@@ -100,10 +100,10 @@ impl CppCompiler {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum LanguageLevel {
     CPP20,
-    CPP23,
+    #[default] CPP23,
     CPP2A,
     CPP2B,
     LATEST,
@@ -127,7 +127,7 @@ impl AsRef<str> for LanguageLevel {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum StdLib {
     STDLIBCPP,
     LIBCPP,

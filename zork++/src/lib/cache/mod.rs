@@ -13,6 +13,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::bounds::TranslationUnit;
+use crate::cache::compile_commands::CompileCommands;
+use crate::project_model::modules::{ModuleImplementationModel, ModuleInterfaceModel};
 use crate::project_model::sourceset::SourceFile;
 use crate::{
     cli::{
@@ -27,9 +30,6 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
-use crate::bounds::TranslationUnit;
-use crate::cache::compile_commands::CompileCommands;
-use crate::project_model::modules::{ModuleImplementationModel, ModuleInterfaceModel};
 
 /// Standalone utility for load from the file system the Zork++ cache file
 /// for the target [`CppCompiler`]
@@ -87,7 +87,7 @@ pub fn save(
         .with_context(move || "Error saving data to the Zork++ cache")
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct ZorkCache {
     pub compiler: CppCompiler,
     pub last_program_execution: DateTime<Utc>,
@@ -96,19 +96,35 @@ pub struct ZorkCache {
 }
 
 impl ZorkCache {
+    pub fn new() -> Self {
+        Self {
+            compiler: todo!(),
+            last_program_execution: todo!(),
+            compilers_metadata: todo!(),
+            generated_commands: todo!(),
+        }
+    }
     pub fn last_program_execution(&self) -> &DateTime<Utc> {
         &self.last_program_execution
     }
-    pub fn get_module_ifc_cmd(&self, module_interface_model: &ModuleInterfaceModel) -> Option<&SourceCommandLine>{
-        self.generated_commands.interfaces.iter().find(|mi|
-            module_interface_model.file() == (*mi).path()
-        )
+    pub fn get_module_ifc_cmd(
+        &self,
+        module_interface_model: &ModuleInterfaceModel,
+    ) -> Option<&SourceCommandLine> {
+        self.generated_commands
+            .interfaces
+            .iter()
+            .find(|mi| module_interface_model.file() == (*mi).path())
     }
 
-    pub fn get_module_impl_cmd(&self, module_impl_model: &ModuleImplementationModel) -> Option<&SourceCommandLine>{
-        self.generated_commands.implementations.iter().find(|mi|
-            module_impl_model.file() == (*mi).path()
-        )
+    pub fn get_module_impl_cmd(
+        &self,
+        module_impl_model: &ModuleImplementationModel,
+    ) -> Option<&SourceCommandLine> {
+        self.generated_commands
+            .implementations
+            .iter()
+            .find(|mi| module_impl_model.file() == (*mi).path())
     }
 
     // pub fn get_source_cmd(&self, module_impl_model: &Source) -> Option<&SourceCommandLine>{
@@ -116,7 +132,7 @@ impl ZorkCache {
     //         module_impl_model.file() == (*mi).path()
     //     )
     // }
-    
+
     /// Returns a [`Option`] of [`CommandDetails`] if the file is persisted already in the cache
     pub fn is_file_cached(&self, _path: impl AsRef<Path>) -> Option<&CommandDetail> {
         // let last_iteration_details = self.generated_commands.last();
@@ -161,9 +177,11 @@ impl ZorkCache {
         // {
         //     compile_commands::map_generated_commands_to_compilation_db(self)?;
         // }
-        // 
-        if let Some(_new_commands) = self.save_generated_commands(commands, program_data, test_mode) {
-            if program_data.project.compilation_db { // TODO:: pass the new commands
+        //
+        if let Some(_new_commands) = self.save_generated_commands(commands, program_data, test_mode)
+        {
+            if program_data.project.compilation_db {
+                // TODO:: pass the new commands
                 compile_commands::map_generated_commands_to_compilation_db(self)?;
             }
         }
@@ -199,10 +217,10 @@ impl ZorkCache {
         // } else {
         //     1
         // };
-        
+
         // Generating the compilation database if enabled, and some file has been added, modified
         // or comes from a previous failure status
-        
+
         // TODO: oh, fk, I get it finally. We should only regenerate the compilation database if
         // the generated command line has changed! (which is highly unlikely)
         // TODO: Create a wrapper enumerated over the Vec<Command>, so that we can store in the
@@ -213,9 +231,11 @@ impl ZorkCache {
         // let at_least_one_changed = commands.
         self.generated_commands = commands;
 
-        self.get_all_commands_iter()// TODO: Review the conditions and ensure that are the ones that we're looking for
-            .any(|cmd| cmd.need_to_build || cmd.execution_result.eq(&CommandExecutionResult::Success));
-        
+        self.get_all_commands_iter() // TODO: Review the conditions and ensure that are the ones that we're looking for
+            .any(|cmd| {
+                cmd.need_to_build || cmd.execution_result.eq(&CommandExecutionResult::Success)
+            });
+
         // INSTEAD OF THIS, we just can return an Optional with the compilation database, so we can serialize the args in the compile_commands.json
         // format and then join them in a one-liner string, so they're easy to read and/or copy
         None
@@ -260,7 +280,7 @@ impl ZorkCache {
     // TODO: read_only_iterator (better name) and docs pls
     pub fn get_all_commands_iter(&self) -> impl Iterator<Item = &SourceCommandLine> + Debug + '_ {
         let generated_commands = &self.generated_commands;
-        
+
         generated_commands
             .pre_tasks
             .iter()

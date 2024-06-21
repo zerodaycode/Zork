@@ -1,3 +1,6 @@
+//! Contains helpers and data structures to be processed in a nice and neat way the commands generated to be executed
+//! by Zork++
+
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::slice::Iter;
@@ -8,9 +11,7 @@ use std::{
 
 use crate::bounds::TranslationUnit;
 use crate::cli::output::arguments::Arguments;
-/// Contains helpers and data structure to process in
-/// a nice and neat way the commands generated to be executed
-/// by Zork++
+use crate::compiler::data_factory::{CommonArgs, CompilerCommonArguments};
 use crate::{
     cache::{self, ZorkCache},
     project_model::{compiler::CppCompiler, ZorkModel},
@@ -175,9 +176,9 @@ impl SourceCommandLine {
     }
 
     pub fn for_translation_unit(
-                                  // TODO init it as a args holder, but doesn't have the status yet
-                                  tu: impl TranslationUnit,
-                                  args: Arguments
+        // TODO init it as a args holder, but doesn't have the status yet
+        tu: impl TranslationUnit,
+        args: Arguments,
     ) -> Self {
         Self {
             directory: tu.path(),
@@ -216,11 +217,15 @@ impl LinkerCommandLine {
 }
 
 /// Holds the generated command line arguments for a concrete compiler
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct Commands {
     pub compiler: CppCompiler,
     pub pre_tasks: Vec<SourceCommandLine>, // TODO: since there's no really pre-tasks (only build the std_lib), create named entries for std and std.compat
     pub system_modules: HashMap<String, Arguments>,
+
+    pub general_args: CommonArgs,
+    pub compiler_common_args: Box<dyn CompilerCommonArguments>,
+
     pub interfaces: Vec<SourceCommandLine>,
     pub implementations: Vec<SourceCommandLine>,
     pub sources: Vec<SourceCommandLine>,
@@ -228,12 +233,16 @@ pub struct Commands {
 }
 
 impl Commands {
-    pub fn new(compiler: CppCompiler) -> Self {
+    pub fn new(model: &ZorkModel<'_>, general_args: CommonArgs, compiler_specific_common_args: Box<dyn CompilerCommonArguments>) -> Self {
         Self {
             // TODO: try to see if its possible to move around the code and have a From<T>, avoiding default initialization,
-            // since this will always cause reallocations, and from may be able to allocate at the exact required capacity
+            // since this will always cause reallocations, and 'from' may be able to allocate at the exact required capacity
             // of every collection
-            compiler,
+            compiler: model.compiler.cpp_compiler,
+
+            general_args,
+            compiler_common_args: compiler_specific_common_args,
+
             pre_tasks: Vec::with_capacity(0),
             system_modules: HashMap::with_capacity(0),
             interfaces: Vec::with_capacity(0),

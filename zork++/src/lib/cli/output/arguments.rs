@@ -8,7 +8,7 @@ use std::{borrow::Borrow, ffi::OsStr, path::PathBuf};
 use serde::{Deserialize, Serialize};
 
 /// Wrapper type for represent and storing a command line argument
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Argument(String);
 
 impl Argument {
@@ -144,7 +144,7 @@ pub mod clang_args {
     // The Windows variant is a Zork++ feature to allow the users to write `import std;`
     // under -std=c++20 with clang linking against GCC with
     // some MinGW installation or similar
-    pub(crate) fn implicit_module_maps(out_dir: &Path) -> Argument {
+    pub(crate) fn implicit_module_map(out_dir: &Path) -> Argument {
         if std::env::consts::OS.eq("windows") {
             Argument::from(format!(
                 "-fmodule-map-file={}",

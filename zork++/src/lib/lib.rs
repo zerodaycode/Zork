@@ -108,7 +108,8 @@ pub mod worker {
         cli_args: &'a CliArgs,
         program_data: &'a ZorkModel<'_>,
         mut cache: ZorkCache,
-    ) -> Result<CommandExecutionResult> { // TODO: the return type isn't as clever as it could be
+    ) -> Result<CommandExecutionResult> {
+        // TODO: the return type isn't as clever as it could be
         let commands: Commands;
 
         match cli_args.command {

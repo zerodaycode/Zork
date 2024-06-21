@@ -1,10 +1,13 @@
 //! The crate responsible for executing the core work of `Zork++`,
-// generate command lines and execute them in a shell of the current
-// operating system against the designed compilers in the configuration
-// file.
+//! generate command lines and execute them in a shell of the current
+//! operating system against the designed compilers in the configuration
+//! file.
+
+pub mod data_factory;
 
 use color_eyre::Result;
 use std::path::Path;
+
 
 use crate::bounds::{ExecutableTarget, ExtraArgs, TranslationUnit};
 use crate::cli::output::arguments::{clang_args, msvc_args, Arguments};
@@ -22,6 +25,10 @@ use crate::{
     },
 };
 
+use self::data_factory::{
+    ClangCommonArgs, CommonArgs, CompilerCommonArguments, GccCommonArgs, MsvcCommonArgs,
+};
+
 /// The entry point of the compilation process
 ///
 /// Whenever this process gets triggered, the files declared within the
@@ -31,25 +38,43 @@ pub fn build_project<'a>(
     cache: &mut ZorkCache,
     tests: bool,
 ) -> Result<Commands> {
+    // Generate the Flyweight struct, with the repetitive data and details of the command lines
+    let general_args = CommonArgs::from(model);
+    let compiler_specific_common_args: Box<dyn CompilerCommonArguments> =
+        compiler_common_arguments_factory(model);
+
     // A registry of the generated command lines
-    let mut commands = Commands::new(model.compiler.cpp_compiler);
+    let mut commands = Commands::new(model, general_args, compiler_specific_common_args);
     // TODO from cache, and find them here instead from the cache
 
     // Pre-tasks
     if model.compiler.cpp_compiler == CppCompiler::GCC && !model.modules.sys_modules.is_empty() {
         helpers::build_sys_modules(model, &mut commands, cache)
     }
+
+    // TODO: add them to the commands DS, so they are together until they're generated
     // Build the std library as a module
     build_modular_stdlib(model, cache, &mut commands); // TODO: ward it with an if for only call this fn for the
 
     // 1st - Build the modules
-    build_modules(model, cache, &mut commands)?;
+    process_modules(model, cache, &mut commands)?;
     // 2nd - Build the non module sources
     build_sources(model, cache, &mut commands, tests)?;
     // 3rd - Build the executable or the tests
     build_executable(model, cache, &mut commands, tests)?;
 
     Ok(commands)
+}
+
+/// Factory function for bring the data structure that holds the common arguments of a source
+/// command line for every translation unit, regardeless the underlying choosen compiler
+fn compiler_common_arguments_factory(model: &ZorkModel<'_>) -> Box<dyn CompilerCommonArguments> {
+    // TODO: consider having a union (enum) instead of a fat ptr
+    match model.compiler.cpp_compiler {
+        CppCompiler::CLANG => Box::new(ClangCommonArgs::new(model)),
+        CppCompiler::MSVC => Box::new(MsvcCommonArgs::new()),
+        CppCompiler::GCC => Box::new(GccCommonArgs::new()),
+    }
 }
 
 /// Builds the C++ standard library as a pre-step acording to the specification
@@ -77,30 +102,27 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache, commands: 
                     .to_string_lossy()
                     .to_string(),
                 args: Arguments::default(),
-                need_to_build: true,
+                need_to_build: false,
                 execution_result: CommandExecutionResult::Cached,
             };
             source_command_line
         };
         commands.pre_tasks.push(cpp_stdlib);
 
-        let built_stdlib_path = &cache.compilers_metadata.msvc.stdlib_bmi_path;
+        let built_stdlib_compat_path = &cache.compilers_metadata.msvc.c_stdlib_bmi_path;
         let c_cpp_stdlib = if !built_stdlib_path.exists() {
-            log::trace!(
-                "Building the {:?} C ISO standard library implementation",
-                compiler
-            );
+            log::trace!("Building the {:?} C compat CPP std lib", compiler);
             msvc_args::generate_std_cmd(model, cache, StdLibMode::CCompat)
         } else {
             let source_command_line = SourceCommandLine {
-                directory: built_stdlib_path.file_stem().unwrap().into(),
-                filename: built_stdlib_path
+                directory: built_stdlib_compat_path.file_stem().unwrap().into(),
+                filename: built_stdlib_compat_path
                     .file_name()
                     .unwrap()
                     .to_string_lossy()
                     .to_string(),
                 args: Arguments::default(),
-                need_to_build: true,
+                need_to_build: false,
                 execution_result: CommandExecutionResult::Cached,
             };
             source_command_line
@@ -162,17 +184,8 @@ fn build_sources(
 ///
 /// This function acts like a operation result processor, by running instances
 /// and parsing the obtained result, handling the flux according to the
-/// compiler responses>
-/// 
-/// TODO: all this fns should be conceptually named and used for something like -> generate_commands_for
-fn build_modules(model: &ZorkModel, cache: &mut ZorkCache, commands: &mut Commands) -> Result<()> {
-    
-    // TODO: siguiente actualización. En realidad, creo que la idea legendaria no es nada de lo de arriba exactamente.
-    // Por ejemplo, y si buildeamos en una data-structure un prototype para cada uno de ellos? Así, además de usar el patrón de diseño
-    // prototype, lo único que hacemos es inyectarle partes concretas, como -> añade los extra args (si son nuevos) y podríamos hacer
-    // el check todas las veces por cada mínima parte, pero el prototipo podía estar cacheado y solo inyectarle cambios?
-    // EJ: module_interface_prototype(cpp_compiler...) y puede ser una puta clase en si mismo, con cada cosa detallada, en vez de un
-    // vector con todo a palo seco (INCLUSO UNA CLASE BUILDER :D)
+/// compiler responses
+fn process_modules(model: &ZorkModel, cache: &mut ZorkCache, commands: &mut Commands) -> Result<()> {
     log::info!("Generating the commands for the module interfaces and partitions...");
     process_module_interfaces(model, cache, &model.modules.interfaces, commands);
 
@@ -209,6 +222,7 @@ fn process_module_interfaces<'a>(
             sources::generate_module_interface_cmd(model, cache, module_interface, commands)
         };
 
+        // TODO: should we get rid of commands and just store everything on the Cache?
         commands.interfaces.push(command_line);
         // commands.linker.add_owned_buildable_at(helpers::generate_prebuilt_miu(
         //     model.compiler.cpp_compiler, &model.build.output_dir, module_interface
@@ -216,10 +230,7 @@ fn process_module_interfaces<'a>(
     });
 }
 
-
-
-/// Parses the configuration in order to compile the module implementation
-/// translation units declared for the project
+/// Generates the commands for every [`ModuleImplementationModel`]
 fn process_module_implementations<'a>(
     model: &'a ZorkModel,
     cache: &ZorkCache,
@@ -245,7 +256,7 @@ fn process_module_implementations<'a>(
         } else {
             sources::generate_module_implementation_cmd(model, cache, module_impl, commands)
         };
-        
+
         commands.interfaces.push(command_line);
     });
 }
@@ -260,7 +271,7 @@ pub fn generate_main_command_line_args<'a>(
     log::info!("Generating the main command line...");
 
     let compiler = &model.compiler.cpp_compiler;
-    let out_dir = model.build.output_dir.as_ref();
+    let out_dir: &Path = model.build.output_dir.as_ref();
     let executable_name = target.name();
 
     let mut arguments = Arguments::default();
@@ -272,7 +283,7 @@ pub fn generate_main_command_line_args<'a>(
         CppCompiler::CLANG => {
             arguments.push_opt(model.compiler.stdlib_arg());
             arguments.create_and_push("-fimplicit-modules");
-            arguments.push(clang_args::implicit_module_maps(out_dir));
+            arguments.push(clang_args::implicit_module_map(out_dir));
 
             arguments.create_and_push(format!(
                 "-fprebuilt-module-path={}",
@@ -337,6 +348,8 @@ pub fn generate_main_command_line_args<'a>(
 
     commands.linker.args.extend(arguments);
     commands.linker.built_files = target // TODO: built_files means raw cpp sources
+        // TODO: add a custom collector on the mod sources
+        // TODO: just name the field 'sources'
         .sourceset()
         .sources
         .iter()
@@ -348,6 +361,8 @@ pub fn generate_main_command_line_args<'a>(
 
 /// Specific operations over source files
 mod sources {
+    use std::path::Path;
+
     use super::helpers;
     use crate::bounds::ExtraArgs;
     use crate::cache::ZorkCache;
@@ -391,7 +406,7 @@ mod sources {
             CppCompiler::CLANG => {
                 arguments.push_opt(model.compiler.stdlib_arg());
                 arguments.create_and_push("-fimplicit-modules");
-                arguments.push(clang_args::implicit_module_maps(out_dir));
+                arguments.push(clang_args::implicit_module_map(out_dir));
                 arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
                 arguments.create_and_push("-o");
             }
@@ -447,25 +462,22 @@ mod sources {
         commands: &mut Commands,
     ) -> SourceCommandLine {
         let compiler = model.compiler.cpp_compiler;
-        let out_dir = model.build.output_dir.as_ref();
+        let out_dir: &Path = model.build.output_dir.as_ref();
 
         let mut arguments = Arguments::default();
-        arguments.push(model.compiler.language_level_arg());
-        arguments.extend_from_slice(model.compiler.extra_args());
-        arguments.extend_from_slice(model.modules.extra_args());
 
         match compiler {
             CppCompiler::CLANG => {
-                arguments.push_opt(model.compiler.stdlib_arg());
-                arguments.create_and_push("-fimplicit-modules");
+                // arguments.push_opt(model.compiler.stdlib_arg());
+                // arguments.create_and_push("-fimplicit-modules");
                 arguments.create_and_push("-x");
                 arguments.create_and_push("c++-module");
                 arguments.create_and_push("--precompile");
-                arguments.push(clang_args::implicit_module_maps(out_dir));
-                arguments.create_and_push(format!(
+                // arguments.push(clang_args::implicit_module_map(out_dir));
+                /* arguments.create_and_push(format!(
                     "-fprebuilt-module-path={}/clang/modules/interfaces",
                     out_dir.display()
-                ));
+                )); */
                 clang_args::add_direct_module_interfaces_dependencies(
                     &interface.dependencies,
                     compiler,
@@ -539,15 +551,7 @@ mod sources {
             }
         }
 
-        let command_line = SourceCommandLine::from_translation_unit(
-            interface,
-            arguments,
-            false,
-            CommandExecutionResult::default(),
-        );
-        // commands.interfaces.push(command_line); // TODO move commands out of here and later just add the linker
-        
-        command_line
+        SourceCommandLine::for_translation_unit(interface, arguments)
     }
 
     /// Generates the expected arguments for compile the implementation module files
@@ -570,7 +574,7 @@ mod sources {
                 arguments.push_opt(model.compiler.stdlib_arg());
                 arguments.create_and_push("-fimplicit-modules");
                 arguments.create_and_push("-c");
-                arguments.push(clang_args::implicit_module_maps(out_dir));
+                arguments.push(clang_args::implicit_module_map(out_dir));
 
                 // The resultant object file
                 arguments.create_and_push("-o");
@@ -639,10 +643,7 @@ mod sources {
             }
         }
 
-        let command_line = SourceCommandLine::for_translation_unit(
-            implementation,
-            arguments
-        );
+        let command_line = SourceCommandLine::for_translation_unit(implementation, arguments);
         // commands.implementations.push(command_line);
 
         command_line
@@ -805,11 +806,13 @@ mod helpers {
     /// hasn't been modified since the last build process iteration.
     ///
     /// True means 'already processed with previous iteration: Success' and stored on the cache
-    pub(crate) fn flag_source_file_without_changes( // TODO: kind of `look_for_tu_on_cache_or_generate_command
+    pub(crate) fn flag_source_file_without_changes(
+        // TODO: kind of `look_for_tu_on_cache_or_generate_command
         compiler: &CppCompiler,
         cache: &ZorkCache,
         file: &Path,
-    ) -> bool { // TODO: it should return an Optional with the SourceCommandLine from the cache if its already there
+    ) -> bool {
+        // TODO: it should return an Optional with the SourceCommandLine from the cache if its already there
         if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
             // TODO: Review this
             // with the new Clang
@@ -852,16 +855,17 @@ mod helpers {
     }
 
     /// TODO
-    pub(crate) fn translation_unit_must_be_rebuilt(compiler: CppCompiler,
-                                            last_process_execution: &DateTime<Utc>,
-                                            cached_source_cmd: &SourceCommandLine,
-                                            file: &Path,
-) -> bool {
+    pub(crate) fn translation_unit_must_be_rebuilt(
+        compiler: CppCompiler,
+        last_process_execution: &DateTime<Utc>,
+        cached_source_cmd: &SourceCommandLine,
+        file: &Path,
+    ) -> bool {
         if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
             log::trace!("Module unit {:?} will be rebuilt since we've detected that you are using Clang in Windows", cached_source_cmd.path());
             return true;
         }
-        
+
         let execution_result = cached_source_cmd.execution_result;
         if execution_result != CommandExecutionResult::Success
             && execution_result != CommandExecutionResult::Cached
