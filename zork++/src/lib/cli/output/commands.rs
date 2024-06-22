@@ -233,7 +233,11 @@ pub struct Commands {
 }
 
 impl Commands {
-    pub fn new(model: &ZorkModel<'_>, general_args: CommonArgs, compiler_specific_common_args: Box<dyn CompilerCommonArguments>) -> Self {
+    pub fn new(
+        model: &ZorkModel<'_>,
+        general_args: CommonArgs,
+        compiler_specific_common_args: Box<dyn CompilerCommonArguments>,
+    ) -> Self {
         Self {
             // TODO: try to see if its possible to move around the code and have a From<T>, avoiding default initialization,
             // since this will always cause reallocations, and 'from' may be able to allocate at the exact required capacity

@@ -1,5 +1,7 @@
 //! Metadata about the user's project
 
+use std::borrow::Cow;
+
 use serde::{Deserialize, Serialize};
 
 /// [`ProjectAttribute`] - Metadata about the user's project
@@ -39,11 +41,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ProjectAttribute<'a> {
-    #[serde(borrow)]
-    pub name: &'a str,
-    #[serde(borrow)]
-    pub authors: Option<Vec<&'a str>>,
+    // #[serde(borrow)]
+    pub name: Cow<'a, str>,
+    // #[serde(borrow)]
+    pub authors: Option<Vec<Cow<'a, str>>>,
     pub compilation_db: Option<bool>,
-    #[serde(borrow)]
-    pub project_root: Option<&'a str>,
+    // #[serde(borrow)]
+    pub project_root: Option<Cow<'a, str>>,
 }

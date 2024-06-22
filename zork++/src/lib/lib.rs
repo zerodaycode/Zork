@@ -82,7 +82,7 @@ pub mod worker {
 
             let config = config_file::zork_cfg_from_file(raw_file.as_str())
                 .with_context(|| "Could not parse configuration file")?;
-            let program_data = build_model(&config, cli_args, &abs_project_root)?;
+            let program_data = build_model(config, cli_args, &abs_project_root)?;
             create_output_directory(&program_data)?; // TODO avoid this call without check if exists
 
             let cache = cache::load(&program_data, cli_args)
@@ -226,7 +226,7 @@ pub mod worker {
                 .replace('\\', "/");
             let zcf: ZorkConfigFile = config_file::zork_cfg_from_file(&normalized_cfg_file)?;
             let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
-            let model = build_model(&zcf, &cli_args, temp_path)
+            let model = build_model(zcf, &cli_args, temp_path)
                 .with_context(|| "Error building the project model")?;
 
             // This should create and out/ directory in the ./zork++ folder at the root of this project

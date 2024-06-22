@@ -1,6 +1,7 @@
 //! Types and procedures that represents a command line argument,
 //! or collections of command line arguments
 
+use std::borrow::Cow;
 use std::ops::Deref;
 use std::path::Path;
 use std::{borrow::Borrow, ffi::OsStr, path::PathBuf};
@@ -20,6 +21,18 @@ impl Argument {
 impl From<&str> for Argument {
     fn from(value: &str) -> Self {
         Self(value.into())
+    }
+}
+
+impl From<Cow<'_, str>> for Argument {
+    fn from(value: Cow<'_, str>) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<&Cow<'_, str>> for Argument {
+    fn from(value: &Cow<'_, str>) -> Self {
+        Self(value.clone().into()) // TODO: review this
     }
 }
 

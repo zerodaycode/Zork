@@ -1,4 +1,5 @@
 use core::fmt;
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use crate::bounds::ExtraArgs;
@@ -11,7 +12,7 @@ pub struct ModulesModel<'a> {
     pub interfaces: Vec<ModuleInterfaceModel<'a>>,
     pub base_impls_dir: &'a Path,
     pub implementations: Vec<ModuleImplementationModel<'a>>,
-    pub sys_modules: Vec<&'a str>,
+    pub sys_modules: Vec<Cow<'a, str>>,
     pub extra_args: Vec<Argument>,
 }
 
@@ -26,9 +27,9 @@ pub struct ModuleInterfaceModel<'a> {
     pub path: PathBuf,
     pub file_stem: String,
     pub extension: String,
-    pub module_name: &'a str,
+    pub module_name: Cow<'a, str>,
     pub partition: Option<ModulePartitionModel<'a>>,
-    pub dependencies: Vec<&'a str>,
+    pub dependencies: Vec<Cow<'a, str>>,
 }
 
 impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
@@ -85,13 +86,14 @@ impl<'a> TranslationUnit for &'a ModuleInterfaceModel<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModulePartitionModel<'a> {
-    pub module: &'a str,
-    pub partition_name: &'a str,
+    pub module: Cow<'a, str>,
+    pub partition_name: Cow<'a, str>,
     pub is_internal_partition: bool,
 }
 
-impl<'a> From<&ModulePartition<'a>> for ModulePartitionModel<'a> {
-    fn from(value: &ModulePartition<'a>) -> Self {
+
+impl<'a> From<ModulePartition<'a>> for ModulePartitionModel<'a> {
+    fn from(value: ModulePartition<'a>) -> Self {
         Self {
             module: value.module,
             partition_name: value.partition_name.unwrap_or_default(),
@@ -100,12 +102,22 @@ impl<'a> From<&ModulePartition<'a>> for ModulePartitionModel<'a> {
     }
 }
 
+/* impl<'a> From<&ModulePartition<'a>> for ModulePartitionModel<'a> {
+    fn from(value: &ModulePartition<'a>) -> Self {
+        Self {
+            module: value.module,
+            partition_name: value.partition_name.unwrap_or_default(),
+            is_internal_partition: value.is_internal_partition.unwrap_or_default(),
+        }
+    }
+} */
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleImplementationModel<'a> {
     pub path: PathBuf,
     pub file_stem: String,
     pub extension: String,
-    pub dependencies: Vec<&'a str>,
+    pub dependencies: Vec<Cow<'a, str>>,
 }
 
 impl<'a> fmt::Display for ModuleImplementationModel<'a> {

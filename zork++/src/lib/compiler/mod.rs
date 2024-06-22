@@ -8,7 +8,6 @@ pub mod data_factory;
 use color_eyre::Result;
 use std::path::Path;
 
-
 use crate::bounds::{ExecutableTarget, ExtraArgs, TranslationUnit};
 use crate::cli::output::arguments::{clang_args, msvc_args, Arguments};
 use crate::cli::output::commands::{CommandExecutionResult, SourceCommandLine};
@@ -185,7 +184,11 @@ fn build_sources(
 /// This function acts like a operation result processor, by running instances
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses
-fn process_modules(model: &ZorkModel, cache: &mut ZorkCache, commands: &mut Commands) -> Result<()> {
+fn process_modules(
+    model: &ZorkModel,
+    cache: &mut ZorkCache,
+    commands: &mut Commands,
+) -> Result<()> {
     log::info!("Generating the commands for the module interfaces and partitions...");
     process_module_interfaces(model, cache, &model.modules.interfaces, commands);
 

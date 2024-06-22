@@ -2,7 +2,7 @@
 //! translation unit, having shared data without replicating it until the final command line must
 //! be generated in order to be stored (in cache) and executed (in the underlying shell)
 
-use std::path::{Path, PathBuf};
+use std::{borrow::Cow, path::{Path, PathBuf}};
 
 use serde::{Deserialize, Serialize};
 
@@ -51,6 +51,9 @@ impl Default for Box<dyn CompilerCommonArguments> {
         Box::new(ClangCommonArgs::default()) // TODO: isn't this a code smell?
     }
 }
+
+/// TODO: the typetag library doesn't support yet the deserialization of generic impls, only
+/// serialization, so there's no point on having any primites
 #[typetag::serde]
 impl CompilerCommonArguments for ClangCommonArgs {}
 #[typetag::serde]
@@ -62,42 +65,45 @@ impl CompilerCommonArguments for GccCommonArgs {}
 pub struct ClangCommonArgs {
     // TODO: a HashMap per kind of translation unit which stores the common ones
     // for every different kind of translation unit
-    std_lib: Option<StdLib>, // TODO: technically, should this already be an arg? or should we decouple the
+    std_lib: StdLib, // TODO: technically, should this already be an arg? or should we decouple the
     // project model for the Argument(s) type(s)?
-    implicit_modules: &'static str,
+    implicit_modules: Cow<'static, str>,
     implicit_module_map: Argument,
-    prebuilt_module_path: Argument,
+    prebuilt_module_path: Cow<'static, str>,
 }
 impl ClangCommonArgs {
     pub fn new(model: &ZorkModel<'_>) -> Self {
         let out_dir: &Path = model.build.output_dir.as_ref();
 
         Self {
-            std_lib: model.compiler.std_lib, // TODO: Argument::from(std_lib)
-            implicit_modules: "-fimplicit-modules",
+            std_lib: model.compiler.std_lib.unwrap_or_default(),
+            implicit_modules: "-fimplicit-modules".into(),
             implicit_module_map: clang_args::implicit_module_map(out_dir),
-            prebuilt_module_path:
-                Argument::from(format!(
-                    "-fprebuilt-module-path={}/clang/modules/interfaces",
-                    out_dir.display()
-                ))
+            prebuilt_module_path: Cow::Owned(format!(
+                "-fprebuilt-module-path={}/clang/modules/interfaces",
+                out_dir.display()
+            )),
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct MsvcCommonArgs {
-    exception_handling_model: &'static str,
-    no_logo: &'static str,
-    no_compile: &'static str, // TODO: should be in the general and pass in the model?
-    // ref_stdlib: &'static str, // TODO: this are tecnically two args, /reference and the value
-    // ref_stdlib_compat: &'static str, // TODO: this are tecnically two args, /reference and the value
+    exception_handling_model: Cow<'static, str>,
+    /* no_logo: &'a str,
+    no_compile: &'a str, // TODO: should be in the general and pass in the model? */
+                              // ref_stdlib: &'static str, // TODO: this are tecnically two args, /reference and the value
+                              // ref_stdlib_compat: &'static str, // TODO: this are tecnically two args, /reference and the value
                               // TODO: split the dual cases per switches
                               // TODO: can we have switches like tuples? like switch-value pairs?
 }
 impl MsvcCommonArgs {
     pub fn new() -> Self {
-        Self { exception_handling_model: "/EHsc", no_logo: "nologo", no_compile: "/c",  }
+        Self {
+            exception_handling_model: Cow::Borrowed("/EHsc"),
+            /* no_logo: "nologo",
+            no_compile: "/c", */
+        }
     }
 }
 
