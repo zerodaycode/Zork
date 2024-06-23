@@ -102,15 +102,15 @@ impl<'a> From<ModulePartition<'a>> for ModulePartitionModel<'a> {
     }
 }
 
-/* impl<'a> From<&ModulePartition<'a>> for ModulePartitionModel<'a> {
-    fn from(value: &ModulePartition<'a>) -> Self {
+impl<'a> From<&ModulePartition<'a>> for ModulePartitionModel<'a> {
+    fn from(value: &ModulePartition<'a>) -> &'a Self {
         Self {
-            module: value.module,
+            module: value.module.,
             partition_name: value.partition_name.unwrap_or_default(),
             is_internal_partition: value.is_internal_partition.unwrap_or_default(),
         }
     }
-} */
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleImplementationModel<'a> {

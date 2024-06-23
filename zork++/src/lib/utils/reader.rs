@@ -95,11 +95,12 @@ pub fn build_model<'a>(
     cli_args: &'a CliArgs,
     absolute_project_root: &Path,
 ) -> Result<ZorkModel<'a>> {
+    let proj_name = config.project.name.clone();
     let project = assemble_project_model(config.project);
 
     let compiler = assemble_compiler_model(config.compiler, cli_args);
     let build = assemble_build_model(config.build, absolute_project_root);
-    let executable = assemble_executable_model(&project.name, config.executable, absolute_project_root);
+    let executable = assemble_executable_model(proj_name, config.executable, absolute_project_root);
     let modules = assemble_modules_model(config.modules, absolute_project_root);
     let tests = assemble_tests_model(project.name.as_ref(), config.tests, absolute_project_root);
 
@@ -120,7 +121,7 @@ fn assemble_project_model<'a>(config: ProjectAttribute<'a>) -> ProjectModel<'a> 
             .authors
             // .as_ref()
             // .map_or_else(|| &[] as &[Cow<'a, str>], |auths| auths.as_slice()),
-            .map_or_else(|| &[] as &[Cow<'a, str>], |auths| auths.as_slice()),
+            .map_or_else(|| &[] as [Cow<'a, str>], |auths| &*auths),
         compilation_db: config.compilation_db.unwrap_or_default(),
         project_root: config.project_root,
     }
@@ -162,20 +163,19 @@ fn assemble_build_model(config: Option<BuildAttribute>, project_root: &Path) -> 
 
 //noinspection ALL
 fn assemble_executable_model<'a>(
-    project_name: &'a Cow<'a, str>,
+    project_name: &Cow<'a, str>,
     config: Option<ExecutableAttribute<'a>>,
     project_root: &Path,
 ) -> ExecutableModel<'a> {
     let config = config.as_ref();
 
     let executable_name = config
-        .as_ref()
         .and_then(|exe| -> Option<Cow<'_, str>> {exe.executable_name.clone()})
-        .unwrap_or(Cow::Borrowed(project_name));
+        .unwrap_or_else(|| project_name.clone());
 
     let sources = config
         .and_then(|exe| exe.sources.clone())
-        .unwrap_or_default();
+        .unwrap_or_else(|| Vec::with_capacity(0));
 
     let sourceset = get_sourceset_for(sources, project_root);
 
@@ -196,6 +196,7 @@ fn assemble_modules_model<'a>(
     project_root: &Path,
 ) -> ModulesModel<'a> {
     let base_ifcs_dir = config
+        .as_ref()
         .and_then(|modules| modules.base_ifcs_dir)
         .unwrap_or(Cow::Borrowed("."));
 
@@ -248,20 +249,20 @@ fn assemble_module_interface_model<'a>(
     base_path: &str,
     project_root: &Path,
 ) -> ModuleInterfaceModel<'a> {
-    let file_path = Path::new(project_root).join(base_path).join(config.file);
-    let module_name = config.module_name.unwrap_or_else(|| {
-        std::borrow::Cow::Borrowed(Path::new(&config.file)
+    let file_path = Path::new(project_root).join(base_path).join(config.file.as_ref());
+    let module_name = config.module_name.clone().unwrap_or_else(|| {
+        Cow::Borrowed(Path::new(config.file.as_ref())
             .file_stem()
             .unwrap_or_else(|| panic!("Found ill-formed path on: {}", config.file))
             .to_str()
             .unwrap())
-    });
+    }).to_owned();
 
-    let dependencies = config.dependencies.clone().unwrap_or_default();
+    let dependencies = config.dependencies.clone().unwrap_or_else(|| Vec::with_capacity(0)); // TODO
     let partition = if config.partition.is_none() {
         None
     } else {
-        Some(ModulePartitionModel::from( config.partition.unwrap(),))
+        Some(ModulePartitionModel::from(config.partition.as_ref().unwrap(),))
     };
 
     let file_details = utils::fs::get_file_details(&file_path).unwrap_or_else(|_| {
@@ -289,9 +290,9 @@ fn assemble_module_implementation_model<'a>(
         let last_dot_index = config.file.as_ref().rfind('.');
         if let Some(idx) = last_dot_index {
             let implicit_dependency = config.file.split_at(idx);
-            dependencies.push(Cow::Borrowed(implicit_dependency.0))
+            dependencies.push(Cow::Owned(implicit_dependency.0.to_owned()))
         } else {
-            dependencies.push(Cow::Borrowed(&config.file));
+            dependencies.push(config.file);
         }
     }
 
