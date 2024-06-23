@@ -25,8 +25,8 @@ impl<'a> ExtraArgs<'a> for ModulesModel<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleInterfaceModel<'a> {
     pub path: PathBuf,
-    pub file_stem: String,
-    pub extension: String,
+    pub file_stem: Cow<'a, str>,
+    pub extension: Cow<'a, str>,
     pub module_name: Cow<'a, str>,
     pub partition: Option<ModulePartitionModel<'a>>,
     pub dependencies: Vec<Cow<'a, str>>,
@@ -44,42 +44,40 @@ impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
 
 impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
     fn file(&self) -> PathBuf {
-        let mut tmp = self.path.join(&self.file_stem).into_os_string();
-        tmp.push(".");
-        tmp.push(&self.extension);
-        PathBuf::from(tmp)
+        self.path
+            .join::<&str>(&self.file_stem)
+            .join::<&str>(&self.extension)
     }
 
     fn path(&self) -> PathBuf {
         self.path.clone()
     }
 
-    fn file_stem(&self) -> String {
+    fn file_stem(&self) -> Cow<'_, str> {
         self.file_stem.clone()
     }
 
-    fn extension(&self) -> String {
+    fn extension(&self) -> Cow<'_, str> {
         self.extension.clone()
     }
 }
 
 impl<'a> TranslationUnit for &'a ModuleInterfaceModel<'a> {
     fn file(&self) -> PathBuf {
-        let mut tmp = self.path.join(&self.file_stem).into_os_string();
-        tmp.push(".");
-        tmp.push(&self.extension);
-        PathBuf::from(tmp)
+        self.path
+            .join::<&str>(&self.file_stem)
+            .join::<&str>(&self.extension)
     }
 
     fn path(&self) -> PathBuf {
         self.path.clone()
     }
 
-    fn file_stem(&self) -> String {
+    fn file_stem(&self) -> Cow<'_, str> {
         self.file_stem.clone()
     }
 
-    fn extension(&self) -> String {
+    fn extension(&self) -> Cow<'a, str> {
         self.extension.clone()
     }
 }
@@ -91,32 +89,31 @@ pub struct ModulePartitionModel<'a> {
     pub is_internal_partition: bool,
 }
 
-
 impl<'a> From<ModulePartition<'a>> for ModulePartitionModel<'a> {
     fn from(value: ModulePartition<'a>) -> Self {
         Self {
-            module: value.module,
-            partition_name: value.partition_name.unwrap_or_default(),
+            module: Cow::Borrowed(value.module),
+            partition_name: Cow::Borrowed(value.partition_name.unwrap_or_default()),
             is_internal_partition: value.is_internal_partition.unwrap_or_default(),
         }
     }
 }
 
-impl<'a> From<&ModulePartition<'a>> for ModulePartitionModel<'a> {
-    fn from(value: &ModulePartition<'a>) -> &'a Self {
-        Self {
-            module: value.module.,
-            partition_name: value.partition_name.unwrap_or_default(),
-            is_internal_partition: value.is_internal_partition.unwrap_or_default(),
-        }
-    }
-}
+// impl<'a> From<&ModulePartition<'a>> for ModulePartitionModel<'a> {
+//     fn from(value: &ModulePartition<'a>) -> &'a Self {
+//         Self {
+//             module: value.module.,
+//             partition_name: value.partition_name.unwrap_or_default(),
+//             is_internal_partition: value.is_internal_partition.unwrap_or_default(),
+//         }
+//     }
+// }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModuleImplementationModel<'a> {
     pub path: PathBuf,
-    pub file_stem: String,
-    pub extension: String,
+    pub file_stem: Cow<'a, str>,
+    pub extension: Cow<'a, str>,
     pub dependencies: Vec<Cow<'a, str>>,
 }
 
@@ -126,44 +123,22 @@ impl<'a> fmt::Display for ModuleImplementationModel<'a> {
     }
 }
 
-impl<'a> TranslationUnit for ModuleImplementationModel<'a> {
-    fn file(&self) -> PathBuf {
-        let mut tmp = self.path.join(&self.file_stem).into_os_string();
-        tmp.push(".");
-        tmp.push(&self.extension);
-        PathBuf::from(tmp)
-    }
-
-    fn path(&self) -> PathBuf {
-        self.path.clone()
-    }
-
-    fn file_stem(&self) -> String {
-        self.file_stem.clone()
-    }
-
-    fn extension(&self) -> String {
-        self.extension.clone()
-    }
-}
-
 impl<'a> TranslationUnit for &'a ModuleImplementationModel<'a> {
     fn file(&self) -> PathBuf {
-        let mut tmp = self.path.join(&self.file_stem).into_os_string();
-        tmp.push(".");
-        tmp.push(&self.extension);
-        PathBuf::from(tmp)
+        self.path
+            .join::<&str>(&self.file_stem)
+            .with_extension::<&str>(&self.extension)
     }
 
     fn path(&self) -> PathBuf {
         self.path.clone()
     }
 
-    fn file_stem(&self) -> String {
+    fn file_stem(&self) -> Cow<'_, str> {
         self.file_stem.clone()
     }
 
-    fn extension(&self) -> String {
+    fn extension(&self) -> Cow<'_, str> {
         self.extension.clone()
     }
 }

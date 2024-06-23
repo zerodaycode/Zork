@@ -1,5 +1,4 @@
 //!!  The core section to instruct the compiler to work with C++20 modules. The most important are the base path to the interfaces and implementation files
-use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 
@@ -63,18 +62,18 @@ use serde::{Deserialize, Serialize};
 /// ```
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct ModulesAttribute<'a> {
-    // #[serde(borrow)]
-    pub base_ifcs_dir: Option<Cow<'a, str>>,
-    // #[serde(borrow)]
+    #[serde(borrow)]
+    pub base_ifcs_dir: Option<&'a str>,
+    #[serde(borrow)]
     pub interfaces: Option<Vec<ModuleInterface<'a>>>,
-    // #[serde(borrow)]
-    pub base_impls_dir: Option<Cow<'a, str>>,
-    // #[serde(borrow)]
+    #[serde(borrow)]
+    pub base_impls_dir: Option<&'a str>,
+    #[serde(borrow)]
     pub implementations: Option<Vec<ModuleImplementation<'a>>>,
-    // #[serde(borrow)]
-    pub sys_modules: Option<Vec<Cow<'a, str>>>,
-    // #[serde(borrow)]
-    pub extra_args: Option<Vec<Cow<'a, str>>>,
+    #[serde(borrow)]
+    pub sys_modules: Option<Vec<&'a str>>,
+    #[serde(borrow)]
+    pub extra_args: Option<Vec<&'a str>>,
 }
 
 /// [`ModuleInterface`] -  A module interface structure for dealing
@@ -137,14 +136,14 @@ pub struct ModulesAttribute<'a> {
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct ModuleInterface<'a> {
-    // #[serde(borrow)]
-    pub file: Cow<'a, str>,
-    // #[serde(borrow)]
-    pub module_name: Option<Cow<'a, str>>,
-    // #[serde(borrow)]
+    #[serde(borrow)]
+    pub file: &'a str,
+    #[serde(borrow)]
+    pub module_name: Option<&'a str>,
+    #[serde(borrow)]
     pub partition: Option<ModulePartition<'a>>,
-    // #[serde(borrow)]
-    pub dependencies: Option<Vec<Cow<'a, str>>>,
+    #[serde(borrow)]
+    pub dependencies: Option<Vec<&'a str>>,
 }
 
 /// [`ModulePartition`] - Type for dealing with the parse work
@@ -162,10 +161,10 @@ pub struct ModuleInterface<'a> {
 /// This option only takes effect with MSVC
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct ModulePartition<'a> {
-    // #[serde(borrow)]
-    pub module: Cow<'a, str>,
-    // #[serde(borrow)]
-    pub partition_name: Option<Cow<'a, str>>,
+    #[serde(borrow)]
+    pub module: &'a str,
+    #[serde(borrow)]
+    pub partition_name: Option<&'a str>,
     pub is_internal_partition: Option<bool>,
 }
 
@@ -204,8 +203,8 @@ pub struct ModulePartition<'a> {
 /// ```
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct ModuleImplementation<'a> {
-    // #[serde(borrow)]
-    pub file: Cow<'a, str>,
-    // #[serde(borrow)]
-    pub dependencies: Option<Vec<Cow<'a, str>>>,
+    #[serde(borrow)]
+    pub file: &'a str,
+    #[serde(borrow)]
+    pub dependencies: Option<Vec<&'a str>>,
 }

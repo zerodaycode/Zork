@@ -2,7 +2,10 @@
 //! translation unit, having shared data without replicating it until the final command line must
 //! be generated in order to be stored (in cache) and executed (in the underlying shell)
 
-use std::{borrow::Cow, path::{Path, PathBuf}};
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -48,7 +51,10 @@ impl<'a> From<&'a ZorkModel<'_>> for CommonArgs {
 pub trait CompilerCommonArguments {}
 impl Default for Box<dyn CompilerCommonArguments> {
     fn default() -> Self {
-        Box::new(ClangCommonArgs::default()) // TODO: isn't this a code smell?
+        Box::<ClangCommonArgs>::default() // TODO: isn't this a code smell?
+                                          // TODO: should we just panic? Or maybe fix the default? Or maybe have an associated
+                                          // and pass the compiler to the trait fn? So we can ensure that the default has sense?
+                                          // TODO: we can just fix as well the serialization function, removing the default
     }
 }
 
@@ -92,10 +98,10 @@ pub struct MsvcCommonArgs {
     exception_handling_model: Cow<'static, str>,
     /* no_logo: &'a str,
     no_compile: &'a str, // TODO: should be in the general and pass in the model? */
-                              // ref_stdlib: &'static str, // TODO: this are tecnically two args, /reference and the value
-                              // ref_stdlib_compat: &'static str, // TODO: this are tecnically two args, /reference and the value
-                              // TODO: split the dual cases per switches
-                              // TODO: can we have switches like tuples? like switch-value pairs?
+    // ref_stdlib: &'static str, // TODO: this are tecnically two args, /reference and the value
+    // ref_stdlib_compat: &'static str, // TODO: this are tecnically two args, /reference and the value
+    // TODO: split the dual cases per switches
+    // TODO: can we have switches like tuples? like switch-value pairs?
 }
 impl MsvcCommonArgs {
     pub fn new() -> Self {

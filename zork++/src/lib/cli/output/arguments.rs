@@ -184,7 +184,7 @@ pub mod clang_args {
     }
 
     pub(crate) fn add_direct_module_interfaces_dependencies(
-        dependencies: &[&str],
+        dependencies: &[Cow<str>],
         compiler: CppCompiler,
         out_dir: &Path,
         arguments: &mut Arguments,
@@ -196,7 +196,7 @@ pub mod clang_args {
                     .join(compiler.as_ref())
                     .join("modules")
                     .join("interfaces")
-                    .join(ifc_dep)
+                    .join::<&str>(ifc_dep)
                     .with_extension(compiler.get_typical_bmi_extension())
                     .display()
             )))

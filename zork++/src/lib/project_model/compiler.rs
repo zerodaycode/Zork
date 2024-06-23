@@ -17,10 +17,10 @@ pub struct CompilerModel<'a> {
 impl<'a> CompilerModel<'a> {
     pub fn language_level(&self) -> Cow<'static, str> {
         match self.cpp_compiler {
-            CppCompiler::CLANG | CppCompiler::GCC =>
-                format!("-std=c++{}", self.cpp_standard),
+            CppCompiler::CLANG | CppCompiler::GCC => format!("-std=c++{}", self.cpp_standard),
             CppCompiler::MSVC => format!("/std:c++{}", self.cpp_standard),
-        }.into()
+        }
+        .into()
     }
 
     pub fn language_level_arg(&self) -> Argument {
@@ -79,12 +79,27 @@ impl CppCompiler {
         }
     }
 
-    pub fn get_default_module_extension(&self) -> &str {
-        match *self {
+    pub fn default_module_extension<'a>(&self) -> Cow<'a, str> {
+        Cow::Borrowed(match *self {
             CppCompiler::CLANG => "cppm",
             CppCompiler::MSVC => "ixx",
             CppCompiler::GCC => "cc",
-        }
+        })
+    }
+    pub fn get_default_module_extension<'a>(&self) -> Cow<'a, str> {
+        Cow::Borrowed(match *self {
+            CppCompiler::CLANG => "cppm",
+            CppCompiler::MSVC => "ixx",
+            CppCompiler::GCC => "cc",
+        })
+    }
+
+    pub fn typical_bmi_extension(&self) -> Cow<'_, str> {
+        Cow::Borrowed(match *self {
+            CppCompiler::CLANG => "pcm",
+            CppCompiler::MSVC => "ifc",
+            CppCompiler::GCC => "o",
+        })
     }
 
     pub fn get_typical_bmi_extension(&self) -> &str {
@@ -93,6 +108,14 @@ impl CppCompiler {
             CppCompiler::MSVC => "ifc",
             CppCompiler::GCC => "o",
         }
+    }
+
+    #[inline(always)]
+    pub fn obj_file_extension(&self) -> Cow<'_, str> {
+        Cow::Borrowed(match *self {
+            CppCompiler::CLANG | CppCompiler::GCC => "o",
+            CppCompiler::MSVC => "obj",
+        })
     }
 
     #[inline(always)]
@@ -135,7 +158,8 @@ impl AsRef<str> for LanguageLevel {
 #[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum StdLib {
     STDLIBCPP,
-    #[default] LIBCPP,
+    #[default]
+    LIBCPP,
 }
 
 impl fmt::Display for StdLib {

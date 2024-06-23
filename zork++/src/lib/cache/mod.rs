@@ -33,7 +33,7 @@ use walkdir::WalkDir;
 
 /// Standalone utility for load from the file system the Zork++ cache file
 /// for the target [`CppCompiler`]
-pub fn load(program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCache> {
+pub fn load<'a>(program_data: &'a ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCache<'a>> {
     let compiler = program_data.compiler.cpp_compiler;
     let cache_path = &program_data
         .build
@@ -88,22 +88,14 @@ pub fn save(
 }
 
 #[derive(Serialize, Deserialize, Default)]
-pub struct ZorkCache {
+pub struct ZorkCache<'a> {
     pub compiler: CppCompiler,
     pub last_program_execution: DateTime<Utc>,
-    pub compilers_metadata: CompilersMetadata,
+    pub compilers_metadata: CompilersMetadata<'a>,
     pub generated_commands: Commands,
 }
 
-impl ZorkCache {
-    pub fn new() -> Self {
-        Self {
-            compiler: todo!(),
-            last_program_execution: todo!(),
-            compilers_metadata: todo!(),
-            generated_commands: todo!(),
-        }
-    }
+impl<'a> ZorkCache<'a> {
     pub fn last_program_execution(&self) -> &DateTime<Utc> {
         &self.last_program_execution
     }
@@ -150,7 +142,7 @@ impl ZorkCache {
     }
 
     /// The tasks associated with the cache after load it from the file system
-    pub fn run_tasks(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
+    pub fn run_tasks(&mut self, program_data: &'a ZorkModel<'_>) -> Result<()> {
         let compiler = program_data.compiler.cpp_compiler;
         if cfg!(target_os = "windows") && compiler == CppCompiler::MSVC {
             msvc::load_metadata(self, program_data)?
@@ -186,9 +178,13 @@ impl ZorkCache {
             }
         }
 
-        if !(program_data.compiler.cpp_compiler == CppCompiler::MSVC) {
+        if !(program_data.compiler.cpp_compiler == CppCompiler::MSVC)
+            && program_data.modules.is_some()
+        {
             self.compilers_metadata.system_modules = program_data
                 .modules
+                .as_ref()
+                .unwrap()
                 .sys_modules
                 .iter()
                 .map(|e| e.to_string())
@@ -303,10 +299,10 @@ impl ZorkCache {
     /// to avoid recompiling them on every process
     /// NOTE: This feature should be deprecated and therefore, removed from Zork++ when GCC and
     /// Clang fully implement the required procedures to build the C++ std library as a module
-    fn track_system_modules<'a>(
+    fn track_system_modules<'b: 'a>(
         // TODO move it to helpers
-        program_data: &'a ZorkModel<'_>,
-    ) -> impl Iterator<Item = String> + 'a {
+        program_data: &'b ZorkModel<'b>,
+    ) -> impl Iterator<Item = String> + 'b {
         let root = if program_data.compiler.cpp_compiler == CppCompiler::GCC {
             Path::new(GCC_CACHE_DIR).to_path_buf()
         } else {
@@ -327,11 +323,18 @@ impl ZorkCache {
                     .expect("Error retrieving metadata")
                     .is_file()
                 {
-                    program_data
+                    program_data // TODO: review this, since it's too late and I am just satisfying the borrow checker
                         .modules
-                        .sys_modules
+                        .as_ref()
+                        .map(|modules| modules.sys_modules.clone())
+                        .unwrap_or_default()
                         .iter()
-                        .any(|sys_mod| file.file_name().to_str().unwrap().starts_with(sys_mod))
+                        .any(|sys_mod| {
+                            file.file_name()
+                                .to_str()
+                                .unwrap()
+                                .starts_with(&sys_mod.to_string())
+                        })
                 } else {
                     false
                 }
@@ -390,20 +393,22 @@ pub struct MainCommandLineDetail {
 pub type EnvVars = HashMap<String, String>;
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
-pub struct CompilersMetadata {
+pub struct CompilersMetadata<'a> {
+    // TODO: apply the same solution a have a fat pointer or better convert them into a Union/enum?
     // ALL of them must be optional, since only exists
-    pub msvc: MsvcMetadata,
+    pub msvc: MsvcMetadata<'a>,
     pub clang: ClangMetadata,
     pub gcc: GccMetadata,
     pub system_modules: Vec<String>, // TODO: This hopefully will dissappear soon
+                                     // TODO: Vec of Cow
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
-pub struct MsvcMetadata {
+pub struct MsvcMetadata<'a> {
     pub compiler_version: Option<String>,
     pub dev_commands_prompt: Option<String>,
-    pub vs_stdlib_path: Option<SourceFile>, // std.ixx path for the MSVC std lib location
-    pub vs_c_stdlib_path: Option<SourceFile>, // std.compat.ixx path for the MSVC std lib location
+    pub vs_stdlib_path: Option<SourceFile<'a>>, // std.ixx path for the MSVC std lib location
+    pub vs_c_stdlib_path: Option<SourceFile<'a>>, // std.compat.ixx path for the MSVC std lib location
     pub stdlib_bmi_path: PathBuf, // BMI byproduct after build in it at the target out dir of
     // the user
     pub stdlib_obj_path: PathBuf, // Same for the .obj file
@@ -414,8 +419,8 @@ pub struct MsvcMetadata {
     pub env_vars: EnvVars,
 }
 
-impl MsvcMetadata {
-    pub fn is_loaded(&self) -> bool {
+impl<'a> MsvcMetadata<'_> {
+    pub fn is_loaded(&'a self) -> bool {
         self.dev_commands_prompt.is_some() && self.vs_stdlib_path.is_some()
     }
 }
@@ -439,6 +444,7 @@ mod msvc {
     use crate::utils::constants;
     use color_eyre::eyre::{Context, OptionExt};
     use regex::Regex;
+    use std::borrow::Cow;
     use std::collections::HashMap;
     use std::path::Path;
 
@@ -484,13 +490,13 @@ mod msvc {
                 Path::new(msvc.env_vars.get("VCToolsInstallDir").unwrap()).join("modules");
             msvc.vs_stdlib_path = Some(SourceFile {
                 path: vs_stdlib_path.clone(),
-                file_stem: String::from("std"),
-                extension: compiler.get_default_module_extension().to_string(),
+                file_stem: Cow::Borrowed("std"),
+                extension: compiler.default_module_extension(),
             });
             msvc.vs_c_stdlib_path = Some(SourceFile {
                 path: vs_stdlib_path,
-                file_stem: String::from("std.compat"),
-                extension: compiler.get_default_module_extension().to_string(),
+                file_stem: Cow::Borrowed("std.compat"),
+                extension: compiler.default_module_extension(),
             });
             let modular_stdlib_byproducts_path = Path::new(&program_data.build.output_dir)
                 .join(compiler.as_ref())

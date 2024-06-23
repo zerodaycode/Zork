@@ -2,6 +2,7 @@
 //! by Zork++
 
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::slice::Iter;
 use std::{
@@ -131,7 +132,9 @@ fn execute_command(
         )
     );
 
-    std::process::Command::new(compiler.get_driver(&model.compiler))
+    let driver = compiler.get_driver(&model.compiler);
+    let os_driver = OsStr::new(driver.as_ref());
+    std::process::Command::new(os_driver)
         .args(arguments)
         .envs(cache.get_process_env_args())
         .spawn()?

@@ -2,23 +2,24 @@ use crate::{
     bounds::{ExecutableTarget, ExtraArgs},
     cli::output::arguments::Argument,
 };
+use std::borrow::Cow;
 
 use super::sourceset::SourceSet;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct TestsModel {
-    pub test_executable_name: String,
-    pub sourceset: SourceSet,
+pub struct TestsModel<'a> {
+    pub test_executable_name: Cow<'a, str>,
+    pub sourceset: SourceSet<'a>,
     pub extra_args: Vec<Argument>,
 }
 
-impl<'a> ExtraArgs<'a> for TestsModel {
+impl<'a> ExtraArgs<'a> for TestsModel<'a> {
     fn extra_args(&'a self) -> &'a [Argument] {
         &self.extra_args
     }
 }
 
-impl<'a> ExecutableTarget<'a> for TestsModel {
+impl<'a> ExecutableTarget<'a> for TestsModel<'a> {
     fn name(&'a self) -> &'a str {
         &self.test_executable_name
     }

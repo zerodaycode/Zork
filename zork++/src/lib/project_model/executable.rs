@@ -10,7 +10,7 @@ use super::sourceset::SourceSet;
 #[derive(Debug, PartialEq, Eq)]
 pub struct ExecutableModel<'a> {
     pub executable_name: Cow<'a, str>,
-    pub sourceset: SourceSet,
+    pub sourceset: SourceSet<'a>,
     pub extra_args: Vec<Argument>,
 }
 

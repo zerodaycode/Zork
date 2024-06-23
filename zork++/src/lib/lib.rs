@@ -127,7 +127,7 @@ pub mod worker {
                     Ok(_) => autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         &program_data.build.output_dir,
-                        program_data.executable.executable_name,
+                        &program_data.executable.executable_name,
                     ),
                     Err(e) => Err(e),
                 }

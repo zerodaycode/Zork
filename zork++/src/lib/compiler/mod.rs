@@ -46,17 +46,19 @@ pub fn build_project<'a>(
     let mut commands = Commands::new(model, general_args, compiler_specific_common_args);
     // TODO from cache, and find them here instead from the cache
 
-    // Pre-tasks
-    if model.compiler.cpp_compiler == CppCompiler::GCC && !model.modules.sys_modules.is_empty() {
-        helpers::build_sys_modules(model, &mut commands, cache)
-    }
-
     // TODO: add them to the commands DS, so they are together until they're generated
     // Build the std library as a module
     build_modular_stdlib(model, cache, &mut commands); // TODO: ward it with an if for only call this fn for the
 
     // 1st - Build the modules
-    process_modules(model, cache, &mut commands)?;
+    if let Some(modules) = &model.modules {
+        // Pre-tasks
+        if model.compiler.cpp_compiler == CppCompiler::GCC && !modules.sys_modules.is_empty() {
+            helpers::build_sys_modules(model, &mut commands, cache)
+        }
+
+        process_modules(model, cache, &mut commands)?;
+    };
     // 2nd - Build the non module sources
     build_sources(model, cache, &mut commands, tests)?;
     // 3rd - Build the executable or the tests
@@ -190,10 +192,20 @@ fn process_modules(
     commands: &mut Commands,
 ) -> Result<()> {
     log::info!("Generating the commands for the module interfaces and partitions...");
-    process_module_interfaces(model, cache, &model.modules.interfaces, commands);
+    process_module_interfaces(
+        model,
+        cache,
+        &model.modules.as_ref().unwrap().interfaces,
+        commands,
+    );
 
     log::info!("Generating the commands for the module implementations and partitions...");
-    process_module_implementations(model, cache, &model.modules.implementations, commands);
+    process_module_implementations(
+        model,
+        cache,
+        &model.modules.as_ref().unwrap().implementations,
+        commands,
+    );
 
     Ok(())
 }
@@ -570,7 +582,6 @@ mod sources {
         let mut arguments = Arguments::default();
         arguments.push(model.compiler.language_level_arg());
         arguments.extend_from_slice(model.compiler.extra_args());
-        arguments.extend_from_slice(model.modules.extra_args());
 
         match compiler {
             CppCompiler::CLANG => {
@@ -626,7 +637,7 @@ mod sources {
                     .join(compiler.as_ref())
                     .join("modules")
                     .join("implementations")
-                    .join(implementation.file_stem())
+                    .join::<&str>(&*implementation.file_stem())
                     .with_extension(compiler.get_obj_file_extension());
 
                 commands.add_linker_file_path(&obj_file_path);
@@ -646,10 +657,7 @@ mod sources {
             }
         }
 
-        let command_line = SourceCommandLine::for_translation_unit(implementation, arguments);
-        // commands.implementations.push(command_line);
-
-        command_line
+        SourceCommandLine::for_translation_unit(implementation, arguments)
     }
 }
 
@@ -685,15 +693,15 @@ mod helpers {
         let mod_unit = if compiler.eq(&CppCompiler::CLANG) {
             let mut temp = String::new();
             if let Some(partition) = &interface.partition {
-                temp.push_str(partition.module);
+                temp.push_str(&partition.module);
                 temp.push('-');
                 if !partition.partition_name.is_empty() {
-                    temp.push_str(partition.partition_name)
+                    temp.push_str(&partition.partition_name)
                 } else {
                     temp.push_str(&interface.file_stem())
                 }
             } else {
-                temp.push_str(interface.module_name)
+                temp.push_str(&interface.module_name)
             }
             temp
         } else {
@@ -723,7 +731,7 @@ mod helpers {
             .join(compiler.as_ref())
             .join("modules")
             .join("implementations")
-            .join(implementation.file_stem())
+            .join::<&str>(&*implementation.file_stem())
             .with_extension(compiler.get_obj_file_extension())
     }
 
@@ -746,21 +754,23 @@ mod helpers {
         let language_level = model.compiler.language_level_arg();
         let sys_modules = model
             .modules
-            .sys_modules
+            .as_ref()
+            .map(|modules| modules.sys_modules.clone())
+            .unwrap_or_default()
             .iter()
             .filter(|sys_module| {
                 !cache
                     .compilers_metadata
                     .system_modules
                     .iter()
-                    .any(|s| s.eq(**sys_module))
+                    .any(|s| s.eq(*sys_module))
             })
             .map(|sys_module| {
                 let mut v = vec![
                     language_level.clone(),
                     Argument::from("-x"),
                     Argument::from("c++-system-header"),
-                    Argument::from(*sys_module),
+                    Argument::from(sys_module),
                 ];
 
                 match model.compiler.cpp_compiler {
@@ -771,7 +781,7 @@ mod helpers {
                                 .join(model.compiler.cpp_compiler.as_ref())
                                 .join("modules")
                                 .join("interfaces")
-                                .join(sys_module)
+                                .join(sys_module.to_string())
                                 .with_extension(
                                     model.compiler.cpp_compiler.get_typical_bmi_extension(),
                                 ),
@@ -905,7 +915,7 @@ mod helpers {
         out_dir
             .join(compiler.as_ref())
             .join("sources")
-            .join(source.file_stem())
+            .join::<&str>(&*source.file_stem())
             .with_extension(compiler.get_obj_file_extension())
     }
 }

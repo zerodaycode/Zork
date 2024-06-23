@@ -1,4 +1,5 @@
 use core::fmt;
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use crate::bounds::TranslationUnit;
@@ -26,56 +27,56 @@ impl File for PathBuf {
     }
 }
 
+// TODO: All the trait File impl as well as the trait aren't required anymore
+
 #[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
-pub struct SourceFile {
+pub struct SourceFile<'a> {
     pub path: PathBuf,
-    pub file_stem: String,
-    pub extension: String,
+    pub file_stem: Cow<'a, str>,
+    pub extension: Cow<'a, str>,
 }
 
-impl TranslationUnit for SourceFile {
+impl<'a> TranslationUnit for SourceFile<'a> {
     fn file(&self) -> PathBuf {
-        let mut tmp = self.path.join(&self.file_stem).into_os_string();
-        tmp.push("."); // TODO: use the correct PATH APIs
-        tmp.push(&self.extension);
-        PathBuf::from(tmp)
+        self.path
+            .join::<&str>(&self.file_stem)
+            .with_extension::<&str>(&self.extension)
     }
 
     fn path(&self) -> PathBuf {
         self.path.clone()
     }
 
-    fn file_stem(&self) -> String {
+    fn file_stem(&self) -> Cow<'_, str> {
         self.file_stem.clone()
     }
 
-    fn extension(&self) -> String {
+    fn extension(&self) -> Cow<'_, str> {
         self.extension.clone()
     }
 }
 
-impl TranslationUnit for &SourceFile {
+impl<'a> TranslationUnit for &'a SourceFile<'a> {
     fn file(&self) -> PathBuf {
-        let mut tmp = self.path.join(&self.file_stem).into_os_string();
-        tmp.push(".");
-        tmp.push(&self.extension);
-        PathBuf::from(tmp)
+        self.path
+            .join::<&str>(&self.file_stem)
+            .with_extension::<&str>(&self.extension)
     }
 
     fn path(&self) -> PathBuf {
         self.path.clone()
     }
 
-    fn file_stem(&self) -> String {
+    fn file_stem(&self) -> Cow<'_, str> {
         self.file_stem.clone()
     }
 
-    fn extension(&self) -> String {
+    fn extension(&self) -> Cow<'_, str> {
         self.extension.clone()
     }
 }
 
-impl fmt::Display for SourceFile {
+impl<'a> fmt::Display for SourceFile<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -114,11 +115,11 @@ impl GlobPattern {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct SourceSet {
-    pub sources: Vec<SourceFile>,
+pub struct SourceSet<'a> {
+    pub sources: Vec<SourceFile<'a>>,
 }
 
-impl SourceSet {
+impl<'a> SourceSet<'a> {
     pub fn as_args_to(&self, dst: &mut Vec<Argument>) -> Result<()> {
         let args = self.sources.iter().map(|sf| sf.file()).map(Argument::from);
 

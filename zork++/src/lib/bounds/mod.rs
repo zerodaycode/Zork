@@ -1,6 +1,7 @@
 //! The higher abstractions of the program
 
 use core::fmt::Debug;
+use std::borrow::Cow;
 use std::fmt::Display;
 use std::path::PathBuf;
 
@@ -28,10 +29,10 @@ pub trait TranslationUnit: Display + Debug {
     fn path(&self) -> PathBuf;
 
     /// Outputs the declared file stem for this translation unit
-    fn file_stem(&self) -> String;
+    fn file_stem(&self) -> Cow<'_, str>;
 
     /// Outputs the declared extension for `self`
-    fn extension(&self) -> String;
+    fn extension(&self) -> Cow<'_, str>;
 
     /// Outputs the file stem concatenated with the extension for a given tu
     fn file_with_extension(&self) -> String {
