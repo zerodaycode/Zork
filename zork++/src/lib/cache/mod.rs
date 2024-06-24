@@ -12,6 +12,7 @@ use std::{
     fs::File,
     path::{Path, PathBuf},
 };
+use std::borrow::Cow;
 
 use crate::bounds::TranslationUnit;
 use crate::cache::compile_commands::CompileCommands;
@@ -148,7 +149,8 @@ impl<'a> ZorkCache<'a> {
             msvc::load_metadata(self, program_data)?
         }
 
-        if compiler != CppCompiler::MSVC {
+        if compiler != CppCompiler::MSVC && helpers::user_declared_system_headers_to_build(program_data)
+        {
             let i = Self::track_system_modules(program_data);
             self.compilers_metadata.system_modules.clear();
             self.compilers_metadata.system_modules.extend(i);
@@ -541,5 +543,18 @@ mod msvc {
         }
 
         Ok(env_vars)
+    }
+}
+
+mod helpers {
+    use std::borrow::Cow;
+    use crate::project_model::ZorkModel;
+
+    pub(crate) fn user_declared_system_headers_to_build(program_data: &ZorkModel<'_>) -> bool {
+        program_data
+            .modules
+            .as_ref()
+            .map(|mods| mods.sys_modules.as_ref())
+            .is_some_and(|sys_modules: &Vec<Cow<str>>| !sys_modules.is_empty())
     }
 }
