@@ -23,6 +23,31 @@ pub trait ExecutableTarget<'a>: ExtraArgs<'a> {
 pub trait TranslationUnit: Display + Debug {
     /// Returns the file, being the addition of the path property plus the file stem plus
     /// the extension property
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::borrow::Cow;
+    /// use std::path::PathBuf;
+    /// use zork::bounds::TranslationUnit;
+    /// use zork::project_model::sourceset::SourceFile;
+    ///
+    /// let source_file = SourceFile {
+    ///     path: PathBuf::from("/usr/include"),
+    ///     file_stem: Cow::from("std"),
+    ///     extension: Cow::from("h"),
+    /// };
+    ///
+    /// assert_eq!(source_file.file(), PathBuf::from("/usr/include/std.h"));
+    ///
+    /// let source_file_compat = SourceFile {
+    ///     path: PathBuf::from("/usr/include"),
+    ///     file_stem: Cow::from("std.compat"),
+    ///     extension: Cow::from("h"),
+    /// };
+    ///
+    /// assert_eq!(source_file_compat.file(), PathBuf::from("/usr/include/std.compat.h"));
+    /// ```
     fn file(&self) -> PathBuf;
 
     /// Outputs the declared path for `self`, being self the translation unit

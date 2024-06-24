@@ -84,6 +84,7 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache, commands: 
     let compiler = model.compiler.cpp_compiler;
 
     // TODO: remaining ones: Clang, GCC
+    // TODO: try to abstract the procedures into just one entity
     if compiler.eq(&CppCompiler::MSVC) {
         let built_stdlib_path = &cache.compilers_metadata.msvc.stdlib_bmi_path;
         let cpp_stdlib = if !built_stdlib_path.exists() {
@@ -93,8 +94,6 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache, commands: 
             );
             msvc_args::generate_std_cmd(model, cache, StdLibMode::Cpp) // TODO move mod msvc_args to commands
         } else {
-            // TODO: p.ej: existe y además tiene status cached? modificar por &mut
-            // TODO: no será mejor sacarla de la caché?
             let source_command_line = SourceCommandLine {
                 directory: built_stdlib_path.file_stem().unwrap().into(),
                 filename: built_stdlib_path
@@ -108,10 +107,11 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache, commands: 
             };
             source_command_line
         };
+        log::info!("Generated std SourceCommandLine: {cpp_stdlib:?}");
         commands.pre_tasks.push(cpp_stdlib);
 
         let built_stdlib_compat_path = &cache.compilers_metadata.msvc.c_stdlib_bmi_path;
-        let c_cpp_stdlib = if !built_stdlib_path.exists() {
+        let c_compat = if !built_stdlib_path.exists() {
             log::trace!("Building the {:?} C compat CPP std lib", compiler);
             msvc_args::generate_std_cmd(model, cache, StdLibMode::CCompat)
         } else {
@@ -128,7 +128,8 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache, commands: 
             };
             source_command_line
         };
-        commands.pre_tasks.push(c_cpp_stdlib);
+        log::info!("Generated std SourceCommandLine: {c_compat:?}");
+        commands.pre_tasks.push(c_compat);
     }
 }
 
@@ -168,13 +169,13 @@ fn build_sources(
         sources::generate_sources_arguments(model, commands, cache, &model.tests, src);
     } else {
         let command_line = SourceCommandLine::from_translation_unit(
-            src, Arguments::default(), true, CommandExecutionResult::Cached
+            src, Arguments::default(), true, CommandExecutionResult::Cached,
         );
 
         log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &src.file());
         commands.sources.push(command_line);
         commands.add_linker_file_path_owned(helpers::generate_obj_file_path(
-            model.compiler.cpp_compiler, &model.build.output_dir, src
+            model.compiler.cpp_compiler, &model.build.output_dir, src,
         ))
     });
 
@@ -225,12 +226,13 @@ fn process_module_interfaces<'a>(
             let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_rebuilt(compiler, lpe, generated_cmd, &module_interface.file());
             log::trace!("Source file: {:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &module_interface.file());
 
-            if !translation_unit_must_be_rebuilt { log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
+            if !translation_unit_must_be_rebuilt {
+                log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
             }
             let mut cached_cmd_line = generated_cmd.clone(); // TODO: somehow, we should manage to solve this on the future
             cached_cmd_line.need_to_build = translation_unit_must_be_rebuilt;
             commands.linker.add_owned_buildable_at(helpers::generate_prebuilt_miu( // TODO: extremely provisional
-                model.compiler.cpp_compiler, &model.build.output_dir, module_interface
+                                                                                   model.compiler.cpp_compiler, &model.build.output_dir, module_interface,
             ));
             cached_cmd_line
         } else {
@@ -265,7 +267,7 @@ fn process_module_implementations<'a>(
             let mut cached_cmd_line = generated_cmd.clone(); // TODO: somehow, we should manage to solve this on the future
             cached_cmd_line.need_to_build = translation_unit_must_be_rebuilt;
             commands.linker.add_owned_buildable_at(helpers::generate_impl_obj_file( // TODO: extremely provisional
-                                                                                   model.compiler.cpp_compiler, &model.build.output_dir, module_impl
+                                                                                    model.compiler.cpp_compiler, &model.build.output_dir, module_impl,
             ));
             cached_cmd_line
         } else {
@@ -479,7 +481,9 @@ mod sources {
         let compiler = model.compiler.cpp_compiler;
         let out_dir: &Path = model.build.output_dir.as_ref();
 
-        let mut arguments = Arguments::default();
+        let mut arguments = Arguments::default(); // TODO: provisional while we're implementing the Flyweights
+        arguments.push(model.compiler.language_level_arg());
+        arguments.extend_from_slice(model.compiler.extra_args());
 
         match compiler {
             CppCompiler::CLANG => {
@@ -637,7 +641,7 @@ mod sources {
                     .join(compiler.as_ref())
                     .join("modules")
                     .join("implementations")
-                    .join::<&str>(&*implementation.file_stem())
+                    .join::<&str>(&implementation.file_stem())
                     .with_extension(compiler.get_obj_file_extension());
 
                 commands.add_linker_file_path(&obj_file_path);
@@ -868,11 +872,13 @@ mod helpers {
     }
 
     /// TODO
-    pub(crate) fn translation_unit_must_be_rebuilt(
-        compiler: CppCompiler,
-        last_process_execution: &DateTime<Utc>,
-        cached_source_cmd: &SourceCommandLine,
-        file: &Path,
+    pub(crate) fn translation_unit_must_be_rebuilt( // TODO: separation of concerns? Please
+                                                    // Just make two fns, the one that checks for the status and the one that checks for modifications
+                                                    // then just use a template-factory design pattern by just abstracting away the two checks in one call
+                                                    compiler: CppCompiler,
+                                                    last_process_execution: &DateTime<Utc>,
+                                                    cached_source_cmd: &SourceCommandLine,
+                                                    file: &Path,
     ) -> bool {
         if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
             log::trace!("Module unit {:?} will be rebuilt since we've detected that you are using Clang in Windows", cached_source_cmd.path());
@@ -882,9 +888,14 @@ mod helpers {
         let execution_result = cached_source_cmd.execution_result;
         if execution_result != CommandExecutionResult::Success
             && execution_result != CommandExecutionResult::Cached
+        // TODO: Big one. What instead of having the boolean flag of need_to_built we modify the enumerated of execution result, change its name
+        // to TranslationUnitStatus or some other better name pls, and we introduce a variant for mark the files that must be built?
+        // TODO: also, introduce a variant like PendingToBuilt, that just will be check before executing the commands?
+        // TODO: and even better, what if we use the new enum type as a wrapper over execution result? So we can store inside the variants
+        // that contains build info the execution result, and in the others maybe nothing, or other interesting data?
         {
             log::trace!(
-                    "File {file:?} build process failed previously with status: {:?}. It will be rebuilt again",
+                    "File {file:?} build process failed previously with status: {:?}. It will be rebuilt again", // TODO: technically, it can be Unprocessed, which isn't a failure
                     execution_result
                 );
             return true;

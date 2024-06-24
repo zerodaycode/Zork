@@ -44,9 +44,8 @@ impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
 
 impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
     fn file(&self) -> PathBuf {
-        self.path
-            .join::<&str>(&self.file_stem)
-            .join::<&str>(&self.extension)
+        let file_name = format!("{}.{}", self.file_stem, self.extension);
+        self.path().join(file_name)
     }
 
     fn path(&self) -> PathBuf {
@@ -64,9 +63,8 @@ impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
 
 impl<'a> TranslationUnit for &'a ModuleInterfaceModel<'a> {
     fn file(&self) -> PathBuf {
-        self.path
-            .join::<&str>(&self.file_stem)
-            .join::<&str>(&self.extension)
+        let file_name = format!("{}.{}", self.file_stem, self.extension);
+        self.path().join(file_name)
     }
 
     fn path(&self) -> PathBuf {
@@ -125,9 +123,8 @@ impl<'a> fmt::Display for ModuleImplementationModel<'a> {
 
 impl<'a> TranslationUnit for &'a ModuleImplementationModel<'a> {
     fn file(&self) -> PathBuf {
-        self.path
-            .join::<&str>(&self.file_stem)
-            .with_extension::<&str>(&self.extension)
+        let file_name = format!("{}.{}", self.file_stem, self.extension);
+        self.path().join(file_name)
     }
 
     fn path(&self) -> PathBuf {

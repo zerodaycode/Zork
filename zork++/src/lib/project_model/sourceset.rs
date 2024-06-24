@@ -38,9 +38,8 @@ pub struct SourceFile<'a> {
 
 impl<'a> TranslationUnit for SourceFile<'a> {
     fn file(&self) -> PathBuf {
-        self.path
-            .join::<&str>(&self.file_stem)
-            .with_extension::<&str>(&self.extension)
+        let file_name = format!("{}.{}", self.file_stem, self.extension);
+        self.path().join(file_name)
     }
 
     fn path(&self) -> PathBuf {
@@ -58,9 +57,8 @@ impl<'a> TranslationUnit for SourceFile<'a> {
 
 impl<'a> TranslationUnit for &'a SourceFile<'a> {
     fn file(&self) -> PathBuf {
-        self.path
-            .join::<&str>(&self.file_stem)
-            .with_extension::<&str>(&self.extension)
+        let file_name = format!("{}.{}", self.file_stem, self.extension);
+        self.path().join(file_name)
     }
 
     fn path(&self) -> PathBuf {

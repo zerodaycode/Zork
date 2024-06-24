@@ -274,27 +274,19 @@ fn assemble_module_interface_model<'a>(
     let cfg_file = config.file;
 
     let file_path = Path::new(project_root).join(base_path).join(cfg_file);
-    // let module_name = config.module_name.unwrap_or_else(move || {
-    //     Path::new(&cfg_file)
-    //         .file_stem()
-    //         .unwrap_or_else(|| panic!("Found ill-formed path on: {cfg_file}"))
-    //         .to_string_lossy()
-    // } // TODO: ensure that this one is valid with modules that contains dots in their name
-    let module_name = Cow::Borrowed(
-        config
-            .module_name
-            .unwrap_or_else(|| panic!("Found ill-formed module name on: {cfg_file}")),
-    );
-
+    let module_name = if let Some(mod_name) = config.module_name {
+        Cow::Borrowed(mod_name)
+    } else {
+        Path::new(cfg_file)
+            .file_stem()
+            .unwrap_or_else(|| panic!("Found ill-formed file_stem data for: {cfg_file}"))
+            .to_string_lossy()
+    };
     let dependencies = config
         .dependencies
         .map(|deps| deps.into_iter().map(Cow::Borrowed).collect())
         .unwrap_or_default();
-    let partition = if config.partition.is_none() {
-        None
-    } else {
-        Some(ModulePartitionModel::from(config.partition.unwrap()))
-    };
+    let partition = config.partition.map(ModulePartitionModel::from);
 
     let file_details = utils::fs::get_file_details(&file_path).unwrap_or_else(|_| {
         panic!("An unexpected error happened getting the file details for {file_path:?}")

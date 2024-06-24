@@ -12,7 +12,6 @@ use std::{
     fs::File,
     path::{Path, PathBuf},
 };
-use std::borrow::Cow;
 
 use crate::bounds::TranslationUnit;
 use crate::cache::compile_commands::CompileCommands;
