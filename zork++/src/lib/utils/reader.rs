@@ -139,7 +139,10 @@ fn assemble_project_model(config: ProjectAttribute) -> ProjectModel {
     }
 }
 
-fn assemble_compiler_model(config: CompilerAttribute, cli_args: &CliArgs) -> CompilerModel {
+fn assemble_compiler_model<'a>(
+    config: CompilerAttribute<'a>,
+    cli_args: &'a CliArgs,
+) -> CompilerModel<'a> {
     let extra_args = config
         .extra_args
         .map(|args| args.into_iter().map(Argument::from).collect())
@@ -179,18 +182,25 @@ fn assemble_executable_model<'a>(
     let config = config.as_ref();
 
     let executable_name = config
-        .and_then(|exe| -> Option<Cow<'_, str>> { exe.executable_name.clone() })
+        .and_then(|exe| exe.executable_name)
+        .map(Cow::Borrowed)
         .unwrap_or(project_name);
 
     let sources = config
-        .and_then(|exe| exe.sources.clone())
-        .unwrap_or_else(|| Vec::with_capacity(0));
+        .and_then(|exe| exe.sources.as_ref())
+        .map(|srcs| {
+            srcs.iter()// TODO: abstract this kind of procedures away to some method of TranslationUnit, for example? 
+                // or some other new trait (can't this have a default impl on the trait definition itself?
+                .map(|src| Cow::Borrowed(*src))
+                .collect::<Vec<Cow<str>>>()
+        })
+        .unwrap_or_default();
 
     let sourceset = get_sourceset_for(sources, project_root);
 
     let extra_args = config
         .and_then(|exe| exe.extra_args.as_ref())
-        .map(|args| args.iter().map(Argument::from).collect())
+        .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
         .unwrap_or_default();
 
     ExecutableModel {
@@ -352,7 +362,11 @@ fn assemble_tests_model<'a>(
 
     let sources = config
         .and_then(|exe| exe.sources.as_ref())
-        .map(|srcs| srcs.iter().map(|src| Cow::Borrowed(*src)).collect())
+        .map(|srcs| {
+            srcs.iter()
+                .map(|src| Cow::Borrowed(*src))
+                .collect::<Vec<Cow<str>>>()
+        })
         .unwrap_or_default();
     let sourceset = get_sourceset_for(sources, project_root);
 
@@ -368,7 +382,7 @@ fn assemble_tests_model<'a>(
     }
 }
 
-fn get_sourceset_for<'a>(srcs: Vec<Cow<'_, str>>, project_root: &Path) -> SourceSet<'a> {
+fn get_sourceset_for<'a>(srcs: Vec<Cow<str>>, project_root: &Path) -> SourceSet<'a> {
     let sources = srcs
         .iter()
         .map(|src| {
@@ -452,14 +466,7 @@ mod test {
                 sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![],
             },
-            modules: Some(ModulesModel {
-                base_ifcs_dir: Path::new("."),
-                interfaces: vec![],
-                base_impls_dir: Path::new("."),
-                implementations: vec![],
-                sys_modules: vec![],
-                extra_args: vec![],
-            }),
+            modules: None,
             tests: TestsModel {
                 test_executable_name: "Zork++_test".into(),
                 sourceset: SourceSet { sources: vec![] },

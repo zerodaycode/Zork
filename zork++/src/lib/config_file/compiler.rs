@@ -1,6 +1,5 @@
 //! file for represent the available configuration properties within Zork++
 //! for setting up the target compiler
-use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 
@@ -70,16 +69,16 @@ use crate::project_model;
 /// [`zork::config_file::ZorkConfigFile`] doc-test
 #[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
 #[serde(deny_unknown_fields)]
-pub struct CompilerAttribute {
+pub struct CompilerAttribute<'a> {
     pub cpp_compiler: CppCompiler,
-    // #[serde(borrow)]
-    pub driver_path: Option<Cow<'static, str>>,
+    #[serde(borrow)]
+    pub driver_path: Option<&'a str>,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
-    // #[serde(borrow)]
-    pub extra_args: Option<Vec<Cow<'static, str>>>,
-    // #[serde(borrow)]
-    pub system_headers_path: Option<Cow<'static, str>>,
+    #[serde(borrow)]
+    pub extra_args: Option<Vec<&'a str>>,
+    #[serde(borrow)]
+    pub system_headers_path: Option<&'a str>,
 }
 
 /// The C++ compilers available within Zork++

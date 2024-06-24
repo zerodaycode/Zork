@@ -1,5 +1,4 @@
 //! Specify the execution configuration
-use std::borrow::Cow;
 
 use serde::*;
 
@@ -44,12 +43,12 @@ use serde::*;
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Default)]
 #[serde(deny_unknown_fields)]
 pub struct ExecutableAttribute<'a> {
-    // #[serde(borrow)]
-    pub executable_name: Option<Cow<'a, str>>,
-    // #[serde(borrow)]
-    pub sources_base_path: Option<Cow<'a, str>>,
-    // #[serde(borrow)]
-    pub sources: Option<Vec<Cow<'a, str>>>,
-    // #[serde(borrow)]
-    pub extra_args: Option<Vec<Cow<'a, str>>>,
+    #[serde(borrow)]
+    pub executable_name: Option<&'a str>,
+    #[serde(borrow)]
+    pub sources_base_path: Option<&'a str>,
+    #[serde(borrow)]
+    pub sources: Option<Vec<&'a str>>,
+    #[serde(borrow)]
+    pub extra_args: Option<Vec<&'a str>>,
 }

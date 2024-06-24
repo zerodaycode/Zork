@@ -46,8 +46,8 @@ use self::{
 pub struct ZorkConfigFile<'a> {
     #[serde(borrow)]
     pub project: ProjectAttribute<'a>,
-    // #[serde(borrow)]
-    pub compiler: CompilerAttribute,
+    #[serde(borrow)]
+    pub compiler: CompilerAttribute<'a>,
     #[serde(borrow)]
     pub build: Option<BuildAttribute<'a>>,
     #[serde(borrow)]
