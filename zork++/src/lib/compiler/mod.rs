@@ -872,13 +872,14 @@ mod helpers {
     }
 
     /// TODO
-    pub(crate) fn translation_unit_must_be_rebuilt( // TODO: separation of concerns? Please
-                                                    // Just make two fns, the one that checks for the status and the one that checks for modifications
-                                                    // then just use a template-factory design pattern by just abstracting away the two checks in one call
-                                                    compiler: CppCompiler,
-                                                    last_process_execution: &DateTime<Utc>,
-                                                    cached_source_cmd: &SourceCommandLine,
-                                                    file: &Path,
+    pub(crate) fn translation_unit_must_be_rebuilt(
+        // TODO: separation of concerns? Please
+        // Just make two fns, the one that checks for the status and the one that checks for modifications
+        // then just use a template-factory design pattern by just abstracting away the two checks in one call
+        compiler: CppCompiler,
+        last_process_execution: &DateTime<Utc>,
+        cached_source_cmd: &SourceCommandLine,
+        file: &Path,
     ) -> bool {
         if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
             log::trace!("Module unit {:?} will be rebuilt since we've detected that you are using Clang in Windows", cached_source_cmd.path());

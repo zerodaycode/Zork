@@ -148,7 +148,8 @@ impl<'a> ZorkCache<'a> {
             msvc::load_metadata(self, program_data)?
         }
 
-        if compiler != CppCompiler::MSVC && helpers::user_declared_system_headers_to_build(program_data)
+        if compiler != CppCompiler::MSVC
+            && helpers::user_declared_system_headers_to_build(program_data)
         {
             let i = Self::track_system_modules(program_data);
             self.compilers_metadata.system_modules.clear();
@@ -546,8 +547,8 @@ mod msvc {
 }
 
 mod helpers {
-    use std::borrow::Cow;
     use crate::project_model::ZorkModel;
+    use std::borrow::Cow;
 
     pub(crate) fn user_declared_system_headers_to_build(program_data: &ZorkModel<'_>) -> bool {
         program_data
