@@ -46,7 +46,7 @@ pub fn build_project<'a>(
 
     // TODO: add them to the commands DS, so they are together until they're generated
     // Build the std library as a module
-    build_modular_stdlib(model, cache, &mut commands); // TODO: ward it with an if for only call this fn for the
+    build_modular_stdlib(model, cache); // TODO: ward it with an if for only call this fn for the
 
     // 1st - Build the modules
     if let Some(modules) = &model.modules {
@@ -67,54 +67,26 @@ pub fn build_project<'a>(
 
 /// Builds the C++ standard library as a pre-step acording to the specification
 /// of each compiler vendor
-fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache, commands: &mut Commands) {
+fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
     let compiler = model.compiler.cpp_compiler;
 
     // TODO: remaining ones: Clang, GCC
     // TODO: try to abstract the procedures into just one entity
     if compiler.eq(&CppCompiler::MSVC) {
         let built_stdlib_path = &cache.compilers_metadata.msvc.stdlib_bmi_path;
-        let cpp_stdlib = if !built_stdlib_path.exists() {
-            log::trace!(
-                "Building the {:?} C++ standard library implementation",
-                compiler
-            );
-            msvc_args::generate_std_cmd(model, cache, StdLibMode::Cpp) // TODO move mod msvc_args to commands
-        } else {
-            let source_command_line = SourceCommandLine {
-                directory: built_stdlib_path.file_stem().unwrap().into(),
-                filename: built_stdlib_path
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string(),
-                args: Arguments::default(),
-                need_to_build: false,
-                execution_result: CommandExecutionResult::Cached,
-            };
-            source_command_line
-        };
-        commands.cpp_stdlib = Some(cpp_stdlib);
+
+        if !built_stdlib_path.exists() {
+            log::trace!("Building the {:?} C++ standard library implementation", compiler);
+            let cpp_stdlib = msvc_args::generate_std_cmd(model, cache, StdLibMode::Cpp);
+            cache.generated_commands.cpp_stdlib = Some(cpp_stdlib);
+        }
 
         let built_stdlib_compat_path = &cache.compilers_metadata.msvc.c_stdlib_bmi_path;
-        let c_compat = if !built_stdlib_path.exists() {
+        if !built_stdlib_compat_path.exists() {
             log::trace!("Building the {:?} C compat CPP std lib", compiler);
-            msvc_args::generate_std_cmd(model, cache, StdLibMode::CCompat)
-        } else {
-            let source_command_line = SourceCommandLine {
-                directory: built_stdlib_compat_path.file_stem().unwrap().into(),
-                filename: built_stdlib_compat_path
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string(),
-                args: Arguments::default(),
-                need_to_build: false,
-                execution_result: CommandExecutionResult::Cached,
-            };
-            source_command_line
-        };
-        commands.c_compat_stdlib = Some(c_compat);
+            let c_compat = msvc_args::generate_std_cmd(model, cache, StdLibMode::CCompat);
+            cache.generated_commands.c_compat_stdlib = Some(c_compat);
+        }
     }
 }
 

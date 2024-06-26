@@ -6,6 +6,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fmt::Debug;
+use std::ops::DerefMut;
 use std::rc::Rc;
 use std::slice::Iter;
 use std::{
@@ -31,16 +32,19 @@ use super::arguments::{Argument, CommandLineArgument, CommandLineArguments};
 
 pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
-    mut commands: Commands, // TODO: &mut, and then directly store them?
-    cache: Rc<RefCell<ZorkCache>>,
+    // mut commands: Commands, // TODO: &mut, and then directly store them?
+    mut cache: ZorkCache,
     test_mode: bool,
 ) -> Result<CommandExecutionResult> {
     log::info!("Proceeding to execute the generated commands...");
-    let compiler = commands.compiler;
+    let compiler = cache.compiler;
+    let mut commands = cache.generated_commands;
+
+    let rc_cache = Rc::new(RefCell::new(cache));
 
     for sys_module in &commands.system_modules {
         // TODO: will be deprecated soon, hopefully
-        execute_command(compiler, program_data, sys_module.1, &cache.borrow())?;
+        execute_command(compiler, program_data, sys_module.1, &rc_cache.borrow())?;
     }
 
     let general_args = commands.general_args.get_args();
@@ -62,19 +66,19 @@ pub fn run_generated_commands(
             compiler,
             program_data,
             &translation_unit_cmd_args,
-            &cache.borrow(),
+            &rc_cache.borrow(),
         );
         translation_unit_cmd.execution_result = CommandExecutionResult::from(&r);
 
         if let Err(e) = r {
-            cache::save2(program_data, cache, commands, test_mode)?;
+            cache::save(program_data, &mut cache, commands, test_mode)?;
             return Err(e);
         } else if !r.as_ref().unwrap().success() {
             let err = eyre!(
                 "Ending the program, because the build of: {:?} failed",
                 translation_unit_cmd.filename
             );
-            cache::save2(program_data, cache, commands, test_mode)?;
+            cache::save(program_data, &mut cache, commands, test_mode)?;
             return Err(err);
         }
     }
@@ -86,22 +90,22 @@ pub fn run_generated_commands(
             compiler,
             program_data,
             &commands.linker.args,
-            &cache.borrow(),
+            &rc_cache.borrow(),
         );
         commands.linker.execution_result = CommandExecutionResult::from(&r);
 
         if let Err(e) = r {
-            cache::save2(program_data, cache, commands, test_mode)?;
+            cache::save(program_data, &mut cache, commands, test_mode)?;
             return Err(e);
         } else if !r.as_ref().unwrap().success() {
-            cache::save2(program_data, cache, commands, test_mode)?;
+            cache::save(program_data, &mut cache, commands, test_mode)?;
             return Err(eyre!(
                 "Ending the program, because the linker command line execution failed",
             ));
         }
     }
 
-    cache::save2(program_data, cache, commands, test_mode)?;
+    cache::save(program_data, rc_cache.borrow_mut(), commands, test_mode)?;
     Ok(CommandExecutionResult::Success)
 }
 

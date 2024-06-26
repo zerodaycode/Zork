@@ -121,8 +121,8 @@ pub mod worker {
 
                 commands::run_generated_commands(
                     program_data,
-                    commands,
-                    rc_cache.clone(),
+                    // commands,
+                    cache,
                     false,
                 )
             }
@@ -130,7 +130,9 @@ pub mod worker {
                 commands = build_project(program_data, &mut cache, false)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, rc_cache.clone(), false) {
+                match commands::run_generated_commands(program_data,
+                                                       // commands,
+                                                       cache, false) {
                     Ok(_) => commands::autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         &program_data.build.output_dir,
@@ -143,7 +145,9 @@ pub mod worker {
                 commands = build_project(program_data, &mut cache, true)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, rc_cache.clone(), true) {
+                match commands::run_generated_commands(program_data,
+                                                       // commands,
+                                                       cache, true) {
                     Ok(_) => commands::autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         &program_data.build.output_dir,
