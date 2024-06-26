@@ -4,9 +4,12 @@
 use std::borrow::Cow;
 use std::ops::Deref;
 use std::path::Path;
+use std::rc::Rc;
 use std::{borrow::Borrow, ffi::OsStr, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
+
+use crate::project_model::compiler::LanguageLevel;
 
 /// Wrapper type for represent and storing a command line argument
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -60,9 +63,27 @@ impl From<&PathBuf> for Argument {
     }
 }
 
+impl From<LanguageLevel> for Argument {
+    fn from(value: LanguageLevel) -> Self {
+        Self::from(value.as_ref().to_string())
+    }
+}
+
 impl Borrow<str> for Argument {
     fn borrow(&self) -> &str {
         &self.0
+    }
+}
+
+impl Borrow<str> for &Argument {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Borrow<Argument> for Rc<&Argument> {
+    fn borrow(&self) -> &Argument {
+        &self
     }
 }
 
@@ -122,6 +143,10 @@ impl Arguments {
     /// Extends the underlying collection given a slice of [`Argument`]
     pub fn extend_from_slice(&mut self, slice: &[Argument]) {
         self.0.extend_from_slice(slice);
+    }
+
+    pub fn as_slice(&self) -> &[Argument] {
+        &self.0
     }
 }
 

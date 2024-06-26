@@ -189,7 +189,7 @@ fn assemble_executable_model<'a>(
     let sources = config
         .and_then(|exe| exe.sources.as_ref())
         .map(|srcs| {
-            srcs.iter()// TODO: abstract this kind of procedures away to some method of TranslationUnit, for example? 
+            srcs.iter() // TODO: abstract this kind of procedures away to some method of TranslationUnit, for example?
                 // or some other new trait (can't this have a default impl on the trait definition itself?
                 .map(|src| Cow::Borrowed(*src))
                 .collect::<Vec<Cow<str>>>()

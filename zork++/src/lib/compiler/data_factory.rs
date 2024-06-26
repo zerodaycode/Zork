@@ -2,43 +2,60 @@
 //! translation unit, having shared data without replicating it until the final command line must
 //! be generated in order to be stored (in cache) and executed (in the underlying shell)
 
-use std::{
-    borrow::Cow,
-    path::{Path, PathBuf},
-};
+use std::{borrow::Cow, path::Path, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    bounds::ExtraArgs,
     cli::output::arguments::{clang_args, Argument, Arguments},
-    project_model::compiler::{CppCompiler, LanguageLevel, StdLib},
+    project_model::compiler::{CppCompiler, StdLib},
     project_model::ZorkModel,
 };
 
 /// Holds the common arguments across all the different command lines regarding the target compiler
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct CommonArgs {
-    compiler: CppCompiler,
-    out_dir: PathBuf,
-    // out_dir: &'a PathBuf,
-    language_level: LanguageLevel,
-    extra_args: Arguments,
-    // extra_args: &'a [Argument],
+pub struct CommonArgs(Arguments);
+impl CommonArgs {
+    pub fn get_args(&self) -> Arguments {
+        self.0.clone()
+    }
+
+    // pub fn get_args_slice(&self) -> &[Rc<Argument>] {
+    pub fn get_args_slice(&self) -> impl Iterator<Item = Rc<&Argument>> {
+        self.0.as_slice().iter().map(|arg| Rc::new(arg))
+    }
 }
 
 impl<'a> From<&'a ZorkModel<'_>> for CommonArgs {
     fn from(model: &'a ZorkModel<'_>) -> Self {
-        let compiler = model.compiler.cpp_compiler;
-        let out_dir = model.build.output_dir.clone();
-        let language_level = model.compiler.cpp_standard;
-        let extra_args = model.compiler.extra_args.clone();
+        let mut common_args = Arguments::default();
+        common_args.push(model.compiler.language_level_arg());
+        common_args.extend_from_slice(model.compiler.extra_args());
 
-        Self {
-            compiler,
-            out_dir,
-            language_level,
-            extra_args: Arguments::from_vec(extra_args),
-        }
+        Self (common_args)
+    }
+}
+
+impl IntoIterator for CommonArgs {
+    type Item = Argument;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+/// Factory function for bring the data structure that holds the common arguments of a source
+/// command line for every translation unit, regardeless the underlying choosen compiler
+pub fn compiler_common_arguments_factory(
+    model: &ZorkModel<'_>,
+) -> Box<dyn CompilerCommonArguments> {
+    // TODO: consider having a union (enum) instead of a fat ptr
+    match model.compiler.cpp_compiler {
+        CppCompiler::CLANG => Box::new(ClangCommonArgs::new(model)),
+        CppCompiler::MSVC => Box::new(MsvcCommonArgs::new()),
+        CppCompiler::GCC => Box::new(GccCommonArgs::new()),
     }
 }
 

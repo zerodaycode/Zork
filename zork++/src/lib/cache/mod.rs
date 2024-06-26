@@ -280,8 +280,10 @@ impl<'a> ZorkCache<'a> {
         let generated_commands = &self.generated_commands;
 
         generated_commands
-            .pre_tasks
+            .cpp_stdlib
+            .as_slice()
             .iter()
+            .chain(generated_commands.c_compat_stdlib.as_slice().iter())
             .chain(generated_commands.interfaces.iter())
             .chain(generated_commands.implementations.iter())
             .chain(generated_commands.sources.iter())
@@ -293,8 +295,9 @@ impl<'a> ZorkCache<'a> {
         latest_commands.interfaces.len()
             + latest_commands.implementations.len()
             + latest_commands.sources.len()
-            + latest_commands.pre_tasks.len()
-            + 1 // TODO: the linker one? Does it supports it clangd?
+            // + latest_commands.pre_tasks.len()
+            + 2 // the cpp_stdlib and the c_compat_stdlib
+                // + 1 // TODO: the linker one? Does it supports it clangd?
     }
 
     /// Looks for the already precompiled `GCC` or `Clang` system headers,

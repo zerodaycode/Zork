@@ -24,9 +24,7 @@ use crate::{
     },
 };
 
-use self::data_factory::{
-    ClangCommonArgs, CommonArgs, CompilerCommonArguments, GccCommonArgs, MsvcCommonArgs,
-};
+use self::data_factory::{CommonArgs, CompilerCommonArguments};
 
 /// The entry point of the compilation process
 ///
@@ -40,7 +38,7 @@ pub fn build_project<'a>(
     // Generate the Flyweight struct, with the repetitive data and details of the command lines
     let general_args = CommonArgs::from(model);
     let compiler_specific_common_args: Box<dyn CompilerCommonArguments> =
-        compiler_common_arguments_factory(model);
+        data_factory::compiler_common_arguments_factory(model);
 
     // A registry of the generated command lines
     let mut commands = Commands::new(model, general_args, compiler_specific_common_args);
@@ -65,17 +63,6 @@ pub fn build_project<'a>(
     build_executable(model, cache, &mut commands, tests)?;
 
     Ok(commands)
-}
-
-/// Factory function for bring the data structure that holds the common arguments of a source
-/// command line for every translation unit, regardeless the underlying choosen compiler
-fn compiler_common_arguments_factory(model: &ZorkModel<'_>) -> Box<dyn CompilerCommonArguments> {
-    // TODO: consider having a union (enum) instead of a fat ptr
-    match model.compiler.cpp_compiler {
-        CppCompiler::CLANG => Box::new(ClangCommonArgs::new(model)),
-        CppCompiler::MSVC => Box::new(MsvcCommonArgs::new()),
-        CppCompiler::GCC => Box::new(GccCommonArgs::new()),
-    }
 }
 
 /// Builds the C++ standard library as a pre-step acording to the specification
@@ -107,8 +94,7 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache, commands: 
             };
             source_command_line
         };
-        log::info!("Generated std SourceCommandLine: {cpp_stdlib:?}");
-        commands.pre_tasks.push(cpp_stdlib);
+        commands.cpp_stdlib = Some(cpp_stdlib);
 
         let built_stdlib_compat_path = &cache.compilers_metadata.msvc.c_stdlib_bmi_path;
         let c_compat = if !built_stdlib_path.exists() {
@@ -128,8 +114,7 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache, commands: 
             };
             source_command_line
         };
-        log::info!("Generated std SourceCommandLine: {c_compat:?}");
-        commands.pre_tasks.push(c_compat);
+        commands.c_compat_stdlib = Some(c_compat);
     }
 }
 

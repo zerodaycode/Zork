@@ -40,28 +40,33 @@ pub fn run_generated_commands(
         execute_command(compiler, program_data, sys_module.1, cache)?;
     }
 
+    let general_args = commands.general_args.get_args();
+
     let translation_units = commands
-        .pre_tasks
-        .iter_mut()
-        .chain(commands.interfaces.iter_mut())
-        .chain(commands.implementations.iter_mut())
-        .chain(commands.sources.iter_mut());
+        .get_all_command_lines()
+        .filter(|scl| scl.need_to_build)
+        .collect::<Vec<&mut SourceCommandLine>>();
 
     for translation_unit_cmd in translation_units {
-        if translation_unit_cmd.need_to_build {
-            let r = execute_command(compiler, program_data, &translation_unit_cmd.args, cache);
-            translation_unit_cmd.execution_result = CommandExecutionResult::from(&r);
-            if let Err(e) = r {
-                cache::save(program_data, cache, commands, test_mode)?;
-                return Err(e);
-            } else if !r.as_ref().unwrap().success() {
-                let err = eyre!(
-                    "Ending the program, because the build of: {:?} wasn't ended successfully",
-                    translation_unit_cmd.filename
-                );
-                cache::save(program_data, cache, commands, test_mode)?;
-                return Err(err);
-            }
+        let translation_unit_cmd_args =
+            general_args
+            .iter()
+            .chain(translation_unit_cmd.args.iter())
+            .collect::<Vec<&Argument>>();
+
+        let r = execute_command(compiler, program_data, &translation_unit_cmd_args, cache);
+        translation_unit_cmd.execution_result = CommandExecutionResult::from(&r);
+
+        if let Err(e) = r {
+            cache::save(program_data, cache, commands, test_mode)?;
+            return Err(e);
+        } else if !r.as_ref().unwrap().success() {
+            let err = eyre!(
+                "Ending the program, because the build of: {:?} failed",
+                translation_unit_cmd.filename
+            );
+            cache::save(program_data, cache, commands, test_mode)?;
+            return Err(err);
         }
     }
 
@@ -77,7 +82,7 @@ pub fn run_generated_commands(
         } else if !r.as_ref().unwrap().success() {
             cache::save(program_data, cache, commands, test_mode)?;
             return Err(eyre!(
-                "Ending the program, because the linker command line execution wasn't ended successfully",
+                "Ending the program, because the linker command line execution failed",
             ));
         }
     }
@@ -117,18 +122,21 @@ pub fn autorun_generated_binary(
 
 /// Executes a new [`std::process::Command`] configured according the chosen
 /// compiler and the current operating system
-fn execute_command(
+fn execute_command<T>(
     compiler: CppCompiler,
     model: &ZorkModel,
-    arguments: &[Argument],
+    arguments: &[T],
     cache: &ZorkCache,
-) -> Result<ExitStatus, Report> {
+) -> Result<ExitStatus, Report>
+where
+    T: AsRef<OsStr> + std::fmt::Debug, // + Join<T> , <T as Join<T>>::Output: std::fmt::Display // unstable feature yet
+{
     log::trace!(
         "[{compiler}] - Executing command => {:?}",
         format!(
-            "{} {}",
+            "{} {:?}",
             compiler.get_driver(&model.compiler),
-            arguments.join(" ")
+            arguments // T::join(&arguments, " ")
         )
     );
 
@@ -139,7 +147,7 @@ fn execute_command(
         .envs(cache.get_process_env_args())
         .spawn()?
         .wait()
-        .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
+        .with_context(|| format!("[{compiler}] - Command {arguments:?} failed!"))
 }
 
 /// The pieces and details for the generated command line
@@ -157,6 +165,27 @@ pub struct SourceCommandLine {
 }
 
 impl SourceCommandLine {
+    /// Chains the read-only iterators of the flyweights that holds the shared arguments, like [`CommonArgs`] and
+    /// the specific compiler ones [`CompilerCommonArguments`] to the specific ones of self.args,
+    /// in order to create a  temporary view with all the command lines arguments that are required
+    /// to build a *C++ translation unit*
+    /* pub fn all_command_args<'a>(
+        &'a self,
+        general_args: &'a [Argument],
+        _compiler_specific_common_args: &'a [Argument],
+    ) -> impl Iterator<Item = &'a Argument> + Debug + 'a {
+        general_args.iter().chain(self.args.iter())
+    } */
+    /* pub fn all_command_args<'a>(
+        &'a self,
+        commands: &'a Commands
+    )
+        -> impl Iterator<Item = &'a Argument>
+        // -> Vec<&'a Argument>
+        {
+        commands.general_args.get_args().iter().chain(self.args.iter())
+    } */
+
     pub fn from_translation_unit(
         // TODO init it as a args holder, but doesn't have the status yet
         tu: impl TranslationUnit,
@@ -223,7 +252,8 @@ impl LinkerCommandLine {
 #[derive(Serialize, Deserialize, Default)]
 pub struct Commands {
     pub compiler: CppCompiler,
-    pub pre_tasks: Vec<SourceCommandLine>, // TODO: since there's no really pre-tasks (only build the std_lib), create named entries for std and std.compat
+    pub cpp_stdlib: Option<SourceCommandLine>,
+    pub c_compat_stdlib: Option<SourceCommandLine>,
     pub system_modules: HashMap<String, Arguments>,
 
     pub general_args: CommonArgs,
@@ -247,16 +277,30 @@ impl Commands {
             // of every collection
             compiler: model.compiler.cpp_compiler,
 
+            cpp_stdlib: None,
+            c_compat_stdlib: None,
+
             general_args,
             compiler_common_args: compiler_specific_common_args,
 
-            pre_tasks: Vec::with_capacity(0),
             system_modules: HashMap::with_capacity(0),
             interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
             sources: Vec::with_capacity(0),
             linker: LinkerCommandLine::default(),
         }
+    }
+
+    pub fn get_all_command_lines(
+        &mut self,
+    ) -> impl Iterator<Item = &mut SourceCommandLine> + Debug + '_ {
+        self.cpp_stdlib
+            .as_mut_slice()
+            .iter_mut()
+            .chain(self.c_compat_stdlib.as_mut_slice().iter_mut())
+            .chain(self.interfaces.as_mut_slice().iter_mut())
+            .chain(self.implementations.as_mut_slice().iter_mut())
+            .chain(self.sources.as_mut_slice().iter_mut())
     }
 
     pub fn add_linker_file_path(&mut self, path: &Path) {
