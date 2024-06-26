@@ -4,16 +4,21 @@
 use std::borrow::Cow;
 use std::ops::Deref;
 use std::path::Path;
-use std::rc::Rc;
 use std::{borrow::Borrow, ffi::OsStr, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use crate::project_model::compiler::LanguageLevel;
 
+pub trait CommandLineArgument: std::fmt::Display {}
+pub trait CommandLineArguments: std::fmt::Display {}
+
 /// Wrapper type for represent and storing a command line argument
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Argument(String);
+
+impl CommandLineArgument for Argument {}
+impl CommandLineArgument for &Argument {}
 
 impl Argument {
     pub fn value(&self) -> &String {
@@ -75,21 +80,15 @@ impl Borrow<str> for Argument {
     }
 }
 
-impl Borrow<str> for &Argument {
-    fn borrow(&self) -> &str {
-        &self.0
-    }
-}
-
-impl Borrow<Argument> for Rc<&Argument> {
-    fn borrow(&self) -> &Argument {
-        &self
-    }
-}
-
 impl AsRef<OsStr> for Argument {
     fn as_ref(&self) -> &OsStr {
         OsStr::new(&self.0)
+    }
+}
+
+impl AsRef<str> for Argument {
+    fn as_ref(&self) -> &str {
+        &self.0
     }
 }
 
@@ -102,6 +101,16 @@ impl core::fmt::Display for Argument {
 /// Strong type for represent a linear collection of [`Argument`]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Arguments(Vec<Argument>);
+
+impl CommandLineArguments for Arguments {}
+impl CommandLineArguments for &Arguments {}
+
+impl core::fmt::Display for Arguments {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.iter().try_for_each(|arg| write!(f, "{}", arg))
+    }
+}
+
 impl Arguments {
     /// Wraps an existing [`std::vec::Vec`] of [`Argument`]
     pub fn from_vec(vec: Vec<Argument>) -> Self {
@@ -164,6 +173,40 @@ impl IntoIterator for Arguments {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl IntoIterator for &Arguments {
+    type Item = Argument;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.clone().into_iter()
+    }
+}
+/* impl FromIterator<Vec<&Argument>> for Arguments {
+    fn from_iter<T: IntoIterator<Item = T>>(iter: T) -> Self {
+        todo!()
+    }
+} */
+
+impl FromIterator<Argument> for Arguments {
+    fn from_iter<I: IntoIterator<Item = Argument>>(iter: I) -> Self {
+        let mut vec = Vec::new();
+        for item in iter {
+            vec.push(item);
+        }
+        Arguments(vec)
+    }
+}
+
+impl<'a> FromIterator<&'a Argument> for Arguments {
+    fn from_iter<I: IntoIterator<Item = &'a Argument>>(iter: I) -> Arguments {
+        let mut vec = Vec::new();
+        for item in iter {
+            vec.push(item.clone());
+        }
+        Arguments(vec)
     }
 }
 

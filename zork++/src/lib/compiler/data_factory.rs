@@ -21,9 +21,8 @@ impl CommonArgs {
         self.0.clone()
     }
 
-    // pub fn get_args_slice(&self) -> &[Rc<Argument>] {
     pub fn get_args_slice(&self) -> impl Iterator<Item = Rc<&Argument>> {
-        self.0.as_slice().iter().map(|arg| Rc::new(arg))
+        self.0.as_slice().iter().map(Rc::new)
     }
 }
 
@@ -33,7 +32,7 @@ impl<'a> From<&'a ZorkModel<'_>> for CommonArgs {
         common_args.push(model.compiler.language_level_arg());
         common_args.extend_from_slice(model.compiler.extra_args());
 
-        Self (common_args)
+        Self(common_args)
     }
 }
 

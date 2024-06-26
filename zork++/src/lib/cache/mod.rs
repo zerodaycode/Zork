@@ -5,8 +5,10 @@ pub mod compile_commands;
 use chrono::{DateTime, Utc};
 use color_eyre::{eyre::Context, Result};
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::rc::Rc;
 use std::{
     fs,
     fs::File,
@@ -65,6 +67,29 @@ pub fn load<'a>(program_data: &'a ZorkModel<'_>, cli_args: &CliArgs) -> Result<Z
     Ok(cache)
 }
 
+pub fn save2(
+    program_data: &ZorkModel<'_>,
+    cache: Rc<RefCell<ZorkCache>>,
+    commands: Commands,
+    _test_mode: bool,
+) -> Result<()> {
+    let cache_path = &program_data
+        .build
+        .output_dir
+        .join("zork")
+        .join("cache")
+        .join(program_data.compiler.cpp_compiler.as_ref())
+        .join(constants::ZORK_CACHE_FILENAME);
+
+    /* cache.run_final_tasks(program_data, commands, test_mode)?;
+    cache.last_program_execution = Utc::now(); */
+    cache.borrow_mut().generated_commands = commands;
+    let c: &ZorkCache = &cache.borrow_mut();
+    utils::fs::serialize_object_to_file(cache_path, c)
+        .with_context(move || "Error saving data to the Zork++ cache")
+    // Ok(())
+}
+
 /// Standalone utility for persist the cache to the file system
 pub fn save(
     program_data: &ZorkModel<'_>,
@@ -87,7 +112,7 @@ pub fn save(
         .with_context(move || "Error saving data to the Zork++ cache")
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 pub struct ZorkCache<'a> {
     pub compiler: CppCompiler,
     pub last_program_execution: DateTime<Utc>,

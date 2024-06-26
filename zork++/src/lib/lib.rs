@@ -16,13 +16,13 @@ pub mod utils;
 /// data sent to stdout/stderr
 pub mod worker {
     use crate::{config_file, utils::fs::get_project_root_absolute_path};
-    use std::{fs, path::Path};
+    use std::{cell::RefCell, fs, path::Path, rc::Rc};
 
     use crate::{
         cache::{self, ZorkCache},
         cli::{
             input::{CliArgs, Command},
-            output::commands::{self, autorun_generated_binary, CommandExecutionResult, Commands},
+            output::commands::{self, CommandExecutionResult, Commands},
         },
         compiler::build_project,
         project_model::{compiler::CppCompiler, ZorkModel},
@@ -112,19 +112,26 @@ pub mod worker {
         // TODO: the return type isn't as clever as it could be
         let commands: Commands;
 
+        let rc_cache = Rc::new(RefCell::new(cache.clone())); // TODO: provisional clone
+
         match cli_args.command {
             Command::Build => {
                 commands = build_project(program_data, &mut cache, false)
                     .with_context(|| "Failed to build project")?;
 
-                commands::run_generated_commands(program_data, commands, &mut cache, false)
+                commands::run_generated_commands(
+                    program_data,
+                    commands,
+                    rc_cache.clone(),
+                    false,
+                )
             }
             Command::Run => {
                 commands = build_project(program_data, &mut cache, false)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, &mut cache, false) {
-                    Ok(_) => autorun_generated_binary(
+                match commands::run_generated_commands(program_data, commands, rc_cache.clone(), false) {
+                    Ok(_) => commands::autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         &program_data.build.output_dir,
                         &program_data.executable.executable_name,
@@ -136,8 +143,8 @@ pub mod worker {
                 commands = build_project(program_data, &mut cache, true)
                     .with_context(|| "Failed to build project")?;
 
-                match commands::run_generated_commands(program_data, commands, &mut cache, true) {
-                    Ok(_) => autorun_generated_binary(
+                match commands::run_generated_commands(program_data, commands, rc_cache.clone(), true) {
+                    Ok(_) => commands::autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         &program_data.build.output_dir,
                         &program_data.tests.test_executable_name,

@@ -1,9 +1,12 @@
 //! Contains helpers and data structures to be processed in a nice and neat way the commands generated to be executed
 //! by Zork++
 
+use std::borrow::BorrowMut;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fmt::Debug;
+use std::rc::Rc;
 use std::slice::Iter;
 use std::{
     path::{Path, PathBuf},
@@ -24,12 +27,12 @@ use color_eyre::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::arguments::Argument;
+use super::arguments::{Argument, CommandLineArgument, CommandLineArguments};
 
 pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
     mut commands: Commands, // TODO: &mut, and then directly store them?
-    cache: &mut ZorkCache,
+    cache: Rc<RefCell<ZorkCache>>,
     test_mode: bool,
 ) -> Result<CommandExecutionResult> {
     log::info!("Proceeding to execute the generated commands...");
@@ -37,7 +40,7 @@ pub fn run_generated_commands(
 
     for sys_module in &commands.system_modules {
         // TODO: will be deprecated soon, hopefully
-        execute_command(compiler, program_data, sys_module.1, cache)?;
+        execute_command(compiler, program_data, sys_module.1, &cache.borrow())?;
     }
 
     let general_args = commands.general_args.get_args();
@@ -47,25 +50,31 @@ pub fn run_generated_commands(
         .filter(|scl| scl.need_to_build)
         .collect::<Vec<&mut SourceCommandLine>>();
 
+    log::warn!("Detected lines: {:?}", translation_units);
+
     for translation_unit_cmd in translation_units {
-        let translation_unit_cmd_args =
-            general_args
+        let translation_unit_cmd_args: Arguments = general_args
             .iter()
             .chain(translation_unit_cmd.args.iter())
-            .collect::<Vec<&Argument>>();
+            .collect();
 
-        let r = execute_command(compiler, program_data, &translation_unit_cmd_args, cache);
+        let r = execute_command(
+            compiler,
+            program_data,
+            &translation_unit_cmd_args,
+            &cache.borrow(),
+        );
         translation_unit_cmd.execution_result = CommandExecutionResult::from(&r);
 
         if let Err(e) = r {
-            cache::save(program_data, cache, commands, test_mode)?;
+            cache::save2(program_data, cache, commands, test_mode)?;
             return Err(e);
         } else if !r.as_ref().unwrap().success() {
             let err = eyre!(
                 "Ending the program, because the build of: {:?} failed",
                 translation_unit_cmd.filename
             );
-            cache::save(program_data, cache, commands, test_mode)?;
+            cache::save2(program_data, cache, commands, test_mode)?;
             return Err(err);
         }
     }
@@ -73,21 +82,26 @@ pub fn run_generated_commands(
     if !commands.linker.args.is_empty() {
         log::debug!("Processing the linker command line...");
 
-        let r = execute_command(compiler, program_data, &commands.linker.args, cache);
+        let r = execute_command(
+            compiler,
+            program_data,
+            &commands.linker.args,
+            &cache.borrow(),
+        );
         commands.linker.execution_result = CommandExecutionResult::from(&r);
 
         if let Err(e) = r {
-            cache::save(program_data, cache, commands, test_mode)?;
+            cache::save2(program_data, cache, commands, test_mode)?;
             return Err(e);
         } else if !r.as_ref().unwrap().success() {
-            cache::save(program_data, cache, commands, test_mode)?;
+            cache::save2(program_data, cache, commands, test_mode)?;
             return Err(eyre!(
                 "Ending the program, because the linker command line execution failed",
             ));
         }
     }
 
-    cache::save(program_data, cache, commands, test_mode)?;
+    cache::save2(program_data, cache, commands, test_mode)?;
     Ok(CommandExecutionResult::Success)
 }
 
@@ -122,21 +136,43 @@ pub fn autorun_generated_binary(
 
 /// Executes a new [`std::process::Command`] configured according the chosen
 /// compiler and the current operating system
-fn execute_command<T>(
+fn execute_command<T, S>(
     compiler: CppCompiler,
     model: &ZorkModel,
-    arguments: &[T],
+    arguments: T,
     cache: &ZorkCache,
 ) -> Result<ExitStatus, Report>
 where
-    T: AsRef<OsStr> + std::fmt::Debug, // + Join<T> , <T as Join<T>>::Output: std::fmt::Display // unstable feature yet
+    T: IntoIterator<Item = S> + std::fmt::Display + std::marker::Copy,
+    S: AsRef<OsStr>,
 {
     log::trace!(
         "[{compiler}] - Executing command => {:?}",
+        format!("{} {arguments}", compiler.get_driver(&model.compiler),)
+    );
+
+    let driver = compiler.get_driver(&model.compiler);
+    let os_driver = OsStr::new(driver.as_ref());
+    std::process::Command::new(os_driver)
+        .args(arguments)
+        .envs(cache.get_process_env_args())
+        .spawn()?
+        .wait()
+        .with_context(|| format!("[{compiler}] - Command {arguments} failed!"))
+}
+
+fn execute_command2(
+    compiler: CppCompiler,
+    model: &ZorkModel,
+    arguments: &[Argument],
+    cache: &ZorkCache,
+) -> Result<ExitStatus, Report> {
+    log::trace!(
+        "[{compiler}] - Executing command => {:?}",
         format!(
-            "{} {:?}",
+            "{} {}",
             compiler.get_driver(&model.compiler),
-            arguments // T::join(&arguments, " ")
+            arguments.join(" ")
         )
     );
 
@@ -147,7 +183,7 @@ where
         .envs(cache.get_process_env_args())
         .spawn()?
         .wait()
-        .with_context(|| format!("[{compiler}] - Command {arguments:?} failed!"))
+        .with_context(|| format!("[{compiler}] - Command {} failed!", arguments.join(" ")))
 }
 
 /// The pieces and details for the generated command line
@@ -230,7 +266,7 @@ impl SourceCommandLine {
 pub struct LinkerCommandLine {
     // pub main: &'a Path, // TODO: can't this disappear? At the end of the day, is just another obj file
     pub built_files: Vec<PathBuf>,
-    pub args: Vec<Argument>,
+    pub args: Arguments,
     pub execution_result: CommandExecutionResult,
 }
 
@@ -249,7 +285,7 @@ impl LinkerCommandLine {
 }
 
 /// Holds the generated command line arguments for a concrete compiler
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Clone, Deserialize, Default)]
 pub struct Commands {
     pub compiler: CppCompiler,
     pub cpp_stdlib: Option<SourceCommandLine>,
@@ -257,7 +293,7 @@ pub struct Commands {
     pub system_modules: HashMap<String, Arguments>,
 
     pub general_args: CommonArgs,
-    pub compiler_common_args: Box<dyn CompilerCommonArguments>,
+    // pub compiler_common_args: Box<dyn CompilerCommonArguments + Clone>,
 
     pub interfaces: Vec<SourceCommandLine>,
     pub implementations: Vec<SourceCommandLine>,
@@ -281,7 +317,7 @@ impl Commands {
             c_compat_stdlib: None,
 
             general_args,
-            compiler_common_args: compiler_specific_common_args,
+            // compiler_common_args: compiler_specific_common_args,
 
             system_modules: HashMap::with_capacity(0),
             interfaces: Vec::with_capacity(0),
