@@ -130,22 +130,22 @@ impl<'a> ZorkCache<'a> {
         &self.last_program_execution
     }
     pub fn get_module_ifc_cmd(
-        &self,
+        &mut self,
         module_interface_model: &ModuleInterfaceModel,
-    ) -> Option<&SourceCommandLine> {
+    ) -> Option<&mut SourceCommandLine> {
         self.generated_commands
             .interfaces
-            .iter()
+            .iter_mut()
             .find(|mi| module_interface_model.file() == (*mi).path())
     }
 
     pub fn get_module_impl_cmd(
-        &self,
+        &mut self,
         module_impl_model: &ModuleImplementationModel,
-    ) -> Option<&SourceCommandLine> {
+    ) -> Option<&mut SourceCommandLine> {
         self.generated_commands
             .implementations
-            .iter()
+            .iter_mut()
             .find(|mi| module_impl_model.file() == (*mi).path())
     }
 
