@@ -16,7 +16,7 @@ use crate::project_model::compiler::StdLibMode;
 use crate::utils::constants;
 use crate::{
     cache::ZorkCache,
-    cli::output::{arguments::Argument, commands::Commands},
+    cli::output::arguments::Argument,
     project_model::{
         compiler::CppCompiler,
         modules::{ModuleImplementationModel, ModuleInterfaceModel},
@@ -34,14 +34,14 @@ pub fn build_project<'a>(
     model: &'a ZorkModel<'a>,
     cache: &mut ZorkCache,
     tests: bool,
-) -> Result<Commands> {
+) -> Result<()> {
     // Generate the Flyweight struct, with the repetitive data and details of the command lines
-    let general_args = CommonArgs::from(model);
-    let compiler_specific_common_args: Box<dyn CompilerCommonArguments> =
-        data_factory::compiler_common_arguments_factory(model);
+    let _general_args = CommonArgs::from(model);
+    let _compiler_specific_common_args: Box<dyn CompilerCommonArguments> =
+        data_factory::compiler_common_arguments_factory(model); // TODO: guard it with a presence check
 
     // A registry of the generated command lines
-    let mut commands = Commands::new(model, general_args, compiler_specific_common_args);
+    // let commands = Commands::new(model, general_args, compiler_specific_common_args);
     // TODO from cache, and find them here instead from the cache
 
     // TODO: add them to the commands DS, so they are together until they're generated
@@ -52,17 +52,17 @@ pub fn build_project<'a>(
     if let Some(modules) = &model.modules {
         // Pre-tasks
         if model.compiler.cpp_compiler == CppCompiler::GCC && !modules.sys_modules.is_empty() {
-            helpers::build_sys_modules(model, &mut commands, cache)
+            helpers::build_sys_modules(model, cache)
         }
 
-        process_modules(model, cache, &mut commands)?;
+        process_modules(model, cache)?;
     };
     // 2nd - Build the non module sources
-    build_sources(model, cache, &mut commands, tests)?;
+    build_sources(model, cache, tests)?;
     // 3rd - Build the executable or the tests
-    build_executable(model, cache, &mut commands, tests)?;
+    build_executable(model, cache, tests)?;
 
-    Ok(commands)
+    Ok(())
 }
 
 /// Builds the C++ standard library as a pre-step acording to the specification
@@ -76,7 +76,10 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
         let built_stdlib_path = &cache.compilers_metadata.msvc.stdlib_bmi_path;
 
         if !built_stdlib_path.exists() {
-            log::trace!("Building the {:?} C++ standard library implementation", compiler);
+            log::trace!(
+                "Building the {:?} C++ standard library implementation",
+                compiler
+            );
             let cpp_stdlib = msvc_args::generate_std_cmd(model, cache, StdLibMode::Cpp);
             cache.generated_commands.cpp_stdlib = Some(cpp_stdlib);
         }
@@ -93,28 +96,18 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
 /// Triggers the build process for compile the source files declared for the project
 /// If this flow is enabled by the Cli arg `Tests`, then the executable will be generated
 /// for the files and properties declared for the tests section in the configuration file
-fn build_executable(
-    model: &ZorkModel<'_>,
-    cache: &ZorkCache,
-    commands: &'_ mut Commands,
-    tests: bool,
-) -> Result<()> {
+fn build_executable(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> Result<()> {
     // TODO: Check if the command line is the same as the previous? If there's no new sources?
     // And avoid re-executing?
     // TODO refactor this code, just having the if-else branch inside the fn
     if tests {
-        generate_main_command_line_args(model, cache, commands, &model.tests)
+        generate_main_command_line_args(model, cache, &model.tests)
     } else {
-        generate_main_command_line_args(model, cache, commands, &model.executable)
+        generate_main_command_line_args(model, cache, &model.executable)
     }
 }
 
-fn build_sources(
-    model: &ZorkModel<'_>,
-    cache: &ZorkCache,
-    commands: &'_ mut Commands,
-    tests: bool,
-) -> Result<()> {
+fn build_sources(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> Result<()> {
     log::info!("Generating the commands for the source files...");
     let srcs = if tests {
         &model.tests.sourceset.sources
@@ -123,15 +116,15 @@ fn build_sources(
     };
 
     srcs.iter().for_each(|src| if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &src.file()) {
-        sources::generate_sources_arguments(model, commands, cache, &model.tests, src);
+        sources::generate_sources_arguments(model, cache, &model.tests, src);
     } else {
         let command_line = SourceCommandLine::from_translation_unit(
             src, Arguments::default(), true, CommandExecutionResult::Cached,
         );
 
         log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &src.file());
-        commands.sources.push(command_line);
-        commands.add_linker_file_path_owned(helpers::generate_obj_file_path(
+        cache.generated_commands.sources.push(command_line);
+        cache.generated_commands.add_linker_file_path_owned(helpers::generate_obj_file_path(
             model.compiler.cpp_compiler, &model.build.output_dir, src,
         ))
     });
@@ -144,25 +137,15 @@ fn build_sources(
 /// This function acts like a operation result processor, by running instances
 /// and parsing the obtained result, handling the flux according to the
 /// compiler responses
-fn process_modules(
-    model: &ZorkModel,
-    cache: &mut ZorkCache,
-    commands: &mut Commands,
-) -> Result<()> {
+fn process_modules(model: &ZorkModel, cache: &mut ZorkCache) -> Result<()> {
     log::info!("Generating the commands for the module interfaces and partitions...");
-    process_module_interfaces(
-        model,
-        cache,
-        &model.modules.as_ref().unwrap().interfaces,
-        commands,
-    );
+    process_module_interfaces(model, cache, &model.modules.as_ref().unwrap().interfaces);
 
     log::info!("Generating the commands for the module implementations and partitions...");
     process_module_implementations(
         model,
         cache,
         &model.modules.as_ref().unwrap().implementations,
-        commands,
     );
 
     Ok(())
@@ -174,7 +157,6 @@ fn process_module_interfaces<'a>(
     model: &'a ZorkModel<'_>,
     cache: &mut ZorkCache,
     interfaces: &'a [ModuleInterfaceModel],
-    commands: &mut Commands,
 ) {
     interfaces.iter().for_each(|module_interface| {
         let compiler = cache.compiler;
@@ -188,16 +170,16 @@ fn process_module_interfaces<'a>(
             }
             let mut cached_cmd_line = generated_cmd.clone(); // TODO: somehow, we should manage to solve this on the future
             cached_cmd_line.need_to_build = translation_unit_must_be_rebuilt;
-            commands.linker.add_owned_buildable_at(helpers::generate_prebuilt_miu( // TODO: extremely provisional
+            cache.generated_commands.linker.add_owned_buildable_at(helpers::generate_prebuilt_miu( // TODO: extremely provisional
                                                                                    model.compiler.cpp_compiler, &model.build.output_dir, module_interface,
             ));
             cached_cmd_line
         } else {
-            sources::generate_module_interface_cmd(model, cache, module_interface, commands)
+            sources::generate_module_interface_cmd(model, cache, module_interface)
         };
 
         // TODO: should we get rid of commands and just store everything on the Cache?
-        commands.interfaces.push(command_line);
+        cache.generated_commands.interfaces.push(command_line);
         // commands.linker.add_owned_buildable_at(helpers::generate_prebuilt_miu(
         //     model.compiler.cpp_compiler, &model.build.output_dir, module_interface
         // ))
@@ -207,9 +189,8 @@ fn process_module_interfaces<'a>(
 /// Generates the commands for every [`ModuleImplementationModel`]
 fn process_module_implementations<'a>(
     model: &'a ZorkModel,
-    cache: &ZorkCache,
+    cache: &mut ZorkCache,
     impls: &'a [ModuleImplementationModel],
-    commands: &mut Commands,
 ) {
     impls.iter().for_each(|module_impl| {
         let compiler = cache.compiler;
@@ -222,24 +203,24 @@ fn process_module_implementations<'a>(
                 log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
             }
             let mut cached_cmd_line = generated_cmd.clone(); // TODO: somehow, we should manage to solve this on the future
+                                                                               // TODO: just get_mut on source command line
             cached_cmd_line.need_to_build = translation_unit_must_be_rebuilt;
-            commands.linker.add_owned_buildable_at(helpers::generate_impl_obj_file( // TODO: extremely provisional
+            cache.generated_commands.linker.add_owned_buildable_at(helpers::generate_impl_obj_file( // TODO: extremely provisional
                                                                                     model.compiler.cpp_compiler, &model.build.output_dir, module_impl,
             ));
             cached_cmd_line
         } else {
-            sources::generate_module_implementation_cmd(model, cache, module_impl, commands)
+            sources::generate_module_implementation_cmd(model, cache, module_impl)
         };
 
-        commands.interfaces.push(command_line);
+        cache.generated_commands.interfaces.push(command_line);
     });
 }
 
 /// Generates the command line arguments for the desired target
 pub fn generate_main_command_line_args<'a>(
     model: &'a ZorkModel,
-    cache: &ZorkCache,
-    commands: &mut Commands,
+    cache: &mut ZorkCache,
     target: &'a impl ExecutableTarget<'a>,
 ) -> Result<()> {
     log::info!("Generating the main command line...");
@@ -318,10 +299,17 @@ pub fn generate_main_command_line_args<'a>(
         }
     };
 
-    arguments.extend(commands.linker.built_files.iter().map(Argument::from)); // TODO can't we avoid this, and just add the pathbufs?
+    arguments.extend(
+        cache
+            .generated_commands
+            .linker
+            .built_files
+            .iter()
+            .map(Argument::from),
+    ); // TODO can't we avoid this, and just add the pathbufs?
 
-    commands.linker.args.extend(arguments);
-    commands.linker.built_files = target // TODO: built_files means raw cpp sources
+    cache.generated_commands.linker.args.extend(arguments);
+    cache.generated_commands.linker.built_files = target // TODO: built_files means raw cpp sources
         // TODO: add a custom collector on the mod sources
         // TODO: just name the field 'sources'
         .sourceset()
@@ -346,7 +334,7 @@ mod sources {
         bounds::{ExecutableTarget, TranslationUnit},
         cli::output::{
             arguments::clang_args,
-            commands::{CommandExecutionResult, Commands, SourceCommandLine},
+            commands::{CommandExecutionResult, SourceCommandLine},
         },
         project_model::{
             compiler::CppCompiler,
@@ -358,8 +346,7 @@ mod sources {
     /// Generates the command line arguments for non-module source files
     pub fn generate_sources_arguments<'a>(
         model: &'a ZorkModel,
-        commands: &mut Commands,
-        cache: &ZorkCache,
+        cache: &mut ZorkCache,
         target: &'a impl ExecutableTarget<'a>,
         source: &'a SourceFile,
     ) {
@@ -424,16 +411,17 @@ mod sources {
             false,
             CommandExecutionResult::default(),
         );
-        commands.sources.push(command_line);
-        commands.add_linker_file_path_owned(obj_file)
+        cache.generated_commands.sources.push(command_line);
+        cache
+            .generated_commands
+            .add_linker_file_path_owned(obj_file)
     }
 
     /// Generates the expected arguments for precompile the BMIs depending on self
     pub fn generate_module_interface_cmd<'a>(
         model: &'a ZorkModel,
-        cache: &ZorkCache,
+        cache: &mut ZorkCache,
         interface: &'a ModuleInterfaceModel,
-        commands: &mut Commands,
     ) -> SourceCommandLine {
         let compiler = model.compiler.cpp_compiler;
         let out_dir: &Path = model.build.output_dir.as_ref();
@@ -466,7 +454,9 @@ mod sources {
                 // The output file
                 let obj_file = helpers::generate_prebuilt_miu(compiler, out_dir, interface);
                 arguments.create_and_push(&obj_file);
-                commands.add_linker_file_path_owned(obj_file);
+                cache
+                    .generated_commands
+                    .add_linker_file_path_owned(obj_file);
                 // The input file
                 arguments.create_and_push(interface.file());
             }
@@ -497,7 +487,9 @@ mod sources {
                 // The output .obj file
                 let obj_file = helpers::generate_prebuilt_miu(compiler, out_dir, interface);
                 arguments.create_and_push(format!("/Fo{}", obj_file.display()));
-                commands.add_linker_file_path_owned(obj_file);
+                cache
+                    .generated_commands
+                    .add_linker_file_path_owned(obj_file);
 
                 if let Some(partition) = &interface.partition {
                     if partition.is_internal_partition {
@@ -523,7 +515,9 @@ mod sources {
                 arguments.create_and_push("-o");
                 let obj_file = helpers::generate_prebuilt_miu(compiler, out_dir, interface);
                 arguments.create_and_push(&obj_file);
-                commands.add_linker_file_path_owned(obj_file);
+                cache
+                    .generated_commands
+                    .add_linker_file_path_owned(obj_file);
             }
         }
 
@@ -533,9 +527,8 @@ mod sources {
     /// Generates the expected arguments for compile the implementation module files
     pub fn generate_module_implementation_cmd<'a>(
         model: &'a ZorkModel,
-        cache: &ZorkCache,
+        cache: &mut ZorkCache,
         implementation: &'a ModuleImplementationModel,
-        commands: &mut Commands,
     ) -> SourceCommandLine {
         let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir.as_ref();
@@ -559,7 +552,9 @@ mod sources {
                     out_dir,
                     implementation,
                 );
-                commands.add_linker_file_path(&obj_file_path);
+                cache
+                    .generated_commands
+                    .add_linker_file_path(&obj_file_path);
                 arguments.create_and_push(obj_file_path);
 
                 clang_args::add_direct_module_interfaces_dependencies(
@@ -601,7 +596,9 @@ mod sources {
                     .join::<&str>(&implementation.file_stem())
                     .with_extension(compiler.get_obj_file_extension());
 
-                commands.add_linker_file_path(&obj_file_path);
+                cache
+                    .generated_commands
+                    .add_linker_file_path(&obj_file_path);
                 arguments.create_and_push(format!("/Fo{}", obj_file_path.display()));
             }
             CppCompiler::GCC => {
@@ -613,7 +610,9 @@ mod sources {
                 arguments.create_and_push("-o");
                 let obj_file_path =
                     helpers::generate_impl_obj_file(compiler, out_dir, implementation);
-                commands.add_linker_file_path(&obj_file_path);
+                cache
+                    .generated_commands
+                    .add_linker_file_path(&obj_file_path);
                 arguments.create_and_push(obj_file_path);
             }
         }
@@ -702,7 +701,7 @@ mod helpers {
     ///
     /// This is for `GCC` and `Clang`
     /// TODO: With the inclusion of std named modules, want we to support this anymore?
-    pub(crate) fn build_sys_modules(model: &ZorkModel, commands: &mut Commands, cache: &ZorkCache) {
+    pub(crate) fn build_sys_modules(model: &ZorkModel, cache: &mut ZorkCache) {
         if !cache.compilers_metadata.system_modules.is_empty() {
             // TODO BUG - this is not correct.
             // If user later adds a new module, it won't be processed
@@ -766,7 +765,7 @@ mod helpers {
         // Newest TODO: Can we just store them as Argument(s) in an Arguments? For example, with
         // the new pre-tasks (and therefore, being cached in an unified way?)
         for collection_args in sys_modules {
-            commands.system_modules.insert(
+            cache.generated_commands.system_modules.insert(
                 // [3] is for the 4th flag pushed to v
                 collection_args[3].value().to_string(),
                 Arguments::from_vec(collection_args),

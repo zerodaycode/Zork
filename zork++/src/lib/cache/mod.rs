@@ -5,10 +5,9 @@ pub mod compile_commands;
 use chrono::{DateTime, Utc};
 use color_eyre::{eyre::Context, Result};
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::rc::Rc;
+
 use std::{
     fs,
     fs::File,
@@ -69,32 +68,8 @@ pub fn load<'a>(program_data: &'a ZorkModel<'_>, cli_args: &CliArgs) -> Result<Z
 
 pub fn save2(
     program_data: &ZorkModel<'_>,
-    cache: Rc<RefCell<ZorkCache>>,
-    commands: Commands,
-    _test_mode: bool,
-) -> Result<()> {
-    let cache_path = &program_data
-        .build
-        .output_dir
-        .join("zork")
-        .join("cache")
-        .join(program_data.compiler.cpp_compiler.as_ref())
-        .join(constants::ZORK_CACHE_FILENAME);
-
-    /* cache.run_final_tasks(program_data, commands, test_mode)?;
-    cache.last_program_execution = Utc::now(); */
-    cache.borrow_mut().generated_commands = commands;
-    let c: &ZorkCache = &cache.borrow_mut();
-    utils::fs::serialize_object_to_file(cache_path, c)
-        .with_context(move || "Error saving data to the Zork++ cache")
-    // Ok(())
-}
-
-/// Standalone utility for persist the cache to the file system
-pub fn save(
-    program_data: &ZorkModel<'_>,
-    cache: &mut ZorkCache,
-    commands: Commands,
+    mut cache: ZorkCache,
+    // _commands: Commands,
     test_mode: bool,
 ) -> Result<()> {
     let cache_path = &program_data
@@ -105,10 +80,40 @@ pub fn save(
         .join(program_data.compiler.cpp_compiler.as_ref())
         .join(constants::ZORK_CACHE_FILENAME);
 
-    cache.run_final_tasks(program_data, commands, test_mode)?;
+    // let ro_cache = Rc::clone(&cache);
+    // let mut cache = cache.borrow_mut();
+    cache.run_final_tasks(program_data, test_mode)?;
     cache.last_program_execution = Utc::now();
 
-    utils::fs::serialize_object_to_file(cache_path, cache)
+    // let cache_kind = &(*ro_cache).borrow(); // saves the temporary
+    serialize_cache(cache_path, &cache.clone())
+    // Ok(())
+}
+
+fn serialize_cache(path: &Path, cache: &ZorkCache) -> Result<()> {
+    utils::fs::serialize_object_to_file(path, cache)
+        .with_context(move || "Error saving data to the Zork++ cache")
+}
+
+/// Standalone utility for persist the cache to the file system
+pub fn save(
+    program_data: &ZorkModel<'_>,
+    mut cache: ZorkCache,
+    // commands: Commands,
+    test_mode: bool,
+) -> Result<()> {
+    let cache_path = &program_data
+        .build
+        .output_dir
+        .join("zork")
+        .join("cache")
+        .join(program_data.compiler.cpp_compiler.as_ref())
+        .join(constants::ZORK_CACHE_FILENAME);
+
+    cache.run_final_tasks(program_data, test_mode)?;
+    cache.last_program_execution = Utc::now();
+
+    utils::fs::serialize_object_to_file(cache_path, &cache)
         .with_context(move || "Error saving data to the Zork++ cache")
 }
 
@@ -188,7 +193,7 @@ impl<'a> ZorkCache<'a> {
     fn run_final_tasks(
         &mut self,
         program_data: &ZorkModel<'_>,
-        commands: Commands,
+        // commands: Commands,
         test_mode: bool,
     ) -> Result<()> {
         // if self.save_generated_commands(commands, program_data, test_mode)
@@ -197,8 +202,7 @@ impl<'a> ZorkCache<'a> {
         //     compile_commands::map_generated_commands_to_compilation_db(self)?;
         // }
         //
-        if let Some(_new_commands) = self.save_generated_commands(commands, program_data, test_mode)
-        {
+        if let Some(_new_commands) = self.save_generated_commands(program_data, test_mode) {
             if program_data.project.compilation_db {
                 // TODO:: pass the new commands
                 compile_commands::map_generated_commands_to_compilation_db(self)?;
@@ -227,12 +231,12 @@ impl<'a> ZorkCache<'a> {
     /// the compile commands must be regenerated
     fn save_generated_commands(
         &mut self,
-        commands: Commands,
+        // commands: Commands,
         _model: &ZorkModel,
         _test_mode: bool, // TODO: tests linker cmd?
     ) -> Option<CompileCommands> {
         log::debug!("Storing in the cache the last generated command lines...");
-        self.compiler = commands.compiler;
+        // self.compiler = commands.compiler;
         // let _process_no = if !self.generated_commands.is_empty() {
         //     // TODO: do we now need this one?
         //     // self.generated_commands.last().unwrap().cached_process_num + 1
@@ -252,7 +256,7 @@ impl<'a> ZorkCache<'a> {
         // TODO missing the one that determines if there's a new compilation database that must be generated
         // something like and iter that counts if at least one has been modified ??
         // let at_least_one_changed = commands.
-        self.generated_commands = commands;
+        // self.generated_commands = commands;
 
         self.get_all_commands_iter() // TODO: Review the conditions and ensure that are the ones that we're looking for
             .any(|cmd| {

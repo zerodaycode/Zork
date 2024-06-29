@@ -1,12 +1,10 @@
 //! Contains helpers and data structures to be processed in a nice and neat way the commands generated to be executed
 //! by Zork++
 
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fmt::Debug;
-use std::ops::DerefMut;
 use std::rc::Rc;
 use std::slice::Iter;
 use std::{
@@ -14,7 +12,9 @@ use std::{
     process::ExitStatus,
 };
 
+use super::arguments::Argument;
 use crate::bounds::TranslationUnit;
+use crate::cache::EnvVars;
 use crate::cli::output::arguments::Arguments;
 use crate::compiler::data_factory::{CommonArgs, CompilerCommonArguments};
 use crate::{
@@ -28,86 +28,109 @@ use color_eyre::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::arguments::{Argument, CommandLineArgument, CommandLineArguments};
-
 pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
-    // mut commands: Commands, // TODO: &mut, and then directly store them?
-    mut cache: ZorkCache,
+    mut cache: ZorkCache<'_>,
     test_mode: bool,
 ) -> Result<CommandExecutionResult> {
     log::info!("Proceeding to execute the generated commands...");
-    let compiler = cache.compiler;
-    let mut commands = cache.generated_commands;
 
-    let rc_cache = Rc::new(RefCell::new(cache));
+    let commands = Rc::new(RefCell::new(cache.generated_commands.clone()));
 
-    for sys_module in &commands.system_modules {
+    let general_args = &cache.generated_commands.general_args.get_args();
+    for sys_module in &cache.generated_commands.system_modules {
         // TODO: will be deprecated soon, hopefully
-        execute_command(compiler, program_data, sys_module.1, &rc_cache.borrow())?;
+        execute_command(program_data, sys_module.1, cache.get_process_env_args())?;
     }
 
-    let general_args = commands.general_args.get_args();
+    {
+        // Scopes for avoiding 'already borrow' errors on the different processes
+        // TODO: better move it to a custom procedure
+        let mut commands_borrow = (*commands).borrow_mut();
+        let translation_units = commands_borrow
+            .get_all_command_lines()
+            .filter(|scl| scl.need_to_build)
+            .collect::<Vec<&mut SourceCommandLine>>();
 
-    let translation_units = commands
-        .get_all_command_lines()
-        .filter(|scl| scl.need_to_build)
-        .collect::<Vec<&mut SourceCommandLine>>();
+        for translation_unit_cmd in translation_units {
+            let translation_unit_cmd_args: Arguments = general_args
+                .iter()
+                .chain(translation_unit_cmd.args.iter())
+                .collect();
 
-    log::warn!("Detected lines: {:?}", translation_units);
-
-    for translation_unit_cmd in translation_units {
-        let translation_unit_cmd_args: Arguments = general_args
-            .iter()
-            .chain(translation_unit_cmd.args.iter())
-            .collect();
-
-        let r = execute_command(
-            compiler,
-            program_data,
-            &translation_unit_cmd_args,
-            &rc_cache.borrow(),
-        );
-        translation_unit_cmd.execution_result = CommandExecutionResult::from(&r);
-
-        if let Err(e) = r {
-            cache::save(program_data, &mut cache, commands, test_mode)?;
-            return Err(e);
-        } else if !r.as_ref().unwrap().success() {
-            let err = eyre!(
-                "Ending the program, because the build of: {:?} failed",
-                translation_unit_cmd.filename
+            let r = execute_command(
+                program_data,
+                &translation_unit_cmd_args,
+                cache.get_process_env_args(),
             );
-            cache::save(program_data, &mut cache, commands, test_mode)?;
-            return Err(err);
+            translation_unit_cmd.execution_result = CommandExecutionResult::from(&r); // TODO: we are modifying the cloned :(
+
+            if let Err(e) = r {
+                cache::save2(program_data, cache, test_mode)?;
+                return Err(e);
+            } else if !r.as_ref().unwrap().success() {
+                let err = eyre!(
+                    "Ending the program, because the build of: {:?} failed",
+                    translation_unit_cmd.filename
+                );
+                cache::save2(program_data, cache, test_mode)?;
+                return Err(err);
+            }
         }
     }
 
-    if !commands.linker.args.is_empty() {
+    if !cache.generated_commands.linker.args.is_empty() {
         log::debug!("Processing the linker command line...");
 
         let r = execute_command(
-            compiler,
             program_data,
-            &commands.linker.args,
-            &rc_cache.borrow(),
+            &cache.generated_commands.linker.args,
+            cache.get_process_env_args(),
         );
-        commands.linker.execution_result = CommandExecutionResult::from(&r);
+        commands.borrow_mut().linker.execution_result = CommandExecutionResult::from(&r);
 
         if let Err(e) = r {
-            cache::save(program_data, &mut cache, commands, test_mode)?;
+            cache::save2(program_data, cache, test_mode)?;
             return Err(e);
         } else if !r.as_ref().unwrap().success() {
-            cache::save(program_data, &mut cache, commands, test_mode)?;
+            cache::save2(program_data, cache, test_mode)?;
             return Err(eyre!(
                 "Ending the program, because the linker command line execution failed",
             ));
         }
     }
 
-    cache::save(program_data, rc_cache.borrow_mut(), commands, test_mode)?;
+    let updated_commands = (*commands).borrow_mut().clone();
+    cache.generated_commands = updated_commands; // TODO: we do really need another way of do this (we needed two clones)
+    cache::save2(program_data, cache, test_mode)?;
     Ok(CommandExecutionResult::Success)
 }
+
+// fn execute_linker_command_line(program_data: &ZorkModel,
+//                                // commands: &mut Commands,
+//                                commands: Rc<RefCell<Commands>>,
+//                                env_vars: &EnvVars) -> Result<()> {
+//     // if !commands.linker.args.is_empty() {
+//         log::debug!("Processing the linker command line...");
+//
+//         let r = execute_command(
+//             program_data,
+//             &commands.linker.args,
+//             env_vars,
+//         );
+//         commands.linker.execution_result = CommandExecutionResult::from(&r);
+//
+//         if let Err(e) = r {
+//             // cache::save(program_data, &mut cache, test_mode)?;
+//             return Err(e);
+//         } else if !r.as_ref().unwrap().success() {
+//             // cache::save(program_data, &mut cache, test_mode)?;
+//             return Err(eyre!(
+//                 "Ending the program, because the linker command line execution failed",
+//             ));
+//         } else { Ok(()) }
+//     // }
+// }
 
 /// Executes a new [`std::process::Command`] to run the generated binary
 /// after the build process in the specified shell
@@ -141,15 +164,16 @@ pub fn autorun_generated_binary(
 /// Executes a new [`std::process::Command`] configured according the chosen
 /// compiler and the current operating system
 fn execute_command<T, S>(
-    compiler: CppCompiler,
     model: &ZorkModel,
     arguments: T,
-    cache: &ZorkCache,
+    // cache: &ZorkCache,
+    env_vars: &EnvVars,
 ) -> Result<ExitStatus, Report>
 where
     T: IntoIterator<Item = S> + std::fmt::Display + std::marker::Copy,
     S: AsRef<OsStr>,
 {
+    let compiler = model.compiler.cpp_compiler;
     log::trace!(
         "[{compiler}] - Executing command => {:?}",
         format!("{} {arguments}", compiler.get_driver(&model.compiler),)
@@ -159,35 +183,10 @@ where
     let os_driver = OsStr::new(driver.as_ref());
     std::process::Command::new(os_driver)
         .args(arguments)
-        .envs(cache.get_process_env_args())
+        .envs(env_vars)
         .spawn()?
         .wait()
         .with_context(|| format!("[{compiler}] - Command {arguments} failed!"))
-}
-
-fn execute_command2(
-    compiler: CppCompiler,
-    model: &ZorkModel,
-    arguments: &[Argument],
-    cache: &ZorkCache,
-) -> Result<ExitStatus, Report> {
-    log::trace!(
-        "[{compiler}] - Executing command => {:?}",
-        format!(
-            "{} {}",
-            compiler.get_driver(&model.compiler),
-            arguments.join(" ")
-        )
-    );
-
-    let driver = compiler.get_driver(&model.compiler);
-    let os_driver = OsStr::new(driver.as_ref());
-    std::process::Command::new(os_driver)
-        .args(arguments)
-        .envs(cache.get_process_env_args())
-        .spawn()?
-        .wait()
-        .with_context(|| format!("[{compiler}] - Command {} failed!", arguments.join(" ")))
 }
 
 /// The pieces and details for the generated command line
@@ -298,7 +297,6 @@ pub struct Commands {
 
     pub general_args: CommonArgs,
     // pub compiler_common_args: Box<dyn CompilerCommonArguments + Clone>,
-
     pub interfaces: Vec<SourceCommandLine>,
     pub implementations: Vec<SourceCommandLine>,
     pub sources: Vec<SourceCommandLine>,
@@ -309,7 +307,7 @@ impl Commands {
     pub fn new(
         model: &ZorkModel<'_>,
         general_args: CommonArgs,
-        compiler_specific_common_args: Box<dyn CompilerCommonArguments>,
+        _compiler_specific_common_args: Box<dyn CompilerCommonArguments>,
     ) -> Self {
         Self {
             // TODO: try to see if its possible to move around the code and have a From<T>, avoiding default initialization,
@@ -322,7 +320,6 @@ impl Commands {
 
             general_args,
             // compiler_common_args: compiler_specific_common_args,
-
             system_modules: HashMap::with_capacity(0),
             interfaces: Vec::with_capacity(0),
             implementations: Vec::with_capacity(0),
