@@ -24,7 +24,7 @@ pub mod worker {
             input::{CliArgs, Command},
             output::commands::{self, CommandExecutionResult},
         },
-        compiler::build_project,
+        compiler::generate_commands,
         project_model::{compiler::CppCompiler, ZorkModel},
         utils::{
             self,
@@ -109,30 +109,17 @@ pub mod worker {
         program_data: &'a ZorkModel<'_>,
         mut cache: ZorkCache,
     ) -> Result<CommandExecutionResult> {
-        // TODO: the return type isn't as clever as it could be
 
-        match cli_args.command {
-            Command::Build => {
-                build_project(program_data, &mut cache, false)
-                    .with_context(|| "Failed to build project")?;
+        let is_tests_run = cli_args.command.eq(&Command::Test);
 
-                commands::run_generated_commands(
-                    program_data,
-                    // commands,
-                    cache,
-                    false,
-                )
-            }
-            Command::Run => {
-                build_project(program_data, &mut cache, false)
-                    .with_context(|| "Failed to build project")?;
+        generate_commands(program_data, &mut cache, false)
+            .with_context(|| "Failed to generated the commands for the project")?;
 
-                match commands::run_generated_commands(
-                    program_data,
-                    // commands,
-                    cache,
-                    false,
-                ) {
+        let execution_result = match cli_args.command {
+            Command::Build =>
+                commands::run_generated_commands( program_data, &mut cache,),
+            Command::Run | Command::Test => {
+                match commands::run_generated_commands( program_data, &mut cache,) {
                     Ok(_) => commands::autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         &program_data.build.output_dir,
@@ -140,31 +127,17 @@ pub mod worker {
                     ),
                     Err(e) => Err(e),
                 }
-            }
-            Command::Test => {
-                build_project(program_data, &mut cache, true)
-                    .with_context(|| "Failed to build project")?;
-
-                match commands::run_generated_commands(
-                    program_data,
-                    // commands,
-                    cache,
-                    true,
-                ) {
-                    Ok(_) => commands::autorun_generated_binary(
-                        &program_data.compiler.cpp_compiler,
-                        &program_data.build.output_dir,
-                        &program_data.tests.test_executable_name,
-                    ),
-                    Err(e) => Err(e),
-                }
-            }
+            },
             _ => todo!(
                 "This branch should never be reached for now, as do not exists commands that may\
                 trigger them. The unique remaining, is ::New, that is already processed\
                 at the very beggining"
             ),
-        }
+        };
+
+        cache::save2(program_data, cache, is_tests_run)?;
+
+        execution_result
     }
 
     /// Creates the directory for output the elements generated

@@ -26,11 +26,9 @@ use crate::{
 
 use self::data_factory::{CommonArgs, CompilerCommonArguments};
 
-/// The entry point of the compilation process
-///
-/// Whenever this process gets triggered, the files declared within the
-/// configuration file will be build
-pub fn build_project<'a>(
+/// The core procedure. Generates the commands that will be sent to the compiler
+/// for every translation unit declared by the user for its project
+pub fn generate_commands<'a>(
     model: &'a ZorkModel<'a>,
     cache: &mut ZorkCache,
     tests: bool,
@@ -40,16 +38,15 @@ pub fn build_project<'a>(
     let _compiler_specific_common_args: Box<dyn CompilerCommonArguments> =
         data_factory::compiler_common_arguments_factory(model); // TODO: guard it with a presence check
 
-    // A registry of the generated command lines
-    // let commands = Commands::new(model, general_args, compiler_specific_common_args);
-    // TODO from cache, and find them here instead from the cache
+    cache.generated_commands.general_args = _general_args;
+    // cache.
 
     // TODO: add them to the commands DS, so they are together until they're generated
     // Build the std library as a module
     build_modular_stdlib(model, cache); // TODO: ward it with an if for only call this fn for the
 
     // 1st - Build the modules
-    if let Some(modules) = &model.modules {
+    if let Some(modules) = &model.modules { // TODO: re-think again this optional
         // Pre-tasks
         if model.compiler.cpp_compiler == CppCompiler::GCC && !modules.sys_modules.is_empty() {
             helpers::build_sys_modules(model, cache)
@@ -57,9 +54,9 @@ pub fn build_project<'a>(
 
         process_modules(model, cache)?;
     };
-    // 2nd - Build the non module sources
+    // 2nd - Generate the commands for the non-module sources
     build_sources(model, cache, tests)?;
-    // 3rd - Build the executable or the tests
+    // 3rd - Build the executable or the tests // TODO: commentary and fn name
     build_executable(model, cache, tests)?;
 
     Ok(())
@@ -116,21 +113,11 @@ fn build_sources(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> R
     };
 
     srcs.iter().for_each(
-        |src| {
+        |src| { // TODO: yet unchanged, we need to replicate the idea on main
             if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &src.file()) {
                 sources::generate_sources_arguments(model, cache, &model.tests, src);
             }
-        }, // else {
-           //     let command_line = SourceCommandLine::from_translation_unit(
-           //         src, Arguments::default(), true, CommandExecutionResult::Cached,
-           //     );
-           //
-           //     log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &src.file());
-           //     cache.generated_commands.sources.push(command_line);
-           //     cache.generated_commands.add_linker_file_path_owned(helpers::generate_obj_file_path(
-           //         model.compiler.cpp_compiler, &model.build.output_dir, src,
-           //     ))
-           // }
+        }
     );
 
     Ok(())

@@ -1,11 +1,9 @@
 //! Contains helpers and data structures to be processed in a nice and neat way the commands generated to be executed
 //! by Zork++
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fmt::Debug;
-use std::rc::Rc;
 use std::slice::Iter;
 use std::{
     path::{Path, PathBuf},
@@ -18,7 +16,7 @@ use crate::cache::EnvVars;
 use crate::cli::output::arguments::Arguments;
 use crate::compiler::data_factory::{CommonArgs, CompilerCommonArguments};
 use crate::{
-    cache::{self, ZorkCache},
+    cache::ZorkCache,
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::constants,
 };
@@ -30,29 +28,32 @@ use serde::{Deserialize, Serialize};
 
 pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
-    mut cache: ZorkCache<'_>,
-    test_mode: bool,
+    cache: &mut ZorkCache<'_>,
 ) -> Result<CommandExecutionResult> {
     log::info!("Proceeding to execute the generated commands...");
 
-    let commands = Rc::new(RefCell::new(cache.generated_commands.clone()));
-
     let general_args = &cache.generated_commands.general_args.get_args();
+    let env_args = cache.get_process_env_args().clone(); // TODO: this is yet better than clone the
+                                                         // generated commands (maybe) but I'm not
+                                                         // happy with it
+
     for sys_module in &cache.generated_commands.system_modules {
         // TODO: will be deprecated soon, hopefully
-        execute_command(program_data, sys_module.1, cache.get_process_env_args())?;
+        // But while isn't deleted, we could normalize them into SourceCommandLine
+        execute_command(program_data, sys_module.1, &env_args)?;
     }
 
     {
         // Scopes for avoiding 'already borrow' errors on the different processes
         // TODO: better move it to a custom procedure
-        let mut commands_borrow = (*commands).borrow_mut();
-        let translation_units = commands_borrow
+        let translation_units = cache
+            .generated_commands
             .get_all_command_lines()
             .filter(|scl| scl.need_to_build)
             .collect::<Vec<&mut SourceCommandLine>>();
 
         for translation_unit_cmd in translation_units {
+            // Join the concrete args of any translation unit with the general flyweights
             let translation_unit_cmd_args: Arguments = general_args
                 .iter()
                 .chain(translation_unit_cmd.args.iter())
@@ -61,19 +62,17 @@ pub fn run_generated_commands(
             let r = execute_command(
                 program_data,
                 &translation_unit_cmd_args,
-                cache.get_process_env_args(),
+                &env_args,
             );
-            translation_unit_cmd.execution_result = CommandExecutionResult::from(&r); // TODO: we are modifying the cloned :(
+            translation_unit_cmd.execution_result = CommandExecutionResult::from(&r);
 
             if let Err(e) = r {
-                cache::save2(program_data, cache, test_mode)?;
                 return Err(e);
             } else if !r.as_ref().unwrap().success() {
                 let err = eyre!(
                     "Ending the program, because the build of: {:?} failed",
                     translation_unit_cmd.filename
                 );
-                cache::save2(program_data, cache, test_mode)?;
                 return Err(err);
             }
         }
@@ -85,52 +84,26 @@ pub fn run_generated_commands(
         let r = execute_command(
             program_data,
             &cache.generated_commands.linker.args,
-            cache.get_process_env_args(),
+            &env_args,
         );
-        commands.borrow_mut().linker.execution_result = CommandExecutionResult::from(&r);
+        cache.generated_commands.linker.execution_result = CommandExecutionResult::from(&r);
 
         if let Err(e) = r {
-            cache::save2(program_data, cache, test_mode)?;
+            // cache::save2(program_data, cache, test_mode)?;
             return Err(e);
         } else if !r.as_ref().unwrap().success() {
-            cache::save2(program_data, cache, test_mode)?;
+            // cache::save2(program_data, cache, test_mode)?;
             return Err(eyre!(
                 "Ending the program, because the linker command line execution failed",
             ));
         }
     }
 
-    let updated_commands = (*commands).borrow_mut().clone();
-    cache.generated_commands = updated_commands; // TODO: we do really need another way of do this (we needed two clones)
-    cache::save2(program_data, cache, test_mode)?;
+    /* let updated_commands = (*commands).borrow_mut().clone();
+    cache.generated_commands = updated_commands; // TODO: we do really need another way of do this (we needed two clones) */
+    // cache::save2(program_data, cache, test_mode)?;
     Ok(CommandExecutionResult::Success)
 }
-
-// fn execute_linker_command_line(program_data: &ZorkModel,
-//                                // commands: &mut Commands,
-//                                commands: Rc<RefCell<Commands>>,
-//                                env_vars: &EnvVars) -> Result<()> {
-//     // if !commands.linker.args.is_empty() {
-//         log::debug!("Processing the linker command line...");
-//
-//         let r = execute_command(
-//             program_data,
-//             &commands.linker.args,
-//             env_vars,
-//         );
-//         commands.linker.execution_result = CommandExecutionResult::from(&r);
-//
-//         if let Err(e) = r {
-//             // cache::save(program_data, &mut cache, test_mode)?;
-//             return Err(e);
-//         } else if !r.as_ref().unwrap().success() {
-//             // cache::save(program_data, &mut cache, test_mode)?;
-//             return Err(eyre!(
-//                 "Ending the program, because the linker command line execution failed",
-//             ));
-//         } else { Ok(()) }
-//     // }
-// }
 
 /// Executes a new [`std::process::Command`] to run the generated binary
 /// after the build process in the specified shell
@@ -328,6 +301,11 @@ impl Commands {
         }
     }
 
+    /// Returns an [std::iter::Chain] (behind the opaque impl clause return type signature)
+    /// which points to all the generated commmands for the two variants of the compilers vendors C++ modular
+    /// standard libraries implementations (see: [crate::project_model::compiler::StdLibMode])
+    /// joined to all the commands generated for every [TranslationUnit] declared by the user for
+    /// its project
     pub fn get_all_command_lines(
         &mut self,
     ) -> impl Iterator<Item = &mut SourceCommandLine> + Debug + '_ {
