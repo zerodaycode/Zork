@@ -162,6 +162,15 @@ pub enum StdLib {
     LIBCPP,
 }
 
+impl StdLib {
+    pub fn as_arg(&self) -> Argument {
+        Argument::from(match *self {
+            StdLib::STDLIBCPP => "-stdlib=libstdc++",
+            StdLib::LIBCPP => "-stdlib=libc++",
+        })
+    }
+}
+
 impl fmt::Display for StdLib {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_ref())

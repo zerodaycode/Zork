@@ -107,7 +107,9 @@ impl CommandLineArguments for &Arguments {}
 
 impl core::fmt::Display for Arguments {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.iter().try_for_each(|arg| write!(f, "{}", arg))
+        self.0.iter().try_for_each(|arg| write!(f, "{} ", arg))
+        // TODO: there's an ugly space at the end of every command line when Display is invoked
+        // :) Just fix it
     }
 }
 

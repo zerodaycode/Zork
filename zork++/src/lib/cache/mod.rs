@@ -66,42 +66,8 @@ pub fn load<'a>(program_data: &'a ZorkModel<'_>, cli_args: &CliArgs) -> Result<Z
     Ok(cache)
 }
 
-pub fn save2(
-    program_data: &ZorkModel<'_>,
-    mut cache: ZorkCache,
-    // _commands: Commands,
-    test_mode: bool,
-) -> Result<()> {
-    let cache_path = &program_data
-        .build
-        .output_dir
-        .join("zork")
-        .join("cache")
-        .join(program_data.compiler.cpp_compiler.as_ref())
-        .join(constants::ZORK_CACHE_FILENAME);
-
-    // let ro_cache = Rc::clone(&cache);
-    // let mut cache = cache.borrow_mut();
-    cache.run_final_tasks(program_data, test_mode)?;
-    cache.last_program_execution = Utc::now();
-
-    // let cache_kind = &(*ro_cache).borrow(); // saves the temporary
-    serialize_cache(cache_path, &cache.clone())
-    // Ok(())
-}
-
-fn serialize_cache(path: &Path, cache: &ZorkCache) -> Result<()> {
-    utils::fs::serialize_object_to_file(path, cache)
-        .with_context(move || "Error saving data to the Zork++ cache")
-}
-
 /// Standalone utility for persist the cache to the file system
-pub fn save(
-    program_data: &ZorkModel<'_>,
-    mut cache: ZorkCache,
-    // commands: Commands,
-    test_mode: bool,
-) -> Result<()> {
+pub fn save2(program_data: &ZorkModel<'_>, mut cache: ZorkCache, test_mode: bool) -> Result<()> {
     let cache_path = &program_data
         .build
         .output_dir
@@ -117,7 +83,7 @@ pub fn save(
         .with_context(move || "Error saving data to the Zork++ cache")
 }
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct ZorkCache<'a> {
     pub compiler: CppCompiler,
     pub last_program_execution: DateTime<Utc>,

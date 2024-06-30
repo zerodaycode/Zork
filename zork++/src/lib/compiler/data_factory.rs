@@ -21,7 +21,11 @@ impl CommonArgs {
         self.0.clone()
     }
 
-    pub fn get_args_slice(&self) -> impl Iterator<Item = Rc<&Argument>> {
+    pub fn get_args_slice(&self) -> impl Iterator<Item = &Argument> {
+        self.0.as_slice().iter()
+    }
+
+    pub fn get_args_slice_rced(&self) -> impl Iterator<Item = Rc<&Argument>> {
         self.0.as_slice().iter().map(Rc::new)
     }
 }
@@ -29,6 +33,11 @@ impl CommonArgs {
 impl<'a> From<&'a ZorkModel<'_>> for CommonArgs {
     fn from(model: &'a ZorkModel<'_>) -> Self {
         let mut common_args = Arguments::default();
+        // TODO:
+        // Aren't the common args in the end compiler specific ones?
+        // Should we remove this DS?
+        // Ah no. Maybe we can use it for hold things like -o (shared among all three (MSVC also
+        // accepts - in some args instead of /))
         common_args.push(model.compiler.language_level_arg());
         common_args.extend_from_slice(model.compiler.extra_args());
 
@@ -64,7 +73,9 @@ pub fn compiler_common_arguments_factory(
 /// Allows to have a common interface for any type that represents a data structure which its
 /// purpose is to hold common [`Argument`] across the diferent kind of [`TranslationUnit`]
 #[typetag::serde(tag = "type")]
-pub trait CompilerCommonArguments {}
+pub trait CompilerCommonArguments {
+    fn get_args(&self) -> Arguments;
+}
 impl Default for Box<dyn CompilerCommonArguments> {
     fn default() -> Self {
         Box::<ClangCommonArgs>::default() // TODO: isn't this a code smell?
@@ -77,11 +88,28 @@ impl Default for Box<dyn CompilerCommonArguments> {
 /// TODO: the typetag library doesn't support yet the deserialization of generic impls, only
 /// serialization, so there's no point on having any primites
 #[typetag::serde]
-impl CompilerCommonArguments for ClangCommonArgs {}
+impl CompilerCommonArguments for ClangCommonArgs {
+    fn get_args(&self) -> Arguments {
+        let mut args = Arguments::default();
+        args.push(self.std_lib.as_arg());
+        args.create_and_push(&self.implicit_modules);
+        args.push(self.implicit_module_map.clone());
+        args.create_and_push(&self.prebuilt_module_path);
+        args
+    }
+}
 #[typetag::serde]
-impl CompilerCommonArguments for MsvcCommonArgs {}
+impl CompilerCommonArguments for MsvcCommonArgs {
+    fn get_args(&self) -> Arguments {
+        Arguments::default()
+    }
+}
 #[typetag::serde]
-impl CompilerCommonArguments for GccCommonArgs {}
+impl CompilerCommonArguments for GccCommonArgs {
+    fn get_args(&self) -> Arguments {
+        Arguments::default()
+    }
+}
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct ClangCommonArgs {

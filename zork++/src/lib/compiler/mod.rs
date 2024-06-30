@@ -24,7 +24,7 @@ use crate::{
     },
 };
 
-use self::data_factory::{CommonArgs, CompilerCommonArguments};
+use self::data_factory::CommonArgs;
 
 /// The core procedure. Generates the commands that will be sent to the compiler
 /// for every translation unit declared by the user for its project
@@ -33,20 +33,19 @@ pub fn generate_commands<'a>(
     cache: &mut ZorkCache,
     tests: bool,
 ) -> Result<()> {
-    // Generate the Flyweight struct, with the repetitive data and details of the command lines
-    let _general_args = CommonArgs::from(model);
-    let _compiler_specific_common_args: Box<dyn CompilerCommonArguments> =
-        data_factory::compiler_common_arguments_factory(model); // TODO: guard it with a presence check
-
-    cache.generated_commands.general_args = _general_args;
-    // cache.
+    // TODO: guard it with a presence check */
+    // They should only be generated the first time or on every cache reset
+    cache.generated_commands.general_args = CommonArgs::from(model);
+    cache.generated_commands.compiler_common_args =
+        data_factory::compiler_common_arguments_factory(model);
 
     // TODO: add them to the commands DS, so they are together until they're generated
     // Build the std library as a module
     build_modular_stdlib(model, cache); // TODO: ward it with an if for only call this fn for the
 
     // 1st - Build the modules
-    if let Some(modules) = &model.modules { // TODO: re-think again this optional
+    if let Some(modules) = &model.modules {
+        // TODO: re-think again this optional
         // Pre-tasks
         if model.compiler.cpp_compiler == CppCompiler::GCC && !modules.sys_modules.is_empty() {
             helpers::build_sys_modules(model, cache)
@@ -112,13 +111,12 @@ fn build_sources(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> R
         &model.executable.sourceset.sources
     };
 
-    srcs.iter().for_each(
-        |src| { // TODO: yet unchanged, we need to replicate the idea on main
-            if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &src.file()) {
-                sources::generate_sources_arguments(model, cache, &model.tests, src);
-            }
+    srcs.iter().for_each(|src| {
+        // TODO: yet unchanged, we need to replicate the idea on main
+        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &src.file()) {
+            sources::generate_sources_arguments(model, cache, &model.tests, src);
         }
-    );
+    });
 
     Ok(())
 }
@@ -404,21 +402,14 @@ mod sources {
         let out_dir: &Path = model.build.output_dir.as_ref();
 
         let mut arguments = Arguments::default(); // TODO: provisional while we're implementing the Flyweights
-        arguments.push(model.compiler.language_level_arg());
-        arguments.extend_from_slice(model.compiler.extra_args());
+        /* arguments.push(model.compiler.language_level_arg());
+        arguments.extend_from_slice(model.compiler.extra_args()); */
 
         match compiler {
             CppCompiler::CLANG => {
-                // arguments.push_opt(model.compiler.stdlib_arg());
-                // arguments.create_and_push("-fimplicit-modules");
                 arguments.create_and_push("-x");
                 arguments.create_and_push("c++-module");
                 arguments.create_and_push("--precompile");
-                // arguments.push(clang_args::implicit_module_map(out_dir));
-                /* arguments.create_and_push(format!(
-                    "-fprebuilt-module-path={}/clang/modules/interfaces",
-                    out_dir.display()
-                )); */
                 clang_args::add_direct_module_interfaces_dependencies(
                     &interface.dependencies,
                     compiler,

@@ -65,7 +65,7 @@ pub mod worker {
         let config_files: Vec<ConfigFile> = find_config_files(project_root, &cli_args.match_files)
             .with_context(|| "We didn't found a valid Zork++ configuration file")?;
         log::trace!("Config files found: {config_files:?}");
-        // TODO add the last modified time
+        // TODO: add the last modified time
 
         for config_file in config_files {
             log::debug!(
@@ -83,7 +83,7 @@ pub mod worker {
             let config = config_file::zork_cfg_from_file(raw_file.as_str())
                 .with_context(|| "Could not parse configuration file")?;
             let program_data = build_model(config, cli_args, &abs_project_root)?;
-            create_output_directory(&program_data)?; // TODO avoid this call without check if exists
+            create_output_directory(&program_data)?; // TODO: avoid this call without check if exists
 
             let cache = cache::load(&program_data, cli_args)
                 .with_context(|| "Unable to load the Zork++ cache")?;
@@ -109,17 +109,15 @@ pub mod worker {
         program_data: &'a ZorkModel<'_>,
         mut cache: ZorkCache,
     ) -> Result<CommandExecutionResult> {
-
         let is_tests_run = cli_args.command.eq(&Command::Test);
 
         generate_commands(program_data, &mut cache, false)
             .with_context(|| "Failed to generated the commands for the project")?;
 
         let execution_result = match cli_args.command {
-            Command::Build =>
-                commands::run_generated_commands( program_data, &mut cache,),
+            Command::Build => commands::run_generated_commands(program_data, &mut cache),
             Command::Run | Command::Test => {
-                match commands::run_generated_commands( program_data, &mut cache,) {
+                match commands::run_generated_commands(program_data, &mut cache) {
                     Ok(_) => commands::autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         &program_data.build.output_dir,
@@ -127,7 +125,7 @@ pub mod worker {
                     ),
                     Err(e) => Err(e),
                 }
-            },
+            }
             _ => todo!(
                 "This branch should never be reached for now, as do not exists commands that may\
                 trigger them. The unique remaining, is ::New, that is already processed\
