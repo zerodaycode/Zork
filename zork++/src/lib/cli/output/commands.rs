@@ -1,4 +1,8 @@
+//! Contains helpers and data structures to be processed in a nice and neat way the commands generated to be executed
+//! by Zork++
+
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::slice::Iter;
 use std::{
@@ -6,13 +10,13 @@ use std::{
     process::ExitStatus,
 };
 
+use super::arguments::Argument;
 use crate::bounds::TranslationUnit;
+use crate::cache::EnvVars;
 use crate::cli::output::arguments::Arguments;
-/// Contains helpers and data structure to process in
-/// a nice and neat way the commands generated to be executed
-/// by Zork++
+use crate::compiler::data_factory::{CommonArgs, CompilerCommonArguments};
 use crate::{
-    cache::{self, ZorkCache},
+    cache::ZorkCache,
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::constants,
 };
@@ -22,70 +26,76 @@ use color_eyre::{
 };
 use serde::{Deserialize, Serialize};
 
-use super::arguments::Argument;
-
 pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
-    mut commands: Commands<'_>,
-    cache: &mut ZorkCache,
-    test_mode: bool,
+    cache: &mut ZorkCache<'_>,
 ) -> Result<CommandExecutionResult> {
     log::info!("Proceeding to execute the generated commands...");
-    let compiler = commands.compiler;
 
-    /* for pre_task in &commands.pre_tasks {
-        execute_command(compiler, program_data, pre_task, cache)?;
-    } */
+    let general_args = &cache.generated_commands.general_args.get_args();
+    let compiler_specific_shared_args = &cache.generated_commands.compiler_common_args.get_args();
 
-    for sys_module in &commands.system_modules {
+    let env_args = cache.get_process_env_args().clone(); // TODO: this is yet better than clone the
+                                                         // generated commands (maybe) but I'm not
+                                                         // happy with it
+
+    for sys_module in &cache.generated_commands.system_modules {
         // TODO: will be deprecated soon, hopefully
-        execute_command(compiler, program_data, sys_module.1, cache)?;
+        // But while isn't deleted, we could normalize them into SourceCommandLine
+        // And then, consider to join them into the all generated commands iter
+        execute_command(program_data, sys_module.1, &env_args)?;
     }
 
-    let translation_units = commands
-        .pre_tasks
-        .iter_mut()
-        .chain(commands.interfaces.iter_mut())
-        .chain(commands.implementations.iter_mut())
-        .chain(commands.sources.iter_mut());
+    let translation_units = cache
+        .generated_commands
+        .get_all_command_lines()
+        .filter(|scl| scl.need_to_build)
+        .collect::<Vec<&mut SourceCommandLine>>();
 
-    for translation_unit in translation_units {
-        if !translation_unit.processed {
-            let r = execute_command(compiler, program_data, &translation_unit.args, cache);
-            translation_unit.execution_result = CommandExecutionResult::from(&r);
-            if let Err(e) = r {
-                cache::save(program_data, cache, commands, test_mode)?;
-                return Err(e);
-            } else if !r.as_ref().unwrap().success() {
-                let err = eyre!(
-                    "Ending the program, because the build of: {:?} wasn't ended successfully",
-                    translation_unit.filename
-                );
-                cache::save(program_data, cache, commands, test_mode)?;
-                return Err(err);
-            }
+    for translation_unit_cmd in translation_units {
+        // Join the concrete args of any translation unit with the general flyweights
+        let translation_unit_cmd_args: Arguments = general_args
+            .iter()
+            .chain(compiler_specific_shared_args.iter())
+            .chain(translation_unit_cmd.args.iter())
+            .collect();
+
+        let r = execute_command(program_data, &translation_unit_cmd_args, &env_args);
+        translation_unit_cmd.execution_result = CommandExecutionResult::from(&r);
+
+        if let Err(e) = r {
+            return Err(e);
+        } else if !r.as_ref().unwrap().success() {
+            let err = eyre!(
+                "Ending the program, because the build of: {:?} failed",
+                translation_unit_cmd.filename
+            );
+            return Err(err);
         }
     }
 
-    if !commands.main.args.is_empty() {
-        log::debug!("Executing the main command line...");
+    if !cache.generated_commands.linker.args.is_empty() {
+        // TODO: consider to join this into the
+        // all args iterator
+        log::debug!("Processing the linker command line...");
 
-        let r = execute_command(compiler, program_data, &commands.main.args, cache);
-        commands.main.execution_result = CommandExecutionResult::from(&r);
+        let r = execute_command(
+            program_data,
+            &cache.generated_commands.linker.args,
+            &env_args,
+        );
+        cache.generated_commands.linker.execution_result = CommandExecutionResult::from(&r);
 
         if let Err(e) = r {
-            cache::save(program_data, cache, commands, test_mode)?;
             return Err(e);
         } else if !r.as_ref().unwrap().success() {
-            cache::save(program_data, cache, commands, test_mode)?;
             return Err(eyre!(
-                "Ending the program, because the main command line execution wasn't ended successfully",
+                "Ending the program, because the linker command line execution failed",
             ));
         }
     }
 
-    cache::save(program_data, cache, commands, test_mode)?;
-    Ok(CommandExecutionResult::Success)
+    Ok(CommandExecutionResult::Success) // TODO: consider a new variant, like AllSuccedeed
 }
 
 /// Executes a new [`std::process::Command`] to run the generated binary
@@ -119,44 +129,51 @@ pub fn autorun_generated_binary(
 
 /// Executes a new [`std::process::Command`] configured according the chosen
 /// compiler and the current operating system
-fn execute_command(
-    compiler: CppCompiler,
+fn execute_command<T, S>(
     model: &ZorkModel,
-    arguments: &[Argument<'_>],
-    cache: &ZorkCache,
-) -> Result<ExitStatus, Report> {
+    arguments: T,
+    // cache: &ZorkCache,
+    env_vars: &EnvVars,
+) -> Result<ExitStatus, Report>
+where
+    T: IntoIterator<Item = S> + std::fmt::Display + std::marker::Copy,
+    S: AsRef<OsStr>,
+{
+    let compiler = model.compiler.cpp_compiler;
     log::trace!(
         "[{compiler}] - Executing command => {:?}",
-        format!(
-            "{} {}",
-            compiler.get_driver(&model.compiler),
-            arguments.join(" ")
-        )
+        format!("{} {arguments}", compiler.get_driver(&model.compiler),)
     );
 
-    std::process::Command::new(compiler.get_driver(&model.compiler))
+    let driver = compiler.get_driver(&model.compiler);
+    let os_driver = OsStr::new(driver.as_ref());
+    std::process::Command::new(os_driver)
         .args(arguments)
-        .envs(cache.get_process_env_args())
+        .envs(env_vars)
         .spawn()?
         .wait()
-        .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments.join(" ")))
+        .with_context(|| format!("[{compiler}] - Command {arguments} failed!"))
 }
 
-/// The pieces and details for the generated command line for
+/// The pieces and details for the generated command line
 /// for some translation unit
-#[derive(Debug)]
-pub struct SourceCommandLine<'a> {
+///
+/// * args* : member that holds all the cmd arguments that will be passed to the compiler driver
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SourceCommandLine {
     pub directory: PathBuf,
     pub filename: String,
-    pub args: Arguments<'a>,
-    pub processed: bool,
+    pub args: Arguments,
+    pub need_to_build: bool,
     pub execution_result: CommandExecutionResult,
+    // TODO an enum with the Kind OF TU that is generating this scl?
 }
 
-impl<'a> SourceCommandLine<'a> {
+impl SourceCommandLine {
     pub fn from_translation_unit(
+        // TODO init it as a args holder, but doesn't have the status yet
         tu: impl TranslationUnit,
-        args: Arguments<'a>, // TODO: maybe this should be an option? Cached arguments are passed
+        args: Arguments, // TODO: maybe this should be an option? Cached arguments are passed
         // here as default. So probably, even better than having an optional,
         // we must replicate this to have a separate entity like
         // CachedSourceCommandLine, and them just call them over any kind of
@@ -169,8 +186,22 @@ impl<'a> SourceCommandLine<'a> {
             directory: tu.path(),
             filename: tu.file_with_extension(),
             args,
-            processed,
+            need_to_build: !processed,
             execution_result,
+        }
+    }
+
+    pub fn for_translation_unit(
+        // TODO init it as a args holder, but doesn't have the status yet
+        tu: impl TranslationUnit,
+        args: Arguments,
+    ) -> Self {
+        Self {
+            directory: tu.path(),
+            filename: tu.file_with_extension(),
+            args,
+            need_to_build: true,
+            execution_result: CommandExecutionResult::Unprocessed,
         }
     }
 
@@ -179,54 +210,74 @@ impl<'a> SourceCommandLine<'a> {
     }
 }
 
-#[derive(Debug)]
-pub struct ExecutableCommandLine<'a> {
-    pub main: &'a Path,
-    pub sources_paths: Vec<PathBuf>,
-    pub args: Vec<Argument<'a>>,
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct LinkerCommandLine {
+    // pub main: &'a Path, // TODO: can't this disappear? At the end of the day, is just another obj file
+    pub built_files: Vec<PathBuf>, // TODO: obj files?
+    pub args: Arguments, // TODO: :does the linker command line needs any different that the
+    // generals?
     pub execution_result: CommandExecutionResult,
 }
 
-impl<'a> Default for ExecutableCommandLine<'a> {
-    fn default() -> Self {
-        Self {
-            main: Path::new("."),
-            sources_paths: Vec::with_capacity(0),
-            args: Vec::with_capacity(0),
-            execution_result: Default::default(),
-        }
+impl LinkerCommandLine {
+    /// Saves the path at which a compilation product of any translation unit will be placed,
+    /// in order to add it to the files that will be linked to generate the final product
+    /// in the two-phase compilation model
+    pub fn add_buildable_at(&mut self, path: &Path) {
+        self.built_files.push(path.to_path_buf());
+    }
+
+    /// Owned version of TODO link
+    pub fn add_owned_buildable_at(&mut self, path: PathBuf) {
+        self.built_files.push(path);
     }
 }
 
 /// Holds the generated command line arguments for a concrete compiler
-#[derive(Debug)]
-pub struct Commands<'a> {
+#[derive(Serialize, Deserialize, Default)]
+pub struct Commands {
     pub compiler: CppCompiler,
-    pub pre_tasks: Vec<SourceCommandLine<'a>>,
-    pub system_modules: HashMap<String, Arguments<'a>>,
-    pub interfaces: Vec<SourceCommandLine<'a>>,
-    pub implementations: Vec<SourceCommandLine<'a>>,
-    pub sources: Vec<SourceCommandLine<'a>>,
-    pub main: ExecutableCommandLine<'a>,
-    pub generated_files_paths: Arguments<'a>,
+    pub cpp_stdlib: Option<SourceCommandLine>,
+    pub c_compat_stdlib: Option<SourceCommandLine>,
+    pub system_modules: HashMap<String, Arguments>,
+
+    pub general_args: CommonArgs,
+    pub compiler_common_args: Box<dyn CompilerCommonArguments>,
+
+    pub interfaces: Vec<SourceCommandLine>,
+    pub implementations: Vec<SourceCommandLine>,
+    pub sources: Vec<SourceCommandLine>,
+    pub linker: LinkerCommandLine,
 }
 
-impl<'a> Commands<'a> {
-    pub fn new(compiler: &'a CppCompiler) -> Self {
-        Self {
-            compiler: *compiler,
-            pre_tasks: Vec::with_capacity(0),
-            system_modules: HashMap::with_capacity(0),
-            interfaces: Vec::with_capacity(0),
-            implementations: Vec::with_capacity(0),
-            sources: Vec::with_capacity(0),
-            main: ExecutableCommandLine::default(),
-            generated_files_paths: Arguments::default(),
-        }
+impl Commands {
+    /// Returns an [std::iter::Chain] (behind the opaque impl clause return type signature)
+    /// which points to all the generated commmands for the two variants of the compilers vendors C++ modular
+    /// standard libraries implementations (see: [crate::project_model::compiler::StdLibMode])
+    /// joined to all the commands generated for every [TranslationUnit] declared by the user for
+    /// its project
+    pub fn get_all_command_lines(
+        &mut self,
+    ) -> impl Iterator<Item = &mut SourceCommandLine> + Debug + '_ {
+        self.cpp_stdlib
+            .as_mut_slice()
+            .iter_mut()
+            .chain(self.c_compat_stdlib.as_mut_slice().iter_mut())
+            .chain(self.interfaces.as_mut_slice().iter_mut())
+            .chain(self.implementations.as_mut_slice().iter_mut())
+            .chain(self.sources.as_mut_slice().iter_mut())
+    }
+
+    pub fn add_linker_file_path(&mut self, path: &Path) {
+        self.linker.add_buildable_at(path);
+    }
+
+    pub fn add_linker_file_path_owned(&mut self, path: PathBuf) {
+        self.linker.add_owned_buildable_at(path);
     }
 }
 
-impl<'a> core::fmt::Display for Commands<'a> {
+impl core::fmt::Display for Commands {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -240,13 +291,13 @@ impl<'a> core::fmt::Display for Commands<'a> {
 }
 
 /// Convenient function to avoid code replication
-fn collect_source_command_line<'a>(
-    iter: Iter<'a, SourceCommandLine<'a>>,
-) -> impl Iterator + Debug + 'a {
+fn collect_source_command_line(
+    iter: Iter<'_, SourceCommandLine>, // TODO: review this, for see if it's possible to consume the value and not cloning it
+) -> impl Iterator + Debug + '_ {
     iter.map(|vec| {
         vec.args
             .iter()
-            .map(|e| e.value)
+            .map(|arg| arg.value().clone())
             .collect::<Vec<_>>()
             .join(" ");
     })

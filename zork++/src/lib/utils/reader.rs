@@ -26,6 +26,7 @@ use crate::{
     utils,
 };
 use color_eyre::{eyre::eyre, Result};
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
@@ -90,18 +91,26 @@ pub fn find_config_files(
 }
 
 pub fn build_model<'a>(
-    config: &'a ZorkConfigFile,
+    config: ZorkConfigFile<'a>,
     cli_args: &'a CliArgs,
     absolute_project_root: &Path,
 ) -> Result<ZorkModel<'a>> {
-    let project = assemble_project_model(&config.project);
+    let proj_name = config.project.name;
+    let project = assemble_project_model(config.project);
 
-    let compiler = assemble_compiler_model(&config.compiler, cli_args);
-    let build = assemble_build_model(&config.build, absolute_project_root);
-    let executable =
-        assemble_executable_model(project.name, &config.executable, absolute_project_root);
-    let modules = assemble_modules_model(&config.modules, absolute_project_root);
-    let tests = assemble_tests_model(project.name, &config.tests, absolute_project_root);
+    let compiler = assemble_compiler_model(config.compiler, cli_args);
+    let build = assemble_build_model(config.build, absolute_project_root);
+    let executable = assemble_executable_model(
+        Cow::Borrowed(proj_name),
+        config.executable,
+        absolute_project_root,
+    );
+    let modules = assemble_modules_model(config.modules, absolute_project_root);
+    let tests = assemble_tests_model(
+        Cow::Borrowed(proj_name),
+        config.tests,
+        absolute_project_root,
+    );
 
     Ok(ZorkModel {
         project,
@@ -113,36 +122,38 @@ pub fn build_model<'a>(
     })
 }
 
-fn assemble_project_model<'a>(config: &'a ProjectAttribute) -> ProjectModel<'a> {
+fn assemble_project_model(config: ProjectAttribute) -> ProjectModel {
     ProjectModel {
-        name: config.name,
+        name: Cow::Borrowed(config.name),
         authors: config
             .authors
             .as_ref()
-            .map_or_else(|| &[] as &[&str], |auths| auths.as_slice()),
+            .map_or_else(Vec::default, |authors| {
+                authors
+                    .iter()
+                    .map(|auth| Cow::Borrowed(*auth))
+                    .collect::<Vec<_>>()
+            }),
         compilation_db: config.compilation_db.unwrap_or_default(),
-        project_root: config.project_root,
+        project_root: config.project_root.map(Cow::Borrowed),
     }
 }
 
 fn assemble_compiler_model<'a>(
-    config: &'a CompilerAttribute,
+    config: CompilerAttribute<'a>,
     cli_args: &'a CliArgs,
 ) -> CompilerModel<'a> {
     let extra_args = config
         .extra_args
-        .as_ref()
-        .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
+        .map(|args| args.into_iter().map(Argument::from).collect())
         .unwrap_or_default();
-
-    let cli_driver_path = cli_args.driver_path.as_ref();
 
     CompilerModel {
         cpp_compiler: config.cpp_compiler.clone().into(),
-        driver_path: if let Some(driver_path) = cli_driver_path {
-            driver_path.as_str()
+        driver_path: if let Some(driver_path) = cli_args.driver_path.as_ref() {
+            Cow::Borrowed(driver_path)
         } else {
-            config.driver_path.unwrap_or_default()
+            Cow::Owned(cli_args.driver_path.clone().unwrap_or_default()) // TODO: review this
         },
         cpp_standard: config.cpp_standard.clone().into(),
         std_lib: config.std_lib.clone().map(|lib| lib.into()),
@@ -150,7 +161,7 @@ fn assemble_compiler_model<'a>(
     }
 }
 
-fn assemble_build_model(config: &Option<BuildAttribute>, project_root: &Path) -> BuildModel {
+fn assemble_build_model(config: Option<BuildAttribute>, project_root: &Path) -> BuildModel {
     let output_dir = config
         .as_ref()
         .and_then(|build| build.output_dir)
@@ -164,18 +175,25 @@ fn assemble_build_model(config: &Option<BuildAttribute>, project_root: &Path) ->
 
 //noinspection ALL
 fn assemble_executable_model<'a>(
-    project_name: &'a str,
-    config: &'a Option<ExecutableAttribute>,
+    project_name: Cow<'a, str>,
+    config: Option<ExecutableAttribute<'a>>,
     project_root: &Path,
 ) -> ExecutableModel<'a> {
     let config = config.as_ref();
 
     let executable_name = config
         .and_then(|exe| exe.executable_name)
+        .map(Cow::Borrowed)
         .unwrap_or(project_name);
 
     let sources = config
-        .and_then(|exe| exe.sources.clone())
+        .and_then(|exe| exe.sources.as_ref())
+        .map(|srcs| {
+            srcs.iter() // TODO: abstract this kind of procedures away to some method of TranslationUnit, for example?
+                // or some other new trait (can't this have a default impl on the trait definition itself?
+                .map(|src| Cow::Borrowed(*src))
+                .collect::<Vec<Cow<str>>>()
+        })
         .unwrap_or_default();
 
     let sourceset = get_sourceset_for(sources, project_root);
@@ -193,33 +211,38 @@ fn assemble_executable_model<'a>(
 }
 
 fn assemble_modules_model<'a>(
-    config: &'a Option<ModulesAttribute>,
+    config: Option<ModulesAttribute<'a>>,
     project_root: &Path,
-) -> ModulesModel<'a> {
-    let config = config.as_ref();
+) -> Option<ModulesModel<'a>> {
+    config.as_ref()?; // early guard
+    let modules = config.unwrap();
 
-    let base_ifcs_dir = config
-        .and_then(|modules| modules.base_ifcs_dir)
-        .unwrap_or(".");
+    let base_ifcs_dir = modules
+        .base_ifcs_dir
+        .map(Path::new)
+        .unwrap_or_else(|| Path::new("."));
 
-    let interfaces = config
-        .and_then(|modules| modules.interfaces.as_ref())
+    let interfaces = modules
+        .interfaces
         .map(|ifcs| {
-            ifcs.iter()
-                .map(|m_ifc| assemble_module_interface_model(m_ifc, base_ifcs_dir, project_root))
+            ifcs.into_iter()
+                .map(|m_ifc| -> ModuleInterfaceModel<'_> {
+                    assemble_module_interface_model(m_ifc, base_ifcs_dir, project_root)
+                })
                 .collect()
         })
         .unwrap_or_default();
 
-    let base_impls_dir = config
-        .and_then(|modules| modules.base_impls_dir)
-        .unwrap_or(".");
+    let base_impls_dir = modules
+        .base_impls_dir
+        .map(Path::new)
+        .unwrap_or_else(|| Path::new("."));
 
-    let implementations = config
-        .and_then(|modules| modules.implementations.as_ref())
+    let implementations = modules
+        .implementations
         .map(|impls| {
             impls
-                .iter()
+                .into_iter()
                 .map(|m_impl| {
                     assemble_module_implementation_model(m_impl, base_impls_dir, project_root)
                 })
@@ -227,55 +250,62 @@ fn assemble_modules_model<'a>(
         })
         .unwrap_or_default();
 
-    let sys_modules = config
-        .and_then(|modules| modules.sys_modules.as_ref())
-        .map_or_else(Default::default, |headers| headers.clone());
+    let sys_modules = modules
+        .sys_modules
+        .as_ref()
+        .map_or_else(Default::default, |headers| {
+            headers
+                .iter()
+                .map(|sys_header| Cow::from(*sys_header))
+                .collect()
+        });
 
-    let extra_args = config
-        .and_then(|mod_attr| mod_attr.extra_args.as_ref())
+    let extra_args = modules // TODO: this has to dissappear from the Zork++ build options
+        .extra_args
+        .as_ref()
         .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
         .unwrap_or_default();
 
-    ModulesModel {
-        base_ifcs_dir: Path::new(base_ifcs_dir),
+    Some(ModulesModel {
+        base_ifcs_dir,
         interfaces,
-        base_impls_dir: Path::new(base_impls_dir),
+        base_impls_dir,
         implementations,
         sys_modules,
         extra_args,
-    }
+    })
 }
 
 fn assemble_module_interface_model<'a>(
-    config: &'a ModuleInterface,
-    base_path: &str,
+    config: ModuleInterface<'a>,
+    base_path: &Path,
     project_root: &Path,
 ) -> ModuleInterfaceModel<'a> {
-    let file_path = Path::new(project_root).join(base_path).join(config.file);
-    let module_name = config.module_name.unwrap_or_else(|| {
-        Path::new(config.file)
-            .file_stem()
-            .unwrap_or_else(|| panic!("Found ill-formed path on: {}", config.file))
-            .to_str()
-            .unwrap()
-    });
+    let cfg_file = config.file;
 
-    let dependencies = config.dependencies.clone().unwrap_or_default();
-    let partition = if config.partition.is_none() {
-        None
+    let file_path = Path::new(project_root).join(base_path).join(cfg_file);
+    let module_name = if let Some(mod_name) = config.module_name {
+        Cow::Borrowed(mod_name)
     } else {
-        Some(ModulePartitionModel::from(
-            config.partition.as_ref().unwrap(),
-        ))
+        Path::new(cfg_file)
+            .file_stem()
+            .unwrap_or_else(|| panic!("Found ill-formed file_stem data for: {cfg_file}"))
+            .to_string_lossy()
     };
+    let dependencies = config
+        .dependencies
+        .map(|deps| deps.into_iter().map(Cow::Borrowed).collect())
+        .unwrap_or_default();
+    let partition = config.partition.map(ModulePartitionModel::from);
 
     let file_details = utils::fs::get_file_details(&file_path).unwrap_or_else(|_| {
         panic!("An unexpected error happened getting the file details for {file_path:?}")
     });
+
     ModuleInterfaceModel {
         path: file_details.0,
-        file_stem: file_details.1,
-        extension: file_details.2,
+        file_stem: Cow::from(file_details.1),
+        extension: Cow::from(file_details.2),
         module_name,
         partition,
         dependencies,
@@ -283,19 +313,26 @@ fn assemble_module_interface_model<'a>(
 }
 
 fn assemble_module_implementation_model<'a>(
-    config: &'a ModuleImplementation,
-    base_path: &str,
+    config: ModuleImplementation<'a>,
+    base_path: &Path,
     project_root: &Path,
 ) -> ModuleImplementationModel<'a> {
+    let mut dependencies = config
+        .dependencies
+        .unwrap_or_default()
+        .into_iter()
+        .map(Cow::Borrowed)
+        .collect::<Vec<Cow<str>>>();
+
     let file_path = Path::new(project_root).join(base_path).join(config.file);
-    let mut dependencies = config.dependencies.clone().unwrap_or_default();
     if dependencies.is_empty() {
+        // TODO: can't recall what's this, so please, debug it and document it
         let last_dot_index = config.file.rfind('.');
         if let Some(idx) = last_dot_index {
             let implicit_dependency = config.file.split_at(idx);
-            dependencies.push(implicit_dependency.0)
+            dependencies.push(Cow::Owned(implicit_dependency.0.to_owned()))
         } else {
-            dependencies.push(config.file);
+            dependencies.push(Cow::Borrowed(config.file));
         }
     }
 
@@ -305,15 +342,15 @@ fn assemble_module_implementation_model<'a>(
 
     ModuleImplementationModel {
         path: file_details.0,
-        file_stem: file_details.1,
-        extension: file_details.2,
+        file_stem: Cow::Owned(file_details.1),
+        extension: Cow::Owned(file_details.2),
         dependencies,
     }
 }
 
 fn assemble_tests_model<'a>(
-    project_name: &'a str,
-    config: &'a Option<TestsAttribute>,
+    project_name: Cow<'_, str>,
+    config: Option<TestsAttribute>,
     project_root: &Path,
 ) -> TestsModel<'a> {
     let config = config.as_ref();
@@ -324,7 +361,12 @@ fn assemble_tests_model<'a>(
     );
 
     let sources = config
-        .and_then(|exe| exe.sources.clone())
+        .and_then(|exe| exe.sources.as_ref())
+        .map(|srcs| {
+            srcs.iter()
+                .map(|src| Cow::Borrowed(*src))
+                .collect::<Vec<Cow<str>>>()
+        })
         .unwrap_or_default();
     let sourceset = get_sourceset_for(sources, project_root);
 
@@ -334,17 +376,17 @@ fn assemble_tests_model<'a>(
         .unwrap_or_default();
 
     TestsModel {
-        test_executable_name,
+        test_executable_name: Cow::Owned(test_executable_name),
         sourceset,
         extra_args,
     }
 }
 
-fn get_sourceset_for(srcs: Vec<&str>, project_root: &Path) -> SourceSet {
+fn get_sourceset_for<'a>(srcs: Vec<Cow<str>>, project_root: &Path) -> SourceSet<'a> {
     let sources = srcs
         .iter()
         .map(|src| {
-            let target_src = project_root.join(src);
+            let target_src = project_root.join(src.as_ref());
             if src.contains('*') {
                 Source::Glob(GlobPattern(target_src))
             } else {
@@ -362,8 +404,8 @@ fn get_sourceset_for(srcs: Vec<&str>, project_root: &Path) -> SourceSet {
             });
             SourceFile {
                 path: file_details.0,
-                file_stem: file_details.1,
-                extension: file_details.2,
+                file_stem: Cow::Owned(file_details.1),
+                extension: Cow::Owned(file_details.2),
             }
         })
         .collect();
@@ -373,6 +415,8 @@ fn get_sourceset_for(srcs: Vec<&str>, project_root: &Path) -> SourceSet {
 
 #[cfg(test)]
 mod test {
+    use std::borrow::Cow;
+
     use crate::config_file;
     use crate::utils::fs;
     use crate::{
@@ -398,18 +442,18 @@ mod test {
         let config: ZorkConfigFile = config_file::zork_cfg_from_file(CONFIG_FILE_MOCK)?;
         let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
-        let model = build_model(&config, &cli_args, &abs_path_for_mock);
+        let model = build_model(config, &cli_args, &abs_path_for_mock);
 
         let expected = ZorkModel {
             project: ProjectModel {
-                name: "Zork++",
-                authors: &["zerodaycode.gz@gmail.com"],
+                name: "Zork++".into(),
+                authors: vec!["zerodaycode.gz@gmail.com".into()],
                 compilation_db: false,
                 project_root: None,
             },
             compiler: CompilerModel {
                 cpp_compiler: CppCompiler::CLANG,
-                driver_path: "",
+                driver_path: Cow::Borrowed(""),
                 cpp_standard: LanguageLevel::CPP20,
                 std_lib: None,
                 extra_args: vec![],
@@ -418,20 +462,13 @@ mod test {
                 output_dir: abs_path_for_mock.join("out"),
             },
             executable: ExecutableModel {
-                executable_name: "Zork++",
+                executable_name: "Zork++".into(),
                 sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![],
             },
-            modules: ModulesModel {
-                base_ifcs_dir: Path::new("."),
-                interfaces: vec![],
-                base_impls_dir: Path::new("."),
-                implementations: vec![],
-                sys_modules: vec![],
-                extra_args: vec![],
-            },
+            modules: None,
             tests: TestsModel {
-                test_executable_name: "Zork++_test".to_string(),
+                test_executable_name: "Zork++_test".into(),
                 sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![],
             },
@@ -448,18 +485,18 @@ mod test {
             config_file::zork_cfg_from_file(utils::constants::CONFIG_FILE_MOCK)?;
         let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
-        let model = build_model(&config, &cli_args, &abs_path_for_mock);
+        let model = build_model(config, &cli_args, &abs_path_for_mock);
 
         let expected = ZorkModel {
             project: ProjectModel {
-                name: "Zork++",
-                authors: &["zerodaycode.gz@gmail.com"],
+                name: "Zork++".into(),
+                authors: vec!["zerodaycode.gz@gmail.com".into()],
                 compilation_db: true,
                 project_root: None,
             },
             compiler: CompilerModel {
                 cpp_compiler: CppCompiler::CLANG,
-                driver_path: "",
+                driver_path: Cow::Borrowed(""),
                 cpp_standard: LanguageLevel::CPP2B,
                 std_lib: Some(StdLib::LIBCPP),
                 extra_args: vec![Argument::from("-Wall")],
@@ -468,26 +505,26 @@ mod test {
                 output_dir: abs_path_for_mock.clone(),
             },
             executable: ExecutableModel {
-                executable_name: "zork",
+                executable_name: "zork".into(),
                 sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![Argument::from("-Werr")],
             },
-            modules: ModulesModel {
+            modules: Some(ModulesModel {
                 base_ifcs_dir: Path::new("ifcs"),
                 interfaces: vec![
                     ModuleInterfaceModel {
                         path: abs_path_for_mock.join("ifcs"),
-                        file_stem: String::from("maths"),
-                        extension: String::from("cppm"),
-                        module_name: "maths",
+                        file_stem: Cow::Borrowed("maths"),
+                        extension: Cow::Borrowed("cppm"),
+                        module_name: "maths".into(),
                         partition: None,
                         dependencies: vec![],
                     },
                     ModuleInterfaceModel {
                         path: abs_path_for_mock.join("ifcs"),
-                        file_stem: String::from("some_module"),
-                        extension: String::from("cppm"),
-                        module_name: "maths",
+                        file_stem: Cow::Borrowed("some_module"),
+                        extension: Cow::Borrowed("cppm"),
+                        module_name: "maths".into(),
                         partition: None,
                         dependencies: vec![],
                     },
@@ -496,22 +533,22 @@ mod test {
                 implementations: vec![
                     ModuleImplementationModel {
                         path: abs_path_for_mock.join("srcs"),
-                        file_stem: String::from("maths"),
-                        extension: String::from("cpp"),
-                        dependencies: vec!["maths"],
+                        file_stem: Cow::from("maths"),
+                        extension: Cow::from("cpp"),
+                        dependencies: vec!["maths".into()],
                     },
                     ModuleImplementationModel {
                         path: abs_path_for_mock.join("srcs"),
-                        file_stem: String::from("some_module_impl"),
-                        extension: String::from("cpp"),
-                        dependencies: vec!["iostream"],
+                        file_stem: Cow::from("some_module_impl"),
+                        extension: Cow::from("cpp"),
+                        dependencies: vec!["iostream".into()],
                     },
                 ],
-                sys_modules: vec!["iostream"],
+                sys_modules: vec!["iostream".into()],
                 extra_args: vec![Argument::from("-Wall")],
-            },
+            }),
             tests: TestsModel {
-                test_executable_name: "zork_check".to_string(),
+                test_executable_name: "zork_check".into(),
                 sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![Argument::from("-pedantic")],
             },

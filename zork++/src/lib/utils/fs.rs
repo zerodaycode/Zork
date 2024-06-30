@@ -87,7 +87,7 @@ pub fn get_file_details<P: AsRef<Path>>(p: P) -> Result<(PathBuf, String, String
 
 pub fn serialize_object_to_file<T>(path: &Path, data: &T) -> Result<()>
 where
-    T: Serialize,
+    T: Serialize + ?Sized,
 {
     serde_json::to_writer_pretty(
         File::create(path).with_context(|| "Error creating the cache file")?,

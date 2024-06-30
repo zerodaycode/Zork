@@ -1,4 +1,5 @@
 use core::fmt;
+use std::borrow::Cow;
 
 use serde::{Deserialize, Serialize};
 
@@ -7,20 +8,23 @@ use crate::{bounds::ExtraArgs, cli::output::arguments::Argument};
 #[derive(Debug, PartialEq, Eq)]
 pub struct CompilerModel<'a> {
     pub cpp_compiler: CppCompiler,
-    pub driver_path: &'a str,
+    pub driver_path: Cow<'a, str>,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
-    pub extra_args: Vec<Argument<'a>>,
+    pub extra_args: Vec<Argument>,
 }
 
 impl<'a> CompilerModel<'a> {
-    pub fn language_level_arg(&self) -> Argument {
+    pub fn language_level(&self) -> Cow<'static, str> {
         match self.cpp_compiler {
-            CppCompiler::CLANG | CppCompiler::GCC => {
-                Argument::from(format!("-std=c++{}", self.cpp_standard))
-            }
-            CppCompiler::MSVC => Argument::from(format!("/std:c++{}", self.cpp_standard)),
+            CppCompiler::CLANG | CppCompiler::GCC => format!("-std=c++{}", self.cpp_standard),
+            CppCompiler::MSVC => format!("/std:c++{}", self.cpp_standard),
         }
+        .into()
+    }
+
+    pub fn language_level_arg(&self) -> Argument {
+        Argument::from(self.language_level())
     }
 
     pub fn stdlib_arg(&self) -> Option<Argument> {
@@ -31,7 +35,7 @@ impl<'a> CompilerModel<'a> {
 }
 
 impl<'a> ExtraArgs<'a> for CompilerModel<'a> {
-    fn extra_args(&'a self) -> &'a [Argument<'a>] {
+    fn extra_args(&'a self) -> &'a [Argument] {
         &self.extra_args
     }
 }
@@ -63,24 +67,39 @@ impl AsRef<str> for CppCompiler {
 impl CppCompiler {
     /// Returns an &str representing the compiler driver that will be called
     /// in the command line to generate the build events
-    pub fn get_driver<'a>(&self, compiler_model: &'a CompilerModel) -> &'a str {
+    pub fn get_driver<'a>(&self, compiler_model: &'a CompilerModel) -> Cow<'a, str> {
         if !compiler_model.driver_path.is_empty() {
-            compiler_model.driver_path
+            Cow::Borrowed(&compiler_model.driver_path)
         } else {
-            match *self {
+            Cow::Borrowed(match *self {
                 CppCompiler::CLANG => "clang++",
                 CppCompiler::MSVC => "cl",
                 CppCompiler::GCC => "g++",
-            }
+            })
         }
     }
 
-    pub fn get_default_module_extension(&self) -> &str {
-        match *self {
+    pub fn default_module_extension<'a>(&self) -> Cow<'a, str> {
+        Cow::Borrowed(match *self {
             CppCompiler::CLANG => "cppm",
             CppCompiler::MSVC => "ixx",
             CppCompiler::GCC => "cc",
-        }
+        })
+    }
+    pub fn get_default_module_extension<'a>(&self) -> Cow<'a, str> {
+        Cow::Borrowed(match *self {
+            CppCompiler::CLANG => "cppm",
+            CppCompiler::MSVC => "ixx",
+            CppCompiler::GCC => "cc",
+        })
+    }
+
+    pub fn typical_bmi_extension(&self) -> Cow<'_, str> {
+        Cow::Borrowed(match *self {
+            CppCompiler::CLANG => "pcm",
+            CppCompiler::MSVC => "ifc",
+            CppCompiler::GCC => "o",
+        })
     }
 
     pub fn get_typical_bmi_extension(&self) -> &str {
@@ -92,6 +111,14 @@ impl CppCompiler {
     }
 
     #[inline(always)]
+    pub fn obj_file_extension(&self) -> Cow<'_, str> {
+        Cow::Borrowed(match *self {
+            CppCompiler::CLANG | CppCompiler::GCC => "o",
+            CppCompiler::MSVC => "obj",
+        })
+    }
+
+    #[inline(always)]
     pub fn get_obj_file_extension(&self) -> &str {
         match *self {
             CppCompiler::CLANG | CppCompiler::GCC => "o",
@@ -100,9 +127,10 @@ impl CppCompiler {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum LanguageLevel {
     CPP20,
+    #[default]
     CPP23,
     CPP2A,
     CPP2B,
@@ -127,10 +155,20 @@ impl AsRef<str> for LanguageLevel {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub enum StdLib {
     STDLIBCPP,
+    #[default]
     LIBCPP,
+}
+
+impl StdLib {
+    pub fn as_arg(&self) -> Argument {
+        Argument::from(match *self {
+            StdLib::STDLIBCPP => "-stdlib=libstdc++",
+            StdLib::LIBCPP => "-stdlib=libc++",
+        })
+    }
 }
 
 impl fmt::Display for StdLib {
