@@ -115,11 +115,11 @@ impl<'a> ZorkCache<'a> {
             .find(|mi| module_impl_model.file() == (*mi).path())
     }
 
-    // pub fn get_source_cmd(&self, module_impl_model: &Source) -> Option<&SourceCommandLine>{
-    //     self.generated_commands.implementations.iter().find(|mi|
-    //         module_impl_model.file() == (*mi).path()
-    //     )
-    // }
+    pub fn get_source_cmd<T: TranslationUnit>(&mut self, module_impl_model: &T) -> Option<&mut SourceCommandLine>{
+        self.generated_commands.sources.iter_mut().find(|mi|
+            module_impl_model.file() == (*mi).path()
+        )
+    }
 
     /// Returns a [`Option`] of [`CommandDetails`] if the file is persisted already in the cache
     pub fn is_file_cached(&self, _path: impl AsRef<Path>) -> Option<&CommandDetail> {
@@ -234,7 +234,7 @@ impl<'a> ZorkCache<'a> {
         None
     }
 
-    fn _normalize_execution_result_status(
+    fn normalize_execution_result_status(
         // TODO: pending to re-implement it
         // ALe, don't read again this. We just need to fix the implementation when the commands
         // are generated, or even better, bring them from the cache

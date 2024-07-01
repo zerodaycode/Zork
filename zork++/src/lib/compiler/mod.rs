@@ -105,17 +105,29 @@ fn build_executable(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -
 
 fn build_sources(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> Result<()> {
     log::info!("Generating the commands for the source files...");
-    let srcs = if tests {
-        &model.tests.sourceset.sources
+    let (srcs, target_kind) = if tests {
+        (&model.tests.sourceset.sources, &model.tests as &dyn ExecutableTarget)
     } else {
-        &model.executable.sourceset.sources
+        (&model.executable.sourceset.sources, &model.executable as &dyn ExecutableTarget)
     };
 
-    srcs.iter().for_each(|src| {
-        // TODO: yet unchanged, we need to replicate the idea on main
-        if !flag_source_file_without_changes(&model.compiler.cpp_compiler, cache, &src.file()) {
-            sources::generate_sources_arguments(model, cache, &model.tests, src);
-        }
+    let compiler = cache.compiler;
+    let lpe = cache.last_program_execution;
+
+    srcs.iter().for_each(|source| {
+        if let Some(generated_cmd) = cache.get_source_cmd(source) {
+            let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_rebuilt(compiler, &lpe, generated_cmd, &source.file());
+            log::trace!("Source file: {:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &source.file());
+
+            if !translation_unit_must_be_rebuilt {
+                log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &source.file());
+            }
+            generated_cmd.need_to_build = translation_unit_must_be_rebuilt;
+        } else {
+            sources::generate_sources_arguments(model, cache, target_kind, source) // TODO: wtf is
+                                                                                    // the
+                                                                                    // model.tests??
+        };
     });
 
     Ok(())
@@ -152,9 +164,10 @@ fn process_module_interfaces<'a>(
 ) {
     // let c: Vec<&dyn TranslationUnit> = interfaces.iter().map(|mi| mi as &dyn TranslationUnit).collect();
     // let d = c.iter().map(|tu| tu as &dyn ModuleInterfaceModel).collect(); // downcast, as isn't usable for non primitives
+    let compiler = cache.compiler;
     let lpe = cache.last_program_execution;
+
     interfaces.iter().for_each(|module_interface| {
-        let compiler = cache.compiler;
         if let Some(generated_cmd) = cache.get_module_ifc_cmd(module_interface) {
             let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_rebuilt(compiler, &lpe, generated_cmd, &module_interface.file());
             log::trace!("Source file: {:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &module_interface.file());
@@ -175,9 +188,10 @@ fn process_module_implementations<'a>(
     cache: &mut ZorkCache,
     impls: &'a [ModuleImplementationModel],
 ) {
+    let compiler = cache.compiler;
     let lpe = cache.last_program_execution; // TODO: check for an Rc< or other solution, but closure below requires unique access
+
     impls.iter().for_each(|module_impl| {
-        let compiler = cache.compiler;
         if let Some(generated_cmd) = cache.get_module_impl_cmd(module_impl) {
             let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_rebuilt(compiler, &lpe, generated_cmd, &module_impl.file());
             log::trace!("Source file: {:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &module_impl.file());
@@ -322,7 +336,7 @@ mod sources {
     pub fn generate_sources_arguments<'a>(
         model: &'a ZorkModel,
         cache: &mut ZorkCache,
-        target: &'a impl ExecutableTarget<'a>,
+        target: &'a (impl ExecutableTarget<'a> + ?Sized),
         source: &'a SourceFile,
     ) {
         let compiler = model.compiler.cpp_compiler;
