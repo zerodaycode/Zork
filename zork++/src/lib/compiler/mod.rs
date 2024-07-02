@@ -11,7 +11,6 @@ use std::path::Path;
 use crate::bounds::{ExecutableTarget, ExtraArgs, TranslationUnit};
 use crate::cli::output::arguments::{clang_args, msvc_args, Arguments};
 use crate::cli::output::commands::SourceCommandLine;
-use crate::compiler::helpers::flag_source_file_without_changes;
 use crate::project_model::compiler::StdLibMode;
 use crate::utils::constants;
 use crate::{
@@ -37,11 +36,11 @@ pub fn generate_commands<'a>(
     // They should only be generated the first time or on every cache reset
     cache.generated_commands.general_args = CommonArgs::from(model);
     cache.generated_commands.compiler_common_args =
-        data_factory::compiler_common_arguments_factory(model);
+        data_factory::compiler_common_arguments_factory(model, cache);
 
     // TODO: add them to the commands DS, so they are together until they're generated
     // Build the std library as a module
-    build_modular_stdlib(model, cache); // TODO: ward it with an if for only call this fn for the
+    generate_modular_stdlibs_cmds(model, cache); // TODO: ward it with an if for only call this fn for the
 
     // 1st - Build the modules
     if let Some(modules) = &model.modules {
@@ -61,9 +60,9 @@ pub fn generate_commands<'a>(
     Ok(())
 }
 
-/// Builds the C++ standard library as a pre-step acording to the specification
+/// Generates the cmds for build the C++ standard libraries (std and std.compat) acording to the specification
 /// of each compiler vendor
-fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
+fn generate_modular_stdlibs_cmds(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
     let compiler = model.compiler.cpp_compiler;
 
     // TODO: remaining ones: Clang, GCC
@@ -72,17 +71,14 @@ fn build_modular_stdlib(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
         let built_stdlib_path = &cache.compilers_metadata.msvc.stdlib_bmi_path;
 
         if !built_stdlib_path.exists() {
-            log::info!(
-                "Building the {:?} C++ standard library implementation",
-                compiler
-            );
+            log::info!("Generating the command for build the {:?} C++ standard library implementation", compiler);
             let cpp_stdlib = msvc_args::generate_std_cmd(model, cache, StdLibMode::Cpp);
             cache.generated_commands.cpp_stdlib = Some(cpp_stdlib);
         }
 
         let built_stdlib_compat_path = &cache.compilers_metadata.msvc.c_stdlib_bmi_path;
         if !built_stdlib_compat_path.exists() {
-            log::info!("Building the {:?} C compat CPP std lib", compiler);
+            log::info!("Generating the command for build the {:?} C compat C++ standard library", compiler);
             let c_compat = msvc_args::generate_std_cmd(model, cache, StdLibMode::CCompat);
             cache.generated_commands.c_compat_stdlib = Some(c_compat);
         }
@@ -106,9 +102,15 @@ fn build_executable(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -
 fn build_sources(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> Result<()> {
     log::info!("Generating the commands for the source files...");
     let (srcs, target_kind) = if tests {
-        (&model.tests.sourceset.sources, &model.tests as &dyn ExecutableTarget)
+        (
+            &model.tests.sourceset.sources,
+            &model.tests as &dyn ExecutableTarget,
+        )
     } else {
-        (&model.executable.sourceset.sources, &model.executable as &dyn ExecutableTarget)
+        (
+            &model.executable.sourceset.sources,
+            &model.executable as &dyn ExecutableTarget,
+        )
     };
 
     let compiler = cache.compiler;
@@ -116,7 +118,7 @@ fn build_sources(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> R
 
     srcs.iter().for_each(|source| {
         if let Some(generated_cmd) = cache.get_source_cmd(source) {
-            let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_rebuilt(compiler, &lpe, generated_cmd, &source.file());
+            let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_built(compiler, &lpe, generated_cmd, &source.file());
             log::trace!("Source file: {:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &source.file());
 
             if !translation_unit_must_be_rebuilt {
@@ -169,11 +171,13 @@ fn process_module_interfaces<'a>(
 
     interfaces.iter().for_each(|module_interface| {
         if let Some(generated_cmd) = cache.get_module_ifc_cmd(module_interface) {
-            let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_rebuilt(compiler, &lpe, generated_cmd, &module_interface.file());
+            let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_built(compiler, &lpe, generated_cmd, &module_interface.file());
             log::trace!("Source file: {:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &module_interface.file());
 
             if !translation_unit_must_be_rebuilt {
                 log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
+                // TODO: here is where we should use the normalize_execution_result_status
+                // function, to mark executions as cached (when tu musn't be rebuilt)
             }
             generated_cmd.need_to_build = translation_unit_must_be_rebuilt;
         } else {
@@ -193,7 +197,7 @@ fn process_module_implementations<'a>(
 
     impls.iter().for_each(|module_impl| {
         if let Some(generated_cmd) = cache.get_module_impl_cmd(module_impl) {
-            let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_rebuilt(compiler, &lpe, generated_cmd, &module_impl.file());
+            let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_built(compiler, &lpe, generated_cmd, &module_impl.file());
             log::trace!("Source file: {:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &module_impl.file());
 
             if !translation_unit_must_be_rebuilt {
@@ -219,8 +223,8 @@ pub fn generate_main_command_line_args<'a>(
     let executable_name = target.name();
 
     let mut arguments = Arguments::default();
-    arguments.push(model.compiler.language_level_arg());
-    arguments.extend_from_slice(model.compiler.extra_args());
+    /* arguments.push(model.compiler.language_level_arg());
+    arguments.extend_from_slice(model.compiler.extra_args()); */
     arguments.extend_from_slice(target.extra_args());
 
     match compiler {
@@ -288,24 +292,7 @@ pub fn generate_main_command_line_args<'a>(
         }
     };
 
-    arguments.extend(
-        cache
-            .generated_commands
-            .linker
-            .built_files
-            .iter()
-            .map(Argument::from),
-    ); // TODO can't we avoid this, and just add the pathbufs?
-
     cache.generated_commands.linker.args.extend(arguments);
-    cache.generated_commands.linker.built_files = target // TODO: built_files means raw cpp sources
-        // TODO: add a custom collector on the mod sources
-        // TODO: just name the field 'sources'
-        .sourceset()
-        .sources
-        .iter()
-        .map(|s| s.file())
-        .collect::<Vec<_>>();
 
     Ok(())
 }
@@ -415,9 +402,7 @@ mod sources {
         let compiler = model.compiler.cpp_compiler;
         let out_dir: &Path = model.build.output_dir.as_ref();
 
-        let mut arguments = Arguments::default(); // TODO: provisional while we're implementing the Flyweights
-        /* arguments.push(model.compiler.language_level_arg());
-        arguments.extend_from_slice(model.compiler.extra_args()); */
+        let mut arguments = Arguments::default();
 
         match compiler {
             CppCompiler::CLANG => {
@@ -443,26 +428,10 @@ mod sources {
                 arguments.create_and_push(interface.file());
             }
             CppCompiler::MSVC => {
-                arguments.create_and_push("/EHsc");
-                arguments.create_and_push("/nologo");
-                arguments.create_and_push("/c");
-
-                arguments.create_and_push("/reference");
-                arguments.create_and_push(format! {
-                    "std={}", cache.compilers_metadata.msvc.stdlib_bmi_path.display()
-                });
-                arguments.create_and_push("/reference");
-                arguments.create_and_push(format! {
-                    "std.compat={}", cache.compilers_metadata.msvc.c_stdlib_bmi_path.display()
-                });
                 let implicit_lookup_mius_path = out_dir
                     .join(compiler.as_ref())
                     .join("modules")
-                    .join("interfaces")
-                    .display()
-                    .to_string(); // TODO Can we avoid this conversions?
-                arguments.create_and_push("/ifcSearchDir");
-                arguments.create_and_push(implicit_lookup_mius_path.clone());
+                    .join("interfaces");
                 arguments.create_and_push("/ifcOutput");
                 arguments.create_and_push(implicit_lookup_mius_path);
 
@@ -488,9 +457,9 @@ mod sources {
             }
             CppCompiler::GCC => {
                 arguments.create_and_push("-fmodules-ts");
+                arguments.create_and_push("-c");
                 arguments.create_and_push("-x");
                 arguments.create_and_push("c++");
-                arguments.create_and_push("-c");
                 // The input file
                 arguments.create_and_push(interface.file());
                 // The output file
@@ -517,7 +486,6 @@ mod sources {
         let out_dir = model.build.output_dir.as_ref();
 
         let mut arguments = Arguments::default();
-        arguments.push(model.compiler.language_level_arg());
         arguments.extend_from_slice(model.compiler.extra_args());
 
         match compiler {
@@ -551,24 +519,6 @@ mod sources {
                 arguments.create_and_push(implementation.file())
             }
             CppCompiler::MSVC => {
-                arguments.create_and_push("/EHsc");
-                arguments.create_and_push("/nologo");
-                arguments.create_and_push("/c");
-                arguments.create_and_push("/reference");
-                arguments.create_and_push(format! {
-                    "std={}", cache.compilers_metadata.msvc.stdlib_bmi_path.display()
-                });
-                arguments.create_and_push("/reference");
-                arguments.create_and_push(format! {
-                    "std.compat={}", cache.compilers_metadata.msvc.c_stdlib_bmi_path.display()
-                });
-                arguments.create_and_push("/ifcSearchDir");
-                arguments.create_and_push(
-                    out_dir
-                        .join(compiler.as_ref())
-                        .join("modules")
-                        .join("interfaces"),
-                );
                 // The input file
                 arguments.create_and_push(implementation.file());
                 // The output .obj file
@@ -585,8 +535,6 @@ mod sources {
                 arguments.create_and_push(format!("/Fo{}", obj_file_path.display()));
             }
             CppCompiler::GCC => {
-                arguments.create_and_push("-fmodules-ts");
-                arguments.create_and_push("-c");
                 // The input file
                 arguments.create_and_push(implementation.file());
                 // The output file
@@ -757,62 +705,10 @@ mod helpers {
         }
     }
 
-    /// Marks the given source file as already processed,
-    /// or if it should be reprocessed again due to a previous failure status,
-    /// to avoid losing time rebuilding it if the translation unit
-    /// hasn't been modified since the last build process iteration.
-    ///
-    /// True means 'already processed with previous iteration: Success' and stored on the cache
-    pub(crate) fn flag_source_file_without_changes(
-        // TODO: kind of `look_for_tu_on_cache_or_generate_command
-        compiler: &CppCompiler,
-        cache: &ZorkCache,
-        file: &Path,
-    ) -> bool {
-        // TODO: it should return an Optional with the SourceCommandLine from the cache if its already there
-        if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
-            // TODO: Review this
-            // with the new Clang
-            // versions
-            log::trace!("Module unit {file:?} will be rebuilt since we've detected that you are using Clang in Windows");
-            return false;
-        }
-        // Check first if the file is already on the cache, and if it's last iteration was successful
-        if let Some(cached_compiled_file) = cache.is_file_cached(file) {
-            let execution_result = cached_compiled_file.execution_result();
-            if execution_result != CommandExecutionResult::Success
-                && execution_result != CommandExecutionResult::Cached
-            {
-                log::trace!(
-                    "File {file:?} with status: {:?}. Marked to reprocess",
-                    execution_result
-                );
-                return false;
-            };
-
-            // If exists and was successful, let's see if has been modified after the program last iteration
-            let last_process_timestamp = cache.last_program_execution;
-            let file_metadata = file.metadata();
-            match file_metadata {
-                Ok(m) => match m.modified() {
-                    Ok(modified) => DateTime::<Utc>::from(modified) < last_process_timestamp,
-                    Err(e) => {
-                        log::error!("An error happened trying to get the last time that the {file:?} was modified. Processing it anyway because {e:?}");
-                        false
-                    }
-                },
-                Err(e) => {
-                    log::error!("An error happened trying to retrieve the metadata of {file:?}. Processing it anyway because {e:?}");
-                    false
-                }
-            }
-        } else {
-            false
-        }
-    }
-
-    /// TODO
-    pub(crate) fn translation_unit_must_be_rebuilt(
+    /// Checks if some user declared [TranslationUnit] must be built (for example, on the first
+    /// iteration it will always be the case), or if the file didn't had changes since the last
+    /// Zork++ run and therefore, we can avoid rebuilt it
+    pub(crate) fn translation_unit_must_be_built(
         // TODO: separation of concerns? Please
         // Just make two fns, the one that checks for the status and the one that checks for modifications
         // then just use a template-factory design pattern by just abstracting away the two checks in one call

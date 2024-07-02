@@ -115,10 +115,14 @@ impl<'a> ZorkCache<'a> {
             .find(|mi| module_impl_model.file() == (*mi).path())
     }
 
-    pub fn get_source_cmd<T: TranslationUnit>(&mut self, module_impl_model: &T) -> Option<&mut SourceCommandLine>{
-        self.generated_commands.sources.iter_mut().find(|mi|
-            module_impl_model.file() == (*mi).path()
-        )
+    pub fn get_source_cmd<T: TranslationUnit>(
+        &mut self,
+        module_impl_model: &T,
+    ) -> Option<&mut SourceCommandLine> {
+        self.generated_commands
+            .sources
+            .iter_mut()
+            .find(|mi| module_impl_model.file() == (*mi).path())
     }
 
     /// Returns a [`Option`] of [`CommandDetails`] if the file is persisted already in the cache

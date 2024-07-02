@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     bounds::ExtraArgs,
+    cache::ZorkCache,
     cli::output::arguments::{clang_args, Argument, Arguments},
     project_model::compiler::{CppCompiler, StdLib},
     project_model::ZorkModel,
@@ -58,11 +59,13 @@ impl IntoIterator for CommonArgs {
 /// command line for every translation unit, regardeless the underlying choosen compiler
 pub fn compiler_common_arguments_factory(
     model: &ZorkModel<'_>,
+    cache: &ZorkCache<'_>,
 ) -> Box<dyn CompilerCommonArguments> {
-    // TODO: consider having a union (enum) instead of a fat ptr
+    // TODO: consider having a union (enum) instead of a fat ptr, so we can serialize the data
+    // and introduce a lifetime on the Argument type to use Cow instead of String
     match model.compiler.cpp_compiler {
         CppCompiler::CLANG => Box::new(ClangCommonArgs::new(model)),
-        CppCompiler::MSVC => Box::new(MsvcCommonArgs::new()),
+        CppCompiler::MSVC => Box::new(MsvcCommonArgs::new(model, cache)),
         CppCompiler::GCC => Box::new(GccCommonArgs::new()),
     }
 }
@@ -101,13 +104,32 @@ impl CompilerCommonArguments for ClangCommonArgs {
 #[typetag::serde]
 impl CompilerCommonArguments for MsvcCommonArgs {
     fn get_args(&self) -> Arguments {
-        Arguments::default()
+        let mut args = Arguments::default();
+        args.create_and_push(&self.exception_handling_model);
+        args.create_and_push(&self.no_logo);
+        args.create_and_push(&self.no_compile);
+
+        args.create_and_push(&self.ifc_search_dir);
+        args.create_and_push(&*self.ifc_search_dir_value);
+
+        args.create_and_push("/reference");
+        args.create_and_push(format! {
+            "std={}", self.stdlib_ref_path.display()
+        });
+        args.create_and_push("/reference");
+        args.create_and_push(format! {
+            "std.compat={}", self.c_compat_stdlib_ref_path.display()
+        });
+        args
     }
 }
 #[typetag::serde]
 impl CompilerCommonArguments for GccCommonArgs {
     fn get_args(&self) -> Arguments {
-        Arguments::default()
+        let mut args = Arguments::default();
+        args.create_and_push("-fmodules-ts");
+        args.create_and_push("-c");
+        args
     }
 }
 
@@ -140,27 +162,49 @@ impl ClangCommonArgs {
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct MsvcCommonArgs {
     exception_handling_model: Cow<'static, str>,
-    /* no_logo: &'a str,
-    no_compile: &'a str, // TODO: should be in the general and pass in the model? */
-    // ref_stdlib: &'static str, // TODO: this are tecnically two args, /reference and the value
-    // ref_stdlib_compat: &'static str, // TODO: this are tecnically two args, /reference and the value
-    // TODO: split the dual cases per switches
-    // TODO: can we have switches like tuples? like switch-value pairs?
+    no_logo: Cow<'static, str>,
+    no_compile: Cow<'static, str>,
+    reference: Cow<'static, str>,
+    ifc_search_dir: Cow<'static, str>,
+    ifc_search_dir_value: Cow<'static, Path>,
+    stdlib_ref_path: Cow<'static, Path>,
+    c_compat_stdlib_ref_path: Cow<'static, Path>,
 }
 impl MsvcCommonArgs {
-    pub fn new() -> Self {
+    pub fn new(model: &ZorkModel<'_>, cache: &ZorkCache<'_>) -> Self {
+        let out_dir: &Path = model.build.output_dir.as_ref();
+
         Self {
             exception_handling_model: Cow::Borrowed("/EHsc"),
-            /* no_logo: "nologo",
-            no_compile: "/c", */
+            no_logo: Cow::Borrowed("/nologo"),
+            no_compile: Cow::Borrowed("/c"),
+            reference: Cow::Borrowed("/reference"),
+
+            ifc_search_dir: Cow::Borrowed("/ifcSearchDir"),
+            ifc_search_dir_value: Cow::Owned(
+                out_dir
+                    .join(model.compiler.cpp_compiler.as_ref())
+                    .join("modules")
+                    .join("interfaces"),
+            ),
+            stdlib_ref_path: Cow::Owned(cache.compilers_metadata.msvc.stdlib_bmi_path.clone()),
+            c_compat_stdlib_ref_path: Cow::Owned(
+                cache.compilers_metadata.msvc.c_stdlib_bmi_path.clone(),
+            ),
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
-pub struct GccCommonArgs {}
+pub struct GccCommonArgs {
+    compile_but_dont_link: Cow<'static, str>,
+    modules_ts: Cow<'static, str>,
+}
 impl GccCommonArgs {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            compile_but_dont_link: Cow::Borrowed("-c"),
+            modules_ts: Cow::Borrowed("-fmodules-ts"),
+        }
     }
 }

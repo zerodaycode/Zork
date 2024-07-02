@@ -53,7 +53,7 @@ pub fn run_generated_commands(
         .collect::<Vec<&mut SourceCommandLine>>();
 
     for translation_unit_cmd in translation_units {
-        // Join the concrete args of any translation unit with the general flyweights
+        // Join the concrete args of any translation unit with the ones held in the flyweights
         let translation_unit_cmd_args: Arguments = general_args
             .iter()
             .chain(compiler_specific_shared_args.iter())
@@ -75,13 +75,17 @@ pub fn run_generated_commands(
     }
 
     if !cache.generated_commands.linker.args.is_empty() {
-        // TODO: consider to join this into the
-        // all args iterator
         log::debug!("Processing the linker command line...");
+        let linker_cmdline_args = general_args
+            .iter()
+            .chain(compiler_specific_shared_args.iter())
+            .chain(cache.generated_commands.linker.args.iter())
+            .collect::<Arguments>(); // TODO: can we avoid clone and own all the args? just use the
+                                     // .iter() as a view?
 
         let r = execute_command(
             program_data,
-            &cache.generated_commands.linker.args,
+            &linker_cmdline_args,
             &env_args,
         );
         cache.generated_commands.linker.execution_result = CommandExecutionResult::from(&r);
@@ -96,6 +100,7 @@ pub fn run_generated_commands(
     }
 
     Ok(CommandExecutionResult::Success) // TODO: consider a new variant, like AllSuccedeed
+                                        // or better, change the return for something better
 }
 
 /// Executes a new [`std::process::Command`] to run the generated binary
@@ -132,7 +137,6 @@ pub fn autorun_generated_binary(
 fn execute_command<T, S>(
     model: &ZorkModel,
     arguments: T,
-    // cache: &ZorkCache,
     env_vars: &EnvVars,
 ) -> Result<ExitStatus, Report>
 where
@@ -155,7 +159,6 @@ where
         .with_context(|| format!("[{compiler}] - Command {arguments} failed!"))
 }
 
-/// The pieces and details for the generated command line
 /// for some translation unit
 ///
 /// * args* : member that holds all the cmd arguments that will be passed to the compiler driver
@@ -224,12 +227,14 @@ impl LinkerCommandLine {
     /// in order to add it to the files that will be linked to generate the final product
     /// in the two-phase compilation model
     pub fn add_buildable_at(&mut self, path: &Path) {
-        self.built_files.push(path.to_path_buf());
+        self.args.push(Argument::from(path));
     }
+
+    // TODO: just maybe a Cow for everyone?
 
     /// Owned version of TODO link
     pub fn add_owned_buildable_at(&mut self, path: PathBuf) {
-        self.built_files.push(path);
+        self.args.push(path.into());
     }
 }
 

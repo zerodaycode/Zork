@@ -186,11 +186,6 @@ impl IntoIterator for &Arguments {
         self.0.clone().into_iter()
     }
 }
-/* impl FromIterator<Vec<&Argument>> for Arguments {
-    fn from_iter<T: IntoIterator<Item = T>>(iter: T) -> Self {
-        todo!()
-    }
-} */
 
 impl FromIterator<Argument> for Arguments {
     fn from_iter<I: IntoIterator<Item = Argument>>(iter: I) -> Self {
@@ -199,6 +194,16 @@ impl FromIterator<Argument> for Arguments {
             vec.push(item);
         }
         Arguments(vec)
+    }
+}
+
+impl FromIterator<Argument> for &Arguments {
+    fn from_iter<I: IntoIterator<Item = Argument>>(iter: I) -> Self {
+        let mut vec = Vec::new();
+        for item in iter {
+            vec.push(item);
+        }
+        &Arguments(vec)
     }
 }
 
