@@ -8,9 +8,9 @@ pub mod data_factory;
 use color_eyre::Result;
 use std::path::Path;
 
-use crate::bounds::{ExecutableTarget, ExtraArgs, TranslationUnit};
+use crate::bounds::{ExecutableTarget, TranslationUnit};
 use crate::cli::output::arguments::{clang_args, msvc_args, Arguments};
-use crate::cli::output::commands::SourceCommandLine;
+use crate::cli::output::commands::{CommandExecutionResult, SourceCommandLine};
 use crate::project_model::compiler::StdLibMode;
 use crate::utils::constants;
 use crate::{
@@ -53,9 +53,9 @@ pub fn generate_commands<'a>(
         process_modules(model, cache)?;
     };
     // 2nd - Generate the commands for the non-module sources
-    build_sources(model, cache, tests)?;
-    // 3rd - Build the executable or the tests // TODO: commentary and fn name
-    build_executable(model, cache, tests)?;
+    generate_sources_cmds_args(model, cache, tests)?;
+    // 3rd - Genates the commands for the 'targets' declared by the user
+    generate_linkage_targets_commands(model, cache, tests)?;
 
     Ok(())
 }
@@ -64,42 +64,92 @@ pub fn generate_commands<'a>(
 /// of each compiler vendor
 fn generate_modular_stdlibs_cmds(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
     let compiler = model.compiler.cpp_compiler;
+    let lpe = cache.last_program_execution;
 
     // TODO: remaining ones: Clang, GCC
-    // TODO: try to abstract the procedures into just one entity
     if compiler.eq(&CppCompiler::MSVC) {
-        let built_stdlib_path = &cache.compilers_metadata.msvc.stdlib_bmi_path;
+        let vs_stdlib_path = &cache
+            .compilers_metadata
+            .msvc
+            .vs_stdlib_path
+            .as_ref()
+            .unwrap()
+            .path();
+        if let Some(cpp_stdlib_cmd) = cache.generated_commands.cpp_stdlib.as_mut() {
+            let build_std = helpers::translation_unit_must_be_built(
+                compiler,
+                &lpe,
+                cpp_stdlib_cmd,
+                vs_stdlib_path,
+            );
 
-        if !built_stdlib_path.exists() {
-            log::info!("Generating the command for build the {:?} C++ standard library implementation", compiler);
+            cpp_stdlib_cmd.need_to_build = build_std;
+            if !build_std && !cpp_stdlib_cmd.execution_result.eq(&CommandExecutionResult::Cached) {
+                cpp_stdlib_cmd.execution_result = CommandExecutionResult::Cached;
+            } else {
+                cpp_stdlib_cmd.execution_result = CommandExecutionResult::PendingToBuild;
+            }
+        } else {
+            log::info!(
+                "Generating the command for build the {:?} C++ standard library implementation",
+                compiler
+            );
             let cpp_stdlib = msvc_args::generate_std_cmd(model, cache, StdLibMode::Cpp);
             cache.generated_commands.cpp_stdlib = Some(cpp_stdlib);
         }
 
-        let built_stdlib_compat_path = &cache.compilers_metadata.msvc.c_stdlib_bmi_path;
-        if !built_stdlib_compat_path.exists() {
-            log::info!("Generating the command for build the {:?} C compat C++ standard library", compiler);
-            let c_compat = msvc_args::generate_std_cmd(model, cache, StdLibMode::CCompat);
-            cache.generated_commands.c_compat_stdlib = Some(c_compat);
+        let vs_ccompat_stdlib_path = &cache
+            .compilers_metadata
+            .msvc
+            .vs_c_stdlib_path
+            .as_ref()
+            .unwrap()
+            .path();
+        if let Some(ccompat_stdlib_cmd) = cache.generated_commands.c_compat_stdlib.as_mut() {
+            let build_ccompat = helpers::translation_unit_must_be_built(
+                compiler,
+                &lpe,
+                ccompat_stdlib_cmd,
+                vs_ccompat_stdlib_path,
+            );
+
+            ccompat_stdlib_cmd.need_to_build = build_ccompat;
+            if !build_ccompat && !ccompat_stdlib_cmd.execution_result.eq(&CommandExecutionResult::Cached) {
+                ccompat_stdlib_cmd.execution_result = CommandExecutionResult::Cached;
+            } else {
+                ccompat_stdlib_cmd.execution_result = CommandExecutionResult::PendingToBuild;
+            }
+        } else {
+            log::info!(
+                "Generating the command for build the {:?} C++ standard library implementation",
+                compiler
+            );
+            let ccompat_stdlib = msvc_args::generate_std_cmd(model, cache, StdLibMode::CCompat);
+            cache.generated_commands.c_compat_stdlib = Some(ccompat_stdlib);
         }
     }
 }
 
-/// Triggers the build process for compile the source files declared for the project
+/// Generates the command line that will be passed to the linker to generate an [`ExecutableTarget`]
+///
+/// Legacy:
 /// If this flow is enabled by the Cli arg `Tests`, then the executable will be generated
 /// for the files and properties declared for the tests section in the configuration file
-fn build_executable(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> Result<()> {
+fn generate_linkage_targets_commands(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> Result<()> {
     // TODO: Check if the command line is the same as the previous? If there's no new sources?
     // And avoid re-executing?
-    // TODO refactor this code, just having the if-else branch inside the fn
+    // TODO: refactor this code, just having the if-else branch inside the fn
+    // Also, shouldn't we start to think about named targets? So introduce the static and dynamic
+    // libraries wouldn't be such a pain?
     if tests {
-        generate_main_command_line_args(model, cache, &model.tests)
+        generate_linker_command_line_args(model, cache, &model.tests) // TODO: shouldn't tests be
+                                                                      // just a target?
     } else {
-        generate_main_command_line_args(model, cache, &model.executable)
+        generate_linker_command_line_args(model, cache, &model.executable)
     }
 }
 
-fn build_sources(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> Result<()> {
+fn generate_sources_cmds_args(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> Result<()> {
     log::info!("Generating the commands for the source files...");
     let (srcs, target_kind) = if tests {
         (
@@ -119,7 +169,6 @@ fn build_sources(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> R
     srcs.iter().for_each(|source| {
         if let Some(generated_cmd) = cache.get_source_cmd(source) {
             let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_built(compiler, &lpe, generated_cmd, &source.file());
-            log::trace!("Source file: {:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &source.file());
 
             if !translation_unit_must_be_rebuilt {
                 log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &source.file());
@@ -172,7 +221,6 @@ fn process_module_interfaces<'a>(
     interfaces.iter().for_each(|module_interface| {
         if let Some(generated_cmd) = cache.get_module_ifc_cmd(module_interface) {
             let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_built(compiler, &lpe, generated_cmd, &module_interface.file());
-            log::trace!("Source file: {:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &module_interface.file());
 
             if !translation_unit_must_be_rebuilt {
                 log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
@@ -198,7 +246,6 @@ fn process_module_implementations<'a>(
     impls.iter().for_each(|module_impl| {
         if let Some(generated_cmd) = cache.get_module_impl_cmd(module_impl) {
             let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_built(compiler, &lpe, generated_cmd, &module_impl.file());
-            log::trace!("Source file: {:?} must be rebuilt: {translation_unit_must_be_rebuilt}", &module_impl.file());
 
             if !translation_unit_must_be_rebuilt {
                 log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
@@ -211,20 +258,18 @@ fn process_module_implementations<'a>(
 }
 
 /// Generates the command line arguments for the desired target
-pub fn generate_main_command_line_args<'a>(
+pub fn generate_linker_command_line_args<'a>(
     model: &'a ZorkModel,
     cache: &mut ZorkCache,
     target: &'a impl ExecutableTarget<'a>,
 ) -> Result<()> {
-    log::info!("Generating the main command line...");
+    log::info!("Generating the linker command line...");
 
     let compiler = &model.compiler.cpp_compiler;
     let out_dir: &Path = model.build.output_dir.as_ref();
     let executable_name = target.name();
 
     let mut arguments = Arguments::default();
-    /* arguments.push(model.compiler.language_level_arg());
-    arguments.extend_from_slice(model.compiler.extra_args()); */
     arguments.extend_from_slice(target.extra_args());
 
     match compiler {
@@ -274,9 +319,6 @@ pub fn generate_main_command_line_args<'a>(
                     .with_extension(constants::BINARY_EXTENSION)
                     .display()
             ));
-            // Add the .obj file of the modular stdlib to the linker command
-            arguments.create_and_push(&cache.compilers_metadata.msvc.stdlib_obj_path);
-            arguments.create_and_push(&cache.compilers_metadata.msvc.c_stdlib_obj_path);
         }
         CppCompiler::GCC => {
             arguments.create_and_push("-fmodules-ts");
@@ -308,10 +350,7 @@ mod sources {
     use crate::project_model::sourceset::SourceFile;
     use crate::{
         bounds::{ExecutableTarget, TranslationUnit},
-        cli::output::{
-            arguments::clang_args,
-            commands::{CommandExecutionResult, SourceCommandLine},
-        },
+        cli::output::{arguments::clang_args, commands::SourceCommandLine},
         project_model::{
             compiler::CppCompiler,
             modules::{ModuleImplementationModel, ModuleInterfaceModel},
@@ -381,12 +420,7 @@ mod sources {
         arguments.create_and_push(format!("{fo}{}", obj_file.display()));
         arguments.create_and_push(source.file());
 
-        let command_line = SourceCommandLine::from_translation_unit(
-            source,
-            arguments,
-            false,
-            CommandExecutionResult::default(),
-        );
+        let command_line = SourceCommandLine::new(source, arguments);
         cache.generated_commands.sources.push(command_line);
         cache
             .generated_commands
@@ -472,7 +506,7 @@ mod sources {
             }
         }
 
-        let cmd_line = SourceCommandLine::for_translation_unit(interface, arguments);
+        let cmd_line = SourceCommandLine::new(interface, arguments);
         cache.generated_commands.interfaces.push(cmd_line);
     }
 
@@ -548,7 +582,7 @@ mod sources {
             }
         }
 
-        let cmd = SourceCommandLine::for_translation_unit(implementation, arguments);
+        let cmd = SourceCommandLine::new(implementation, arguments);
         cache.generated_commands.implementations.push(cmd);
     }
 }

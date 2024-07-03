@@ -197,16 +197,6 @@ impl FromIterator<Argument> for Arguments {
     }
 }
 
-impl FromIterator<Argument> for &Arguments {
-    fn from_iter<I: IntoIterator<Item = Argument>>(iter: I) -> Self {
-        let mut vec = Vec::new();
-        for item in iter {
-            vec.push(item);
-        }
-        &Arguments(vec)
-    }
-}
-
 impl<'a> FromIterator<&'a Argument> for Arguments {
     fn from_iter<I: IntoIterator<Item = &'a Argument>>(iter: I) -> Arguments {
         let mut vec = Vec::new();
@@ -283,7 +273,7 @@ pub mod msvc_args {
     use crate::{
         bounds::TranslationUnit,
         cache::ZorkCache,
-        cli::output::commands::{CommandExecutionResult, SourceCommandLine},
+        cli::output::commands::SourceCommandLine,
         project_model::{compiler::StdLibMode, ZorkModel},
     };
 
@@ -311,9 +301,6 @@ pub mod msvc_args {
             )
         };
 
-        arguments.push(model.compiler.language_level_arg());
-        arguments.create_and_push("/EHsc");
-        arguments.create_and_push("/nologo");
         arguments.create_and_push("/W4");
 
         arguments.create_and_push("/reference");
@@ -331,11 +318,6 @@ pub mod msvc_args {
             "/Fo{}", stdlib_obj_path.display()
         });
 
-        SourceCommandLine::from_translation_unit(
-            stdlib_sf,
-            arguments,
-            false,
-            CommandExecutionResult::default(),
-        )
+        SourceCommandLine::new(stdlib_sf, arguments)
     }
 }

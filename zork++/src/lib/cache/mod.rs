@@ -89,12 +89,15 @@ pub struct ZorkCache<'a> {
     pub last_program_execution: DateTime<Utc>,
     pub compilers_metadata: CompilersMetadata<'a>,
     pub generated_commands: Commands,
+    // pub new_commands: bool //< if the current iteration added some new command with respect the
+    // previous one
 }
 
 impl<'a> ZorkCache<'a> {
     pub fn last_program_execution(&self) -> &DateTime<Utc> {
         &self.last_program_execution
     }
+
     pub fn get_module_ifc_cmd(
         &mut self,
         module_interface_model: &ModuleInterfaceModel,
@@ -123,22 +126,6 @@ impl<'a> ZorkCache<'a> {
             .sources
             .iter_mut()
             .find(|mi| module_impl_model.file() == (*mi).path())
-    }
-
-    /// Returns a [`Option`] of [`CommandDetails`] if the file is persisted already in the cache
-    pub fn is_file_cached(&self, _path: impl AsRef<Path>) -> Option<&CommandDetail> {
-        // let last_iteration_details = self.generated_commands.last();
-
-        // TODO: what a cost. We need to join them for every iteration and every file
-        // if let Some(last_iteration) = last_iteration_details {
-        //     return last_iteration
-        //         .interfaces
-        //         .iter()
-        //         .chain(last_iteration.implementations.iter())
-        //         .chain(last_iteration.sources.iter())
-        //         .find(|comm_det| comm_det.file_path().eq(path.as_ref()));
-        // }
-        None
     }
 
     /// The tasks associated with the cache after load it from the file system
@@ -238,7 +225,7 @@ impl<'a> ZorkCache<'a> {
         None
     }
 
-    fn normalize_execution_result_status(
+    /* fn normalize_execution_result_status(
         // TODO: pending to re-implement it
         // ALe, don't read again this. We just need to fix the implementation when the commands
         // are generated, or even better, bring them from the cache
@@ -262,7 +249,7 @@ impl<'a> ZorkCache<'a> {
         } else {
             module_command_line.execution_result
         }
-    }
+    } */
 
     /// Method that returns the HashMap that holds the environmental variables that must be passed
     /// to the underlying shell

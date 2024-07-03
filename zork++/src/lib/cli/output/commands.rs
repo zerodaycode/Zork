@@ -76,18 +76,13 @@ pub fn run_generated_commands(
 
     if !cache.generated_commands.linker.args.is_empty() {
         log::debug!("Processing the linker command line...");
-        let linker_cmdline_args = general_args
-            .iter()
-            .chain(compiler_specific_shared_args.iter())
-            .chain(cache.generated_commands.linker.args.iter())
-            .collect::<Arguments>(); // TODO: can we avoid clone and own all the args? just use the
-                                     // .iter() as a view?
 
         let r = execute_command(
             program_data,
-            &linker_cmdline_args,
+            &cache.generated_commands.linker.args,
             &env_args,
         );
+
         cache.generated_commands.linker.execution_result = CommandExecutionResult::from(&r);
 
         if let Err(e) = r {
@@ -173,28 +168,7 @@ pub struct SourceCommandLine {
 }
 
 impl SourceCommandLine {
-    pub fn from_translation_unit(
-        // TODO init it as a args holder, but doesn't have the status yet
-        tu: impl TranslationUnit,
-        args: Arguments, // TODO: maybe this should be an option? Cached arguments are passed
-        // here as default. So probably, even better than having an optional,
-        // we must replicate this to have a separate entity like
-        // CachedSourceCommandLine, and them just call them over any kind of
-        // <T> constrained over some bound that wraps the operation of
-        // distinguish between them or not
-        processed: bool,
-        execution_result: CommandExecutionResult,
-    ) -> Self {
-        Self {
-            directory: tu.path(),
-            filename: tu.file_with_extension(),
-            args,
-            need_to_build: !processed,
-            execution_result,
-        }
-    }
-
-    pub fn for_translation_unit(
+    pub fn new(
         // TODO init it as a args holder, but doesn't have the status yet
         tu: impl TranslationUnit,
         args: Arguments,
@@ -215,10 +189,7 @@ impl SourceCommandLine {
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct LinkerCommandLine {
-    // pub main: &'a Path, // TODO: can't this disappear? At the end of the day, is just another obj file
-    pub built_files: Vec<PathBuf>, // TODO: obj files?
-    pub args: Arguments, // TODO: :does the linker command line needs any different that the
-    // generals?
+    pub args: Arguments,
     pub execution_result: CommandExecutionResult,
 }
 
@@ -241,7 +212,8 @@ impl LinkerCommandLine {
 /// Holds the generated command line arguments for a concrete compiler
 #[derive(Serialize, Deserialize, Default)]
 pub struct Commands {
-    pub compiler: CppCompiler,
+    pub compiler: CppCompiler, // TODO: review if we can afford this field given the new
+    // architechture
     pub cpp_stdlib: Option<SourceCommandLine>,
     pub c_compat_stdlib: Option<SourceCommandLine>,
     pub system_modules: HashMap<String, Arguments>,
@@ -318,6 +290,8 @@ pub enum CommandExecutionResult {
     Cached,
     /// A command which is return code indicates an unsuccessful execution
     Failed,
+    /// Whenever a translation unit must be rebuilt
+    PendingToBuild,
     /// The execution failed, returning a [`Result`] with the Err variant
     Error,
     /// A previous state before executing a command line
