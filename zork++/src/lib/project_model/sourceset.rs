@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::bounds::TranslationUnit;
 use color_eyre::{eyre::Context, Result};
 use serde::{Deserialize, Serialize};
+use transient::Transient;
 
 use crate::cli::output::arguments::Argument;
 
@@ -29,14 +30,33 @@ impl File for PathBuf {
 
 // TODO: All the trait File impl as well as the trait aren't required anymore
 
-#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize, Transient)]
 pub struct SourceFile<'a> {
     pub path: PathBuf,
     pub file_stem: Cow<'a, str>,
     pub extension: Cow<'a, str>,
 }
 
-impl<'a> TranslationUnit for SourceFile<'a> {
+impl<'a> TranslationUnit<'a> for SourceFile<'a> {
+    fn file(&self) -> PathBuf {
+        let file_name = format!("{}.{}", self.file_stem, self.extension);
+        self.path().join(file_name)
+    }
+
+    fn path(&self) -> &PathBuf {
+        &self.path
+    }
+
+    fn file_stem(&self) -> &Cow<'_, str> {
+        &self.file_stem
+    }
+
+    fn extension(&self) -> &Cow<'_, str> {
+        &self.extension
+    }
+}
+
+/* impl<'a> TranslationUnit<'a> for &'a SourceFile<'a> {
     fn file(&self) -> PathBuf {
         let file_name = format!("{}.{}", self.file_stem, self.extension);
         self.path().join(file_name)
@@ -54,26 +74,7 @@ impl<'a> TranslationUnit for SourceFile<'a> {
         self.extension.clone()
     }
 }
-
-impl<'a> TranslationUnit for &'a SourceFile<'a> {
-    fn file(&self) -> PathBuf {
-        let file_name = format!("{}.{}", self.file_stem, self.extension);
-        self.path().join(file_name)
-    }
-
-    fn path(&self) -> PathBuf {
-        self.path.clone()
-    }
-
-    fn file_stem(&self) -> Cow<'_, str> {
-        self.file_stem.clone()
-    }
-
-    fn extension(&self) -> Cow<'_, str> {
-        self.extension.clone()
-    }
-}
-
+*/
 impl<'a> fmt::Display for SourceFile<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

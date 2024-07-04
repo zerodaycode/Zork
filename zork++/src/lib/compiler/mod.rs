@@ -29,35 +29,36 @@ use self::data_factory::CommonArgs;
 /// for every translation unit declared by the user for its project
 pub fn generate_commands<'a>(
     model: &'a ZorkModel<'a>,
-    cache: &mut ZorkCache,
+    mut cache: ZorkCache<'a>,
     tests: bool,
-) -> Result<()> {
+) -> Result<ZorkCache<'a>> {
     // TODO: guard it with a presence check */
     // They should only be generated the first time or on every cache reset
     cache.generated_commands.general_args = CommonArgs::from(model);
     cache.generated_commands.compiler_common_args =
-        data_factory::compiler_common_arguments_factory(model, cache);
+        data_factory::compiler_common_arguments_factory(model, &cache);
 
     // TODO: add them to the commands DS, so they are together until they're generated
     // Build the std library as a module
-    generate_modular_stdlibs_cmds(model, cache); // TODO: ward it with an if for only call this fn for the
+    generate_modular_stdlibs_cmds(model, &mut cache); // TODO: ward it with an if for only call this fn for the
 
     // 1st - Build the modules
     if let Some(modules) = &model.modules {
         // TODO: re-think again this optional
         // Pre-tasks
         if model.compiler.cpp_compiler == CppCompiler::GCC && !modules.sys_modules.is_empty() {
-            helpers::build_sys_modules(model, cache)
+            helpers::build_sys_modules(model, &mut cache)
         }
 
-        process_modules(model, cache)?;
+        process_modules(model, &mut cache)?;
     };
-    // 2nd - Generate the commands for the non-module sources
-    generate_sources_cmds_args(model, cache, tests)?;
-    // 3rd - Genates the commands for the 'targets' declared by the user
-    generate_linkage_targets_commands(model, cache, tests)?;
 
-    Ok(())
+    // 2nd - Generate the commands for the non-module sources
+    generate_sources_cmds_args(model, &mut cache, tests)?;
+    // 3rd - Genates the commands for the 'targets' declared by the user
+    generate_linkage_targets_commands(model, &mut cache, tests)?;
+
+    Ok(cache)
 }
 
 /// Generates the cmds for build the C++ standard libraries (std and std.compat) acording to the specification
@@ -84,7 +85,11 @@ fn generate_modular_stdlibs_cmds(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
             );
 
             cpp_stdlib_cmd.need_to_build = build_std;
-            if !build_std && !cpp_stdlib_cmd.execution_result.eq(&CommandExecutionResult::Cached) {
+            if !build_std
+                && !cpp_stdlib_cmd
+                    .execution_result
+                    .eq(&CommandExecutionResult::Cached)
+            {
                 cpp_stdlib_cmd.execution_result = CommandExecutionResult::Cached;
             } else {
                 cpp_stdlib_cmd.execution_result = CommandExecutionResult::PendingToBuild;
@@ -114,7 +119,11 @@ fn generate_modular_stdlibs_cmds(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
             );
 
             ccompat_stdlib_cmd.need_to_build = build_ccompat;
-            if !build_ccompat && !ccompat_stdlib_cmd.execution_result.eq(&CommandExecutionResult::Cached) {
+            if !build_ccompat
+                && !ccompat_stdlib_cmd
+                    .execution_result
+                    .eq(&CommandExecutionResult::Cached)
+            {
                 ccompat_stdlib_cmd.execution_result = CommandExecutionResult::Cached;
             } else {
                 ccompat_stdlib_cmd.execution_result = CommandExecutionResult::PendingToBuild;
@@ -135,7 +144,11 @@ fn generate_modular_stdlibs_cmds(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
 /// Legacy:
 /// If this flow is enabled by the Cli arg `Tests`, then the executable will be generated
 /// for the files and properties declared for the tests section in the configuration file
-fn generate_linkage_targets_commands(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> Result<()> {
+fn generate_linkage_targets_commands<'a>(
+    model: &'a ZorkModel<'_>,
+    cache: &'a mut ZorkCache<'_>,
+    tests: bool,
+) -> Result<()> {
     // TODO: Check if the command line is the same as the previous? If there's no new sources?
     // And avoid re-executing?
     // TODO: refactor this code, just having the if-else branch inside the fn
@@ -149,7 +162,11 @@ fn generate_linkage_targets_commands(model: &ZorkModel<'_>, cache: &mut ZorkCach
     }
 }
 
-fn generate_sources_cmds_args(model: &ZorkModel<'_>, cache: &mut ZorkCache, tests: bool) -> Result<()> {
+fn generate_sources_cmds_args<'a>(
+    model: &ZorkModel<'a>,
+    cache: &mut ZorkCache<'a>,
+    tests: bool,
+) -> Result<()> {
     log::info!("Generating the commands for the source files...");
     let (srcs, target_kind) = if tests {
         (
@@ -175,9 +192,7 @@ fn generate_sources_cmds_args(model: &ZorkModel<'_>, cache: &mut ZorkCache, test
             }
             generated_cmd.need_to_build = translation_unit_must_be_rebuilt;
         } else {
-            sources::generate_sources_arguments(model, cache, target_kind, source) // TODO: wtf is
-                                                                                    // the
-                                                                                    // model.tests??
+            sources::generate_sources_arguments(model, cache, target_kind, source)
         };
     });
 
@@ -259,8 +274,8 @@ fn process_module_implementations<'a>(
 
 /// Generates the command line arguments for the desired target
 pub fn generate_linker_command_line_args<'a>(
-    model: &'a ZorkModel,
-    cache: &mut ZorkCache,
+    model: &ZorkModel<'_>,
+    cache: &mut ZorkCache<'_>,
     target: &'a impl ExecutableTarget<'a>,
 ) -> Result<()> {
     log::info!("Generating the linker command line...");
@@ -347,15 +362,12 @@ mod sources {
     use crate::bounds::ExtraArgs;
     use crate::cache::ZorkCache;
     use crate::cli::output::arguments::Arguments;
+    use crate::project_model::modules::ModuleImplementationModel;
     use crate::project_model::sourceset::SourceFile;
     use crate::{
         bounds::{ExecutableTarget, TranslationUnit},
         cli::output::{arguments::clang_args, commands::SourceCommandLine},
-        project_model::{
-            compiler::CppCompiler,
-            modules::{ModuleImplementationModel, ModuleInterfaceModel},
-            ZorkModel,
-        },
+        project_model::{compiler::CppCompiler, modules::ModuleInterfaceModel, ZorkModel},
     };
 
     /// Generates the command line arguments for non-module source files
@@ -560,7 +572,7 @@ mod sources {
                     .join(compiler.as_ref())
                     .join("modules")
                     .join("implementations")
-                    .join::<&str>(&implementation.file_stem())
+                    .join::<&str>(implementation.file_stem())
                     .with_extension(compiler.get_obj_file_extension());
 
                 cache
@@ -582,7 +594,7 @@ mod sources {
             }
         }
 
-        let cmd = SourceCommandLine::new(implementation, arguments);
+        let cmd = SourceCommandLine::new(implementation.to_owned(), arguments);
         cache.generated_commands.implementations.push(cmd);
     }
 }
@@ -624,7 +636,7 @@ mod helpers {
                 if !partition.partition_name.is_empty() {
                     temp.push_str(&partition.partition_name)
                 } else {
-                    temp.push_str(&interface.file_stem())
+                    temp.push_str(interface.file_stem())
                 }
             } else {
                 temp.push_str(&interface.module_name)
@@ -657,7 +669,7 @@ mod helpers {
             .join(compiler.as_ref())
             .join("modules")
             .join("implementations")
-            .join::<&str>(&*implementation.file_stem())
+            .join::<&str>(implementation.file_stem())
             .with_extension(compiler.get_obj_file_extension())
     }
 
@@ -797,7 +809,7 @@ mod helpers {
         out_dir
             .join(compiler.as_ref())
             .join("sources")
-            .join::<&str>(&*source.file_stem())
+            .join::<&str>(source.file_stem())
             .with_extension(compiler.get_obj_file_extension())
     }
 }

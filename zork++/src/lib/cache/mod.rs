@@ -105,7 +105,7 @@ impl<'a> ZorkCache<'a> {
         self.generated_commands
             .interfaces
             .iter_mut()
-            .find(|mi| module_interface_model.file() == (*mi).path())
+            .find(|mi| *module_interface_model.file() == (*mi).path())
     }
 
     pub fn get_module_impl_cmd(
@@ -115,10 +115,10 @@ impl<'a> ZorkCache<'a> {
         self.generated_commands
             .implementations
             .iter_mut()
-            .find(|mi| module_impl_model.file() == (*mi).path())
+            .find(|mi| *module_impl_model.file() == (*mi).path())
     }
 
-    pub fn get_source_cmd<T: TranslationUnit>(
+    pub fn get_source_cmd<T: TranslationUnit<'a>>(
         &mut self,
         module_impl_model: &T,
     ) -> Option<&mut SourceCommandLine> {

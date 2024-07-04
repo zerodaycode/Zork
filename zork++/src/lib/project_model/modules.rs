@@ -2,6 +2,8 @@ use core::fmt;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
+use transient::Transient;
+
 use crate::bounds::ExtraArgs;
 use crate::cli::output::arguments::Argument;
 use crate::{bounds::TranslationUnit, config_file::modules::ModulePartition};
@@ -22,7 +24,7 @@ impl<'a> ExtraArgs<'a> for ModulesModel<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Transient)]
 pub struct ModuleInterfaceModel<'a> {
     pub path: PathBuf,
     pub file_stem: Cow<'a, str>,
@@ -42,26 +44,26 @@ impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
     }
 }
 
-impl<'a> TranslationUnit for ModuleInterfaceModel<'a> {
+impl<'a> TranslationUnit<'a> for ModuleInterfaceModel<'a> {
     fn file(&self) -> PathBuf {
         let file_name = format!("{}.{}", self.file_stem, self.extension);
         self.path().join(file_name)
     }
 
-    fn path(&self) -> PathBuf {
-        self.path.clone()
+    fn path(&self) -> &PathBuf {
+        &self.path
     }
 
-    fn file_stem(&self) -> Cow<'_, str> {
-        self.file_stem.clone()
+    fn file_stem(&self) -> &Cow<'_, str> {
+        &self.file_stem
     }
 
-    fn extension(&self) -> Cow<'_, str> {
-        self.extension.clone()
+    fn extension(&self) -> &Cow<'_, str> {
+        &self.extension
     }
 }
 
-impl<'a> TranslationUnit for &'a ModuleInterfaceModel<'a> {
+/* impl<'a> TranslationUnit<'a> for &'a ModuleInterfaceModel<'a> {
     fn file(&self) -> PathBuf {
         let file_name = format!("{}.{}", self.file_stem, self.extension);
         self.path().join(file_name)
@@ -78,9 +80,9 @@ impl<'a> TranslationUnit for &'a ModuleInterfaceModel<'a> {
     fn extension(&self) -> Cow<'a, str> {
         self.extension.clone()
     }
-}
+} */
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Transient, Clone)]
 pub struct ModulePartitionModel<'a> {
     pub module: Cow<'a, str>,
     pub partition_name: Cow<'a, str>,
@@ -107,7 +109,7 @@ impl<'a> From<ModulePartition<'a>> for ModulePartitionModel<'a> {
 //     }
 // }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Transient)]
 pub struct ModuleImplementationModel<'a> {
     pub path: PathBuf,
     pub file_stem: Cow<'a, str>,
@@ -121,7 +123,25 @@ impl<'a> fmt::Display for ModuleImplementationModel<'a> {
     }
 }
 
-impl<'a> TranslationUnit for &'a ModuleImplementationModel<'a> {
+impl<'a> TranslationUnit<'a> for ModuleImplementationModel<'a> {
+    fn file(&self) -> PathBuf {
+        let file_name = format!("{}.{}", self.file_stem, self.extension);
+        self.path().join(file_name)
+    }
+
+    fn path(&self) -> &PathBuf {
+        &self.path
+    }
+
+    fn file_stem(&self) -> &Cow<'_, str> {
+        &self.file_stem
+    }
+
+    fn extension(&self) -> &Cow<'_, str> {
+        &self.extension
+    }
+}
+/* impl<'a> TranslationUnit<'a> for &'a ModuleImplementationModel<'a> {
     fn file(&self) -> PathBuf {
         let file_name = format!("{}.{}", self.file_stem, self.extension);
         self.path().join(file_name)
@@ -138,4 +158,4 @@ impl<'a> TranslationUnit for &'a ModuleImplementationModel<'a> {
     fn extension(&self) -> Cow<'_, str> {
         self.extension.clone()
     }
-}
+} */

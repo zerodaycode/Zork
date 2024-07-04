@@ -5,6 +5,8 @@ use std::borrow::Cow;
 use std::fmt::Display;
 use std::path::PathBuf;
 
+use transient::{Any, Inv};
+
 use crate::{cli::output::arguments::Argument, project_model::sourceset::SourceSet};
 
 /// Bound for the user defined arguments that are passed to the compiler
@@ -18,9 +20,35 @@ pub trait ExecutableTarget<'a>: ExtraArgs<'a> {
     fn sourceset(&'a self) -> &'a SourceSet;
 }
 
+// Base trait for downcasting
+pub trait AsTranslationUnit<'a> {
+    fn as_any(&self) -> &dyn Any<Inv<'a>>;
+}
+
+/* pub trait TranslationUnit<'a>: AsTranslationUnit<'a> + Any<Inv<'a>> {
+    fn file_stem(&self) -> &Cow<'a, str>;
+} */
+
+// Implementation of AsTranslationUnit for all types implementing TranslationUnit
+impl<'a, T: TranslationUnit<'a> + 'a> AsTranslationUnit<'a> for T {
+    fn as_any(&self) -> &dyn Any<Inv<'a>> {
+        self
+    }
+}
+
+/* impl<'a, T: TranslationUnit<'a>+ 'a> AsTranslationUnit<'a> for &'a T {
+    fn as_any(&self) -> &dyn Any<Inv<'a>> {
+        self
+    }
+} */
+/* unsafe impl <'a> transient::Transient for &'a dyn TranslationUnit<'a> {
+    type Static = &'static dyn TranslationUnit<'static>;
+    type Transience = Inv<'a>;
+} */
+
 /// Represents any kind of translation unit and the generic operations
 /// applicable to all the implementors
-pub trait TranslationUnit: Display + Debug {
+pub trait TranslationUnit<'a>: AsTranslationUnit<'a> + Any<Inv<'a>> + Display + Debug {
     /// Returns the file, being the addition of the path property plus the file stem plus
     /// the extension property
     ///
@@ -51,13 +79,13 @@ pub trait TranslationUnit: Display + Debug {
     fn file(&self) -> PathBuf;
 
     /// Outputs the declared path for `self`, being self the translation unit
-    fn path(&self) -> PathBuf;
+    fn path(&self) -> &PathBuf;
 
     /// Outputs the declared file stem for this translation unit
-    fn file_stem(&self) -> Cow<'_, str>;
+    fn file_stem(&self) -> &Cow<'_, str>;
 
     /// Outputs the declared extension for `self`
-    fn extension(&self) -> Cow<'_, str>;
+    fn extension(&self) -> &Cow<'_, str>;
 
     /// Outputs the file stem concatenated with the extension for a given tu
     fn file_with_extension(&self) -> String {

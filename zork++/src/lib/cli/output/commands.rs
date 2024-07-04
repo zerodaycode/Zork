@@ -168,13 +168,13 @@ pub struct SourceCommandLine {
 }
 
 impl SourceCommandLine {
-    pub fn new(
+    pub fn new<'a, T: TranslationUnit<'a>>(
         // TODO init it as a args holder, but doesn't have the status yet
-        tu: impl TranslationUnit,
+        tu: &T,
         args: Arguments,
     ) -> Self {
         Self {
-            directory: tu.path(),
+            directory: tu.path().to_path_buf(),
             filename: tu.file_with_extension(),
             args,
             need_to_build: true,

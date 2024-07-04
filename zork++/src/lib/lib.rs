@@ -107,11 +107,11 @@ pub mod worker {
     fn do_main_work_based_on_cli_input<'a>(
         cli_args: &'a CliArgs,
         program_data: &'a ZorkModel<'_>,
-        mut cache: ZorkCache,
+        cache: ZorkCache,
     ) -> Result<CommandExecutionResult> {
         let is_tests_run = cli_args.command.eq(&Command::Test);
 
-        generate_commands(program_data, &mut cache, false)
+        let mut cache = generate_commands(program_data, cache, false)
             .with_context(|| "Failed to generated the commands for the project")?;
 
         let execution_result = match cli_args.command {
