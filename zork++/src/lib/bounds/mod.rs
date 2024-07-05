@@ -25,26 +25,12 @@ pub trait AsTranslationUnit<'a> {
     fn as_any(&self) -> &dyn Any<Inv<'a>>;
 }
 
-/* pub trait TranslationUnit<'a>: AsTranslationUnit<'a> + Any<Inv<'a>> {
-    fn file_stem(&self) -> &Cow<'a, str>;
-} */
-
 // Implementation of AsTranslationUnit for all types implementing TranslationUnit
 impl<'a, T: TranslationUnit<'a> + 'a> AsTranslationUnit<'a> for T {
     fn as_any(&self) -> &dyn Any<Inv<'a>> {
         self
     }
 }
-
-/* impl<'a, T: TranslationUnit<'a>+ 'a> AsTranslationUnit<'a> for &'a T {
-    fn as_any(&self) -> &dyn Any<Inv<'a>> {
-        self
-    }
-} */
-/* unsafe impl <'a> transient::Transient for &'a dyn TranslationUnit<'a> {
-    type Static = &'static dyn TranslationUnit<'static>;
-    type Transience = Inv<'a>;
-} */
 
 /// Represents any kind of translation unit and the generic operations
 /// applicable to all the implementors

@@ -9,9 +9,11 @@ use color_eyre::Result;
 use std::path::Path;
 
 use crate::bounds::{ExecutableTarget, TranslationUnit};
+use crate::cli::input::{CliArgs, Command};
 use crate::cli::output::arguments::{clang_args, msvc_args, Arguments};
 use crate::cli::output::commands::{CommandExecutionResult, SourceCommandLine};
 use crate::project_model::compiler::StdLibMode;
+use crate::project_model::sourceset::SourceFile;
 use crate::utils::constants;
 use crate::{
     cache::ZorkCache,
@@ -30,7 +32,7 @@ use self::data_factory::CommonArgs;
 pub fn generate_commands<'a>(
     model: &'a ZorkModel<'a>,
     mut cache: ZorkCache<'a>,
-    tests: bool,
+    cli_args: &'a CliArgs,
 ) -> Result<ZorkCache<'a>> {
     // TODO: guard it with a presence check */
     // They should only be generated the first time or on every cache reset
@@ -50,13 +52,13 @@ pub fn generate_commands<'a>(
             helpers::build_sys_modules(model, &mut cache)
         }
 
-        process_modules(model, &mut cache)?;
+        process_modules(model, &mut cache, cli_args)?;
     };
 
     // 2nd - Generate the commands for the non-module sources
-    generate_sources_cmds_args(model, &mut cache, tests)?;
+    generate_sources_cmds_args(model, &mut cache, cli_args)?;
     // 3rd - Genates the commands for the 'targets' declared by the user
-    generate_linkage_targets_commands(model, &mut cache, tests)?;
+    generate_linkage_targets_commands(model, &mut cache, cli_args)?;
 
     Ok(cache)
 }
@@ -139,7 +141,36 @@ fn generate_modular_stdlibs_cmds(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
     }
 }
 
+fn process_modules<'a>(
+    model: &'a ZorkModel<'a>,
+    cache: &mut ZorkCache<'a>,
+    cli_args: &'a CliArgs,
+) -> Result<()> {
+    let modules = model.modules.as_ref().unwrap(); // TODO: review this opt again
+
+    log::info!("Generating the commands for the module interfaces and partitions...");
+    process_kind_translation_units(
+        model,
+        cache,
+        cli_args,
+        &modules.interfaces,
+        TranslationUnitKind::ModuleInterface,
+    );
+
+    log::info!("Generating the commands for the module implementations and partitions...");
+    process_kind_translation_units(
+        model,
+        cache,
+        cli_args,
+        &modules.implementations,
+        TranslationUnitKind::ModuleImplementation,
+    );
+
+    Ok(())
+}
+
 /// Generates the command line that will be passed to the linker to generate an [`ExecutableTarget`]
+/// Generates the commands for the C++ modules declared in the project
 ///
 /// Legacy:
 /// If this flow is enabled by the Cli arg `Tests`, then the executable will be generated
@@ -147,14 +178,15 @@ fn generate_modular_stdlibs_cmds(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
 fn generate_linkage_targets_commands<'a>(
     model: &'a ZorkModel<'_>,
     cache: &'a mut ZorkCache<'_>,
-    tests: bool,
+    cli_args: &'a CliArgs,
 ) -> Result<()> {
     // TODO: Check if the command line is the same as the previous? If there's no new sources?
     // And avoid re-executing?
     // TODO: refactor this code, just having the if-else branch inside the fn
     // Also, shouldn't we start to think about named targets? So introduce the static and dynamic
     // libraries wouldn't be such a pain?
-    if tests {
+    let is_tests_run = cli_args.command.eq(&Command::Test);
+    if is_tests_run {
         generate_linker_command_line_args(model, cache, &model.tests) // TODO: shouldn't tests be
                                                                       // just a target?
     } else {
@@ -163,111 +195,73 @@ fn generate_linkage_targets_commands<'a>(
 }
 
 fn generate_sources_cmds_args<'a>(
-    model: &ZorkModel<'a>,
+    model: &'a ZorkModel<'a>,
     cache: &mut ZorkCache<'a>,
-    tests: bool,
+    cli_args: &'a CliArgs,
 ) -> Result<()> {
     log::info!("Generating the commands for the source files...");
-    let (srcs, target_kind) = if tests {
-        (
-            &model.tests.sourceset.sources,
-            &model.tests as &dyn ExecutableTarget,
-        )
+    // TODO: tests manual run must be start to be deprecated in favour of the future
+    // named targets, so we won't mess now with them
+    let is_tests_run = cli_args.command.eq(&Command::Test);
+    let srcs = if is_tests_run {
+        &model.tests.sourceset.sources
     } else {
-        (
-            &model.executable.sourceset.sources,
-            &model.executable as &dyn ExecutableTarget,
-        )
+        &model.executable.sourceset.sources
     };
 
-    let compiler = cache.compiler;
-    let lpe = cache.last_program_execution;
-
-    srcs.iter().for_each(|source| {
-        if let Some(generated_cmd) = cache.get_source_cmd(source) {
-            let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_built(compiler, &lpe, generated_cmd, &source.file());
-
-            if !translation_unit_must_be_rebuilt {
-                log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &source.file());
-            }
-            generated_cmd.need_to_build = translation_unit_must_be_rebuilt;
-        } else {
-            sources::generate_sources_arguments(model, cache, target_kind, source)
-        };
-    });
+    process_kind_translation_units(
+        model,
+        cache,
+        cli_args,
+        srcs,
+        TranslationUnitKind::SourceFile,
+    );
 
     Ok(())
 }
 
-/// Generates the commands for the C++ modules declared in the project
-fn process_modules(model: &ZorkModel, cache: &mut ZorkCache) -> Result<()> {
-    log::info!("Generating the commands for the module interfaces and partitions...");
-
-    let modules = model.modules.as_ref().unwrap(); // TODO: review this opt again
-
-    process_module_interfaces(model, cache, &modules.interfaces);
-
-    // TODO: find a way to avoid duplicating the implementations of both kind of translation units commands generation, since they
-    // only differs on the call that are generated
-    // Alternatives: self as any?, maybe a translation unit kind? knowing the call, primitive cast of
-    // an slice of trait objects?
-
-    // TODO: make a trait exclusive for ModuleTranslationUnit: TranslationUnit, since the operations required
-    // are mostly paths and add dependencies -> &[Cow<'_, str>]
-
-    log::info!("Generating the commands for the module implementations and partitions...");
-    process_module_implementations(model, cache, &modules.implementations);
-
-    Ok(())
+pub enum TranslationUnitKind {
+    ModuleInterface,
+    ModuleImplementation,
+    SourceFile,
+    HeaderFile,
+    ModularStdLib,
 }
 
-/// Parses the configuration in order to build the BMIs declared for the project,
-/// by pre-compiling the module interface units
-fn process_module_interfaces<'a>(
-    model: &'a ZorkModel<'_>,
-    cache: &mut ZorkCache,
-    interfaces: &'a [ModuleInterfaceModel],
+fn process_kind_translation_units<'a, T: TranslationUnit<'a>>(
+    model: &ZorkModel<'_>,
+    cache: &mut ZorkCache<'a>,
+    cli_args: &CliArgs,
+    translation_units: &'a [T],
+    for_kind: TranslationUnitKind,
 ) {
-    // let c: Vec<&dyn TranslationUnit> = interfaces.iter().map(|mi| mi as &dyn TranslationUnit).collect();
-    // let d = c.iter().map(|tu| tu as &dyn ModuleInterfaceModel).collect(); // downcast, as isn't usable for non primitives
     let compiler = cache.compiler;
     let lpe = cache.last_program_execution;
 
-    interfaces.iter().for_each(|module_interface| {
-        if let Some(generated_cmd) = cache.get_module_ifc_cmd(module_interface) {
-            let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_built(compiler, &lpe, generated_cmd, &module_interface.file());
+    translation_units.iter().for_each(|translation_unit| {
+        if let Some(generated_cmd) = cache.get_cmd_for_translation_unit_kind(translation_unit, &for_kind) {
+            let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_built(compiler, &lpe, generated_cmd, &translation_unit.file());
 
             if !translation_unit_must_be_rebuilt {
-                log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &module_interface.file());
+                log::trace!("Source file:{:?} was not modified since the last iteration. No need to rebuilt it again.", &translation_unit.file());
                 // TODO: here is where we should use the normalize_execution_result_status
                 // function, to mark executions as cached (when tu musn't be rebuilt)
             }
             generated_cmd.need_to_build = translation_unit_must_be_rebuilt;
         } else {
-            sources::generate_module_interface_cmd(model, cache, module_interface)
-        };
-    });
-}
-
-/// Generates the commands for every [`ModuleImplementationModel`]
-fn process_module_implementations<'a>(
-    model: &'a ZorkModel,
-    cache: &mut ZorkCache,
-    impls: &'a [ModuleImplementationModel],
-) {
-    let compiler = cache.compiler;
-    let lpe = cache.last_program_execution; // TODO: check for an Rc< or other solution, but closure below requires unique access
-
-    impls.iter().for_each(|module_impl| {
-        if let Some(generated_cmd) = cache.get_module_impl_cmd(module_impl) {
-            let translation_unit_must_be_rebuilt = helpers::translation_unit_must_be_built(compiler, &lpe, generated_cmd, &module_impl.file());
-
-            if !translation_unit_must_be_rebuilt {
-                log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &module_impl.file());
+            let tu_with_erased_type = translation_unit.as_any();
+            match for_kind {
+                TranslationUnitKind::ModuleInterface => {
+                    let resolved_tu = transient::Downcast::downcast_ref::<ModuleInterfaceModel>(tu_with_erased_type);
+                    sources::generate_module_interface_cmd(model, cache, resolved_tu.unwrap());
+                },
+                TranslationUnitKind::ModuleImplementation => sources::generate_module_implementation_cmd(model, cache, transient::Downcast::downcast_ref::<ModuleImplementationModel>(tu_with_erased_type).unwrap()),
+                TranslationUnitKind::SourceFile => {
+                    let target = if cli_args.command.eq(&Command::Test) { &model.tests as &dyn ExecutableTarget } else { &model.executable as &dyn ExecutableTarget };
+                    sources::generate_sources_arguments(model, cache, transient::Downcast::downcast_ref::<SourceFile>(tu_with_erased_type).unwrap(), target)
+                }
+                _ => todo!()
             }
-            generated_cmd.need_to_build = translation_unit_must_be_rebuilt;
-        } else {
-            sources::generate_module_implementation_cmd(model, cache, module_impl)
         };
     });
 }
@@ -374,8 +368,8 @@ mod sources {
     pub fn generate_sources_arguments<'a>(
         model: &'a ZorkModel,
         cache: &mut ZorkCache,
-        target: &'a (impl ExecutableTarget<'a> + ?Sized),
         source: &'a SourceFile,
+        target: &'a (impl ExecutableTarget<'a> + ?Sized),
     ) {
         let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir.as_ref();

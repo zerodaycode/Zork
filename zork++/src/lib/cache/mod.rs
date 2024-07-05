@@ -16,7 +16,8 @@ use std::{
 
 use crate::bounds::TranslationUnit;
 use crate::cache::compile_commands::CompileCommands;
-use crate::project_model::modules::{ModuleImplementationModel, ModuleInterfaceModel};
+use crate::compiler::TranslationUnitKind;
+
 use crate::project_model::sourceset::SourceFile;
 use crate::{
     cli::{
@@ -98,9 +99,23 @@ impl<'a> ZorkCache<'a> {
         &self.last_program_execution
     }
 
-    pub fn get_module_ifc_cmd(
+    pub fn get_cmd_for_translation_unit_kind<T: TranslationUnit<'a>>(
         &mut self,
-        module_interface_model: &ModuleInterfaceModel,
+        translation_unit: &T,
+        translation_unit_kind: &TranslationUnitKind,
+    ) -> Option<&mut SourceCommandLine> {
+        return match translation_unit_kind {
+            TranslationUnitKind::ModuleInterface => self.get_module_ifc_cmd(translation_unit),
+            TranslationUnitKind::ModuleImplementation => self.get_module_impl_cmd(translation_unit),
+            TranslationUnitKind::SourceFile => self.get_source_cmd(translation_unit),
+            TranslationUnitKind::ModularStdLib => todo!(),
+            TranslationUnitKind::HeaderFile => todo!(),
+        };
+    }
+
+    fn get_module_ifc_cmd<T: TranslationUnit<'a>>(
+        &mut self,
+        module_interface_model: &T,
     ) -> Option<&mut SourceCommandLine> {
         self.generated_commands
             .interfaces
@@ -108,9 +123,9 @@ impl<'a> ZorkCache<'a> {
             .find(|mi| *module_interface_model.file() == (*mi).path())
     }
 
-    pub fn get_module_impl_cmd(
+    fn get_module_impl_cmd<T: TranslationUnit<'a>>(
         &mut self,
-        module_impl_model: &ModuleImplementationModel,
+        module_impl_model: &T,
     ) -> Option<&mut SourceCommandLine> {
         self.generated_commands
             .implementations
@@ -118,7 +133,7 @@ impl<'a> ZorkCache<'a> {
             .find(|mi| *module_impl_model.file() == (*mi).path())
     }
 
-    pub fn get_source_cmd<T: TranslationUnit<'a>>(
+    fn get_source_cmd<T: TranslationUnit<'a>>(
         &mut self,
         module_impl_model: &T,
     ) -> Option<&mut SourceCommandLine> {

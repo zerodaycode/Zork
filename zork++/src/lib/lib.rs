@@ -111,7 +111,7 @@ pub mod worker {
     ) -> Result<CommandExecutionResult> {
         let is_tests_run = cli_args.command.eq(&Command::Test);
 
-        let mut cache = generate_commands(program_data, cache, false)
+        let mut cache = generate_commands(program_data, cache, cli_args)
             .with_context(|| "Failed to generated the commands for the project")?;
 
         let execution_result = match cli_args.command {
