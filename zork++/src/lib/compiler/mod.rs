@@ -10,7 +10,7 @@ use std::path::Path;
 
 use crate::bounds::{ExecutableTarget, TranslationUnit};
 use crate::cli::input::{CliArgs, Command};
-use crate::cli::output::arguments::{clang_args, msvc_args, Arguments};
+use crate::cli::output::arguments::{msvc_args, Arguments};
 use crate::cli::output::commands::{CommandExecutionResult, SourceCommandLine};
 use crate::project_model::compiler::StdLibMode;
 use crate::project_model::sourceset::SourceFile;
@@ -71,7 +71,7 @@ fn generate_modular_stdlibs_cmds(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
 
     // TODO: remaining ones: Clang, GCC
     if compiler.eq(&CppCompiler::MSVC) {
-        let vs_stdlib_path = &cache
+        let vs_stdlib_path = cache
             .compilers_metadata
             .msvc
             .vs_stdlib_path
@@ -105,7 +105,7 @@ fn generate_modular_stdlibs_cmds(model: &ZorkModel<'_>, cache: &mut ZorkCache) {
             cache.generated_commands.cpp_stdlib = Some(cpp_stdlib);
         }
 
-        let vs_ccompat_stdlib_path = &cache
+        let vs_ccompat_stdlib_path = cache
             .compilers_metadata
             .msvc
             .vs_c_stdlib_path
@@ -180,17 +180,13 @@ fn generate_linkage_targets_commands<'a>(
     cache: &'a mut ZorkCache<'_>,
     cli_args: &'a CliArgs,
 ) -> Result<()> {
-    // TODO: Check if the command line is the same as the previous? If there's no new sources?
-    // And avoid re-executing?
-    // TODO: refactor this code, just having the if-else branch inside the fn
-    // Also, shouldn't we start to think about named targets? So introduce the static and dynamic
+    // TODO: Shouldn't we start to think about named targets? So introduce the static and dynamic
     // libraries wouldn't be such a pain?
     let is_tests_run = cli_args.command.eq(&Command::Test);
     if is_tests_run {
-        generate_linker_command_line_args(model, cache, &model.tests) // TODO: shouldn't tests be
-                                                                      // just a target?
+        generate_linker_general_command_line_args(model, cache, &model.tests)
     } else {
-        generate_linker_command_line_args(model, cache, &model.executable)
+        generate_linker_general_command_line_args(model, cache, &model.executable)
     }
 }
 
@@ -266,13 +262,23 @@ fn process_kind_translation_units<'a, T: TranslationUnit<'a>>(
     });
 }
 
-/// Generates the command line arguments for the desired target
-pub fn generate_linker_command_line_args<'a>(
+/// Generates the general command line arguments for the desired target
+///
+/// **implementation note:** All the final byproducts of the compiled translation units, the object
+/// files paths, are added in place to the linker args member when they're created, so we can avoid
+/// to clone them everytime we create a new [`SourceCommandLine`] for a given translation unit
+pub fn generate_linker_general_command_line_args<'a>(
     model: &ZorkModel<'_>,
     cache: &mut ZorkCache<'_>,
     target: &'a impl ExecutableTarget<'a>,
 ) -> Result<()> {
     log::info!("Generating the linker command line...");
+
+    // NOTE: this early guard is provisional while we don't implement the feature of really having
+    // named targets for each user declared one (instead of the actual run/tests kind of thing)
+    if cache.generated_commands.linker.args.is_empty() {
+        return Ok(());
+    }
 
     let compiler = &model.compiler.cpp_compiler;
     let out_dir: &Path = model.build.output_dir.as_ref();
@@ -283,19 +289,6 @@ pub fn generate_linker_command_line_args<'a>(
 
     match compiler {
         CppCompiler::CLANG => {
-            arguments.push_opt(model.compiler.stdlib_arg());
-            arguments.create_and_push("-fimplicit-modules");
-            arguments.push(clang_args::implicit_module_map(out_dir));
-
-            arguments.create_and_push(format!(
-                "-fprebuilt-module-path={}",
-                out_dir
-                    .join(compiler.as_ref())
-                    .join("modules")
-                    .join("interfaces")
-                    .display()
-            ));
-
             arguments.create_and_push("-o");
             arguments.create_and_push(format!(
                 "{}",
@@ -307,15 +300,6 @@ pub fn generate_linker_command_line_args<'a>(
             ));
         }
         CppCompiler::MSVC => {
-            arguments.create_and_push("/EHsc");
-            arguments.create_and_push("/nologo");
-            arguments.create_and_push("/ifcSearchDir");
-            arguments.create_and_push(
-                out_dir
-                    .join(compiler.as_ref())
-                    .join("modules")
-                    .join("interfaces"),
-            );
             arguments.create_and_push(format!(
                 "/Fo{}\\",
                 out_dir.join(compiler.as_ref()).display()
@@ -330,7 +314,6 @@ pub fn generate_linker_command_line_args<'a>(
             ));
         }
         CppCompiler::GCC => {
-            arguments.create_and_push("-fmodules-ts");
             arguments.create_and_push("-o");
             arguments.create_and_push(format!(
                 "{}",
@@ -343,7 +326,8 @@ pub fn generate_linker_command_line_args<'a>(
         }
     };
 
-    cache.generated_commands.linker.args.extend(arguments);
+    arguments.extend(&cache.generated_commands.linker.args);
+    cache.generated_commands.linker.args = arguments;
 
     Ok(())
 }

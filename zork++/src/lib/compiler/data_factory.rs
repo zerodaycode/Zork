@@ -107,8 +107,6 @@ impl CompilerCommonArguments for MsvcCommonArgs {
         let mut args = Arguments::default();
         args.create_and_push(&self.exception_handling_model);
         args.create_and_push(&self.no_logo);
-        args.create_and_push(&self.no_compile);
-
         args.create_and_push(&self.ifc_search_dir);
         args.create_and_push(&*self.ifc_search_dir_value);
 
@@ -128,17 +126,13 @@ impl CompilerCommonArguments for GccCommonArgs {
     fn get_args(&self) -> Arguments {
         let mut args = Arguments::default();
         args.create_and_push("-fmodules-ts");
-        args.create_and_push("-c");
         args
     }
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct ClangCommonArgs {
-    // TODO: a HashMap per kind of translation unit which stores the common ones
-    // for every different kind of translation unit
-    std_lib: StdLib, // TODO: technically, should this already be an arg? or should we decouple the
-    // project model for the Argument(s) type(s)?
+    std_lib: StdLib,
     implicit_modules: Cow<'static, str>,
     implicit_module_map: Argument,
     prebuilt_module_path: Cow<'static, str>,
@@ -163,7 +157,6 @@ impl ClangCommonArgs {
 pub struct MsvcCommonArgs {
     exception_handling_model: Cow<'static, str>,
     no_logo: Cow<'static, str>,
-    no_compile: Cow<'static, str>,
     reference: Cow<'static, str>,
     ifc_search_dir: Cow<'static, str>,
     ifc_search_dir_value: Cow<'static, Path>,
@@ -177,7 +170,6 @@ impl MsvcCommonArgs {
         Self {
             exception_handling_model: Cow::Borrowed("/EHsc"),
             no_logo: Cow::Borrowed("/nologo"),
-            no_compile: Cow::Borrowed("/c"),
             reference: Cow::Borrowed("/reference"),
 
             ifc_search_dir: Cow::Borrowed("/ifcSearchDir"),
@@ -197,13 +189,11 @@ impl MsvcCommonArgs {
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct GccCommonArgs {
-    compile_but_dont_link: Cow<'static, str>,
     modules_ts: Cow<'static, str>,
 }
 impl GccCommonArgs {
     pub fn new() -> Self {
         Self {
-            compile_but_dont_link: Cow::Borrowed("-c"),
             modules_ts: Cow::Borrowed("-fmodules-ts"),
         }
     }

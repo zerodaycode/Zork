@@ -52,11 +52,18 @@ pub fn run_generated_commands(
         .filter(|scl| scl.need_to_build)
         .collect::<Vec<&mut SourceCommandLine>>();
 
+    let compile_but_dont_link: [Argument; 1] =
+        [Argument::from(match program_data.compiler.cpp_compiler {
+            CppCompiler::CLANG | CppCompiler::GCC => "-c",
+            CppCompiler::MSVC => "/c",
+        })];
+
     for translation_unit_cmd in translation_units {
         // Join the concrete args of any translation unit with the ones held in the flyweights
         let translation_unit_cmd_args: Arguments = general_args
             .iter()
             .chain(compiler_specific_shared_args.iter())
+            .chain(&compile_but_dont_link)
             .chain(translation_unit_cmd.args.iter())
             .collect();
 
@@ -79,7 +86,11 @@ pub fn run_generated_commands(
 
         let r = execute_command(
             program_data,
-            &cache.generated_commands.linker.args,
+            &general_args
+                .iter()
+                .chain(compiler_specific_shared_args.iter())
+                .chain(cache.generated_commands.linker.args.iter())
+                .collect::<Arguments>(),
             &env_args,
         );
 
@@ -135,7 +146,7 @@ fn execute_command<T, S>(
     env_vars: &EnvVars,
 ) -> Result<ExitStatus, Report>
 where
-    T: IntoIterator<Item = S> + std::fmt::Display + std::marker::Copy,
+    T: IntoIterator<Item = S> + std::fmt::Display + Copy,
     S: AsRef<OsStr>,
 {
     let compiler = model.compiler.cpp_compiler;

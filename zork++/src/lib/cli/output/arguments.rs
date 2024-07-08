@@ -159,6 +159,11 @@ impl Arguments {
     pub fn as_slice(&self) -> &[Argument] {
         &self.0
     }
+
+    /// Clears the contained values of the wrapped [`std::vec::Vec`]
+    pub fn clear(&mut self) {
+        self.0.clear()
+    }
 }
 
 impl Deref for Arguments {
