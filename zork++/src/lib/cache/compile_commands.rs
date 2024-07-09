@@ -20,8 +20,7 @@ pub(crate) fn map_generated_commands_to_compilation_db(
 
     let generated_commands = cache.get_all_commands_iter();
     let mut compilation_db_entries: Vec<CompileCommand> =
-        Vec::with_capacity(cache.count_total_generated_commands());
-    // TODO: compilation_db_entries.push(latest_commands.linker)
+        Vec::with_capacity(cache.count_total_generated_commands()); // Without the linker one
 
     for command in generated_commands {
         compilation_db_entries.push(CompileCommand::from(command));
@@ -58,15 +57,3 @@ impl From<&SourceCommandLine> for CompileCommand {
         }
     }
 }
-
-// TODO review how the linker command line must be specified for the compile_commands.json
-// impl From<&LinkerCommandLine> for CompileCommands {
-//     fn from(value: &LinkerCommandLine) -> Self {
-//         let value = value.clone();
-//         Self {
-//             directory: value.directory,
-//             file: value.filename,
-//             arguments: value.args,
-//         }
-//     }
-// }

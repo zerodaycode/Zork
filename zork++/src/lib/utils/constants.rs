@@ -1,8 +1,37 @@
 //! Constant value definitions to use across the whole program
 
+pub const ZORK: &str = "zork";
+
+/// The names of the `Zork++`specific directories, not their paths
+pub mod dir_names {
+    pub const DEFAULT_OUTPUT_DIR: &str = "out";
+    pub const CACHE: &str = "cache";
+    pub const STD: &str = "std";
+    pub const INTRINSICS: &str = "intrinsics";
+    pub const INTERFACES: &str = "interfaces";
+    pub const IMPLEMENTATIONS: &str = "implementations";
+    pub const OBJECT_FILES: &str = "obj_files";
+}
+
+pub mod error_messages {
+    pub const READ_CFG_FILE: &str = "Could not read the configuration file";
+    pub const PARSE_CFG_FILE: &str = "Could not parse the configuration file";
+    pub const FAILURE_GENERATING_COMMANDS: &str =
+        "Failed to generated the commands for the project";
+    pub const FAILED_BUILD_FOR_CFG_FILE: &str = "Failed to build the project for the config file";
+    pub const GENERAL_ARGS_NOT_FOUND: &str = "Something went wrong loading the general arguments";
+    pub const PROJECT_MODEL_MAPPING: &str = "Error building the project model";
+    pub const COMPILER_SPECIFIC_COMMON_ARGS_NOT_FOUND: &str =
+        "Something went wrong loading the general arguments";
+    pub const CLI_ARGS_CMD_NEW_BRANCH: &str =
+        "This branch should never be reached for now, as do not exists commands that may\
+        trigger them. The unique remaining, is ::New, that is already processed\
+        at the very beggining";
+}
+
 pub const CONFIG_FILE_NAME: &str = "zork";
-pub const CONFIG_FILE_EXT: &str = ".toml";
-pub const DEFAULT_OUTPUT_DIR: &str = "out";
+pub const CONFIG_FILE_EXT: &str = "toml";
+pub const CACHE_FILE_EXT: &str = "json";
 
 pub const BINARY_EXTENSION: &str = if cfg!(target_os = "windows") {
     "exe"

@@ -4,9 +4,11 @@ use std::path::{Path, PathBuf};
 
 use transient::Transient;
 
-use crate::bounds::ExtraArgs;
 use crate::cli::output::arguments::Argument;
-use crate::{bounds::TranslationUnit, config_file::modules::ModulePartition};
+use crate::config_file::modules::ModulePartition;
+use crate::domain::target::ExtraArgs;
+use crate::domain::translation_unit::TranslationUnit;
+use crate::impl_translation_unit_for;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ModulesModel<'a> {
@@ -34,53 +36,20 @@ pub struct ModuleInterfaceModel<'a> {
     pub dependencies: Vec<Cow<'a, str>>,
 }
 
+impl_translation_unit_for!(ModuleInterfaceModel<'a>);
+
 impl<'a> fmt::Display for ModuleInterfaceModel<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "({:?}.{:?}., {:?}, {:?}, {:?})",
-            self.path, self.file_stem, self.module_name, self.dependencies, self.partition
+            "({:?}, {:?}, {:?}, {:?})",
+            self.path(),
+            self.module_name,
+            self.dependencies,
+            self.partition
         )
     }
 }
-
-impl<'a> TranslationUnit<'a> for ModuleInterfaceModel<'a> {
-    fn file(&self) -> PathBuf {
-        let file_name = format!("{}.{}", self.file_stem, self.extension);
-        self.path().join(file_name)
-    }
-
-    fn path(&self) -> &PathBuf {
-        &self.path
-    }
-
-    fn file_stem(&self) -> &Cow<'_, str> {
-        &self.file_stem
-    }
-
-    fn extension(&self) -> &Cow<'_, str> {
-        &self.extension
-    }
-}
-
-/* impl<'a> TranslationUnit<'a> for &'a ModuleInterfaceModel<'a> {
-    fn file(&self) -> PathBuf {
-        let file_name = format!("{}.{}", self.file_stem, self.extension);
-        self.path().join(file_name)
-    }
-
-    fn path(&self) -> PathBuf {
-        self.path.clone()
-    }
-
-    fn file_stem(&self) -> Cow<'_, str> {
-        self.file_stem.clone()
-    }
-
-    fn extension(&self) -> Cow<'a, str> {
-        self.extension.clone()
-    }
-} */
 
 #[derive(Debug, PartialEq, Eq, Transient, Clone)]
 pub struct ModulePartitionModel<'a> {
@@ -99,16 +68,6 @@ impl<'a> From<ModulePartition<'a>> for ModulePartitionModel<'a> {
     }
 }
 
-// impl<'a> From<&ModulePartition<'a>> for ModulePartitionModel<'a> {
-//     fn from(value: &ModulePartition<'a>) -> &'a Self {
-//         Self {
-//             module: value.module.,
-//             partition_name: value.partition_name.unwrap_or_default(),
-//             is_internal_partition: value.is_internal_partition.unwrap_or_default(),
-//         }
-//     }
-// }
-
 #[derive(Debug, PartialEq, Eq, Transient)]
 pub struct ModuleImplementationModel<'a> {
     pub path: PathBuf,
@@ -117,45 +76,10 @@ pub struct ModuleImplementationModel<'a> {
     pub dependencies: Vec<Cow<'a, str>>,
 }
 
+impl_translation_unit_for!(ModuleImplementationModel<'a>);
+
 impl<'a> fmt::Display for ModuleImplementationModel<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({:?}, {:?})", self.path, self.dependencies)
+        write!(f, "({:?}, {:?})", self.path(), self.dependencies)
     }
 }
-
-impl<'a> TranslationUnit<'a> for ModuleImplementationModel<'a> {
-    fn file(&self) -> PathBuf {
-        let file_name = format!("{}.{}", self.file_stem, self.extension);
-        self.path().join(file_name)
-    }
-
-    fn path(&self) -> &PathBuf {
-        &self.path
-    }
-
-    fn file_stem(&self) -> &Cow<'_, str> {
-        &self.file_stem
-    }
-
-    fn extension(&self) -> &Cow<'_, str> {
-        &self.extension
-    }
-}
-/* impl<'a> TranslationUnit<'a> for &'a ModuleImplementationModel<'a> {
-    fn file(&self) -> PathBuf {
-        let file_name = format!("{}.{}", self.file_stem, self.extension);
-        self.path().join(file_name)
-    }
-
-    fn path(&self) -> PathBuf {
-        self.path.clone()
-    }
-
-    fn file_stem(&self) -> Cow<'_, str> {
-        self.file_stem.clone()
-    }
-
-    fn extension(&self) -> Cow<'_, str> {
-        self.extension.clone()
-    }
-} */

@@ -1,10 +1,10 @@
 extern crate core;
 
-pub mod bounds;
 pub mod cache;
 pub mod cli;
 pub mod compiler;
 pub mod config_file;
+pub mod domain;
 pub mod project_model;
 pub mod utils;
 
@@ -18,11 +18,12 @@ pub mod worker {
     use crate::{config_file, utils::fs::get_project_root_absolute_path};
     use std::{fs, path::Path};
 
+    use crate::utils::constants::{dir_names, error_messages};
     use crate::{
         cache::{self, ZorkCache},
         cli::{
             input::{CliArgs, Command},
-            output::commands::{self, CommandExecutionResult},
+            output::commands,
         },
         compiler::generate_commands,
         project_model::{compiler::CppCompiler, ZorkModel},
@@ -65,32 +66,28 @@ pub mod worker {
         let config_files: Vec<ConfigFile> = find_config_files(project_root, &cli_args.match_files)
             .with_context(|| "We didn't found a valid Zork++ configuration file")?;
         log::trace!("Config files found: {config_files:?}");
-        // TODO: add the last modified time
+        // TODO: add the last modified time of the cfg file
 
         for config_file in config_files {
+            let cfg_fn = config_file.dir_entry.file_name();
             log::debug!(
-                "Launching a Zork++ work event for the configuration file: {:?}, located at: {:?}\n",
-                config_file.dir_entry.file_name(),
-                config_file.path
+                "Launching a Zork++ work event for the configuration file: {:?}",
+                cfg_fn,
             );
-            let raw_file = fs::read_to_string(config_file.path).with_context(|| {
-                format!(
-                    "An error happened parsing the configuration file: {:?}",
-                    config_file.dir_entry.file_name()
-                )
-            })?;
+            let raw_file = fs::read_to_string(config_file.path)
+                .with_context(|| format!("{}: {:?}", error_messages::READ_CFG_FILE, cfg_fn))?;
 
             let config = config_file::zork_cfg_from_file(raw_file.as_str())
-                .with_context(|| "Could not parse configuration file")?;
+                .with_context(|| error_messages::PARSE_CFG_FILE)?;
             let program_data = build_model(config, cli_args, &abs_project_root)?;
             create_output_directory(&program_data)?; // TODO: avoid this call without check if exists
 
-            let cache = cache::load(&program_data, cli_args)
-                .with_context(|| "Unable to load the Zork++ cache")?;
+            let cache = cache::load(&program_data, cli_args)?;
 
             do_main_work_based_on_cli_input(cli_args, &program_data, cache).with_context(|| {
                 format!(
-                    "Failed to build the project for the config file: {:?}",
+                    "{}: {:?}",
+                    error_messages::FAILED_BUILD_FOR_CFG_FILE,
                     config_file.dir_entry.file_name()
                 )
             })?;
@@ -102,17 +99,22 @@ pub mod worker {
     /// Helper for reduce the cyclomatic complexity of the main fn.
     ///
     /// Contains the main calls to the generation of the compilers commands lines,
-    /// the calls to the process that runs those ones, the autorun the generated
+    /// the calls to the process that runs those, the autorun the generated
     /// binaries, the tests declared for the projects...
     fn do_main_work_based_on_cli_input<'a>(
         cli_args: &'a CliArgs,
         program_data: &'a ZorkModel<'_>,
         cache: ZorkCache,
-    ) -> Result<CommandExecutionResult> {
-        let is_tests_run = cli_args.command.eq(&Command::Test);
-
+    ) -> Result<()> {
+        // TODO: if we split the line below, we can only check for changes on the modified
+        // files IF and only IF the configuration files has been modified
+        // so we will have the need_to_rebuild in other place before the commands generation
+        // one option is directly on the reader, by just checking it's modification datetime (for the tu)
+        //
+        // other is to have just a separate function that only passes the required data
+        // like cache to be modified and the new ones
         let mut cache = generate_commands(program_data, cache, cli_args)
-            .with_context(|| "Failed to generated the commands for the project")?;
+            .with_context(|| error_messages::FAILURE_GENERATING_COMMANDS)?;
 
         let execution_result = match cli_args.command {
             Command::Build => commands::run_generated_commands(program_data, &mut cache),
@@ -126,14 +128,10 @@ pub mod worker {
                     Err(e) => Err(e),
                 }
             }
-            _ => todo!(
-                "This branch should never be reached for now, as do not exists commands that may\
-                trigger them. The unique remaining, is ::New, that is already processed\
-                at the very beggining"
-            ),
+            _ => todo!("{}", error_messages::CLI_ARGS_CMD_NEW_BRANCH),
         };
 
-        cache::save2(program_data, cache, is_tests_run)?;
+        cache.save(program_data)?;
 
         execution_result
     }
@@ -156,23 +154,26 @@ pub mod worker {
     /// modified files, last process build time...)
     fn create_output_directory(model: &ZorkModel) -> Result<()> {
         let out_dir = &model.build.output_dir;
-        let compiler = &model.compiler.cpp_compiler;
+        let compiler: &str = model.compiler.cpp_compiler.as_ref();
 
-        // Recursively create a directory and all of its parent components if they are missing
-        let modules_path = Path::new(out_dir).join(compiler.as_ref()).join("modules");
+        // Recursively create the directories below and all of its parent components if they are missing
+        let modules_path = out_dir.join(compiler).join("modules");
+
         let zork_path = out_dir.join("zork");
-        let zork_cache_path = zork_path.join("cache");
-        let zork_intrinsics_path = zork_path.join("intrinsics");
+        let zork_cache_path = zork_path.join(dir_names::CACHE);
+        let zork_intrinsics_path = zork_path.join(dir_names::INTRINSICS);
 
-        utils::fs::create_directory(&modules_path.join("interfaces"))?;
-        utils::fs::create_directory(&modules_path.join("implementations"))?;
-        utils::fs::create_directory(&modules_path.join("std"))?;
-        utils::fs::create_directory(&out_dir.join(compiler.as_ref()).join("sources"))?;
-        utils::fs::create_directory(&zork_cache_path.join(model.compiler.cpp_compiler.as_ref()))?;
+        utils::fs::create_directory(&out_dir.join(compiler).join(dir_names::OBJECT_FILES))?;
+
+        utils::fs::create_directory(&modules_path.join(dir_names::INTERFACES))?;
+        utils::fs::create_directory(&modules_path.join(dir_names::IMPLEMENTATIONS))?;
+        utils::fs::create_directory(&modules_path.join(dir_names::STD))?;
+
+        utils::fs::create_directory(&zork_cache_path)?;
         utils::fs::create_directory(&zork_intrinsics_path)?;
 
         // TODO: This possibly gonna be temporary
-        if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
+        if model.compiler.cpp_compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
             utils::fs::create_file(
                 &zork_intrinsics_path,
                 "std.h",
@@ -197,13 +198,16 @@ pub mod worker {
         use tempfile::tempdir;
 
         use crate::config_file::{self, ZorkConfigFile};
+        use crate::utils::constants::{dir_names, error_messages, ZORK};
         use crate::utils::{reader::build_model, template::resources::CONFIG_FILE};
 
         #[test]
         fn test_creation_directories() -> Result<()> {
             let temp = tempdir()?;
             let temp_path = temp.path();
-            let out_path = temp_path.join("out");
+            let out_dir = temp_path.join(dir_names::DEFAULT_OUTPUT_DIR);
+
+            let zork_dir = out_dir.join(ZORK);
 
             let normalized_cfg_file = CONFIG_FILE
                 .replace("<compiler>", "clang")
@@ -212,17 +216,29 @@ pub mod worker {
             let zcf: ZorkConfigFile = config_file::zork_cfg_from_file(&normalized_cfg_file)?;
             let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
             let model = build_model(zcf, &cli_args, temp_path)
-                .with_context(|| "Error building the project model")?;
+                .with_context(|| error_messages::PROJECT_MODEL_MAPPING)?;
 
-            // This should create and out/ directory in the ./zork++ folder at the root of this project
+            let compiler = model.compiler.cpp_compiler;
+            let compiler_folder_dir = out_dir.join(compiler.as_ref());
+            let modules_path = compiler_folder_dir.join("modules");
+
+            // This should create and out/ directory at the root of the tmp path
             super::create_output_directory(&model)?;
 
-            assert!(out_path.exists());
-            assert!(out_path.join("clang").exists());
+            assert!(out_dir.exists());
 
-            assert!(out_path.join("zork").exists());
-            assert!(out_path.join("zork").join("cache").exists());
-            assert!(out_path.join("zork").join("intrinsics").exists());
+            assert!(compiler_folder_dir.exists());
+
+            assert!(compiler_folder_dir.join(dir_names::OBJECT_FILES).exists());
+            assert!(modules_path.exists());
+
+            assert!(modules_path.join(dir_names::INTERFACES).exists());
+            assert!(modules_path.join(dir_names::IMPLEMENTATIONS).exists());
+            assert!(modules_path.join(dir_names::STD).exists());
+
+            assert!(zork_dir.exists());
+            assert!(zork_dir.join(dir_names::CACHE).exists());
+            assert!(zork_dir.join(dir_names::INTRINSICS).exists());
 
             Ok(())
         }

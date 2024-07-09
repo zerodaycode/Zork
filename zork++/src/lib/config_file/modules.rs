@@ -60,7 +60,7 @@ use serde::{Deserialize, Serialize};
 /// assert_eq!(&gcc_sys_headers[3], &"type_traits");
 /// assert_eq!(&gcc_sys_headers[4], &"functional");
 /// ```
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct ModulesAttribute<'a> {
     #[serde(borrow)]
     pub base_ifcs_dir: Option<&'a str>,
@@ -133,7 +133,7 @@ pub struct ModulesAttribute<'a> {
 /// assert_eq!(ifc_3.file, "some_module_part.cppm");
 /// assert_eq!(ifc_3.module_name, Some("math_part"));
 /// ```
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct ModuleInterface<'a> {
     #[serde(borrow)]
@@ -159,7 +159,7 @@ pub struct ModuleInterface<'a> {
 /// * `is_internal_partition` - Optional field for declare that the module is actually
 /// a module for hold implementation details, known as module implementation partitions.
 /// This option only takes effect with MSVC
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct ModulePartition<'a> {
     #[serde(borrow)]
     pub module: &'a str,
@@ -201,7 +201,7 @@ pub struct ModulePartition<'a> {
 /// assert_eq!(deps[1], "type_traits");
 /// assert_eq!(deps[2], "iostream");
 /// ```
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct ModuleImplementation<'a> {
     #[serde(borrow)]
     pub file: &'a str,

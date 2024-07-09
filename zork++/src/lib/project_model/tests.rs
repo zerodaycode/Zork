@@ -1,6 +1,6 @@
 use crate::{
-    bounds::{ExecutableTarget, ExtraArgs},
     cli::output::arguments::Argument,
+    domain::target::{ExecutableTarget, ExtraArgs},
 };
 use std::borrow::Cow;
 

@@ -1,11 +1,10 @@
 use std::borrow::Cow;
 
-use crate::{
-    bounds::{ExecutableTarget, ExtraArgs},
-    cli::output::arguments::Argument,
-};
-
 use super::sourceset::SourceSet;
+use crate::{
+    cli::output::arguments::Argument,
+    domain::target::{ExecutableTarget, ExtraArgs},
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ExecutableModel<'a> {

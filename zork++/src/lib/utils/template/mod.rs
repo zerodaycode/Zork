@@ -108,7 +108,7 @@ pub fn create_templated_project(
     utils::fs::create_file(
         &project_root,
         &format!(
-            "{}_{}{}",
+            "{}_{}.{}",
             utils::constants::CONFIG_FILE_NAME,
             compiler.as_ref(),
             utils::constants::CONFIG_FILE_EXT

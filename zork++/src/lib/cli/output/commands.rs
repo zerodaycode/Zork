@@ -11,10 +11,11 @@ use std::{
 };
 
 use super::arguments::Argument;
-use crate::bounds::TranslationUnit;
 use crate::cache::EnvVars;
 use crate::cli::output::arguments::Arguments;
+use crate::cli::output::commands::helpers::load_common_data;
 use crate::compiler::data_factory::{CommonArgs, CompilerCommonArguments};
+use crate::domain::translation_unit::TranslationUnit;
 use crate::{
     cache::ZorkCache,
     project_model::{compiler::CppCompiler, ZorkModel},
@@ -29,27 +30,22 @@ use serde::{Deserialize, Serialize};
 pub fn run_generated_commands(
     program_data: &ZorkModel<'_>,
     cache: &mut ZorkCache<'_>,
-) -> Result<CommandExecutionResult> {
+) -> Result<()> {
     log::info!("Proceeding to execute the generated commands...");
 
-    let general_args = &cache.generated_commands.general_args.get_args();
-    let compiler_specific_shared_args = &cache.generated_commands.compiler_common_args.get_args();
-
-    let env_args = cache.get_process_env_args().clone(); // TODO: this is yet better than clone the
-                                                         // generated commands (maybe) but I'm not
-                                                         // happy with it
+    let (general_args, compiler_specific_shared_args, env_vars) = load_common_data(cache)?;
 
     for sys_module in &cache.generated_commands.system_modules {
         // TODO: will be deprecated soon, hopefully
         // But while isn't deleted, we could normalize them into SourceCommandLine
         // And then, consider to join them into the all generated commands iter
-        execute_command(program_data, sys_module.1, &env_args)?;
+        execute_command(program_data, sys_module.1, &env_vars)?;
     }
 
     let translation_units = cache
         .generated_commands
         .get_all_command_lines()
-        .filter(|scl| scl.need_to_build)
+        .filter(|scl| scl.status.eq(&TranslationUnitStatus::PendingToBuild))
         .collect::<Vec<&mut SourceCommandLine>>();
 
     let compile_but_dont_link: [Argument; 1] =
@@ -67,10 +63,11 @@ pub fn run_generated_commands(
             .chain(translation_unit_cmd.args.iter())
             .collect();
 
-        let r = execute_command(program_data, &translation_unit_cmd_args, &env_args);
-        translation_unit_cmd.execution_result = CommandExecutionResult::from(&r);
+        let r = execute_command(program_data, &translation_unit_cmd_args, &env_vars);
+        translation_unit_cmd.status = TranslationUnitStatus::from(&r);
 
         if let Err(e) = r {
+            cache.save(program_data)?;
             return Err(e);
         } else if !r.as_ref().unwrap().success() {
             let err = eyre!(
@@ -81,32 +78,35 @@ pub fn run_generated_commands(
         }
     }
 
-    if !cache.generated_commands.linker.args.is_empty() {
-        log::debug!("Processing the linker command line...");
+    log::debug!("Processing the linker command line...");
+    let r = execute_command(
+        program_data,
+        &general_args
+            .iter()
+            .chain(compiler_specific_shared_args.iter())
+            .chain(
+                cache
+                    .generated_commands
+                    .linker
+                    .get_target_output_for(program_data.compiler.cpp_compiler)
+                    .iter(),
+            )
+            .chain(cache.generated_commands.linker.byproducts.iter())
+            .collect::<Arguments>(),
+        &env_vars,
+    );
 
-        let r = execute_command(
-            program_data,
-            &general_args
-                .iter()
-                .chain(compiler_specific_shared_args.iter())
-                .chain(cache.generated_commands.linker.args.iter())
-                .collect::<Arguments>(),
-            &env_args,
-        );
+    cache.generated_commands.linker.execution_result = TranslationUnitStatus::from(&r);
 
-        cache.generated_commands.linker.execution_result = CommandExecutionResult::from(&r);
-
-        if let Err(e) = r {
-            return Err(e);
-        } else if !r.as_ref().unwrap().success() {
-            return Err(eyre!(
-                "Ending the program, because the linker command line execution failed",
-            ));
-        }
+    if let Err(e) = r {
+        return Err(e);
+    } else if !r.as_ref().unwrap().success() {
+        return Err(eyre!(
+            "Ending the program, because the linker command line execution failed",
+        ));
     }
 
-    Ok(CommandExecutionResult::Success) // TODO: consider a new variant, like AllSuccedeed
-                                        // or better, change the return for something better
+    Ok(())
 }
 
 /// Executes a new [`std::process::Command`] to run the generated binary
@@ -115,7 +115,7 @@ pub fn autorun_generated_binary(
     compiler: &CppCompiler,
     output_dir: &Path,
     executable_name: &str,
-) -> Result<CommandExecutionResult> {
+) -> Result<()> {
     let args = &[Argument::from(
         output_dir
             .join(compiler.as_ref())
@@ -128,14 +128,14 @@ pub fn autorun_generated_binary(
         args.join(" ")
     );
 
-    Ok(CommandExecutionResult::from(
-        std::process::Command::new(Argument::from(
-            output_dir.join(compiler.as_ref()).join(executable_name),
-        ))
-        .spawn()?
-        .wait()
-        .with_context(|| format!("[{compiler}] - Command {:?} failed!", args.join(" "))),
+    std::process::Command::new(Argument::from(
+        output_dir.join(compiler.as_ref()).join(executable_name),
     ))
+    .spawn()?
+    .wait()
+    .with_context(|| format!("[{compiler}] - Command {:?} failed!", args.join(" ")))?;
+
+    Ok(())
 }
 
 /// Executes a new [`std::process::Command`] configured according the chosen
@@ -173,23 +173,17 @@ pub struct SourceCommandLine {
     pub directory: PathBuf,
     pub filename: String,
     pub args: Arguments,
-    pub need_to_build: bool,
-    pub execution_result: CommandExecutionResult,
-    // TODO an enum with the Kind OF TU that is generating this scl?
+    pub status: TranslationUnitStatus,
 }
 
 impl SourceCommandLine {
-    pub fn new<'a, T: TranslationUnit<'a>>(
-        // TODO init it as a args holder, but doesn't have the status yet
-        tu: &T,
-        args: Arguments,
-    ) -> Self {
+    // TODO T instead of &T?
+    pub fn new<'a, T: TranslationUnit<'a>>(tu: &T, args: Arguments) -> Self {
         Self {
-            directory: tu.path().to_path_buf(),
-            filename: tu.file_with_extension(),
+            directory: PathBuf::from(tu.parent()),
+            filename: tu.filename(),
             args,
-            need_to_build: true,
-            execution_result: CommandExecutionResult::Unprocessed,
+            status: TranslationUnitStatus::PendingToBuild,
         }
     }
 
@@ -200,28 +194,37 @@ impl SourceCommandLine {
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct LinkerCommandLine {
-    pub args: Arguments,
-    pub execution_result: CommandExecutionResult,
+    pub target: Argument,
+    pub byproducts: Arguments,
+    pub extra_args: Arguments,
+    pub execution_result: TranslationUnitStatus,
 }
 
 impl LinkerCommandLine {
+    pub fn get_target_output_for(&self, compiler: CppCompiler) -> Vec<Argument> {
+        match compiler {
+            CppCompiler::CLANG | CppCompiler::GCC => {
+                vec![Argument::from("-o"), self.target.clone()]
+            }
+            CppCompiler::MSVC => vec![self.target.clone()],
+        }
+    }
+
     /// Saves the path at which a compilation product of any translation unit will be placed,
     /// in order to add it to the files that will be linked to generate the final product
     /// in the two-phase compilation model
     pub fn add_buildable_at(&mut self, path: &Path) {
-        self.args.push(Argument::from(path));
+        self.byproducts.push(Argument::from(path));
     }
-
-    // TODO: just maybe a Cow for everyone?
 
     /// Owned version of TODO link
     pub fn add_owned_buildable_at(&mut self, path: PathBuf) {
-        self.args.push(path.into());
+        self.byproducts.push(path.into());
     }
 }
 
 /// Holds the generated command line arguments for a concrete compiler
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Commands {
     pub compiler: CppCompiler, // TODO: review if we can afford this field given the new
     // architechture
@@ -229,8 +232,8 @@ pub struct Commands {
     pub c_compat_stdlib: Option<SourceCommandLine>,
     pub system_modules: HashMap<String, Arguments>,
 
-    pub general_args: CommonArgs,
-    pub compiler_common_args: Box<dyn CompilerCommonArguments>,
+    pub general_args: Option<CommonArgs>,
+    pub compiler_common_args: Option<Box<dyn CompilerCommonArguments>>,
 
     pub interfaces: Vec<SourceCommandLine>,
     pub implementations: Vec<SourceCommandLine>,
@@ -239,7 +242,7 @@ pub struct Commands {
 }
 
 impl Commands {
-    /// Returns an [std::iter::Chain] (behind the opaque impl clause return type signature)
+    /// Returns a [std::iter::Chain] (behind the opaque impl clause return type signature)
     /// which points to all the generated commmands for the two variants of the compilers vendors C++ modular
     /// standard libraries implementations (see: [crate::project_model::compiler::StdLibMode])
     /// joined to all the commands generated for every [TranslationUnit] declared by the user for
@@ -251,6 +254,7 @@ impl Commands {
             .as_mut_slice()
             .iter_mut()
             .chain(self.c_compat_stdlib.as_mut_slice().iter_mut())
+            // TODO: chain pre-tasks (system headers)
             .chain(self.interfaces.as_mut_slice().iter_mut())
             .chain(self.implementations.as_mut_slice().iter_mut())
             .chain(self.sources.as_mut_slice().iter_mut())
@@ -291,10 +295,10 @@ fn collect_source_command_line(
     })
 }
 
-/// Holds a custom representation of the execution of
-/// a command line in a shell.
+/// The different states of a translation unit in the whole lifecycle of
+/// the build process and across different iterations of the same
 #[derive(Debug, Default, Serialize, Deserialize, Clone, Copy, PartialEq)]
-pub enum CommandExecutionResult {
+pub enum TranslationUnitStatus {
     /// A command that is executed correctly
     Success,
     /// A skipped command due to previous successful iterations
@@ -302,36 +306,70 @@ pub enum CommandExecutionResult {
     /// A command which is return code indicates an unsuccessful execution
     Failed,
     /// Whenever a translation unit must be rebuilt
+    #[default]
     PendingToBuild,
+    /// The associated [`TranslationUnit`] has been deleted from the user's configuration and therefore,
+    /// it should be removed from the cache as well as its generated byproducts
+    ToDelete,
     /// The execution failed, returning a [`Result`] with the Err variant
     Error,
-    /// A previous state before executing a command line
-    #[default]
-    Unprocessed,
 }
 
-impl From<Result<ExitStatus, Report>> for CommandExecutionResult {
+impl From<Result<ExitStatus, Report>> for TranslationUnitStatus {
     fn from(value: Result<ExitStatus, Report>) -> Self {
-        handle_command_execution_result(&value)
+        helpers::handle_command_execution_result(&value)
     }
 }
 
-impl From<&Result<ExitStatus, Report>> for CommandExecutionResult {
+impl From<&Result<ExitStatus, Report>> for TranslationUnitStatus {
     fn from(value: &Result<ExitStatus, Report>) -> Self {
-        handle_command_execution_result(value)
+        helpers::handle_command_execution_result(value)
     }
 }
 
-/// Convenient way of handle a command execution result avoiding duplicate code
-fn handle_command_execution_result(value: &Result<ExitStatus>) -> CommandExecutionResult {
-    match value {
-        Ok(r) => {
-            if r.success() {
-                CommandExecutionResult::Success
-            } else {
-                CommandExecutionResult::Failed
+mod helpers {
+    use crate::cache::{EnvVars, ZorkCache};
+    use crate::cli::output::arguments::Arguments;
+    use crate::cli::output::commands::TranslationUnitStatus;
+    use crate::utils::constants::error_messages;
+    use color_eyre::eyre::{ContextCompat, Result};
+    use std::process::ExitStatus;
+
+    /// Convenient way of handle a command execution result avoiding duplicate code
+    pub(crate) fn handle_command_execution_result(
+        value: &Result<ExitStatus>,
+    ) -> TranslationUnitStatus {
+        match value {
+            Ok(r) => {
+                if r.success() {
+                    TranslationUnitStatus::Success
+                } else {
+                    TranslationUnitStatus::Failed
+                }
             }
+            Err(_) => TranslationUnitStatus::Error,
         }
-        Err(_) => CommandExecutionResult::Error,
+    }
+
+    pub(crate) fn load_common_data(
+        cache: &mut ZorkCache<'_>,
+    ) -> Result<(Arguments, Arguments, EnvVars)> {
+        let general_args = cache
+            .generated_commands
+            .general_args
+            .as_ref()
+            .expect(error_messages::GENERAL_ARGS_NOT_FOUND)
+            .get_args();
+
+        let compiler_specific_shared_args = cache
+            .generated_commands
+            .compiler_common_args
+            .as_ref()
+            .with_context(|| error_messages::COMPILER_SPECIFIC_COMMON_ARGS_NOT_FOUND)?
+            .get_args();
+
+        let env_vars = cache.get_process_env_args().clone();
+
+        Ok((general_args, compiler_specific_shared_args, env_vars))
     }
 }

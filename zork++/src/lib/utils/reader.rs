@@ -30,7 +30,7 @@ use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
-use super::constants::DEFAULT_OUTPUT_DIR;
+use super::constants::dir_names;
 
 /// Details about a found configuration file on the project
 ///
@@ -166,7 +166,7 @@ fn assemble_build_model(config: Option<BuildAttribute>, project_root: &Path) -> 
         .as_ref()
         .and_then(|build| build.output_dir)
         .map(|out_dir| out_dir.strip_prefix("./").unwrap_or(out_dir))
-        .unwrap_or(DEFAULT_OUTPUT_DIR);
+        .unwrap_or(dir_names::DEFAULT_OUTPUT_DIR);
 
     BuildModel {
         output_dir: Path::new(project_root).join(output_dir),
@@ -189,8 +189,7 @@ fn assemble_executable_model<'a>(
     let sources = config
         .and_then(|exe| exe.sources.as_ref())
         .map(|srcs| {
-            srcs.iter() // TODO: abstract this kind of procedures away to some method of TranslationUnit, for example?
-                // or some other new trait (can't this have a default impl on the trait definition itself?
+            srcs.iter()
                 .map(|src| Cow::Borrowed(*src))
                 .collect::<Vec<Cow<str>>>()
         })
@@ -213,9 +212,8 @@ fn assemble_executable_model<'a>(
 fn assemble_modules_model<'a>(
     config: Option<ModulesAttribute<'a>>,
     project_root: &Path,
-) -> Option<ModulesModel<'a>> {
-    config.as_ref()?; // early guard
-    let modules = config.unwrap();
+) -> ModulesModel<'a> {
+    let modules = config.unwrap_or_default();
 
     let base_ifcs_dir = modules
         .base_ifcs_dir
@@ -266,14 +264,14 @@ fn assemble_modules_model<'a>(
         .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
         .unwrap_or_default();
 
-    Some(ModulesModel {
+    ModulesModel {
         base_ifcs_dir,
         interfaces,
         base_impls_dir,
         implementations,
         sys_modules,
         extra_args,
-    })
+    }
 }
 
 fn assemble_module_interface_model<'a>(
@@ -466,7 +464,14 @@ mod test {
                 sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![],
             },
-            modules: None,
+            modules: ModulesModel {
+                base_ifcs_dir: Path::new("."),
+                interfaces: vec![],
+                base_impls_dir: Path::new("."),
+                implementations: vec![],
+                sys_modules: vec![],
+                extra_args: vec![],
+            },
             tests: TestsModel {
                 test_executable_name: "Zork++_test".into(),
                 sourceset: SourceSet { sources: vec![] },
@@ -509,7 +514,7 @@ mod test {
                 sourceset: SourceSet { sources: vec![] },
                 extra_args: vec![Argument::from("-Werr")],
             },
-            modules: Some(ModulesModel {
+            modules: ModulesModel {
                 base_ifcs_dir: Path::new("ifcs"),
                 interfaces: vec![
                     ModuleInterfaceModel {
@@ -546,7 +551,7 @@ mod test {
                 ],
                 sys_modules: vec!["iostream".into()],
                 extra_args: vec![Argument::from("-Wall")],
-            }),
+            },
             tests: TestsModel {
                 test_executable_name: "zork_check".into(),
                 sourceset: SourceSet { sources: vec![] },

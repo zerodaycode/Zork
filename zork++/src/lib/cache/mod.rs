@@ -14,21 +14,16 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::bounds::TranslationUnit;
-use crate::cache::compile_commands::CompileCommands;
-use crate::compiler::TranslationUnitKind;
-
+use crate::domain::translation_unit::{TranslationUnit, TranslationUnitKind};
 use crate::project_model::sourceset::SourceFile;
+use crate::utils::constants::CACHE_FILE_EXT;
 use crate::{
     cli::{
         input::CliArgs,
-        output::commands::{CommandExecutionResult, Commands, SourceCommandLine},
+        output::commands::{Commands, SourceCommandLine},
     },
     project_model::{compiler::CppCompiler, ZorkModel},
-    utils::{
-        self,
-        constants::{self, GCC_CACHE_DIR},
-    },
+    utils::{self, constants::GCC_CACHE_DIR},
 };
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
@@ -37,28 +32,33 @@ use walkdir::WalkDir;
 /// for the target [`CppCompiler`]
 pub fn load<'a>(program_data: &'a ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCache<'a>> {
     let compiler = program_data.compiler.cpp_compiler;
-    let cache_path = &program_data
-        .build
-        .output_dir
-        .join("zork")
-        .join("cache")
-        .join(compiler.as_ref());
+    let cache_path = &program_data.build.output_dir.join("zork").join("cache");
 
-    let cache_file_path = cache_path.join(constants::ZORK_CACHE_FILENAME);
+    let cache_file_path = cache_path
+        .join(compiler.as_ref())
+        .with_extension(CACHE_FILE_EXT);
 
-    if !Path::new(&cache_file_path).exists() {
-        File::create(cache_file_path).with_context(|| "Error creating the cache file")?;
+    // TODO: analyze if the clear cache must be performed by target and/or active cfg file(s)
+    // TODO: should we just have a cache dir with the <compiler>_<cfg_file>_<target>.json or similar?
+    // Or just .../<compiler>/<cfg_file>_<target>.json
+    let mut cache = if !Path::new(&cache_file_path).exists() {
+        File::create(&cache_file_path).with_context(|| "Error creating the cache file")?;
+        helpers::initialize_default_cache(compiler, cache_file_path)?
     } else if Path::new(cache_path).exists() && cli_args.clear_cache {
         fs::remove_dir_all(cache_path).with_context(|| "Error cleaning the Zork++ cache")?;
         fs::create_dir(cache_path)
             .with_context(|| "Error creating the cache subdirectory for {compiler}")?;
-        File::create(cache_file_path)
+        File::create(&cache_file_path)
             .with_context(|| "Error creating the cache file after cleaning the cache")?;
-    }
-
-    let mut cache: ZorkCache = utils::fs::load_and_deserialize(&cache_path)
-        .with_context(|| "Error loading the Zork++ cache")?;
-    cache.compiler = compiler;
+        helpers::initialize_default_cache(compiler, cache_file_path)?
+    } else {
+        log::trace!(
+            "Loading Zork++ cache file for {compiler} at: {:?}",
+            cache_file_path
+        );
+        utils::fs::load_and_deserialize(&cache_file_path)
+            .with_context(|| "Error loading the Zork++ cache")?
+    };
 
     cache
         .run_tasks(program_data)
@@ -67,36 +67,21 @@ pub fn load<'a>(program_data: &'a ZorkModel<'_>, cli_args: &CliArgs) -> Result<Z
     Ok(cache)
 }
 
-/// Standalone utility for persist the cache to the file system
-pub fn save2(program_data: &ZorkModel<'_>, mut cache: ZorkCache, test_mode: bool) -> Result<()> {
-    let cache_path = &program_data
-        .build
-        .output_dir
-        .join("zork")
-        .join("cache")
-        .join(program_data.compiler.cpp_compiler.as_ref())
-        .join(constants::ZORK_CACHE_FILENAME);
-
-    cache.run_final_tasks(program_data, test_mode)?;
-    cache.last_program_execution = Utc::now();
-
-    utils::fs::serialize_object_to_file(cache_path, &cache)
-        .with_context(move || "Error saving data to the Zork++ cache")
-}
-
 #[derive(Serialize, Deserialize, Default)]
 pub struct ZorkCache<'a> {
     pub compiler: CppCompiler,
-    pub last_program_execution: DateTime<Utc>,
     pub compilers_metadata: CompilersMetadata<'a>,
     pub generated_commands: Commands,
-    // pub new_commands: bool //< if the current iteration added some new command with respect the
-    // previous one
+    pub metadata: CacheMetadata,
 }
 
 impl<'a> ZorkCache<'a> {
-    pub fn last_program_execution(&self) -> &DateTime<Utc> {
-        &self.last_program_execution
+    pub fn save(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
+        self.run_final_tasks(program_data)?;
+        self.metadata.last_program_execution = Utc::now();
+
+        utils::fs::serialize_object_to_file(&self.metadata.cache_file_path, self)
+            .with_context(move || "Error saving data to the Zork++ cache")
     }
 
     pub fn get_cmd_for_translation_unit_kind<T: TranslationUnit<'a>>(
@@ -104,13 +89,13 @@ impl<'a> ZorkCache<'a> {
         translation_unit: &T,
         translation_unit_kind: &TranslationUnitKind,
     ) -> Option<&mut SourceCommandLine> {
-        return match translation_unit_kind {
+        match translation_unit_kind {
             TranslationUnitKind::ModuleInterface => self.get_module_ifc_cmd(translation_unit),
             TranslationUnitKind::ModuleImplementation => self.get_module_impl_cmd(translation_unit),
             TranslationUnitKind::SourceFile => self.get_source_cmd(translation_unit),
             TranslationUnitKind::ModularStdLib => todo!(),
             TranslationUnitKind::HeaderFile => todo!(),
-        };
+        }
     }
 
     fn get_module_ifc_cmd<T: TranslationUnit<'a>>(
@@ -120,7 +105,7 @@ impl<'a> ZorkCache<'a> {
         self.generated_commands
             .interfaces
             .iter_mut()
-            .find(|mi| *module_interface_model.file() == (*mi).path())
+            .find(|mi| module_interface_model.path().eq(&mi.path()))
     }
 
     fn get_module_impl_cmd<T: TranslationUnit<'a>>(
@@ -130,7 +115,7 @@ impl<'a> ZorkCache<'a> {
         self.generated_commands
             .implementations
             .iter_mut()
-            .find(|mi| *module_impl_model.file() == (*mi).path())
+            .find(|mi| *module_impl_model.path() == (*mi).path())
     }
 
     fn get_source_cmd<T: TranslationUnit<'a>>(
@@ -140,7 +125,7 @@ impl<'a> ZorkCache<'a> {
         self.generated_commands
             .sources
             .iter_mut()
-            .find(|mi| module_impl_model.file() == (*mi).path())
+            .find(|mi| module_impl_model.path() == (*mi).path())
     }
 
     /// The tasks associated with the cache after load it from the file system
@@ -162,32 +147,14 @@ impl<'a> ZorkCache<'a> {
     }
 
     /// Runs the tasks just before end the program and save the cache
-    fn run_final_tasks(
-        &mut self,
-        program_data: &ZorkModel<'_>,
-        // commands: Commands,
-        test_mode: bool,
-    ) -> Result<()> {
-        // if self.save_generated_commands(commands, program_data, test_mode)
-        //     && program_data.project.compilation_db
-        // {
-        //     compile_commands::map_generated_commands_to_compilation_db(self)?;
-        // }
-        //
-        if let Some(_new_commands) = self.save_generated_commands(program_data, test_mode) {
-            if program_data.project.compilation_db {
-                // TODO:: pass the new commands
-                compile_commands::map_generated_commands_to_compilation_db(self)?;
-            }
+    fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
+        if program_data.project.compilation_db && self.metadata.regenerate_compilation_database {
+            compile_commands::map_generated_commands_to_compilation_db(self)?;
         }
 
-        if !(program_data.compiler.cpp_compiler == CppCompiler::MSVC)
-            && program_data.modules.is_some()
-        {
+        if !(program_data.compiler.cpp_compiler == CppCompiler::MSVC) {
             self.compilers_metadata.system_modules = program_data
                 .modules
-                .as_ref()
-                .unwrap()
                 .sys_modules
                 .iter()
                 .map(|e| e.to_string())
@@ -196,75 +163,6 @@ impl<'a> ZorkCache<'a> {
 
         Ok(())
     }
-
-    /// Stores the generated commands for the process in the Cache.
-    /// ### Return:
-    /// a [`Option<CompileCommands> `] indicating whether there's new generated commands (non cached), so
-    /// the compile commands must be regenerated
-    fn save_generated_commands(
-        &mut self,
-        // commands: Commands,
-        _model: &ZorkModel,
-        _test_mode: bool, // TODO: tests linker cmd?
-    ) -> Option<CompileCommands> {
-        log::debug!("Storing in the cache the last generated command lines...");
-        // self.compiler = commands.compiler;
-        // let _process_no = if !self.generated_commands.is_empty() {
-        //     // TODO: do we now need this one?
-        //     // self.generated_commands.last().unwrap().cached_process_num + 1
-        //     0
-        // } else {
-        //     1
-        // };
-
-        // Generating the compilation database if enabled, and some file has been added, modified
-        // or comes from a previous failure status
-
-        // TODO: oh, fk, I get it finally. We should only regenerate the compilation database if
-        // the generated command line has changed! (which is highly unlikely)
-        // TODO: Create a wrapper enumerated over the Vec<Command>, so that we can store in the
-        // array full cached process, and have a variant that only points to the initial file
-
-        // TODO missing the one that determines if there's a new compilation database that must be generated
-        // something like and iter that counts if at least one has been modified ??
-        // let at_least_one_changed = commands.
-        // self.generated_commands = commands;
-
-        self.get_all_commands_iter() // TODO: Review the conditions and ensure that are the ones that we're looking for
-            .any(|cmd| {
-                cmd.need_to_build || cmd.execution_result.eq(&CommandExecutionResult::Success)
-            });
-
-        // INSTEAD OF THIS, we just can return an Optional with the compilation database, so we can serialize the args in the compile_commands.json
-        // format and then join them in a one-liner string, so they're easy to read and/or copy
-        None
-    }
-
-    /* fn normalize_execution_result_status(
-        // TODO: pending to re-implement it
-        // ALe, don't read again this. We just need to fix the implementation when the commands
-        // are generated, or even better, bring them from the cache
-        // So maybe, we can start by fix the thing on early stages
-        // discard cache if the target zork cfg file has been modified would be awesome
-        // then, we can have all of them paired in a hashmap with a unique autoincremental
-        // generated, and split by interfaces and so on and so forth, and read the commands
-        // from the cache
-        &self,
-        module_command_line: &SourceCommandLine,
-    ) -> CommandExecutionResult {
-        if module_command_line
-            .execution_result
-            .eq(&CommandExecutionResult::Unprocessed)
-        {
-            if let Some(prev_entry) = self.is_file_cached(module_command_line.path()) {
-                prev_entry.execution_result
-            } else {
-                module_command_line.execution_result
-            }
-        } else {
-            module_command_line.execution_result
-        }
-    } */
 
     /// Method that returns the HashMap that holds the environmental variables that must be passed
     /// to the underlying shell
@@ -331,9 +229,7 @@ impl<'a> ZorkCache<'a> {
                 {
                     program_data // TODO: review this, since it's too late and I am just satisfying the borrow checker
                         .modules
-                        .as_ref()
-                        .map(|modules| modules.sys_modules.clone())
-                        .unwrap_or_default()
+                        .sys_modules
                         .iter()
                         .any(|sys_mod| {
                             file.file_name()
@@ -358,41 +254,12 @@ impl<'a> ZorkCache<'a> {
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
-pub struct CommandsDetails {
-    cached_process_num: i32,
-    generated_at: DateTime<Utc>,
-    interfaces: Vec<CommandDetail>,
-    implementations: Vec<CommandDetail>,
-    sources: Vec<CommandDetail>,
-    pre_tasks: Vec<CommandDetail>,
-    main: MainCommandLineDetail,
-}
-
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-pub struct CommandDetail {
-    directory: String,
-    file: String,
-    command_line: String,
-    execution_result: CommandExecutionResult,
-}
-
-impl CommandDetail {
-    #[inline(always)]
-    pub fn file_path(&self) -> PathBuf {
-        Path::new(&self.directory).join(&self.file)
-    }
-
-    #[inline]
-    pub fn execution_result(&self) -> CommandExecutionResult {
-        self.execution_result
-    }
-}
-
-#[derive(Deserialize, Serialize, Debug, Default, Clone)]
-pub struct MainCommandLineDetail {
-    files: Vec<PathBuf>,
-    execution_result: CommandExecutionResult,
-    command: String,
+pub struct CacheMetadata {
+    pub process_no: i32,
+    pub last_program_execution: DateTime<Utc>,
+    pub cache_file_path: PathBuf,
+    #[serde(skip)]
+    pub regenerate_compilation_database: bool,
 }
 
 /// Type alias for the underlying key-value based collection of environmental variables
@@ -551,14 +418,30 @@ mod msvc {
 }
 
 mod helpers {
+    use super::*;
     use crate::project_model::ZorkModel;
-    use std::borrow::Cow;
+    use std::path::PathBuf;
 
+    // TODO: this can be used also on the compiler/mod.rs
     pub(crate) fn user_declared_system_headers_to_build(program_data: &ZorkModel<'_>) -> bool {
-        program_data
-            .modules
-            .as_ref()
-            .map(|mods| mods.sys_modules.as_ref())
-            .is_some_and(|sys_modules: &Vec<Cow<str>>| !sys_modules.is_empty())
+        !program_data.modules.sys_modules.is_empty()
+    }
+
+    pub(crate) fn initialize_default_cache<'a>(
+        compiler: CppCompiler,
+        cache_file_path: PathBuf,
+    ) -> Result<ZorkCache<'a>> {
+        let default_initialized = ZorkCache {
+            compiler,
+            metadata: CacheMetadata {
+                cache_file_path: cache_file_path.clone(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        utils::fs::serialize_object_to_file(&cache_file_path, &default_initialized)
+            .with_context(move || "Error saving data to the Zork++ cache")?;
+        Ok(default_initialized)
     }
 }

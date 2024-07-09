@@ -8,8 +8,6 @@ use std::{
 };
 use walkdir::WalkDir;
 
-use super::constants;
-
 /// Creates a new file in the filesystem if the given does not exists yet at the specified location
 pub fn create_file<'a>(path: &Path, filename: &'a str, buff_write: &'a [u8]) -> Result<()> {
     let file_path = path.join(filename);
@@ -90,7 +88,7 @@ where
     T: Serialize + ?Sized,
 {
     serde_json::to_writer_pretty(
-        File::create(path).with_context(|| "Error creating the cache file")?,
+        File::create(path).with_context(|| "Error opening the cache file")?,
         data,
     )
     .with_context(|| "Error serializing data to the cache")
@@ -101,9 +99,7 @@ where
     T: for<'a> Deserialize<'a> + Default,
     P: AsRef<Path>,
 {
-    let buffer = BufReader::new(
-        File::open(path.as_ref().join(constants::ZORK_CACHE_FILENAME))
-            .with_context(|| "Error opening the cache file")?,
-    );
-    Ok(serde_json::from_reader(buffer).unwrap_or_default())
+    let buffer =
+        BufReader::new(File::open(path.as_ref()).with_context(|| "Error opening the cache file")?);
+    Ok(serde_json::from_reader(buffer).expect("Unable to parse the Zork++ cache file"))
 }

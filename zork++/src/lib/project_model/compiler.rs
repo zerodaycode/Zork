@@ -1,9 +1,10 @@
 use core::fmt;
 use std::borrow::Cow;
 
+use crate::cli::output::arguments::Argument;
 use serde::{Deserialize, Serialize};
 
-use crate::{bounds::ExtraArgs, cli::output::arguments::Argument};
+use crate::domain::target::ExtraArgs;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct CompilerModel<'a> {

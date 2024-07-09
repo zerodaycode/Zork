@@ -10,24 +10,27 @@ use serde::{Deserialize, Serialize};
 
 use crate::project_model::compiler::LanguageLevel;
 
-pub trait CommandLineArgument: std::fmt::Display {}
-pub trait CommandLineArguments: std::fmt::Display {}
-
 /// Wrapper type for represent and storing a command line argument
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Argument(String);
-
-impl CommandLineArgument for Argument {}
-impl CommandLineArgument for &Argument {}
 
 impl Argument {
     pub fn value(&self) -> &String {
         &self.0
     }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl From<&str> for Argument {
     fn from(value: &str) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<&String> for Argument {
+    fn from(value: &String) -> Self {
         Self(value.into())
     }
 }
@@ -101,9 +104,6 @@ impl core::fmt::Display for Argument {
 /// Strong type for represent a linear collection of [`Argument`]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Arguments(Vec<Argument>);
-
-impl CommandLineArguments for Arguments {}
-impl CommandLineArguments for &Arguments {}
 
 impl core::fmt::Display for Arguments {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -227,9 +227,9 @@ pub mod clang_args {
     // The Windows variant is a Zork++ feature to allow the users to write `import std;`
     // under -std=c++20 with clang linking against GCC with
     // some MinGW installation or similar
-    pub(crate) fn implicit_module_map(out_dir: &Path) -> Argument {
+    pub(crate) fn implicit_module_map<'a>(out_dir: &Path) -> Cow<'a, str> {
         if std::env::consts::OS.eq("windows") {
-            Argument::from(format!(
+            Cow::Owned(format!(
                 "-fmodule-map-file={}",
                 out_dir
                     .join("zork")
@@ -238,19 +238,19 @@ pub mod clang_args {
                     .display()
             ))
         } else {
-            Argument::from("-fimplicit-module-maps")
+            Cow::Borrowed("-fimplicit-module-maps")
         }
     }
 
-    pub(crate) fn add_prebuilt_module_path(compiler: CppCompiler, out_dir: &Path) -> Argument {
-        Argument::from(format!(
+    pub(crate) fn add_prebuilt_module_path(compiler: CppCompiler, out_dir: &Path) -> String {
+        format!(
             "-fprebuilt-module-path={}",
             out_dir
                 .join(compiler.as_ref())
                 .join("modules")
                 .join("interfaces")
                 .display()
-        ))
+        )
     }
 
     pub(crate) fn add_direct_module_interfaces_dependencies(
@@ -275,17 +275,15 @@ pub mod clang_args {
 }
 
 pub mod msvc_args {
+    use crate::domain::translation_unit::TranslationUnit;
     use crate::{
-        bounds::TranslationUnit,
-        cache::ZorkCache,
-        cli::output::commands::SourceCommandLine,
-        project_model::{compiler::StdLibMode, ZorkModel},
+        cache::ZorkCache, cli::output::commands::SourceCommandLine,
+        project_model::compiler::StdLibMode,
     };
 
     use super::Arguments;
 
     pub(crate) fn generate_std_cmd(
-        _model: &ZorkModel<'_>, // TODO: ensure and then remove
         cache: &ZorkCache,
         stdlib_mode: StdLibMode,
     ) -> SourceCommandLine {
@@ -314,7 +312,7 @@ pub mod msvc_args {
         });
 
         arguments.create_and_push("/c");
-        arguments.create_and_push(stdlib_sf.file());
+        arguments.create_and_push(stdlib_sf.path());
         arguments.create_and_push("/ifcOutput");
         arguments.create_and_push(format! {
             "{}", stdlib_bmi_path.display()
