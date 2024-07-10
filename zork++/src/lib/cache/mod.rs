@@ -267,8 +267,7 @@ pub type EnvVars = HashMap<String, String>;
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CompilersMetadata<'a> {
-    // TODO: apply the same solution a have a fat pointer or better convert them into a Union/enum?
-    // ALL of them must be optional, since only exists
+    // TODO: apply the same solution: have a fat pointer or better convert them into a Union/enum?
     pub msvc: MsvcMetadata<'a>,
     pub clang: ClangMetadata,
     pub gcc: GccMetadata,

@@ -11,16 +11,17 @@ use zork::{
     config_file::{self, ZorkConfigFile},
     utils::{self, reader::build_model},
 };
+use zork::compiler::generate_commands;
 
 pub fn build_project_benchmark(c: &mut Criterion) {
     let config: ZorkConfigFile =
         config_file::zork_cfg_from_file(utils::constants::CONFIG_FILE_MOCK).unwrap();
     let cli_args = CliArgs::parse();
     let program_data = build_model(config, &cli_args, Path::new(".")).unwrap();
-    let mut cache = ZorkCache::default();
+    let cache = ZorkCache::default();
 
     c.bench_function("Build project", |b| {
-        b.iter(|| build_project(black_box(&program_data), black_box(&mut cache), false))
+        b.iter(|| generate_commands(black_box(&program_data), black_box(cache), &cli_args))
     });
 
     c.bench_function("Cache loading time", |b| {
