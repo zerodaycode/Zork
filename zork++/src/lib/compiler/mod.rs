@@ -36,35 +36,35 @@ pub mod data_factory;
 /// for every translation unit declared by the user for its project
 pub fn generate_commands<'a>(
     model: &'a ZorkModel<'a>,
-    mut cache: ZorkCache<'a>,
+    cache: &mut ZorkCache<'a>,
     cli_args: &'a CliArgs,
-) -> Result<ZorkCache<'a>> {
+) -> Result<()> {
     // Load the general args and the compiler specific ones if it's necessary
-    load_flyweights_for_general_shared_data(model, &mut cache);
+    load_flyweights_for_general_shared_data(model, cache);
 
     // Build the std library as a module
-    generate_modular_stdlibs_cmds(model, &mut cache, cli_args);
+    generate_modular_stdlibs_cmds(model, cache);
 
     // Pre-tasks
     if model.compiler.cpp_compiler != CppCompiler::MSVC && !model.modules.sys_modules.is_empty() {
-        generate_sys_modules_commands(model, &mut cache, cli_args);
+        generate_sys_modules_commands(model, cache, cli_args);
     }
 
     // Translation units and linker
 
     // 1st - Build the modules
-    process_modules(model, &mut cache, cli_args)?;
+    process_modules(model, cache, cli_args)?;
     // 2nd - Generate the commands for the non-module sources
-    generate_sources_cmds_args(model, &mut cache, cli_args)?;
+    generate_sources_cmds_args(model, cache, cli_args)?;
     // 3rd - Generate the linker command for the 'target' declared by the user
-    generate_linkage_targets_commands(model, &mut cache, cli_args);
+    generate_linkage_targets_commands(model, cache, cli_args);
 
-    Ok(cache)
+    Ok(())
 }
 
 /// Adds to the cache the data on the *flyweight* data structures that holds all the
 /// command line arguments that are shared among the command lines
-fn load_flyweights_for_general_shared_data(model: &ZorkModel, cache: &mut ZorkCache) {
+fn load_flyweights_for_general_shared_data<'a>(model: &'a ZorkModel, cache: &mut ZorkCache<'a>) {
     if cache.generated_commands.general_args.is_none() {
         cache.generated_commands.general_args = Some(CommonArgs::from(model));
     }
@@ -78,7 +78,7 @@ fn load_flyweights_for_general_shared_data(model: &ZorkModel, cache: &mut ZorkCa
 
 /// Generates the cmds for build the C++ standard libraries (std and std.compat) according to the specification
 /// of each compiler vendor
-fn generate_modular_stdlibs_cmds(model: &ZorkModel, cache: &mut ZorkCache, _cli_args: &CliArgs) {
+fn generate_modular_stdlibs_cmds<'a>(model: &'a ZorkModel<'a>, cache: &mut ZorkCache<'a>) {
     // TODO: remaining ones: Clang, GCC.
     // NOTE: Provisionally 'If' guarded because only MSVC is supported now to build the
     // C++ standard library implementations
@@ -177,7 +177,7 @@ fn generate_sources_cmds_args<'a>(
 /// for the files and properties declared for the tests section in the configuration file
 fn generate_linkage_targets_commands<'a>(
     model: &'a ZorkModel<'_>,
-    cache: &'a mut ZorkCache<'_>,
+    cache: &mut ZorkCache<'a>,
     cli_args: &'a CliArgs,
 ) {
     // TODO: Shouldn't we start to think about named targets? So introduce the static and dynamic
@@ -197,7 +197,7 @@ fn generate_linkage_targets_commands<'a>(
 /// to clone them everytime we create a new [`SourceCommandLine`] for a given translation unit
 pub fn generate_linker_general_command_line_args<'a>(
     model: &ZorkModel<'_>,
-    cache: &mut ZorkCache<'_>,
+    cache: &mut ZorkCache<'a>,
     target: &'a impl ExecutableTarget<'a>,
 ) {
     log::info!("Generating the linker command line...");
@@ -236,21 +236,21 @@ pub fn generate_linker_general_command_line_args<'a>(
 /// (while the cache isn't purged by the user) to set their [`TranslationUnitStatus`] flag, which ultimately
 /// decides on every run if the file must be sent to build to the target [`CppCompiler`]
 fn process_kind_translation_units<'a, T: TranslationUnit<'a>>(
-    model: &ZorkModel<'_>,
+    model: &'a ZorkModel<'a>,
     cache: &mut ZorkCache<'a>,
-    cli_args: &CliArgs,
+    cli_args: &'a CliArgs,
     translation_units: &'a [T],
     for_kind: TranslationUnitKind,
 ) {
-    translation_units.iter().for_each(|translation_unit| {
+    for translation_unit in translation_units.iter() {
         process_kind_translation_unit(model, cache, cli_args, translation_unit, &for_kind)
-    });
+    }
 }
 
 fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
-    model: &ZorkModel<'_>,
+    model: &'a ZorkModel<'a>,
     cache: &mut ZorkCache<'a>,
-    cli_args: &CliArgs,
+    cli_args: &'a CliArgs,
     translation_unit: &'a T,
     for_kind: &TranslationUnitKind,
 ) {
@@ -327,9 +327,9 @@ mod modules {
 
     /// Generates the expected arguments for precompile the BMIs depending on self
     pub fn generate_module_interface_cmd<'a>(
-        model: &'a ZorkModel,
-        cache: &'a mut ZorkCache,
-        interface: &'a ModuleInterfaceModel,
+        model: &'a ZorkModel<'a>,
+        cache: &mut ZorkCache<'a>,
+        interface: &'a ModuleInterfaceModel<'a>,
     ) {
         let mut arguments = Arguments::default();
         let compiler = model.compiler.cpp_compiler;
@@ -398,9 +398,9 @@ mod modules {
 
     /// Generates the required arguments for compile the implementation module files
     pub fn generate_module_implementation_cmd<'a>(
-        model: &'a ZorkModel,
-        cache: &mut ZorkCache,
-        implementation: &'a ModuleImplementationModel,
+        model: &'a ZorkModel<'a>,
+        cache: &mut ZorkCache<'a>,
+        implementation: &'a ModuleImplementationModel<'a>,
     ) {
         let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir.as_ref();
@@ -445,10 +445,10 @@ mod modules {
     ///
     /// This feature is supported by `GCC` and `Clang`
     /// NOTE: With the inclusion of std named modules, want we to support this anymore?
-    pub(crate) fn generate_sys_module_cmd(
-        model: &ZorkModel,
-        cache: &mut ZorkCache,
-        sys_module: &SystemModule,
+    pub(crate) fn generate_sys_module_cmd<'a>(
+        model: &'a ZorkModel<'a>,
+        cache: &mut ZorkCache<'a>,
+        sys_module: &'a SystemModule<'a>,
     ) {
         let sys_module_name = &sys_module.file_stem;
         let generated_bmi_path = generate_bmi_file_path(
@@ -486,9 +486,9 @@ mod modules {
         cache.generated_commands.system_modules.push(cmd);
     }
 
-    pub(crate) fn generate_modular_cpp_stdlib_args(
-        model: &ZorkModel,
-        cache: &mut ZorkCache,
+    pub(crate) fn generate_modular_cpp_stdlib_args<'a>(
+        model: &'a ZorkModel<'a>,
+        cache: &mut ZorkCache<'a>,
         stdlib_mode: StdLibMode,
     ) {
         let compiler = model.compiler.cpp_compiler;
@@ -529,9 +529,9 @@ mod sources {
 
     /// Generates the command line arguments for non-module source files
     pub fn generate_sources_arguments<'a>(
-        model: &'a ZorkModel,
-        cache: &mut ZorkCache,
-        source: &'a SourceFile,
+        model: &'a ZorkModel<'a>,
+        cache: &mut ZorkCache<'a>,
+        source: &'a SourceFile<'a>,
         target: &'a (impl ExecutableTarget<'a> + ?Sized),
     ) {
         let compiler = model.compiler.cpp_compiler;

@@ -10,7 +10,7 @@ use super::sourceset::SourceSet;
 pub struct TestsModel<'a> {
     pub test_executable_name: Cow<'a, str>,
     pub sourceset: SourceSet<'a>,
-    pub extra_args: Vec<Argument>,
+    pub extra_args: Vec<Argument<'a>>,
 }
 
 impl<'a> ExtraArgs<'a> for TestsModel<'a> {

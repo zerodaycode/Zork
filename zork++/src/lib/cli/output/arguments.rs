@@ -12,10 +12,10 @@ use crate::project_model::compiler::LanguageLevel;
 
 /// Wrapper type for represent and storing a command line argument
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Argument(String);
+pub struct Argument<'a>(Cow<'a, str>);
 
-impl Argument {
-    pub fn value(&self) -> &String {
+impl<'a> Argument<'a> {
+    pub fn value(&self) -> &Cow<'a, str> {
         &self.0
     }
     pub fn is_empty(&self) -> bool {
@@ -23,79 +23,71 @@ impl Argument {
     }
 }
 
-impl From<&str> for Argument {
-    fn from(value: &str) -> Self {
-        Self(value.into())
+impl<'a> From<&'a str> for Argument<'a> {
+    fn from(value: &'a str) -> Self {
+        Self(Cow::Borrowed(value))
     }
 }
 
-impl From<&String> for Argument {
-    fn from(value: &String) -> Self {
-        Self(value.into())
+impl<'a> From<&'a String> for Argument<'a> {
+    fn from(value: &'a String) -> Self {
+        Self(Cow::Borrowed(value))
     }
 }
 
-impl From<Cow<'_, str>> for Argument {
-    fn from(value: Cow<'_, str>) -> Self {
-        Self(value.into())
+impl<'a> From<Cow<'a, str>> for Argument<'a> {
+    fn from(value: Cow<'a, str>) -> Self { Self(value) }
+}
+
+impl<'a> From<&Cow<'a, str>> for Argument<'a> {
+    fn from(value: &Cow<'a, str>) -> Self {
+        Self(value.clone())
     }
 }
 
-impl From<&Cow<'_, str>> for Argument {
-    fn from(value: &Cow<'_, str>) -> Self {
-        Self(value.clone().into())
+impl<'a> From<String> for Argument<'a> {
+    fn from(value: String) -> Argument<'a> {
+        Self(Cow::Owned(value))
     }
 }
 
-impl From<String> for Argument {
-    fn from(value: String) -> Argument {
-        Self(value)
-    }
+impl<'a> From<&'a Path> for Argument<'a> {
+    fn from(value: &'a Path) -> Self { Self::from(value.to_string_lossy()) }
 }
 
-impl From<&Path> for Argument {
-    fn from(value: &Path) -> Self {
-        Self::from(format!("{}", value.display()))
-    }
+impl<'a> From<PathBuf> for Argument<'a> {
+    fn from(value: PathBuf) -> Self { Self::from(format!("{}", value.display())) }
 }
 
-impl From<PathBuf> for Argument {
-    fn from(value: PathBuf) -> Self {
-        Self::from(format!("{}", value.display()))
-    }
-}
-
-impl From<&PathBuf> for Argument {
+impl<'a> From<&PathBuf> for Argument<'a> {
     fn from(value: &PathBuf) -> Self {
         Self::from(format!("{}", value.display()))
     }
 }
 
-impl From<LanguageLevel> for Argument {
-    fn from(value: LanguageLevel) -> Self {
-        Self::from(value.as_ref().to_string())
-    }
+impl<'a> From<LanguageLevel> for Argument<'a> {
+    fn from(value: LanguageLevel) -> Self { Self::from(value.as_ref().to_string()) }
 }
 
-impl Borrow<str> for Argument {
+impl<'a> Borrow<str> for Argument<'a> {
     fn borrow(&self) -> &str {
         &self.0
     }
 }
 
-impl AsRef<OsStr> for Argument {
+impl<'a> AsRef<OsStr> for Argument<'a> {
     fn as_ref(&self) -> &OsStr {
-        OsStr::new(&self.0)
+        OsStr::new(self.0.as_ref())
     }
 }
 
-impl AsRef<str> for Argument {
+impl<'a> AsRef<str> for Argument<'a> {
     fn as_ref(&self) -> &str {
         &self.0
     }
 }
 
-impl core::fmt::Display for Argument {
+impl<'a> core::fmt::Display for Argument<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -103,9 +95,9 @@ impl core::fmt::Display for Argument {
 
 /// Strong type for represent a linear collection of [`Argument`]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct Arguments(Vec<Argument>);
+pub struct Arguments<'a>(Vec<Argument<'a>>);
 
-impl core::fmt::Display for Arguments {
+impl<'a> core::fmt::Display for Arguments<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.iter().try_for_each(|arg| write!(f, "{} ", arg))
         // TODO: there's an ugly space at the end of every command line when Display is invoked
@@ -113,9 +105,9 @@ impl core::fmt::Display for Arguments {
     }
 }
 
-impl Arguments {
+impl<'a> Arguments<'a> {
     /// Wraps an existing [`std::vec::Vec`] of [`Argument`]
-    pub fn from_vec(vec: Vec<Argument>) -> Self {
+    pub fn from_vec(vec: Vec<Argument<'a>>) -> Self {
         Self(vec)
     }
 
@@ -128,25 +120,25 @@ impl Arguments {
     /// from any type *T* that can be coerced into an [`Argument`] type
     pub fn push<T>(&mut self, val: T)
     where
-        T: Into<Argument>,
+        T: Into<Argument<'a>>,
     {
         self.0.push(val.into())
     }
 
     /// Given an optional, adds the inner value if there's Some(<[Argument]>)
-    pub fn push_opt(&mut self, arg: Option<Argument>) {
+    pub fn push_opt(&mut self, arg: Option<Argument<'a>>) {
         if let Some(val) = arg {
             self.0.push(val)
         }
     }
 
     /// Extends the underlying collection from an Iterator of [`Argument`]
-    pub fn extend(&mut self, iter: impl IntoIterator<Item = Argument>) {
+    pub fn extend(&mut self, iter: impl IntoIterator<Item = Argument<'a>>) {
         self.0.extend(iter);
     }
 
     /// Extends the underlying collection given a slice of [`Argument`]
-    pub fn extend_from_slice(&mut self, slice: &[Argument]) {
+    pub fn extend_from_slice(&mut self, slice: &'a [Argument]) {
         self.0.extend_from_slice(slice);
     }
 
@@ -160,16 +152,16 @@ impl Arguments {
     }
 }
 
-impl Deref for Arguments {
-    type Target = [Argument];
+impl<'a> Deref for Arguments<'a> {
+    type Target = [Argument<'a>];
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl IntoIterator for Arguments {
-    type Item = Argument;
+impl<'a> IntoIterator for Arguments<'a> {
+    type Item = Argument<'a>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -177,8 +169,8 @@ impl IntoIterator for Arguments {
     }
 }
 
-impl IntoIterator for &Arguments {
-    type Item = Argument;
+impl<'a> IntoIterator for &Arguments<'a> {
+    type Item = Argument<'a>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -186,8 +178,8 @@ impl IntoIterator for &Arguments {
     }
 }
 
-impl FromIterator<Argument> for Arguments {
-    fn from_iter<I: IntoIterator<Item = Argument>>(iter: I) -> Self {
+impl<'a> FromIterator<Argument<'a>> for Arguments<'a> {
+    fn from_iter<I: IntoIterator<Item = Argument<'a>>>(iter: I) -> Self {
         let mut vec = Vec::new();
         for item in iter {
             vec.push(item);
@@ -196,8 +188,8 @@ impl FromIterator<Argument> for Arguments {
     }
 }
 
-impl<'a> FromIterator<&'a Argument> for Arguments {
-    fn from_iter<I: IntoIterator<Item = &'a Argument>>(iter: I) -> Arguments {
+impl<'a> FromIterator<&'a Argument<'a>> for Arguments<'a> {
+    fn from_iter<I: IntoIterator<Item = &'a Argument<'a>>>(iter: I) -> Arguments<'a> {
         let mut vec = Vec::new();
         for item in iter {
             vec.push(item.clone());
@@ -277,10 +269,10 @@ pub mod msvc_args {
 
     use super::Arguments;
 
-    pub(crate) fn generate_std_cmd(
-        cache: &ZorkCache,
+    pub(crate) fn generate_std_cmd<'a>(
+        cache: &ZorkCache<'a>,
         stdlib_mode: StdLibMode,
-    ) -> SourceCommandLine {
+    ) -> SourceCommandLine<'a> {
         let mut arguments = Arguments::default();
         let msvc = &cache.compilers_metadata.msvc;
 

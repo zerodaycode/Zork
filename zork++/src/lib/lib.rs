@@ -103,8 +103,8 @@ pub mod worker {
     /// binaries, the tests declared for the projects...
     fn do_main_work_based_on_cli_input<'a>(
         cli_args: &'a CliArgs,
-        program_data: &'a ZorkModel<'_>,
-        cache: ZorkCache,
+        program_data: &'a ZorkModel<'a>,
+        mut cache: ZorkCache<'a>,
     ) -> Result<()> {
         // TODO: if we split the line below, we can only check for changes on the modified
         // files IF and only IF the configuration files has been modified
@@ -113,7 +113,7 @@ pub mod worker {
         //
         // other is to have just a separate function that only passes the required data
         // like cache to be modified and the new ones
-        let mut cache = generate_commands(program_data, cache, cli_args)
+        generate_commands(program_data, &mut cache, cli_args)
             .with_context(|| error_messages::FAILURE_GENERATING_COMMANDS)?;
 
         let execution_result = match cli_args.command {

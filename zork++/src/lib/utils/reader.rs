@@ -353,7 +353,7 @@ fn assemble_module_implementation_model<'a>(
 
 fn assemble_tests_model<'a>(
     project_name: Cow<'_, str>,
-    config: Option<TestsAttribute>,
+    config: Option<TestsAttribute<'a>>,
     project_root: &Path,
 ) -> TestsModel<'a> {
     let config = config.as_ref();

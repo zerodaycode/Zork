@@ -72,7 +72,7 @@ pub fn load<'a>(program_data: &'a ZorkModel<'_>, cli_args: &CliArgs) -> Result<Z
 pub struct ZorkCache<'a> {
     pub compiler: CppCompiler,
     pub compilers_metadata: CompilersMetadata<'a>,
-    pub generated_commands: Commands,
+    pub generated_commands: Commands<'a>,
     pub metadata: CacheMetadata,
 }
 
@@ -89,7 +89,7 @@ impl<'a> ZorkCache<'a> {
         &mut self,
         translation_unit: &T,
         translation_unit_kind: &TranslationUnitKind,
-    ) -> Option<&mut SourceCommandLine> {
+    ) -> Option<&mut SourceCommandLine<'a>> {
         match translation_unit_kind {
             TranslationUnitKind::ModuleInterface => self.get_module_ifc_cmd(translation_unit),
             TranslationUnitKind::ModuleImplementation => self.get_module_impl_cmd(translation_unit),
@@ -105,7 +105,7 @@ impl<'a> ZorkCache<'a> {
     fn get_module_ifc_cmd<T: TranslationUnit<'a>>(
         &mut self,
         module_interface: &T,
-    ) -> Option<&mut SourceCommandLine> {
+    ) -> Option<&mut SourceCommandLine<'a>> {
         self.generated_commands
             .interfaces
             .iter_mut()
@@ -115,7 +115,7 @@ impl<'a> ZorkCache<'a> {
     fn get_module_impl_cmd<T: TranslationUnit<'a>>(
         &mut self,
         module_impl: &T,
-    ) -> Option<&mut SourceCommandLine> {
+    ) -> Option<&mut SourceCommandLine<'a>> {
         self.generated_commands
             .implementations
             .iter_mut()
@@ -125,7 +125,7 @@ impl<'a> ZorkCache<'a> {
     fn get_source_cmd<T: TranslationUnit<'a>>(
         &mut self,
         source: &T,
-    ) -> Option<&mut SourceCommandLine> {
+    ) -> Option<&mut SourceCommandLine<'a>> {
         self.generated_commands
             .sources
             .iter_mut()
@@ -139,7 +139,7 @@ impl<'a> ZorkCache<'a> {
     fn get_system_module_cmd<T: TranslationUnit<'a>>(
         &mut self,
         system_module: &T,
-    ) -> Option<&mut SourceCommandLine> {
+    ) -> Option<&mut SourceCommandLine<'a>> {
         self.generated_commands
             .system_modules
             .iter_mut()
@@ -149,7 +149,7 @@ impl<'a> ZorkCache<'a> {
     pub fn get_cpp_stdlib_cmd_by_kind(
         &mut self,
         stdlib_mode: StdLibMode,
-    ) -> Option<&mut SourceCommandLine> {
+    ) -> Option<&mut SourceCommandLine<'a>> {
         match stdlib_mode {
             StdLibMode::Cpp => self.generated_commands.cpp_stdlib.as_mut(),
             StdLibMode::CCompat => self.generated_commands.c_compat_stdlib.as_mut(),
@@ -159,18 +159,18 @@ impl<'a> ZorkCache<'a> {
     pub fn set_cpp_stdlib_cmd_by_kind(
         &mut self,
         stdlib_mode: StdLibMode,
-        cmd_line: Option<SourceCommandLine>,
+        cmd_line: Option<SourceCommandLine<'a>>,
     ) {
         match stdlib_mode {
             StdLibMode::Cpp => self.generated_commands.cpp_stdlib = cmd_line,
             StdLibMode::CCompat => self.generated_commands.c_compat_stdlib = cmd_line,
         }
     }
-    fn get_cpp_stdlib_cmd(&mut self) -> Option<&mut SourceCommandLine> {
+    fn get_cpp_stdlib_cmd(&mut self) -> Option<&mut SourceCommandLine<'a>> {
         self.generated_commands.cpp_stdlib.as_mut()
     }
 
-    fn get_ccompat_stdlib_cmd(&mut self) -> Option<&mut SourceCommandLine> {
+    fn get_ccompat_stdlib_cmd(&mut self) -> Option<&mut SourceCommandLine<'a>> {
         self.generated_commands.c_compat_stdlib.as_mut()
     }
 
@@ -195,7 +195,7 @@ impl<'a> ZorkCache<'a> {
 
     /// Method that returns the HashMap that holds the environmental variables that must be passed
     /// to the underlying shell
-    pub fn get_process_env_args(&self) -> &EnvVars {
+    pub fn get_process_env_args(&'a mut self) -> &'a EnvVars {
         match self.compiler {
             CppCompiler::MSVC => &self.compilers_metadata.msvc.env_vars,
             CppCompiler::CLANG => &self.compilers_metadata.clang.env_vars,

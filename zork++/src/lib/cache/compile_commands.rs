@@ -8,14 +8,14 @@ use serde::Serialize;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
-pub type CompileCommands = Vec<CompileCommand>;
+pub type CompileCommands<'a> = Vec<CompileCommand<'a>>;
 
 /// Generates the `compile_commands.json` file, that acts as a compilation database
 /// for some static analysis external tools, like `clang-tidy`, and populates it with
 /// the generated commands for the translation units
-pub(crate) fn map_generated_commands_to_compilation_db(
-    cache: &ZorkCache,
-) -> Result<CompileCommands> {
+pub(crate) fn map_generated_commands_to_compilation_db<'a>(
+    cache: &'a ZorkCache<'a>,
+) -> Result<CompileCommands<'a>> {
     log::trace!("Generating the compilation database...");
 
     let generated_commands = cache.get_all_commands_iter();
@@ -41,14 +41,14 @@ pub(crate) fn map_generated_commands_to_compilation_db(
 /// Data model for serialize the data that will be outputted
 /// to the `compile_commands.json` compilation database file
 #[derive(Serialize, Debug, Default, Clone)]
-pub struct CompileCommand {
+pub struct CompileCommand<'a> {
     pub directory: PathBuf,
     pub file: String,
-    pub arguments: Arguments,
+    pub arguments: Arguments<'a>,
 }
 
-impl From<&SourceCommandLine> for CompileCommand {
-    fn from(value: &SourceCommandLine) -> Self {
+impl<'a> From<&SourceCommandLine<'a>> for CompileCommand<'a> {
+    fn from(value: &SourceCommandLine<'a>) -> Self {
         let value = value.clone();
         Self {
             directory: value.directory,

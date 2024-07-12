@@ -17,7 +17,7 @@ pub struct ModulesModel<'a> {
     pub base_impls_dir: &'a Path,
     pub implementations: Vec<ModuleImplementationModel<'a>>,
     pub sys_modules: Vec<SystemModule<'a>>,
-    pub extra_args: Vec<Argument>,
+    pub extra_args: Vec<Argument<'a>>,
 }
 
 impl<'a> ExtraArgs<'a> for ModulesModel<'a> {

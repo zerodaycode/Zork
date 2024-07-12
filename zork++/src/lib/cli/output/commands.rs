@@ -12,33 +12,63 @@ use std::{
 use super::arguments::Argument;
 use crate::cache::EnvVars;
 use crate::cli::output::arguments::Arguments;
-use crate::cli::output::commands::helpers::load_common_data;
 use crate::compiler::data_factory::{CommonArgs, CompilerCommonArguments};
 use crate::domain::translation_unit::TranslationUnit;
+use crate::utils::constants::error_messages;
 use crate::{
     cache::ZorkCache,
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::constants,
 };
+use color_eyre::eyre::ContextCompat;
 use color_eyre::{
     eyre::{eyre, Context},
     Report, Result,
 };
 use serde::{Deserialize, Serialize};
 
-pub fn run_generated_commands(
-    program_data: &ZorkModel<'_>,
-    cache: &mut ZorkCache<'_>,
+pub fn run_generated_commands<'a>(
+    program_data: &ZorkModel<'a>,
+    cache: &mut ZorkCache<'a>,
 ) -> Result<()> {
     log::info!("Proceeding to execute the generated commands...");
 
-    let (general_args, compiler_specific_shared_args, env_vars) = load_common_data(cache)?;
+    let generated_commands = &mut cache.generated_commands;
 
-    let translation_units = cache
-        .generated_commands
-        .get_all_command_lines()
+    let general_args = generated_commands
+        .general_args
+        .as_mut()
+        .expect(error_messages::GENERAL_ARGS_NOT_FOUND)
+        .get_args();
+
+    let compiler_specific_shared_args = generated_commands
+        .compiler_common_args
+        .as_mut()
+        .with_context(|| error_messages::COMPILER_SPECIFIC_COMMON_ARGS_NOT_FOUND)?
+        .get_args();
+
+    let env_vars = match program_data.compiler.cpp_compiler {
+        CppCompiler::MSVC => &cache.compilers_metadata.msvc.env_vars,
+        CppCompiler::CLANG => &cache.compilers_metadata.clang.env_vars,
+        CppCompiler::GCC => &cache.compilers_metadata.gcc.env_vars,
+    };
+
+    let translation_units = generated_commands
+        .cpp_stdlib
+        .as_mut_slice()
+        .iter_mut()
+        .chain(generated_commands.c_compat_stdlib.as_mut_slice().iter_mut())
+        .chain(generated_commands.system_modules.as_mut_slice().iter_mut())
+        .chain(generated_commands.interfaces.as_mut_slice().iter_mut())
+        .chain(generated_commands.implementations.as_mut_slice().iter_mut())
+        .chain(generated_commands.sources.as_mut_slice().iter_mut())
         .filter(|scl| scl.status.eq(&TranslationUnitStatus::PendingToBuild))
         .collect::<Vec<&mut SourceCommandLine>>();
+
+    // let translation_units = generated_commands // TODO: how can I borrow twice generated_commands?
+    //     .get_all_command_lines()
+    //     .filter(|scl| scl.status.eq(&TranslationUnitStatus::PendingToBuild))
+    //     .collect::<Vec<&mut SourceCommandLine>>();
 
     let compile_but_dont_link: [Argument; 1] =
         [Argument::from(match program_data.compiler.cpp_compiler {
@@ -55,7 +85,7 @@ pub fn run_generated_commands(
             .chain(translation_unit_cmd.args.iter())
             .collect();
 
-        let r = execute_command(program_data, &translation_unit_cmd_args, &env_vars);
+        let r = execute_command(program_data, &translation_unit_cmd_args, env_vars);
         translation_unit_cmd.status = TranslationUnitStatus::from(&r);
 
         if let Err(e) = r {
@@ -77,15 +107,14 @@ pub fn run_generated_commands(
             .iter()
             .chain(compiler_specific_shared_args.iter())
             .chain(
-                cache
-                    .generated_commands
+                generated_commands
                     .linker
                     .get_target_output_for(program_data.compiler.cpp_compiler)
                     .iter(),
             )
-            .chain(cache.generated_commands.linker.byproducts.iter())
+            .chain(generated_commands.linker.byproducts.iter())
             .collect::<Arguments>(),
-        &env_vars,
+        env_vars,
     );
 
     cache.generated_commands.linker.execution_result = TranslationUnitStatus::from(&r);
@@ -157,17 +186,6 @@ where
         .with_context(|| format!("[{compiler}] - Command {arguments} failed!"))
 }
 
-///
-pub trait CommandLine {
-    fn args(&self) -> &Arguments;
-}
-
-impl CommandLine for SourceCommandLine {
-    fn args(&self) -> &Arguments {
-        &self.args
-    }
-}
-
 /// Type for representing the command line that will be sent to the target compiler, and
 /// store its different components
 ///
@@ -178,15 +196,15 @@ impl CommandLine for SourceCommandLine {
 /// line can have among all the different iterations of the program, changing according to the modifications
 /// over the translation unit in the fs and the result of the build execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SourceCommandLine {
+pub struct SourceCommandLine<'a> {
     pub directory: PathBuf,
     pub filename: String,
-    pub args: Arguments,
+    pub args: Arguments<'a>,
     pub status: TranslationUnitStatus,
 }
 
-impl SourceCommandLine {
-    pub fn new<'a, T: TranslationUnit<'a>>(tu: &T, args: Arguments) -> Self {
+impl<'a> SourceCommandLine<'a> {
+    pub fn new<T: TranslationUnit<'a>>(tu: &T, args: Arguments<'a>) -> Self {
         Self {
             directory: PathBuf::from(tu.parent()),
             filename: tu.filename(),
@@ -205,14 +223,14 @@ impl SourceCommandLine {
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct LinkerCommandLine {
-    pub target: Argument,
-    pub byproducts: Arguments,
-    pub extra_args: Arguments,
+pub struct LinkerCommandLine<'a> {
+    pub target: Argument<'a>,
+    pub byproducts: Arguments<'a>,
+    pub extra_args: Arguments<'a>,
     pub execution_result: TranslationUnitStatus,
 }
 
-impl LinkerCommandLine {
+impl<'a> LinkerCommandLine<'a> {
     pub fn get_target_output_for(&self, compiler: CppCompiler) -> Vec<Argument> {
         match compiler {
             CppCompiler::CLANG | CppCompiler::GCC => {
@@ -232,30 +250,30 @@ impl LinkerCommandLine {
 
 /// Holds the generated command line arguments for a concrete compiler
 #[derive(Serialize, Deserialize, Default, Debug)]
-pub struct Commands {
-    pub cpp_stdlib: Option<SourceCommandLine>,
-    pub c_compat_stdlib: Option<SourceCommandLine>,
+pub struct Commands<'a> {
+    pub cpp_stdlib: Option<SourceCommandLine<'a>>,
+    pub c_compat_stdlib: Option<SourceCommandLine<'a>>,
     // pub system_modules: HashMap<String, Arguments>,
-    pub system_modules: Vec<SourceCommandLine>, // TODO: SourceCommandLine while we found a better approach
+    pub system_modules: Vec<SourceCommandLine<'a>>, // TODO: SourceCommandLine while we found a better approach
     // or while we don't implement the parser that gets the path to the compilers std library headers
-    pub general_args: Option<CommonArgs>,
+    pub general_args: Option<CommonArgs<'a>>,
     pub compiler_common_args: Option<Box<dyn CompilerCommonArguments>>,
 
-    pub interfaces: Vec<SourceCommandLine>,
-    pub implementations: Vec<SourceCommandLine>,
-    pub sources: Vec<SourceCommandLine>,
-    pub linker: LinkerCommandLine,
+    pub interfaces: Vec<SourceCommandLine<'a>>,
+    pub implementations: Vec<SourceCommandLine<'a>>,
+    pub sources: Vec<SourceCommandLine<'a>>,
+    pub linker: LinkerCommandLine<'a>,
 }
 
-impl Commands {
+impl<'a> Commands<'a> {
     /// Returns a [std::iter::Chain] (behind the opaque impl clause return type signature)
-    /// which points to all the generated commmands for the two variants of the compilers vendors C++ modular
+    /// which points to all the generated commands for the two variants of the compilers vendors C++ modular
     /// standard libraries implementations (see: [crate::project_model::compiler::StdLibMode])
     /// joined to all the commands generated for every [TranslationUnit] declared by the user for
     /// its project
     pub fn get_all_command_lines(
         &mut self,
-    ) -> impl Iterator<Item = &mut SourceCommandLine> + Debug + '_ {
+    ) -> impl Iterator<Item = &mut SourceCommandLine<'a>> + Debug {
         self.cpp_stdlib
             .as_mut_slice()
             .iter_mut()
@@ -271,7 +289,7 @@ impl Commands {
     }
 }
 
-impl core::fmt::Display for Commands {
+impl<'a> core::fmt::Display for Commands<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -284,9 +302,9 @@ impl core::fmt::Display for Commands {
 }
 
 /// Convenient function to avoid code replication
-fn collect_source_command_line(
-    iter: Iter<'_, SourceCommandLine>, // TODO: review this, for see if it's possible to consume the value and not cloning it
-) -> impl Iterator + Debug + '_ {
+fn collect_source_command_line<'a>(
+    iter: Iter<'a, SourceCommandLine>, // TODO: review this, for see if it's possible to consume the value and not cloning it
+) -> impl Iterator + Debug + 'a {
     iter.map(|vec| {
         vec.args
             .iter()
@@ -329,11 +347,10 @@ impl From<&Result<ExitStatus, Report>> for TranslationUnitStatus {
 }
 
 mod helpers {
-    use crate::cache::{EnvVars, ZorkCache};
-    use crate::cli::output::arguments::Arguments;
+
     use crate::cli::output::commands::TranslationUnitStatus;
-    use crate::utils::constants::error_messages;
-    use color_eyre::eyre::{ContextCompat, Result};
+
+    use color_eyre::eyre::Result;
     use std::process::ExitStatus;
 
     /// Convenient way of handle a command execution result avoiding duplicate code
@@ -350,27 +367,5 @@ mod helpers {
             }
             Err(_) => TranslationUnitStatus::Error,
         }
-    }
-
-    pub(crate) fn load_common_data(
-        cache: &mut ZorkCache<'_>,
-    ) -> Result<(Arguments, Arguments, EnvVars)> {
-        let general_args = cache
-            .generated_commands
-            .general_args
-            .as_ref()
-            .expect(error_messages::GENERAL_ARGS_NOT_FOUND)
-            .get_args();
-
-        let compiler_specific_shared_args = cache
-            .generated_commands
-            .compiler_common_args
-            .as_ref()
-            .with_context(|| error_messages::COMPILER_SPECIFIC_COMMON_ARGS_NOT_FOUND)?
-            .get_args();
-
-        let env_vars = cache.get_process_env_args().clone();
-
-        Ok((general_args, compiler_specific_shared_args, env_vars))
     }
 }

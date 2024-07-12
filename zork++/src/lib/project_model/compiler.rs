@@ -12,7 +12,7 @@ pub struct CompilerModel<'a> {
     pub driver_path: Cow<'a, str>,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
-    pub extra_args: Vec<Argument>,
+    pub extra_args: Vec<Argument<'a>>,
 }
 
 impl<'a> CompilerModel<'a> {

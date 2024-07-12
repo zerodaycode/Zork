@@ -20,8 +20,8 @@ use crate::{
 /// the ones held here are meant to be here because every supported compiler will use them, while the
 /// compiler args specific structs are holding the ones that are required depending on the compiler
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct CommonArgs(Arguments);
-impl CommonArgs {
+pub struct CommonArgs<'a>(Arguments<'a>);
+impl<'a> CommonArgs<'a> {
     pub fn get_args(&self) -> Arguments {
         self.0.clone()
     }
@@ -31,7 +31,7 @@ impl CommonArgs {
     }
 }
 
-impl<'a> From<&'a ZorkModel<'_>> for CommonArgs {
+impl<'a> From<&'a ZorkModel<'_>> for CommonArgs<'a> {
     fn from(model: &'a ZorkModel<'_>) -> Self {
         let mut common_args = Arguments::default();
         common_args.push(model.compiler.language_level_arg());
@@ -41,8 +41,8 @@ impl<'a> From<&'a ZorkModel<'_>> for CommonArgs {
     }
 }
 
-impl IntoIterator for CommonArgs {
-    type Item = Argument;
+impl<'a> IntoIterator for CommonArgs<'a> {
+    type Item = Argument<'a>;
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {

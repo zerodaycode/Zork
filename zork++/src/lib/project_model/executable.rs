@@ -10,7 +10,7 @@ use crate::{
 pub struct ExecutableModel<'a> {
     pub executable_name: Cow<'a, str>,
     pub sourceset: SourceSet<'a>,
-    pub extra_args: Vec<Argument>,
+    pub extra_args: Vec<Argument<'a>>,
 }
 
 impl<'a> ExtraArgs<'a> for ExecutableModel<'a> {
