@@ -23,10 +23,11 @@ use crate::{
         output::commands::{Commands, SourceCommandLine},
     },
     project_model::{compiler::CppCompiler, ZorkModel},
-    utils::{self, constants::GCC_CACHE_DIR},
+    utils::{self},
 };
 use serde::{Deserialize, Serialize};
-use walkdir::WalkDir;
+
+use crate::project_model::compiler::StdLibMode;
 
 /// Standalone utility for load from the file system the Zork++ cache file
 /// for the target [`CppCompiler`]
@@ -93,39 +94,84 @@ impl<'a> ZorkCache<'a> {
             TranslationUnitKind::ModuleInterface => self.get_module_ifc_cmd(translation_unit),
             TranslationUnitKind::ModuleImplementation => self.get_module_impl_cmd(translation_unit),
             TranslationUnitKind::SourceFile => self.get_source_cmd(translation_unit),
-            TranslationUnitKind::ModularStdLib => todo!(),
-            TranslationUnitKind::HeaderFile => todo!(),
+            TranslationUnitKind::SystemHeader => self.get_system_module_cmd(translation_unit),
+            TranslationUnitKind::ModularStdLib(stdlib_mode) => match stdlib_mode {
+                StdLibMode::Cpp => self.get_cpp_stdlib_cmd(),
+                StdLibMode::CCompat => self.get_ccompat_stdlib_cmd(),
+            },
         }
     }
 
     fn get_module_ifc_cmd<T: TranslationUnit<'a>>(
         &mut self,
-        module_interface_model: &T,
+        module_interface: &T,
     ) -> Option<&mut SourceCommandLine> {
         self.generated_commands
             .interfaces
             .iter_mut()
-            .find(|mi| module_interface_model.path().eq(&mi.path()))
+            .find(|cached_tu| module_interface.path().eq(&cached_tu.path()))
     }
 
     fn get_module_impl_cmd<T: TranslationUnit<'a>>(
         &mut self,
-        module_impl_model: &T,
+        module_impl: &T,
     ) -> Option<&mut SourceCommandLine> {
         self.generated_commands
             .implementations
             .iter_mut()
-            .find(|mi| *module_impl_model.path() == (*mi).path())
+            .find(|cached_tu| module_impl.path().eq(&cached_tu.path()))
     }
 
     fn get_source_cmd<T: TranslationUnit<'a>>(
         &mut self,
-        module_impl_model: &T,
+        source: &T,
     ) -> Option<&mut SourceCommandLine> {
         self.generated_commands
             .sources
             .iter_mut()
-            .find(|mi| module_impl_model.path() == (*mi).path())
+            .find(|cached_tu| source.path().eq(&cached_tu.path()))
+    }
+
+    /// Gets the target [`SystemModule`] generated [`SourceCommandLine`] from the cache
+    ///
+    /// TODO: Since we don't implement the lookup of the directory of the installed system headers,
+    /// we are using some tricks to matching the generated command, but is not robust
+    fn get_system_module_cmd<T: TranslationUnit<'a>>(
+        &mut self,
+        system_module: &T,
+    ) -> Option<&mut SourceCommandLine> {
+        self.generated_commands
+            .system_modules
+            .iter_mut()
+            .find(|cached_tu| system_module.file_stem().eq(cached_tu.filename()))
+    }
+
+    pub fn get_cpp_stdlib_cmd_by_kind(
+        &mut self,
+        stdlib_mode: StdLibMode,
+    ) -> Option<&mut SourceCommandLine> {
+        match stdlib_mode {
+            StdLibMode::Cpp => self.generated_commands.cpp_stdlib.as_mut(),
+            StdLibMode::CCompat => self.generated_commands.c_compat_stdlib.as_mut(),
+        }
+    }
+
+    pub fn set_cpp_stdlib_cmd_by_kind(
+        &mut self,
+        stdlib_mode: StdLibMode,
+        cmd_line: Option<SourceCommandLine>,
+    ) {
+        match stdlib_mode {
+            StdLibMode::Cpp => self.generated_commands.cpp_stdlib = cmd_line,
+            StdLibMode::CCompat => self.generated_commands.c_compat_stdlib = cmd_line,
+        }
+    }
+    fn get_cpp_stdlib_cmd(&mut self) -> Option<&mut SourceCommandLine> {
+        self.generated_commands.cpp_stdlib.as_mut()
+    }
+
+    fn get_ccompat_stdlib_cmd(&mut self) -> Option<&mut SourceCommandLine> {
+        self.generated_commands.c_compat_stdlib.as_mut()
     }
 
     /// The tasks associated with the cache after load it from the file system
@@ -135,14 +181,6 @@ impl<'a> ZorkCache<'a> {
             msvc::load_metadata(self, program_data)?
         }
 
-        if compiler != CppCompiler::MSVC
-            && helpers::user_declared_system_headers_to_build(program_data)
-        {
-            let i = Self::track_system_modules(program_data);
-            self.compilers_metadata.system_modules.clear();
-            self.compilers_metadata.system_modules.extend(i);
-        }
-
         Ok(())
     }
 
@@ -150,15 +188,6 @@ impl<'a> ZorkCache<'a> {
     fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
         if program_data.project.compilation_db && self.metadata.regenerate_compilation_database {
             compile_commands::map_generated_commands_to_compilation_db(self)?;
-        }
-
-        if !(program_data.compiler.cpp_compiler == CppCompiler::MSVC) {
-            self.compilers_metadata.system_modules = program_data
-                .modules
-                .sys_modules
-                .iter()
-                .map(|e| e.to_string())
-                .collect::<Vec<_>>();
         }
 
         Ok(())
@@ -198,59 +227,6 @@ impl<'a> ZorkCache<'a> {
             + 2 // the cpp_stdlib and the c_compat_stdlib
                 // + 1 // TODO: the linker one? Does it supports it clangd?
     }
-
-    /// Looks for the already precompiled `GCC` or `Clang` system headers,
-    /// to avoid recompiling them on every process
-    /// NOTE: This feature should be deprecated and therefore, removed from Zork++ when GCC and
-    /// Clang fully implement the required procedures to build the C++ std library as a module
-    fn track_system_modules<'b: 'a>(
-        // TODO move it to helpers
-        program_data: &'b ZorkModel<'b>,
-    ) -> impl Iterator<Item = String> + 'b {
-        let root = if program_data.compiler.cpp_compiler == CppCompiler::GCC {
-            Path::new(GCC_CACHE_DIR).to_path_buf()
-        } else {
-            program_data
-                .build
-                .output_dir
-                .join("clang")
-                .join("modules")
-                .join("interfaces")
-        };
-
-        WalkDir::new(root)
-            .into_iter()
-            .filter_map(Result::ok)
-            .filter(|file| {
-                if file
-                    .metadata()
-                    .expect("Error retrieving metadata")
-                    .is_file()
-                {
-                    program_data // TODO: review this, since it's too late and I am just satisfying the borrow checker
-                        .modules
-                        .sys_modules
-                        .iter()
-                        .any(|sys_mod| {
-                            file.file_name()
-                                .to_str()
-                                .unwrap()
-                                .starts_with(&sys_mod.to_string())
-                        })
-                } else {
-                    false
-                }
-            })
-            .map(|dir_entry| {
-                dir_entry
-                    .file_name()
-                    .to_str()
-                    .unwrap()
-                    .split('.')
-                    .collect::<Vec<_>>()[0]
-                    .to_string()
-            })
-    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
@@ -271,30 +247,22 @@ pub struct CompilersMetadata<'a> {
     pub msvc: MsvcMetadata<'a>,
     pub clang: ClangMetadata,
     pub gcc: GccMetadata,
-    pub system_modules: Vec<String>, // TODO: This hopefully will dissappear soon
-                                     // TODO: Vec of Cow
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct MsvcMetadata<'a> {
     pub compiler_version: Option<String>,
     pub dev_commands_prompt: Option<String>,
-    pub vs_stdlib_path: Option<SourceFile<'a>>, // std.ixx path for the MSVC std lib location
-    pub vs_c_stdlib_path: Option<SourceFile<'a>>, // std.compat.ixx path for the MSVC std lib location
-    pub stdlib_bmi_path: PathBuf, // BMI byproduct after build in it at the target out dir of
+    pub vs_stdlib_path: SourceFile<'a>, // std.ixx path for the MSVC std lib location
+    pub vs_ccompat_stdlib_path: SourceFile<'a>, // std.compat.ixx path for the MSVC std lib location
+    pub stdlib_bmi_path: PathBuf,       // BMI byproduct after build in it at the target out dir of
     // the user
     pub stdlib_obj_path: PathBuf, // Same for the .obj file
     // Same as the ones defined for the C++ std lib, but for the C std lib
-    pub c_stdlib_bmi_path: PathBuf,
-    pub c_stdlib_obj_path: PathBuf,
+    pub ccompat_stdlib_bmi_path: PathBuf,
+    pub ccompat_stdlib_obj_path: PathBuf,
     // The environmental variables that will be injected to the underlying invoking shell
     pub env_vars: EnvVars,
-}
-
-impl<'a> MsvcMetadata<'_> {
-    pub fn is_loaded(&'a self) -> bool {
-        self.dev_commands_prompt.is_some() && self.vs_stdlib_path.is_some()
-    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
@@ -309,12 +277,13 @@ pub struct GccMetadata {
 
 /// Helper procedures to process cache data for Microsoft's MSVC
 mod msvc {
-    use crate::cache::{msvc, ZorkCache};
+    use crate::cache::ZorkCache;
     use crate::project_model::sourceset::SourceFile;
     use crate::project_model::ZorkModel;
     use crate::utils;
     use crate::utils::constants;
-    use color_eyre::eyre::{Context, OptionExt};
+    use crate::utils::constants::error_messages;
+    use color_eyre::eyre::{eyre, Context, ContextCompat, OptionExt};
     use regex::Regex;
     use std::borrow::Cow;
     use std::collections::HashMap;
@@ -354,22 +323,31 @@ mod msvc {
                 .output()
                 .with_context(|| "Unable to load MSVC pre-requisites. Please, open an issue with the details on upstream")?;
 
-            msvc.env_vars = msvc::load_env_vars_from_cmd_output(&output.stdout)?;
+            msvc.env_vars = load_env_vars_from_cmd_output(&output.stdout)?;
             // Cloning the useful ones for quick access at call site
             msvc.compiler_version = msvc.env_vars.get("VisualStudioVersion").cloned();
 
-            let vs_stdlib_path =
-                Path::new(msvc.env_vars.get("VCToolsInstallDir").unwrap()).join("modules");
-            msvc.vs_stdlib_path = Some(SourceFile {
+            // Check the existence of the VCtools
+            let vctools_dir = msvc
+                .env_vars
+                .get("VCToolsInstallDir")
+                .with_context(|| error_messages::msvc::MISSING_VCTOOLS_DIR)?;
+
+            let vs_stdlib_path = Path::new(vctools_dir).join("modules");
+            if !vs_stdlib_path.exists() {
+                return Err(eyre!(error_messages::msvc::STDLIB_MODULES_NOT_FOUND));
+            }
+
+            msvc.vs_stdlib_path = SourceFile {
                 path: vs_stdlib_path.clone(),
                 file_stem: Cow::Borrowed("std"),
                 extension: compiler.default_module_extension(),
-            });
-            msvc.vs_c_stdlib_path = Some(SourceFile {
+            };
+            msvc.vs_ccompat_stdlib_path = SourceFile {
                 path: vs_stdlib_path,
                 file_stem: Cow::Borrowed("std.compat"),
                 extension: compiler.default_module_extension(),
-            });
+            };
             let modular_stdlib_byproducts_path = Path::new(&program_data.build.output_dir)
                 .join(compiler.as_ref())
                 .join("modules")
@@ -385,9 +363,9 @@ mod msvc {
 
             let c_modular_stdlib_byproducts_path = modular_stdlib_byproducts_path;
             let compat = String::from("compat."); // TODO: find a better way
-            msvc.c_stdlib_bmi_path = c_modular_stdlib_byproducts_path
+            msvc.ccompat_stdlib_bmi_path = c_modular_stdlib_byproducts_path
                 .with_extension(compat.clone() + compiler.get_typical_bmi_extension());
-            msvc.c_stdlib_obj_path = c_modular_stdlib_byproducts_path
+            msvc.ccompat_stdlib_obj_path = c_modular_stdlib_byproducts_path
                 .with_extension(compat + compiler.get_obj_file_extension());
         }
 
@@ -418,13 +396,7 @@ mod msvc {
 
 mod helpers {
     use super::*;
-    use crate::project_model::ZorkModel;
     use std::path::PathBuf;
-
-    // TODO: this can be used also on the compiler/mod.rs
-    pub(crate) fn user_declared_system_headers_to_build(program_data: &ZorkModel<'_>) -> bool {
-        !program_data.modules.sys_modules.is_empty()
-    }
 
     pub(crate) fn initialize_default_cache<'a>(
         compiler: CppCompiler,

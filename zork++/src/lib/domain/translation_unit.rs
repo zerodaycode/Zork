@@ -1,5 +1,6 @@
 //! The module which holds the higher and generic abstractions over a source file
 
+use crate::project_model::compiler::StdLibMode;
 use std::borrow::Cow;
 use std::fmt::{Debug, Display};
 use std::path::PathBuf;
@@ -11,8 +12,8 @@ pub enum TranslationUnitKind {
     ModuleInterface,
     ModuleImplementation,
     SourceFile,
-    HeaderFile,
-    ModularStdLib,
+    ModularStdLib(StdLibMode),
+    SystemHeader,
 }
 
 /// Represents any kind of translation unit and the generic operations

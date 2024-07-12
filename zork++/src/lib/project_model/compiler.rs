@@ -187,8 +187,23 @@ impl AsRef<str> for StdLib {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum StdLibMode {
     Cpp,     //< The C++ STD library implemented for every vendor
     CCompat, //< Same, but extending it with the C ISO standard library
+}
+
+impl StdLibMode {
+    pub fn printable_info(&self) -> &str {
+        match self {
+            StdLibMode::Cpp => "C++ standard library implementation",
+            StdLibMode::CCompat => "C++ C compat standard library implementation",
+        }
+    }
+}
+
+impl fmt::Display for StdLibMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.printable_info())
+    }
 }

@@ -26,7 +26,14 @@ pub mod error_messages {
     pub const CLI_ARGS_CMD_NEW_BRANCH: &str =
         "This branch should never be reached for now, as do not exists commands that may\
         trigger them. The unique remaining, is ::New, that is already processed\
-        at the very beggining";
+        at the very beginning";
+
+    pub mod msvc {
+        pub const STDLIB_MODULES_NOT_FOUND: &str =
+            "Can't find the MSVC standard library modules. Did you installed them?";
+        pub const MISSING_VCTOOLS_DIR: &str =
+            "Unable to find MSVC VCToolsInstallDir. Did you installed the required C++ tools for the compiler?";
+    }
 }
 
 pub const CONFIG_FILE_NAME: &str = "zork";

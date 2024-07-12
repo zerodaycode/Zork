@@ -2,7 +2,7 @@
 //! translation unit, having shared data without replicating it until the final command line must
 //! be generated in order to be stored (in cache) and executed (in the underlying shell)
 
-use std::{borrow::Cow, path::Path, rc::Rc};
+use std::{borrow::Cow, path::Path};
 
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +15,10 @@ use crate::{
 };
 
 /// Holds the common arguments across all the different command lines regarding the target compiler
+///
+/// Even that the arguments are written according the named value for each one depending on the compiler,
+/// the ones held here are meant to be here because every supported compiler will use them, while the
+/// compiler args specific structs are holding the ones that are required depending on the compiler
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct CommonArgs(Arguments);
 impl CommonArgs {
@@ -25,20 +29,11 @@ impl CommonArgs {
     pub fn get_args_slice(&self) -> impl Iterator<Item = &Argument> {
         self.0.as_slice().iter()
     }
-
-    pub fn get_args_slice_rced(&self) -> impl Iterator<Item = Rc<&Argument>> {
-        self.0.as_slice().iter().map(Rc::new)
-    }
 }
 
 impl<'a> From<&'a ZorkModel<'_>> for CommonArgs {
     fn from(model: &'a ZorkModel<'_>) -> Self {
         let mut common_args = Arguments::default();
-        // TODO:
-        // Aren't the common args in the end compiler specific ones?
-        // Should we remove this DS?
-        // Ah no. Maybe we can use it for hold things like -o (shared among all three (MSVC also
-        // accepts - in some args instead of /))
         common_args.push(model.compiler.language_level_arg());
         common_args.extend_from_slice(model.compiler.extra_args());
 
@@ -70,9 +65,6 @@ pub fn compiler_common_arguments_factory(
     }
 }
 
-// TODO: the specific ones, like the object file... can we just create a prototype
-// function
-
 /// Allows to have a common interface for any type that represents a data structure which its
 /// purpose is to hold common [`Argument`] across the diferent kind of [`TranslationUnit`]
 #[typetag::serde(tag = "type")]
@@ -95,9 +87,9 @@ impl CompilerCommonArguments for ClangCommonArgs {
     fn get_args(&self) -> Arguments {
         let mut args = Arguments::default();
         args.push(self.std_lib.as_arg());
-        args.create_and_push(&self.implicit_modules);
-        args.create_and_push(&self.implicit_module_map);
-        args.create_and_push(&self.prebuilt_module_path);
+        args.push(&self.implicit_modules);
+        args.push(&self.implicit_module_map);
+        args.push(&self.prebuilt_module_path);
         args
     }
 }
@@ -106,17 +98,17 @@ impl CompilerCommonArguments for ClangCommonArgs {
 impl CompilerCommonArguments for MsvcCommonArgs {
     fn get_args(&self) -> Arguments {
         let mut args = Arguments::default();
-        args.create_and_push(&self.exception_handling_model);
-        args.create_and_push(&self.no_logo);
-        args.create_and_push(&self.ifc_search_dir);
-        args.create_and_push(&*self.ifc_search_dir_value);
+        args.push(&self.exception_handling_model);
+        args.push(&self.no_logo);
+        args.push(&self.ifc_search_dir);
+        args.push(&*self.ifc_search_dir_value);
 
-        args.create_and_push("/reference");
-        args.create_and_push(format! {
+        args.push("/reference");
+        args.push(format! {
             "std={}", self.stdlib_ref_path.display()
         });
-        args.create_and_push("/reference");
-        args.create_and_push(format! {
+        args.push("/reference");
+        args.push(format! {
             "std.compat={}", self.c_compat_stdlib_ref_path.display()
         });
         args
@@ -127,7 +119,7 @@ impl CompilerCommonArguments for MsvcCommonArgs {
 impl CompilerCommonArguments for GccCommonArgs {
     fn get_args(&self) -> Arguments {
         let mut args = Arguments::default();
-        args.create_and_push("-fmodules-ts");
+        args.push("-fmodules-ts");
         args
     }
 }
@@ -181,7 +173,11 @@ impl MsvcCommonArgs {
             ),
             stdlib_ref_path: Cow::Owned(cache.compilers_metadata.msvc.stdlib_bmi_path.clone()),
             c_compat_stdlib_ref_path: Cow::Owned(
-                cache.compilers_metadata.msvc.c_stdlib_bmi_path.clone(),
+                cache
+                    .compilers_metadata
+                    .msvc
+                    .ccompat_stdlib_bmi_path
+                    .clone(),
             ),
         }
     }

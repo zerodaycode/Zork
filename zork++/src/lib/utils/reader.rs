@@ -1,4 +1,6 @@
 use crate::cli::input::CliArgs;
+
+use crate::project_model::modules::SystemModule;
 use crate::project_model::sourceset::SourceFile;
 use crate::{
     cli::output::arguments::Argument,
@@ -254,11 +256,14 @@ fn assemble_modules_model<'a>(
         .map_or_else(Default::default, |headers| {
             headers
                 .iter()
-                .map(|sys_header| Cow::from(*sys_header))
+                .map(|sys_header| SystemModule {
+                    file_stem: Cow::from(*sys_header),
+                    ..Default::default()
+                })
                 .collect()
         });
 
-    let extra_args = modules // TODO: this has to dissappear from the Zork++ build options
+    let extra_args = modules // TODO: this has to disappear from the Zork++ build options
         .extra_args
         .as_ref()
         .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
@@ -549,7 +554,10 @@ mod test {
                         dependencies: vec!["iostream".into()],
                     },
                 ],
-                sys_modules: vec!["iostream".into()],
+                sys_modules: vec![SystemModule {
+                    file_stem: Cow::Borrowed("iostream"),
+                    ..Default::default()
+                }],
                 extra_args: vec![Argument::from("-Wall")],
             },
             tests: TestsModel {

@@ -16,7 +16,7 @@ pub struct ModulesModel<'a> {
     pub interfaces: Vec<ModuleInterfaceModel<'a>>,
     pub base_impls_dir: &'a Path,
     pub implementations: Vec<ModuleImplementationModel<'a>>,
-    pub sys_modules: Vec<Cow<'a, str>>,
+    pub sys_modules: Vec<SystemModule<'a>>,
     pub extra_args: Vec<Argument>,
 }
 
@@ -81,5 +81,23 @@ impl_translation_unit_for!(ModuleImplementationModel<'a>);
 impl<'a> fmt::Display for ModuleImplementationModel<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({:?}, {:?})", self.path(), self.dependencies)
+    }
+}
+
+/// Holds the fs information about the `C++` system headers, which they can be built as
+/// binary module interface for certain compilers, while allowing to import those system headers
+/// as modules
+#[derive(Debug, PartialEq, Eq, Default, Transient)]
+pub struct SystemModule<'a> {
+    pub path: PathBuf,
+    pub file_stem: Cow<'a, str>,
+    pub extension: Cow<'a, str>,
+}
+
+impl_translation_unit_for!(SystemModule<'a>);
+
+impl<'a> fmt::Display for SystemModule<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.path())
     }
 }

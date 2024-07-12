@@ -43,7 +43,7 @@ impl From<Cow<'_, str>> for Argument {
 
 impl From<&Cow<'_, str>> for Argument {
     fn from(value: &Cow<'_, str>) -> Self {
-        Self(value.clone().into()) // TODO: review this
+        Self(value.clone().into())
     }
 }
 
@@ -126,18 +126,12 @@ impl Arguments {
 
     /// Creates and stores a new [`Argument`] to the end of this collection
     /// from any type *T* that can be coerced into an [`Argument`] type
-    pub fn create_and_push<T>(&mut self, val: T)
+    pub fn push<T>(&mut self, val: T)
     where
         T: Into<Argument>,
     {
         self.0.push(val.into())
     }
-
-    /// Appends a new [`Argument`] to the end of this collection
-    pub fn push(&mut self, arg: Argument) {
-        self.0.push(arg)
-    } // TODO: aren't this one and the one above redundant? Wouldn't be better to unify both
-      // interfaces in only one method call? With a better name, btw? Like <add> or <add_new>
 
     /// Given an optional, adds the inner value if there's Some(<[Argument]>)
     pub fn push_opt(&mut self, arg: Option<Argument>) {
@@ -292,32 +286,24 @@ pub mod msvc_args {
 
         let (stdlib_sf, stdlib_bmi_path, stdlib_obj_path) = if stdlib_mode.eq(&StdLibMode::Cpp) {
             (
-                msvc.vs_stdlib_path.as_ref().unwrap(),
+                &msvc.vs_stdlib_path,
                 &msvc.stdlib_bmi_path,
                 &msvc.stdlib_obj_path,
             )
         } else {
             (
-                msvc.vs_c_stdlib_path.as_ref().unwrap(),
-                &msvc.c_stdlib_bmi_path,
-                &msvc.c_stdlib_obj_path,
+                &msvc.vs_ccompat_stdlib_path,
+                &msvc.ccompat_stdlib_bmi_path,
+                &msvc.ccompat_stdlib_obj_path,
             )
         };
 
-        arguments.create_and_push("/W4");
-
-        arguments.create_and_push("/reference");
-        arguments.create_and_push(format! {
-            "std={}", msvc.stdlib_bmi_path.display()
-        });
-
-        arguments.create_and_push("/c");
-        arguments.create_and_push(stdlib_sf.path());
-        arguments.create_and_push("/ifcOutput");
-        arguments.create_and_push(format! {
+        arguments.push(stdlib_sf.path());
+        arguments.push("/ifcOutput");
+        arguments.push(format! {
             "{}", stdlib_bmi_path.display()
         });
-        arguments.create_and_push(format! {
+        arguments.push(format! {
             "/Fo{}", stdlib_obj_path.display()
         });
 

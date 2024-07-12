@@ -1,7 +1,6 @@
 //! Contains helpers and data structures to be processed in a nice and neat way the commands generated to be executed
 //! by Zork++
 
-use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fmt::Debug;
 use std::slice::Iter;
@@ -34,13 +33,6 @@ pub fn run_generated_commands(
     log::info!("Proceeding to execute the generated commands...");
 
     let (general_args, compiler_specific_shared_args, env_vars) = load_common_data(cache)?;
-
-    for sys_module in &cache.generated_commands.system_modules {
-        // TODO: will be deprecated soon, hopefully
-        // But while isn't deleted, we could normalize them into SourceCommandLine
-        // And then, consider to join them into the all generated commands iter
-        execute_command(program_data, sys_module.1, &env_vars)?;
-    }
 
     let translation_units = cache
         .generated_commands
@@ -78,7 +70,7 @@ pub fn run_generated_commands(
         }
     }
 
-    log::debug!("Processing the linker command line...");
+    log::info!("Processing the linker command line...");
     let r = execute_command(
         program_data,
         &general_args
@@ -165,9 +157,26 @@ where
         .with_context(|| format!("[{compiler}] - Command {arguments} failed!"))
 }
 
-/// for some translation unit
 ///
-/// * args* : member that holds all the cmd arguments that will be passed to the compiler driver
+pub trait CommandLine {
+    fn args(&self) -> &Arguments;
+}
+
+impl CommandLine for SourceCommandLine {
+    fn args(&self) -> &Arguments {
+        &self.args
+    }
+}
+
+/// Type for representing the command line that will be sent to the target compiler, and
+/// store its different components
+///
+/// * directory*: the path where the translation unit lives
+/// * filename*: the translation unit declared name on the fs with the extension
+/// * args*: member that holds all the cmd arguments that will be passed to the compiler driver
+/// * status*: A [`TranslationUnitStatus`] that represents all the different phases that a source command
+/// line can have among all the different iterations of the program, changing according to the modifications
+/// over the translation unit in the fs and the result of the build execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SourceCommandLine {
     pub directory: PathBuf,
@@ -177,7 +186,6 @@ pub struct SourceCommandLine {
 }
 
 impl SourceCommandLine {
-    // TODO T instead of &T?
     pub fn new<'a, T: TranslationUnit<'a>>(tu: &T, args: Arguments) -> Self {
         Self {
             directory: PathBuf::from(tu.parent()),
@@ -189,6 +197,10 @@ impl SourceCommandLine {
 
     pub fn path(&self) -> PathBuf {
         self.directory.join(Path::new(&self.filename))
+    }
+
+    pub fn filename(&self) -> &String {
+        &self.filename
     }
 }
 
@@ -213,25 +225,19 @@ impl LinkerCommandLine {
     /// Saves the path at which a compilation product of any translation unit will be placed,
     /// in order to add it to the files that will be linked to generate the final product
     /// in the two-phase compilation model
-    pub fn add_buildable_at(&mut self, path: &Path) {
-        self.byproducts.push(Argument::from(path));
-    }
-
-    /// Owned version of TODO link
-    pub fn add_owned_buildable_at(&mut self, path: PathBuf) {
-        self.byproducts.push(path.into());
+    pub fn add_byproduct_path(&mut self, path: PathBuf) {
+        self.byproducts.push(path);
     }
 }
 
 /// Holds the generated command line arguments for a concrete compiler
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Commands {
-    pub compiler: CppCompiler, // TODO: review if we can afford this field given the new
-    // architechture
     pub cpp_stdlib: Option<SourceCommandLine>,
     pub c_compat_stdlib: Option<SourceCommandLine>,
-    pub system_modules: HashMap<String, Arguments>,
-
+    // pub system_modules: HashMap<String, Arguments>,
+    pub system_modules: Vec<SourceCommandLine>, // TODO: SourceCommandLine while we found a better approach
+    // or while we don't implement the parser that gets the path to the compilers std library headers
     pub general_args: Option<CommonArgs>,
     pub compiler_common_args: Option<Box<dyn CompilerCommonArguments>>,
 
@@ -254,18 +260,14 @@ impl Commands {
             .as_mut_slice()
             .iter_mut()
             .chain(self.c_compat_stdlib.as_mut_slice().iter_mut())
-            // TODO: chain pre-tasks (system headers)
+            .chain(self.system_modules.as_mut_slice().iter_mut())
             .chain(self.interfaces.as_mut_slice().iter_mut())
             .chain(self.implementations.as_mut_slice().iter_mut())
             .chain(self.sources.as_mut_slice().iter_mut())
     }
 
-    pub fn add_linker_file_path(&mut self, path: &Path) {
-        self.linker.add_buildable_at(path);
-    }
-
-    pub fn add_linker_file_path_owned(&mut self, path: PathBuf) {
-        self.linker.add_owned_buildable_at(path);
+    pub fn add_linker_file_path(&mut self, path: PathBuf) {
+        self.linker.add_byproduct_path(path);
     }
 }
 
@@ -273,8 +275,7 @@ impl core::fmt::Display for Commands {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Commands for [{}]:\n- Interfaces: {:?},\n- Implementations: {:?},\n- Sources: {:?}",
-            self.compiler,
+            "Commands:\n- Interfaces: {:?},\n- Implementations: {:?},\n- Sources: {:?}",
             collect_source_command_line(self.interfaces.iter()),
             collect_source_command_line(self.implementations.iter()),
             collect_source_command_line(self.sources.iter())
