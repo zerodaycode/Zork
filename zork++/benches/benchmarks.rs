@@ -17,12 +17,13 @@ pub fn build_project_benchmark(c: &mut Criterion) {
         config_file::zork_cfg_from_file(utils::constants::CONFIG_FILE_MOCK).unwrap();
     let cli_args = CliArgs::parse();
     let program_data = build_model(config, &cli_args, Path::new(".")).unwrap();
-
+    let mut cache = ZorkCache::default();
+    
     c.bench_function("Generate commands", |b| {
         b.iter(|| {
             generate_commands(
                 black_box(&program_data),
-                black_box(ZorkCache::default()),
+                black_box(&mut cache),
                 &cli_args,
             )
         })
