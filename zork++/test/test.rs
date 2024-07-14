@@ -35,8 +35,8 @@ fn test_clang_full_process() -> Result<()> {
         "-vv",
         "--root",
         &project_root,
-        /* "--driver-path",
-        "clang++-16", // Local cfg issues */
+        "--driver-path",
+        "clang++-16", // Local cfg issues
         "run",
     ]));
     assert!(process_result.is_ok(), "{}", process_result.unwrap_err());

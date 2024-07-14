@@ -80,8 +80,8 @@ pub mod worker {
             let config = config_file::zork_cfg_from_file(raw_file.as_str())
                 .with_context(|| error_messages::PARSE_CFG_FILE)?;
 
-            create_output_directory(&config)?; // TODO: avoid this call without check if exists
-            let cache = cache::load(&config, cli_args)?;
+            create_output_directory(&config, &abs_project_root)?; // TODO: avoid this call without check if exists
+            let cache = cache::load(&config, cli_args, &abs_project_root)?;
             // TODO: Big one, need to call cache.load_tasks or whatever, or metadata won't be
             // loaded
 
@@ -155,7 +155,7 @@ pub mod worker {
     /// - a /cache folder, where lives the metadata cached by Zork++
     /// in order to track different aspects of the program (last time
     /// modified files, last process build time...)
-    fn create_output_directory(config: &ZorkConfigFile) -> Result<()> {
+    fn create_output_directory(config: &ZorkConfigFile, project_root: &Path) -> Result<()> {
         let compiler: CppCompiler = config.compiler.cpp_compiler.into();
         let compiler_name = compiler.as_ref();
         let binding = config
@@ -163,7 +163,7 @@ pub mod worker {
             .as_ref()
             .and_then(|build_attr| build_attr.output_dir)
             .unwrap_or("out");
-        let out_dir = Path::new(&binding);
+        let out_dir = Path::new(project_root).join(binding);
 
         // Recursively create the directories below and all of its parent components if they are missing
         let modules_path = out_dir.join(compiler_name).join(dir_names::MODULES);
@@ -228,7 +228,7 @@ pub mod worker {
             let modules_path = compiler_folder_dir.join("modules");
 
             // This should create and out/ directory at the root of the tmp path
-            super::create_output_directory(&zcf)?;
+            super::create_output_directory(&zcf, temp_path)?;
 
             assert!(out_dir.exists());
 

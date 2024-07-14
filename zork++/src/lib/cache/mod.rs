@@ -32,17 +32,22 @@ use crate::project_model::compiler::StdLibMode;
 
 /// Standalone utility for load from the file system the Zork++ cache file
 /// for the target [`CppCompiler`]
-pub fn load<'a>(config: &ZorkConfigFile<'a>, cli_args: &CliArgs) -> Result<ZorkCache<'a>> {
+pub fn load<'a>(
+    config: &ZorkConfigFile<'a>,
+    cli_args: &CliArgs,
+    project_root: &Path,
+) -> Result<ZorkCache<'a>> {
     let compiler: CppCompiler = config.compiler.cpp_compiler.into();
-    let cache_path = Path::new(
-        &config
-            .build
-            .as_ref()
-            .and_then(|build_attr| build_attr.output_dir)
-            .unwrap_or("out"),
-    )
-    .join("zork")
-    .join("cache");
+    let cache_path = Path::new(project_root)
+        .join(
+            config
+                .build
+                .as_ref()
+                .and_then(|build_attr| build_attr.output_dir)
+                .unwrap_or("out"),
+        )
+        .join("zork")
+        .join("cache");
 
     let cache_file_path = cache_path
         .join(compiler.as_ref())

@@ -49,15 +49,16 @@ pub fn load<'a>(
     absolute_project_root: &Path,
 ) -> Result<ZorkModel<'a>> {
     let compiler: CppCompiler = config.compiler.cpp_compiler.into();
-    let cache_path = Path::new(
-        &config
-            .build
-            .as_ref()
-            .and_then(|build_attr| build_attr.output_dir)
-            .unwrap_or("out"),
-    )
-    .join("zork")
-    .join("cache");
+    let cache_path = Path::new(absolute_project_root)
+        .join(
+            config
+                .build
+                .as_ref()
+                .and_then(|build_attr| build_attr.output_dir)
+                .unwrap_or("out"),
+        )
+        .join("zork")
+        .join("cache");
 
     let cached_project_model_path = cache_path
         .join(format!("{}_pm", compiler.as_ref()))
