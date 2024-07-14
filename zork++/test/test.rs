@@ -114,7 +114,6 @@ fn test_msvc_full_process() -> Result<()> {
 
 #[cfg(target_os = "windows")]
 #[test]
-#[ignore] // TODO: we need to add the `MSYS2` project on the Windows GitHub VM's
 fn test_gcc_windows_full_process() -> Result<()> {
     let project_name = "gcc_example";
 
