@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 
-#[derive(Debug, PartialEq, Eq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ProjectModel<'a> {
     pub name: Cow<'a, str>,
     pub authors: Vec<Cow<'a, str>>,

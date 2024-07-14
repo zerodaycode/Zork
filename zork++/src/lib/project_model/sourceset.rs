@@ -57,7 +57,7 @@ impl GlobPattern {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct SourceSet<'a> {
     pub sources: Vec<SourceFile<'a>>,
 }

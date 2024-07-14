@@ -254,7 +254,7 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
     translation_unit: &'a T,
     for_kind: &TranslationUnitKind,
 ) {
-    let compiler = cache.compiler;
+    let compiler = model.compiler.cpp_compiler;
     let lpe = cache.metadata.last_program_execution;
 
     if let Some(generated_cmd) = cache.get_cmd_for_translation_unit_kind(translation_unit, for_kind)

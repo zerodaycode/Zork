@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 /// * `implementations` - A list to define the module interface translation units for the project
 /// * `sys_modules` - An array field explicitly declare which system headers
 /// must be precompiled in order to make the importable translation units
-/// * `extra_args` - Extra arguments that will be added to the generated command lines
 ///
 /// ### Tests
 ///
@@ -25,7 +24,6 @@ use serde::{Deserialize, Serialize};
 ///         { file = 'math.cpp' }, { file = 'some_module_impl.cpp', dependencies = ['iostream'] }
 ///     ]
 ///     sys_modules = ['iostream', 'vector', 'string', 'type_traits', 'functional']
-///     extra_args = ['-Wall']
 /// "#;
 ///
 /// let config: ModulesAttribute = toml::from_str(CONFIG_FILE_MOCK)
@@ -72,8 +70,6 @@ pub struct ModulesAttribute<'a> {
     pub implementations: Option<Vec<ModuleImplementation<'a>>>,
     #[serde(borrow)]
     pub sys_modules: Option<Vec<&'a str>>,
-    #[serde(borrow)]
-    pub extra_args: Option<Vec<&'a str>>,
 }
 
 /// [`ModuleInterface`] -  A module interface structure for dealing

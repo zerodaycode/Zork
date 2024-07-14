@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     cli::output::arguments::Argument,
     domain::target::{ExecutableTarget, ExtraArgs},
@@ -6,7 +8,7 @@ use std::borrow::Cow;
 
 use super::sourceset::SourceSet;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct TestsModel<'a> {
     pub test_executable_name: Cow<'a, str>,
     pub sourceset: SourceSet<'a>,

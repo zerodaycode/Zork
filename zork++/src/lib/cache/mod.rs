@@ -14,6 +14,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::config_file::ZorkConfigFile;
 use crate::domain::translation_unit::{TranslationUnit, TranslationUnitKind};
 use crate::project_model::sourceset::SourceFile;
 use crate::utils::constants::CACHE_FILE_EXT;
@@ -31,9 +32,17 @@ use crate::project_model::compiler::StdLibMode;
 
 /// Standalone utility for load from the file system the Zork++ cache file
 /// for the target [`CppCompiler`]
-pub fn load<'a>(program_data: &'a ZorkModel<'_>, cli_args: &CliArgs) -> Result<ZorkCache<'a>> {
-    let compiler = program_data.compiler.cpp_compiler;
-    let cache_path = &program_data.build.output_dir.join("zork").join("cache");
+pub fn load<'a>(config: &ZorkConfigFile<'a>, cli_args: &CliArgs) -> Result<ZorkCache<'a>> {
+    let compiler: CppCompiler = config.compiler.cpp_compiler.into();
+    let cache_path = Path::new(
+        &config
+            .build
+            .as_ref()
+            .and_then(|build_attr| build_attr.output_dir)
+            .unwrap_or("out"),
+    )
+    .join("zork")
+    .join("cache");
 
     let cache_file_path = cache_path
         .join(compiler.as_ref())
@@ -42,16 +51,16 @@ pub fn load<'a>(program_data: &'a ZorkModel<'_>, cli_args: &CliArgs) -> Result<Z
     // TODO: analyze if the clear cache must be performed by target and/or active cfg file(s)
     // TODO: should we just have a cache dir with the <compiler>_<cfg_file>_<target>.json or similar?
     // Or just .../<compiler>/<cfg_file>_<target>.json
-    let mut cache = if !Path::new(&cache_file_path).exists() {
+    let cache = if !cache_file_path.exists() {
         File::create(&cache_file_path).with_context(|| "Error creating the cache file")?;
-        helpers::initialize_default_cache(compiler, cache_file_path)?
-    } else if Path::new(cache_path).exists() && cli_args.clear_cache {
-        fs::remove_dir_all(cache_path).with_context(|| "Error cleaning the Zork++ cache")?;
+        helpers::initialize_default_cache(cache_file_path)?
+    } else if cache_path.exists() && cli_args.clear_cache {
+        fs::remove_dir_all(&cache_path).with_context(|| "Error cleaning the Zork++ cache")?;
         fs::create_dir(cache_path)
             .with_context(|| "Error creating the cache subdirectory for {compiler}")?;
         File::create(&cache_file_path)
             .with_context(|| "Error creating the cache file after cleaning the cache")?;
-        helpers::initialize_default_cache(compiler, cache_file_path)?
+        helpers::initialize_default_cache(cache_file_path)?
     } else {
         log::trace!(
             "Loading Zork++ cache file for {compiler} at: {:?}",
@@ -61,16 +70,11 @@ pub fn load<'a>(program_data: &'a ZorkModel<'_>, cli_args: &CliArgs) -> Result<Z
             .with_context(|| "Error loading the Zork++ cache")?
     };
 
-    cache
-        .run_tasks(program_data)
-        .with_context(|| "Error running the cache tasks")?;
-
     Ok(cache)
 }
 
 #[derive(Serialize, Deserialize, Default)]
 pub struct ZorkCache<'a> {
-    pub compiler: CppCompiler,
     pub compilers_metadata: CompilersMetadata<'a>,
     pub generated_commands: Commands<'a>,
     pub metadata: CacheMetadata,
@@ -195,8 +199,8 @@ impl<'a> ZorkCache<'a> {
 
     /// Method that returns the HashMap that holds the environmental variables that must be passed
     /// to the underlying shell
-    pub fn get_process_env_args(&'a mut self) -> &'a EnvVars {
-        match self.compiler {
+    pub fn get_process_env_args(&'a mut self, compiler: CppCompiler) -> &'a EnvVars {
+        match compiler {
             CppCompiler::MSVC => &self.compilers_metadata.msvc.env_vars,
             CppCompiler::CLANG => &self.compilers_metadata.clang.env_vars,
             CppCompiler::GCC => &self.compilers_metadata.gcc.env_vars,
@@ -398,12 +402,8 @@ mod helpers {
     use super::*;
     use std::path::PathBuf;
 
-    pub(crate) fn initialize_default_cache<'a>(
-        compiler: CppCompiler,
-        cache_file_path: PathBuf,
-    ) -> Result<ZorkCache<'a>> {
+    pub(crate) fn initialize_default_cache<'a>(cache_file_path: PathBuf) -> Result<ZorkCache<'a>> {
         let default_initialized = ZorkCache {
-            compiler,
             metadata: CacheMetadata {
                 cache_file_path: cache_file_path.clone(),
                 ..Default::default()
@@ -413,6 +413,7 @@ mod helpers {
 
         utils::fs::serialize_object_to_file(&cache_file_path, &default_initialized)
             .with_context(move || "Error saving data to the Zork++ cache")?;
+
         Ok(default_initialized)
     }
 }

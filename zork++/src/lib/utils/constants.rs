@@ -7,6 +7,7 @@ pub mod dir_names {
     pub const DEFAULT_OUTPUT_DIR: &str = "out";
     pub const CACHE: &str = "cache";
     pub const STD: &str = "std";
+    pub const MODULES: &str = "modules";
     pub const INTRINSICS: &str = "intrinsics";
     pub const INTERFACES: &str = "interfaces";
     pub const IMPLEMENTATIONS: &str = "implementations";
@@ -21,6 +22,7 @@ pub mod error_messages {
     pub const FAILED_BUILD_FOR_CFG_FILE: &str = "Failed to build the project for the config file";
     pub const GENERAL_ARGS_NOT_FOUND: &str = "Something went wrong loading the general arguments";
     pub const PROJECT_MODEL_MAPPING: &str = "Error building the project model";
+    pub const PROJECT_MODEL_SAVE: &str = "Error caching and saving to the fs the project model";
     pub const COMPILER_SPECIFIC_COMMON_ARGS_NOT_FOUND: &str =
         "Something went wrong loading the general arguments";
     pub const CLI_ARGS_CMD_NEW_BRANCH: &str =

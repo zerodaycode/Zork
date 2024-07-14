@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::domain::target::ExtraArgs;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct CompilerModel<'a> {
     pub cpp_compiler: CppCompiler,
     pub driver_path: Cow<'a, str>,

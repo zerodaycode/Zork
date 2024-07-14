@@ -1,12 +1,14 @@
 use std::borrow::Cow;
 
+use serde::{Deserialize, Serialize};
+
 use super::sourceset::SourceSet;
 use crate::{
     cli::output::arguments::Argument,
     domain::target::{ExecutableTarget, ExtraArgs},
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ExecutableModel<'a> {
     pub executable_name: Cow<'a, str>,
     pub sourceset: SourceSet<'a>,

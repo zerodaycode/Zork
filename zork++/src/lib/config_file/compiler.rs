@@ -82,7 +82,7 @@ pub struct CompilerAttribute<'a> {
 }
 
 /// The C++ compilers available within Zork++
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Default)]
 pub enum CppCompiler {
     #[serde(alias = "CLANG", alias = "Clang", alias = "clang")]
     #[default]

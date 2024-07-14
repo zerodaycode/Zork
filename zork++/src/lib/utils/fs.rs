@@ -97,9 +97,11 @@ where
 pub fn load_and_deserialize<T, P>(path: &P) -> Result<T>
 where
     T: for<'a> Deserialize<'a> + Default,
-    P: AsRef<Path>,
+    P: AsRef<Path> + std::fmt::Debug,
 {
-    let buffer =
-        BufReader::new(File::open(path.as_ref()).with_context(|| "Error opening the cache file")?);
-    Ok(serde_json::from_reader(buffer).expect("Unable to parse the Zork++ cache file"))
+    let buffer = BufReader::new(
+        File::open(path.as_ref()).with_context(|| format!("Error opening {:?}", path))?,
+    );
+    Ok(serde_json::from_reader(buffer)
+        .unwrap_or_else(|_| panic!("Unable to parse file: {:?}", path)))
 }

@@ -27,10 +27,11 @@ use crate::{
     },
     utils,
 };
+use chrono::{DateTime, Utc};
 use color_eyre::{eyre::eyre, Result};
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
-use walkdir::{DirEntry, WalkDir};
+use walkdir::WalkDir;
 
 use super::constants::dir_names;
 
@@ -40,8 +41,8 @@ use super::constants::dir_names;
 /// at a valid path in some subdirectory
 #[derive(Debug)]
 pub struct ConfigFile {
-    pub dir_entry: DirEntry,
     pub path: PathBuf,
+    pub last_time_modified: DateTime<Utc>,
 }
 
 /// Checks for the existence of the `zork_<any>.toml` configuration files
@@ -64,7 +65,7 @@ pub fn find_config_files(
     let mut files = vec![];
 
     for e in WalkDir::new(base_path)
-        .max_depth(2)
+        .max_depth(2) // TODO: so, max_depth should be zero when the cfg arg is ready
         .into_iter()
         .filter_map(|e| e.ok())
     {
@@ -79,8 +80,8 @@ pub fn find_config_files(
             && filename.contains(file_match)
         {
             files.push(ConfigFile {
-                dir_entry: e.clone(),
                 path: e.path().to_path_buf(),
+                last_time_modified: DateTime::<Utc>::from(e.metadata()?.modified()?),
             })
         }
     }
@@ -151,7 +152,7 @@ fn assemble_compiler_model<'a>(
         .unwrap_or_default();
 
     CompilerModel {
-        cpp_compiler: config.cpp_compiler.clone().into(),
+        cpp_compiler: config.cpp_compiler.into(),
         driver_path: if let Some(driver_path) = cli_args.driver_path.as_ref() {
             Cow::Borrowed(driver_path)
         } else {
@@ -220,14 +221,15 @@ fn assemble_modules_model<'a>(
     let base_ifcs_dir = modules
         .base_ifcs_dir
         .map(Path::new)
-        .unwrap_or_else(|| Path::new("."));
+        .map(Cow::from)
+        .unwrap_or_default();
 
     let interfaces = modules
         .interfaces
         .map(|ifcs| {
             ifcs.into_iter()
                 .map(|m_ifc| -> ModuleInterfaceModel<'_> {
-                    assemble_module_interface_model(m_ifc, base_ifcs_dir, project_root)
+                    assemble_module_interface_model(m_ifc, &base_ifcs_dir, project_root)
                 })
                 .collect()
         })
@@ -236,7 +238,8 @@ fn assemble_modules_model<'a>(
     let base_impls_dir = modules
         .base_impls_dir
         .map(Path::new)
-        .unwrap_or_else(|| Path::new("."));
+        .map(Cow::from)
+        .unwrap_or_default();
 
     let implementations = modules
         .implementations
@@ -244,7 +247,7 @@ fn assemble_modules_model<'a>(
             impls
                 .into_iter()
                 .map(|m_impl| {
-                    assemble_module_implementation_model(m_impl, base_impls_dir, project_root)
+                    assemble_module_implementation_model(m_impl, &base_impls_dir, project_root)
                 })
                 .collect()
         })
@@ -263,19 +266,12 @@ fn assemble_modules_model<'a>(
                 .collect()
         });
 
-    let extra_args = modules // TODO: this has to disappear from the Zork++ build options
-        .extra_args
-        .as_ref()
-        .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
-        .unwrap_or_default();
-
     ModulesModel {
         base_ifcs_dir,
         interfaces,
         base_impls_dir,
         implementations,
         sys_modules,
-        extra_args,
     }
 }
 
@@ -470,12 +466,11 @@ mod test {
                 extra_args: vec![],
             },
             modules: ModulesModel {
-                base_ifcs_dir: Path::new("."),
+                base_ifcs_dir: Cow::default(),
                 interfaces: vec![],
-                base_impls_dir: Path::new("."),
+                base_impls_dir: Cow::default(),
                 implementations: vec![],
                 sys_modules: vec![],
-                extra_args: vec![],
             },
             tests: TestsModel {
                 test_executable_name: "Zork++_test".into(),
@@ -520,7 +515,7 @@ mod test {
                 extra_args: vec![Argument::from("-Werr")],
             },
             modules: ModulesModel {
-                base_ifcs_dir: Path::new("ifcs"),
+                base_ifcs_dir: Cow::Borrowed(Path::new("ifcs")),
                 interfaces: vec![
                     ModuleInterfaceModel {
                         path: abs_path_for_mock.join("ifcs"),
@@ -539,7 +534,7 @@ mod test {
                         dependencies: vec![],
                     },
                 ],
-                base_impls_dir: Path::new("srcs"),
+                base_impls_dir: Cow::Borrowed(Path::new("srcs")),
                 implementations: vec![
                     ModuleImplementationModel {
                         path: abs_path_for_mock.join("srcs"),
@@ -558,7 +553,6 @@ mod test {
                     file_stem: Cow::Borrowed("iostream"),
                     ..Default::default()
                 }],
-                extra_args: vec![Argument::from("-Wall")],
             },
             tests: TestsModel {
                 test_executable_name: "zork_check".into(),

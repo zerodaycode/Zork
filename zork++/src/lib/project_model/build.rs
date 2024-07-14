@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-#[derive(Debug, PartialEq, Eq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct BuildModel {
     pub output_dir: PathBuf,
 }
