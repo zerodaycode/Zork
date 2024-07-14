@@ -20,6 +20,8 @@ pub mod error_messages {
     pub const FAILURE_GENERATING_COMMANDS: &str =
         "Failed to generated the commands for the project";
     pub const FAILED_BUILD_FOR_CFG_FILE: &str = "Failed to build the project for the config file";
+    pub const FAILURE_LOADING_INITIAL_CACHE_DATA: &str = "Failed to load the cache initial data";
+    pub const FAILURE_SAVING_CACHE: &str = "Error saving data to the Zork++ cache";
     pub const GENERAL_ARGS_NOT_FOUND: &str = "Something went wrong loading the general arguments";
     pub const PROJECT_MODEL_MAPPING: &str = "Error building the project model";
     pub const PROJECT_MODEL_SAVE: &str = "Error caching and saving to the fs the project model";

@@ -85,7 +85,11 @@ pub mod worker {
             // TODO: Big one, need to call cache.load_tasks or whatever, or metadata won't be
             // loaded
 
+            // TODO: also, we're missing the last modification check, to now if we must force to
+            // remap due to changes on the related cfg
             let program_data = project_model::load(config, cli_args, &abs_project_root)?;
+            // TODO: maybe couple them a little bit, and return a (cache, program_data) structured
+            // binding?
 
             do_main_work_based_on_cli_input(cli_args, &program_data, cache).with_context(|| {
                 format!(

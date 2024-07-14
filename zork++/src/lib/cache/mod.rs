@@ -38,16 +38,14 @@ pub fn load<'a>(
     project_root: &Path,
 ) -> Result<ZorkCache<'a>> {
     let compiler: CppCompiler = config.compiler.cpp_compiler.into();
-    let cache_path = Path::new(project_root)
-        .join(
-            config
-                .build
-                .as_ref()
-                .and_then(|build_attr| build_attr.output_dir)
-                .unwrap_or("out"),
-        )
-        .join("zork")
-        .join("cache");
+    let output_dir = Path::new(project_root).join(
+        config
+            .build
+            .as_ref()
+            .and_then(|build_attr| build_attr.output_dir)
+            .unwrap_or("out"),
+    );
+    let cache_path = &output_dir.join("zork").join("cache");
 
     let cache_file_path = cache_path
         .join(compiler.as_ref())
@@ -58,14 +56,14 @@ pub fn load<'a>(
     // Or just .../<compiler>/<cfg_file>_<target>.json
     let cache = if !cache_file_path.exists() {
         File::create(&cache_file_path).with_context(|| "Error creating the cache file")?;
-        helpers::initialize_default_cache(cache_file_path)?
+        helpers::initialize_default_cache(cache_file_path, compiler, &output_dir)?
     } else if cache_path.exists() && cli_args.clear_cache {
-        fs::remove_dir_all(&cache_path).with_context(|| "Error cleaning the Zork++ cache")?;
+        fs::remove_dir_all(cache_path).with_context(|| "Error cleaning the Zork++ cache")?;
         fs::create_dir(cache_path)
             .with_context(|| "Error creating the cache subdirectory for {compiler}")?;
         File::create(&cache_file_path)
             .with_context(|| "Error creating the cache file after cleaning the cache")?;
-        helpers::initialize_default_cache(cache_file_path)?
+        helpers::initialize_default_cache(cache_file_path, compiler, &output_dir)?
     } else {
         log::trace!(
             "Loading Zork++ cache file for {compiler} at: {:?}",
@@ -184,10 +182,9 @@ impl<'a> ZorkCache<'a> {
     }
 
     /// The tasks associated with the cache after load it from the file system
-    pub fn run_tasks(&mut self, program_data: &'a ZorkModel<'_>) -> Result<()> {
-        let compiler = program_data.compiler.cpp_compiler;
-        if cfg!(target_os = "windows") && compiler == CppCompiler::MSVC {
-            msvc::load_metadata(self, program_data)?
+    pub fn run_tasks(&mut self, compiler: CppCompiler, output_dir: &Path) -> Result<()> {
+        if cfg!(target_os = "windows") && compiler.eq(&CppCompiler::MSVC) {
+            msvc::load_metadata(self, compiler, output_dir)?
         }
 
         Ok(())
@@ -287,18 +284,18 @@ pub struct GccMetadata {
 /// Helper procedures to process cache data for Microsoft's MSVC
 mod msvc {
     use crate::cache::ZorkCache;
+    use crate::project_model::compiler::CppCompiler;
     use crate::project_model::sourceset::SourceFile;
-    use crate::project_model::ZorkModel;
     use crate::utils;
-    use crate::utils::constants;
     use crate::utils::constants::error_messages;
+    use crate::utils::constants::{self, dir_names};
     use color_eyre::eyre::{eyre, Context, ContextCompat, OptionExt};
     use regex::Regex;
     use std::borrow::Cow;
     use std::collections::HashMap;
     use std::path::Path;
 
-    /// If Windows is the current OS, and the compiler is MSVC, then we will try
+    /// If *Windows* is the current OS, and the compiler is *MSVC*, then we will try
     /// to locate the path of the `vcvars64.bat` script that will set a set of environmental
     /// variables that are required to work effortlessly with the Microsoft's compiler.
     ///
@@ -307,13 +304,12 @@ mod msvc {
     /// run this process once per new cache created (cache action 1)
     pub(crate) fn load_metadata(
         cache: &mut ZorkCache,
-        program_data: &ZorkModel<'_>,
+        compiler: CppCompiler,
+        output_dir: &Path,
     ) -> color_eyre::Result<()> {
         let msvc = &mut cache.compilers_metadata.msvc;
 
         if msvc.dev_commands_prompt.is_none() {
-            let compiler = program_data.compiler.cpp_compiler;
-
             msvc.dev_commands_prompt = utils::fs::find_file(
                 Path::new(constants::MSVC_REGULAR_BASE_PATH),
                 constants::MS_ENV_VARS_BAT,
@@ -342,7 +338,7 @@ mod msvc {
                 .get("VCToolsInstallDir")
                 .with_context(|| error_messages::msvc::MISSING_VCTOOLS_DIR)?;
 
-            let vs_stdlib_path = Path::new(vctools_dir).join("modules");
+            let vs_stdlib_path = Path::new(vctools_dir).join(dir_names::MODULES);
             if !vs_stdlib_path.exists() {
                 return Err(eyre!(error_messages::msvc::STDLIB_MODULES_NOT_FOUND));
             }
@@ -357,10 +353,10 @@ mod msvc {
                 file_stem: Cow::Borrowed("std.compat"),
                 extension: compiler.default_module_extension(),
             };
-            let modular_stdlib_byproducts_path = Path::new(&program_data.build.output_dir)
+            let modular_stdlib_byproducts_path = Path::new(output_dir)
                 .join(compiler.as_ref())
-                .join("modules")
-                .join("std") // folder
+                .join(dir_names::MODULES)
+                .join(dir_names::STD) // folder
                 .join("std"); // filename
 
             // Saving the paths to the precompiled bmi and obj files of the MSVC std implementation
@@ -404,11 +400,17 @@ mod msvc {
 }
 
 mod helpers {
+    use self::utils::constants::error_messages;
+
     use super::*;
     use std::path::PathBuf;
 
-    pub(crate) fn initialize_default_cache<'a>(cache_file_path: PathBuf) -> Result<ZorkCache<'a>> {
-        let default_initialized = ZorkCache {
+    pub(crate) fn initialize_default_cache<'a>(
+        cache_file_path: PathBuf,
+        compiler: CppCompiler,
+        output_dir: &Path,
+    ) -> Result<ZorkCache<'a>> {
+        let mut default_initialized = ZorkCache {
             metadata: CacheMetadata {
                 cache_file_path: cache_file_path.clone(),
                 ..Default::default()
@@ -417,7 +419,11 @@ mod helpers {
         };
 
         utils::fs::serialize_object_to_file(&cache_file_path, &default_initialized)
-            .with_context(move || "Error saving data to the Zork++ cache")?;
+            .with_context(|| error_messages::FAILURE_SAVING_CACHE)?;
+
+        default_initialized
+            .run_tasks(compiler, output_dir)
+            .with_context(|| error_messages::FAILURE_LOADING_INITIAL_CACHE_DATA)?;
 
         Ok(default_initialized)
     }
