@@ -36,7 +36,9 @@ impl<'a> From<&'a String> for Argument<'a> {
 }
 
 impl<'a> From<Cow<'a, str>> for Argument<'a> {
-    fn from(value: Cow<'a, str>) -> Self { Self(value) }
+    fn from(value: Cow<'a, str>) -> Self {
+        Self(value)
+    }
 }
 
 impl<'a> From<&Cow<'a, str>> for Argument<'a> {
@@ -52,11 +54,15 @@ impl<'a> From<String> for Argument<'a> {
 }
 
 impl<'a> From<&'a Path> for Argument<'a> {
-    fn from(value: &'a Path) -> Self { Self::from(value.to_string_lossy()) }
+    fn from(value: &'a Path) -> Self {
+        Self::from(value.to_string_lossy())
+    }
 }
 
 impl<'a> From<PathBuf> for Argument<'a> {
-    fn from(value: PathBuf) -> Self { Self::from(format!("{}", value.display())) }
+    fn from(value: PathBuf) -> Self {
+        Self::from(format!("{}", value.display()))
+    }
 }
 
 impl<'a> From<&PathBuf> for Argument<'a> {
@@ -66,7 +72,9 @@ impl<'a> From<&PathBuf> for Argument<'a> {
 }
 
 impl<'a> From<LanguageLevel> for Argument<'a> {
-    fn from(value: LanguageLevel) -> Self { Self::from(value.as_ref().to_string()) }
+    fn from(value: LanguageLevel) -> Self {
+        Self::from(value.as_ref().to_string())
+    }
 }
 
 impl<'a> Borrow<str> for Argument<'a> {
