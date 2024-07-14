@@ -17,7 +17,7 @@ use crate::{
     config_file::ZorkConfigFile,
     utils::{
         self,
-        constants::{error_messages, CACHE_FILE_EXT},
+        constants::{debug_messages, error_messages, CACHE_FILE_EXT},
         reader,
     },
 };
@@ -66,10 +66,14 @@ pub fn load<'a>(
 
     utils::fs::load_and_deserialize::<ZorkModel, _>(&cached_project_model_path)
         .or_else(|_| {
-            log::debug!("Proceding to map the configuration file to the ZorkModel entity, since no cached project model was found");
-            let program_data: ZorkModel = reader::build_model(config, cli_args, absolute_project_root)?;
-            utils::fs::serialize_object_to_file::<ZorkModel>(&cached_project_model_path, &program_data)
-                .with_context(|| error_messages::PROJECT_MODEL_SAVE)?;
+            log::debug!("{}", debug_messages::MAPPING_CFG_TO_MODEL);
+            let program_data: ZorkModel =
+                reader::build_model(config, cli_args, absolute_project_root)?;
+            utils::fs::serialize_object_to_file::<ZorkModel>(
+                &cached_project_model_path,
+                &program_data,
+            )
+            .with_context(|| error_messages::PROJECT_MODEL_SAVE)?;
 
             Ok::<ZorkModel<'_>, color_eyre::eyre::Error>(program_data)
         })

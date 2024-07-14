@@ -141,7 +141,7 @@ impl<'a> ZorkCache<'a> {
 
     /// Gets the target [`SystemModule`] generated [`SourceCommandLine`] from the cache
     ///
-    /// TODO: Since we don't implement the lookup of the directory of the installed system headers,
+    /// NOTE: While we don't implement the lookup of the directory of the installed system headers,
     /// we are using some tricks to matching the generated command, but is not robust
     fn get_system_module_cmd<T: TranslationUnit<'a>>(
         &mut self,
@@ -209,7 +209,7 @@ impl<'a> ZorkCache<'a> {
         }
     }
 
-    // TODO: read_only_iterator (better name) and docs pls
+    /// Returns a view of borrowed data over all the generated commands for a target
     pub fn get_all_commands_iter(&self) -> impl Iterator<Item = &SourceCommandLine> + Debug + '_ {
         let generated_commands = &self.generated_commands;
 
@@ -223,18 +223,22 @@ impl<'a> ZorkCache<'a> {
             .chain(generated_commands.sources.iter())
     }
 
+    /// The current integer value that is the total of commands generated for all the
+    /// [`TranslationUnit`] declared in the user's configuration file, without counting the linker
+    /// one for the current target
     pub fn count_total_generated_commands(&self) -> usize {
         let latest_commands = &self.generated_commands;
 
         latest_commands.interfaces.len()
             + latest_commands.implementations.len()
             + latest_commands.sources.len()
-            // + latest_commands.pre_tasks.len()
+            + latest_commands.system_modules.len()
             + 2 // the cpp_stdlib and the c_compat_stdlib
-                // + 1 // TODO: the linker one? Does it supports it clangd?
     }
 }
 
+/// A struct for holding Zork++ internal details about its configuration, procedures or runtime
+/// statuses
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CacheMetadata {
     pub process_no: i32,
@@ -249,7 +253,6 @@ pub type EnvVars = HashMap<String, String>;
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CompilersMetadata<'a> {
-    // TODO: apply the same solution: have a fat pointer or better convert them into a Union/enum?
     pub msvc: MsvcMetadata<'a>,
     pub clang: ClangMetadata,
     pub gcc: GccMetadata,
@@ -287,8 +290,8 @@ mod msvc {
     use crate::project_model::compiler::CppCompiler;
     use crate::project_model::sourceset::SourceFile;
     use crate::utils;
-    use crate::utils::constants::error_messages;
     use crate::utils::constants::{self, dir_names};
+    use crate::utils::constants::{env_vars, error_messages};
     use color_eyre::eyre::{eyre, Context, ContextCompat, OptionExt};
     use regex::Regex;
     use std::borrow::Cow;
@@ -322,20 +325,22 @@ mod msvc {
             });
             let output = std::process::Command::new(constants::WIN_CMD)
                 .arg("/c")
-                .arg(msvc.dev_commands_prompt.as_ref().ok_or_eyre("Zork++ wasn't unable to find the VS env vars")?)
+                .arg(msvc.dev_commands_prompt.as_ref().ok_or_eyre(
+                    error_messages::msvc::MISSING_OR_CORRUPTED_MSVC_DEV_COMMAND_PROMPT,
+                )?)
                 .arg("&&")
                 .arg("set")
                 .output()
-                .with_context(|| "Unable to load MSVC pre-requisites. Please, open an issue with the details on upstream")?;
+                .with_context(|| error_messages::msvc::FAILURE_LOADING_VS_ENV_VARS)?;
 
             msvc.env_vars = load_env_vars_from_cmd_output(&output.stdout)?;
             // Cloning the useful ones for quick access at call site
-            msvc.compiler_version = msvc.env_vars.get("VisualStudioVersion").cloned();
+            msvc.compiler_version = msvc.env_vars.get(env_vars::VS_VERSION).cloned();
 
             // Check the existence of the VCtools
             let vctools_dir = msvc
                 .env_vars
-                .get("VCToolsInstallDir")
+                .get(env_vars::VC_TOOLS_INSTALL_DIR)
                 .with_context(|| error_messages::msvc::MISSING_VCTOOLS_DIR)?;
 
             let vs_stdlib_path = Path::new(vctools_dir).join(dir_names::MODULES);
@@ -367,7 +372,7 @@ mod msvc {
                 modular_stdlib_byproducts_path.with_extension(compiler.get_obj_file_extension());
 
             let c_modular_stdlib_byproducts_path = modular_stdlib_byproducts_path;
-            let compat = String::from("compat."); // TODO: find a better way
+            let compat = String::from("compat.");
             msvc.ccompat_stdlib_bmi_path = c_modular_stdlib_byproducts_path
                 .with_extension(compat.clone() + compiler.get_typical_bmi_extension());
             msvc.ccompat_stdlib_obj_path = c_modular_stdlib_byproducts_path
@@ -387,7 +392,10 @@ mod msvc {
         for line in env_vars_str.lines() {
             // Parse the key-value pair from each line
             let mut parts = line.splitn(2, '=');
-            let key = parts.next().expect("Failed to get key").trim();
+            let key = parts
+                .next()
+                .expect(error_messages::msvc::ILL_FORMED_KEY_ON_ENV_VARS_PARSING)
+                .trim();
 
             if filter.is_match(key) {
                 let value = parts.next().unwrap_or_default().trim().to_string();

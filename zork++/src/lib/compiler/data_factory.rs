@@ -2,17 +2,18 @@
 //! translation unit, having shared data without replicating it until the final command line must
 //! be generated in order to be stored (in cache) and executed (in the underlying shell)
 
-use std::{borrow::Cow, path::Path};
-
-use serde::{Deserialize, Serialize};
-
 use crate::{
     cache::ZorkCache,
     cli::output::arguments::{clang_args, Argument, Arguments},
     domain::target::ExtraArgs,
-    project_model::compiler::{CppCompiler, StdLib},
-    project_model::ZorkModel,
+    project_model::{
+        compiler::{CppCompiler, StdLib},
+        ZorkModel,
+    },
+    utils::constants::error_messages,
 };
+use serde::{Deserialize, Serialize};
+use std::{borrow::Cow, path::Path};
 
 /// Holds the common arguments across all the different command lines regarding the target compiler
 ///
@@ -56,8 +57,6 @@ pub fn compiler_common_arguments_factory(
     model: &ZorkModel<'_>,
     cache: &ZorkCache<'_>,
 ) -> Box<dyn CompilerCommonArguments> {
-    // TODO: consider having a union (enum) instead of a fat ptr, so we can serialize the data
-    // and introduce a lifetime on the Argument type to use Cow instead of String
     match model.compiler.cpp_compiler {
         CppCompiler::CLANG => Box::new(ClangCommonArgs::new(model)),
         CppCompiler::MSVC => Box::new(MsvcCommonArgs::new(model, cache)),
@@ -73,14 +72,11 @@ pub trait CompilerCommonArguments: std::fmt::Debug {
 }
 impl Default for Box<dyn CompilerCommonArguments> {
     fn default() -> Self {
-        Box::<ClangCommonArgs>::default() // TODO: isn't this a code smell?
-                                          // TODO: should we just panic? Or maybe fix the default? Or maybe have an associated
-                                          // and pass the compiler to the trait fn? So we can ensure that the default has sense?
-                                          // TODO: we can just fix as well the serialization function, removing the default
+        panic!("{}", error_messages::DEFAULT_OF_COMPILER_COMMON_ARGUMENTS)
     }
 }
 
-/// TODO: the typetag library doesn't support yet the deserialization of generic impls, only
+/// NOTE: the typetag library doesn't support yet the deserialization of generic impls, only
 /// serialization, so there's no point on having any primites
 #[typetag::serde]
 impl CompilerCommonArguments for ClangCommonArgs {

@@ -79,7 +79,6 @@ fn load_flyweights_for_general_shared_data<'a>(model: &'a ZorkModel, cache: &mut
 /// Generates the cmds for build the C++ standard libraries (std and std.compat) according to the specification
 /// of each compiler vendor
 fn generate_modular_stdlibs_cmds<'a>(model: &'a ZorkModel<'a>, cache: &mut ZorkCache<'a>) {
-    // TODO: remaining ones: Clang, GCC.
     // NOTE: Provisionally 'If' guarded because only MSVC is supported now to build the
     // C++ standard library implementations
     if model.compiler.cpp_compiler.eq(&CppCompiler::MSVC) {
@@ -149,9 +148,9 @@ fn generate_sources_cmds_args<'a>(
     cli_args: &'a CliArgs,
 ) -> Result<()> {
     log::info!("Generating the commands for the source files...");
-    // TODO: tests manual run must be start to be deprecated in favour of the future
-    // named targets, so we won't mess now with them
+
     let is_tests_run = cli_args.command.eq(&Command::Test);
+
     let srcs = if is_tests_run {
         &model.tests.sourceset.sources
     } else {
@@ -444,7 +443,6 @@ mod modules {
     /// System headers can be imported as modules, but they must be built before being imported.
     ///
     /// This feature is supported by `GCC` and `Clang`
-    /// NOTE: With the inclusion of std named modules, want we to support this anymore?
     pub(crate) fn generate_sys_module_cmd<'a>(
         model: &'a ZorkModel<'a>,
         cache: &mut ZorkCache<'a>,
@@ -507,8 +505,6 @@ mod modules {
 
             let scl = msvc_args::generate_std_cmd(cache, stdlib_mode);
             cache.set_cpp_stdlib_cmd_by_kind(stdlib_mode, Some(scl));
-            // TODO: see the Some(scl) above? well, implement the generators for the other compilers
-            // and just return optional none?, so we can get rid out of all the todo
         }
     }
 }
@@ -679,9 +675,6 @@ mod helpers {
         cached_source_cmd: &SourceCommandLine,
     ) -> bool {
         if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
-            // TODO: check on a Linux distro
-            // that our cache doesn't collide with the clang modules cache, or just skip clang's cache
-            // with a cmd arg if possible
             log::trace!("Module unit {:?} will be rebuilt since we've detected that you are using Clang in Windows", cached_source_cmd.path());
             return true;
         }

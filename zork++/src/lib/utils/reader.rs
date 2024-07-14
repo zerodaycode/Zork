@@ -59,7 +59,7 @@ pub fn find_config_files(
     base_path: &Path, // TODO: create the cfg arg to specifically receive where's located the
     // user's Zork config files if they're not in the root of the project
     // nor matches the tree structure from user's root cmd arg value
-    filename_match: &Option<String>, // TODO: this shoudn't be necessary
+    filename_match: &Option<String>,
 ) -> Result<Vec<ConfigFile>> {
     log::debug!("Searching for Zork++ configuration files...");
     let mut files = vec![];
@@ -156,7 +156,7 @@ fn assemble_compiler_model<'a>(
         driver_path: if let Some(driver_path) = cli_args.driver_path.as_ref() {
             Cow::Borrowed(driver_path)
         } else {
-            Cow::Owned(cli_args.driver_path.clone().unwrap_or_default()) // TODO: review this
+            Cow::Owned(cli_args.driver_path.clone().unwrap_or_default())
         },
         cpp_standard: config.cpp_standard.clone().into(),
         std_lib: config.std_lib.clone().map(|lib| lib.into()),
@@ -325,7 +325,6 @@ fn assemble_module_implementation_model<'a>(
 
     let file_path = Path::new(project_root).join(base_path).join(config.file);
     if dependencies.is_empty() {
-        // TODO: can't recall what's this, so please, debug it and document it
         let last_dot_index = config.file.rfind('.');
         if let Some(idx) = last_dot_index {
             let implicit_dependency = config.file.split_at(idx);

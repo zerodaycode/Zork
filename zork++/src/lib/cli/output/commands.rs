@@ -3,7 +3,6 @@
 
 use std::ffi::OsStr;
 use std::fmt::Debug;
-use std::slice::Iter;
 use std::{
     path::{Path, PathBuf},
     process::ExitStatus,
@@ -251,14 +250,11 @@ impl<'a> LinkerCommandLine<'a> {
 /// Holds the generated command line arguments for a concrete compiler
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Commands<'a> {
-    pub cpp_stdlib: Option<SourceCommandLine<'a>>,
-    pub c_compat_stdlib: Option<SourceCommandLine<'a>>,
-    // pub system_modules: HashMap<String, Arguments>,
-    pub system_modules: Vec<SourceCommandLine<'a>>, // TODO: SourceCommandLine while we found a better approach
-    // or while we don't implement the parser that gets the path to the compilers std library headers
     pub general_args: Option<CommonArgs<'a>>,
     pub compiler_common_args: Option<Box<dyn CompilerCommonArguments>>,
-
+    pub cpp_stdlib: Option<SourceCommandLine<'a>>,
+    pub c_compat_stdlib: Option<SourceCommandLine<'a>>,
+    pub system_modules: Vec<SourceCommandLine<'a>>,
     pub interfaces: Vec<SourceCommandLine<'a>>,
     pub implementations: Vec<SourceCommandLine<'a>>,
     pub sources: Vec<SourceCommandLine<'a>>,
@@ -287,31 +283,6 @@ impl<'a> Commands<'a> {
     pub fn add_linker_file_path(&mut self, path: PathBuf) {
         self.linker.add_byproduct_path(path);
     }
-}
-
-impl<'a> core::fmt::Display for Commands<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Commands:\n- Interfaces: {:?},\n- Implementations: {:?},\n- Sources: {:?}",
-            collect_source_command_line(self.interfaces.iter()),
-            collect_source_command_line(self.implementations.iter()),
-            collect_source_command_line(self.sources.iter())
-        )
-    }
-}
-
-/// Convenient function to avoid code replication
-fn collect_source_command_line<'a>(
-    iter: Iter<'a, SourceCommandLine>, // TODO: review this, for see if it's possible to consume the value and not cloning it
-) -> impl Iterator + Debug + 'a {
-    iter.map(|vec| {
-        vec.args
-            .iter()
-            .map(|arg| arg.value().clone())
-            .collect::<Vec<_>>()
-            .join(" ");
-    })
 }
 
 /// The different states of a translation unit in the whole lifecycle of

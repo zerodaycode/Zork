@@ -14,6 +14,15 @@ pub mod dir_names {
     pub const OBJECT_FILES: &str = "obj_files";
 }
 
+pub mod env_vars {
+    pub const VS_VERSION: &str = "VisualStudioVersion";
+    pub const VC_TOOLS_INSTALL_DIR: &str = "VCToolsInstallDir";
+}
+
+pub mod debug_messages {
+    pub const MAPPING_CFG_TO_MODEL: &str = "Proceding to map the configuration file to the ZorkModel entity, since no cached project model was found";
+}
+
 pub mod error_messages {
     pub const READ_CFG_FILE: &str = "Could not read the configuration file";
     pub const PARSE_CFG_FILE: &str = "Could not parse the configuration file";
@@ -27,6 +36,9 @@ pub mod error_messages {
     pub const PROJECT_MODEL_SAVE: &str = "Error caching and saving to the fs the project model";
     pub const COMPILER_SPECIFIC_COMMON_ARGS_NOT_FOUND: &str =
         "Something went wrong loading the general arguments";
+    pub const DEFAULT_OF_COMPILER_COMMON_ARGUMENTS: &str =
+        "Reached the default implementation of the CompilerCommonArgument data structure.\
+        This is a bug, so please, report it by opening an issue on https://github.com/zerodaycode/Zork/issues";
     pub const CLI_ARGS_CMD_NEW_BRANCH: &str =
         "This branch should never be reached for now, as do not exists commands that may\
         trigger them. The unique remaining, is ::New, that is already processed\
@@ -37,6 +49,12 @@ pub mod error_messages {
             "Can't find the MSVC standard library modules. Did you installed them?";
         pub const MISSING_VCTOOLS_DIR: &str =
             "Unable to find MSVC VCToolsInstallDir. Did you installed the required C++ tools for the compiler?";
+        pub const FAILURE_LOADING_VS_ENV_VARS: &str =
+            "Zork++ wasn't unable to find the VS env vars";
+        pub const ILL_FORMED_KEY_ON_ENV_VARS_PARSING: &str =
+            "Ill-formed key while parsing MSVC env vars";
+        pub const MISSING_OR_CORRUPTED_MSVC_DEV_COMMAND_PROMPT: &str =
+            "Missing or corrupted path for the MSVC developers command prompt";
     }
 }
 

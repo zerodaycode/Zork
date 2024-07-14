@@ -65,8 +65,7 @@ pub mod worker {
             );
         };
 
-        let config_files: Vec<ConfigFile> = find_config_files(project_root, &cli_args.match_files)
-            .with_context(|| "We didn't found a valid Zork++ configuration file")?;
+        let config_files: Vec<ConfigFile> = find_config_files(project_root, &cli_args.match_files)?;
 
         for config_file in config_files {
             let cfg_path = &config_file.path;
@@ -77,19 +76,19 @@ pub mod worker {
             let raw_file = fs::read_to_string(cfg_path)
                 .with_context(|| format!("{}: {:?}", error_messages::READ_CFG_FILE, cfg_path))?;
 
-            let config = config_file::zork_cfg_from_file(raw_file.as_str())
+            let config: ZorkConfigFile<'_> = config_file::zork_cfg_from_file(raw_file.as_str())
                 .with_context(|| error_messages::PARSE_CFG_FILE)?;
 
-            create_output_directory(&config, &abs_project_root)?; // TODO: avoid this call without check if exists
-            let cache = cache::load(&config, cli_args, &abs_project_root)?;
-            // TODO: Big one, need to call cache.load_tasks or whatever, or metadata won't be
-            // loaded
+            create_output_directory(&config, &abs_project_root)?;
 
-            // TODO: also, we're missing the last modification check, to now if we must force to
-            // remap due to changes on the related cfg
-            let program_data = project_model::load(config, cli_args, &abs_project_root)?;
-            // TODO: maybe couple them a little bit, and return a (cache, program_data) structured
-            // binding?
+            let cache: ZorkCache<'_> = cache::load(&config, cli_args, &abs_project_root)?;
+
+            let program_data: ZorkModel<'_> =
+                if config_file.last_time_modified > cache.metadata.last_program_execution {
+                    utils::reader::build_model(config, cli_args, &abs_project_root)?
+                } else {
+                    project_model::load(config, cli_args, &abs_project_root)?
+                };
 
             do_main_work_based_on_cli_input(cli_args, &program_data, cache).with_context(|| {
                 format!(
@@ -120,6 +119,8 @@ pub mod worker {
         //
         // other is to have just a separate function that only passes the required data
         // like cache to be modified and the new ones
+        //
+        // TODO: introduce debug times for the main processes
         generate_commands(program_data, &mut cache, cli_args)
             .with_context(|| error_messages::FAILURE_GENERATING_COMMANDS)?;
 
@@ -169,6 +170,13 @@ pub mod worker {
             .unwrap_or("out");
         let out_dir = Path::new(project_root).join(binding);
 
+        if out_dir.exists() {
+            return Ok(());
+        } // early guard. If the out_dir already exists, all
+          // the sub-structure must exists and be correct.
+          // Otherwise, a full out dir wipe will be preferable
+          // that checking if they all exists on every run
+
         // Recursively create the directories below and all of its parent components if they are missing
         let modules_path = out_dir.join(compiler_name).join(dir_names::MODULES);
 
@@ -185,7 +193,7 @@ pub mod worker {
         utils::fs::create_directory(&zork_cache_path)?;
         utils::fs::create_directory(&zork_intrinsics_path)?;
 
-        // TODO: This possibly gonna be temporary
+        // Pre Clang-18 way
         if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
             utils::fs::create_file(
                 &zork_intrinsics_path,
