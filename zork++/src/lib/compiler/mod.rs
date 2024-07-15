@@ -3,12 +3,14 @@
 //! operating system against the designed compilers in the configuration
 //! file.
 
+use color_eyre::eyre::{Context, ContextCompat};
 use std::path::Path;
 
 use color_eyre::Result;
 
 use crate::cli::output::commands::TranslationUnitStatus;
 use crate::project_model::modules::SystemModule;
+use crate::utils::constants::error_messages;
 use crate::{
     cache::ZorkCache,
     cli::{
@@ -47,7 +49,7 @@ pub fn generate_commands<'a>(
 
     // Pre-tasks
     if model.compiler.cpp_compiler != CppCompiler::MSVC && !model.modules.sys_modules.is_empty() {
-        generate_sys_modules_commands(model, cache, cli_args);
+        generate_sys_modules_commands(model, cache, cli_args)?;
     }
 
     // Translation units and linker
@@ -95,14 +97,15 @@ fn generate_sys_modules_commands<'a>(
     model: &'a ZorkModel<'a>,
     cache: &mut ZorkCache<'a>,
     cli_args: &'a CliArgs,
-) {
+) -> Result<()> {
     process_kind_translation_units(
         model,
         cache,
         cli_args,
         &model.modules.sys_modules,
         TranslationUnitKind::SystemHeader,
-    );
+    )
+    .with_context(|| error_messages::FAILURE_SYSTEM_MODULES)
 }
 
 /// The procedure that takes care of generating the [`SourceCommandLine`] to build the user's declared
@@ -121,7 +124,8 @@ fn process_modules<'a>(
         cli_args,
         &modules.interfaces,
         TranslationUnitKind::ModuleInterface,
-    );
+    )
+    .with_context(|| error_messages::FAILURE_MODULE_INTERFACES)?;
 
     log::info!("Generating the commands for the module implementations and partitions...");
     process_kind_translation_units(
@@ -130,7 +134,8 @@ fn process_modules<'a>(
         cli_args,
         &modules.implementations,
         TranslationUnitKind::ModuleImplementation,
-    );
+    )
+    .with_context(|| error_messages::FAILURE_MODULE_IMPLEMENTATIONS)?;
 
     Ok(())
 }
@@ -163,9 +168,8 @@ fn generate_sources_cmds_args<'a>(
         cli_args,
         srcs,
         TranslationUnitKind::SourceFile,
-    );
-
-    Ok(())
+    )
+    .with_context(|| error_messages::FAILURE_TARGET_SOURCES)
 }
 
 /// Generates the command line that will be passed to the linker to generate an [`ExecutableTarget`]
@@ -205,12 +209,11 @@ pub fn generate_linker_general_command_line_args<'a>(
 
     let compiler = &model.compiler.cpp_compiler;
     let out_dir: &Path = model.build.output_dir.as_ref();
-    let executable_name = target.name();
 
     let target_output = Argument::from(
         out_dir
             .join(compiler.as_ref())
-            .join(executable_name)
+            .join(target.name())
             .with_extension(constants::BINARY_EXTENSION),
     );
 
@@ -240,10 +243,12 @@ fn process_kind_translation_units<'a, T: TranslationUnit<'a>>(
     cli_args: &'a CliArgs,
     translation_units: &'a [T],
     for_kind: TranslationUnitKind,
-) {
+) -> Result<()> {
     for translation_unit in translation_units.iter() {
-        process_kind_translation_unit(model, cache, cli_args, translation_unit, &for_kind)
+        process_kind_translation_unit(model, cache, cli_args, translation_unit, &for_kind)?
     }
+
+    Ok(())
 }
 
 fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
@@ -252,7 +257,7 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
     cli_args: &'a CliArgs,
     translation_unit: &'a T,
     for_kind: &TranslationUnitKind,
-) {
+) -> Result<()> {
     let compiler = model.compiler.cpp_compiler;
     let lpe = cache.metadata.last_program_execution;
 
@@ -268,22 +273,20 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
         generated_cmd.status = build_translation_unit;
     } else {
         let tu_with_erased_type = translation_unit.as_any();
-        // TODO: remove the .unwrap() (s) below for some other robust solution
+
         match &for_kind {
             TranslationUnitKind::ModuleInterface => {
                 let resolved_tu =
-                    transient::Downcast::downcast_ref::<ModuleInterfaceModel>(tu_with_erased_type);
-                modules::generate_module_interface_cmd(model, cache, resolved_tu.unwrap());
+                    transient::Downcast::downcast_ref::<ModuleInterfaceModel>(tu_with_erased_type)
+                        .with_context(|| helpers::wrong_downcast_msg(translation_unit))?;
+                modules::generate_module_interface_cmd(model, cache, resolved_tu);
             }
             TranslationUnitKind::ModuleImplementation => {
-                modules::generate_module_implementation_cmd(
-                    model,
-                    cache,
-                    transient::Downcast::downcast_ref::<ModuleImplementationModel>(
-                        tu_with_erased_type,
-                    )
-                    .unwrap(),
+                let resolved_tu = transient::Downcast::downcast_ref::<ModuleImplementationModel>(
+                    tu_with_erased_type,
                 )
+                .with_context(|| helpers::wrong_downcast_msg(translation_unit))?;
+                modules::generate_module_implementation_cmd(model, cache, resolved_tu)
             }
             TranslationUnitKind::SourceFile => {
                 let target = if cli_args.command.eq(&Command::Test) {
@@ -291,21 +294,22 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
                 } else {
                     &model.executable as &dyn ExecutableTarget
                 };
-                sources::generate_sources_arguments(
-                    model,
-                    cache,
-                    transient::Downcast::downcast_ref::<SourceFile>(tu_with_erased_type).unwrap(),
-                    target,
-                )
+                let resolved_tu =
+                    transient::Downcast::downcast_ref::<SourceFile>(tu_with_erased_type)
+                        .with_context(|| helpers::wrong_downcast_msg(translation_unit))?;
+                sources::generate_sources_arguments(model, cache, resolved_tu, target)
             }
-            TranslationUnitKind::SystemHeader => modules::generate_sys_module_cmd(
-                model,
-                cache,
-                transient::Downcast::downcast_ref::<SystemModule>(tu_with_erased_type).unwrap(),
-            ),
-            _ => todo!(),
+            TranslationUnitKind::SystemHeader => {
+                let resolved_tu =
+                    transient::Downcast::downcast_ref::<SystemModule>(tu_with_erased_type)
+                        .with_context(|| helpers::wrong_downcast_msg(translation_unit))?;
+                modules::generate_sys_module_cmd(model, cache, resolved_tu)
+            }
+            _ => (),
         }
     };
+
+    Ok(())
 }
 
 /// Command line arguments generators procedures for C++ standard modules
@@ -724,5 +728,13 @@ mod helpers {
             }
             _ => TranslationUnitStatus::PendingToBuild,
         }
+    }
+
+    pub(crate) fn wrong_downcast_msg<'a, T: TranslationUnit<'a>>(translation_unit: &T) -> String {
+        format!(
+            "{}: {:?}",
+            error_messages::WRONG_DOWNCAST_FOR,
+            translation_unit.path()
+        )
     }
 }

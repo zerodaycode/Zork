@@ -44,6 +44,16 @@ pub mod error_messages {
         trigger them. The unique remaining, is ::New, that is already processed\
         at the very beginning";
 
+    pub const FAILURE_MODULE_INTERFACES: &str =
+        "An error happened while generating the commands for the module interfaces";
+    pub const FAILURE_MODULE_IMPLEMENTATIONS: &str =
+        "An error happened while generating the commands for the module implementations";
+    pub const FAILURE_TARGET_SOURCES: &str =
+        "An error happened while generating the commands for the declared sources of the target";
+    pub const FAILURE_SYSTEM_MODULES: &str =
+        "An error happened while generating the commands for the declared system headers as modules";
+    pub const WRONG_DOWNCAST_FOR: &str = "An error happened while resolving the original type of";
+
     pub mod msvc {
         pub const STDLIB_MODULES_NOT_FOUND: &str =
             "Can't find the MSVC standard library modules. Did you installed them?";
