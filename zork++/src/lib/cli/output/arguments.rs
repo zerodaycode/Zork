@@ -107,9 +107,13 @@ pub struct Arguments<'a>(Vec<Argument<'a>>);
 
 impl<'a> core::fmt::Display for Arguments<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.iter().try_for_each(|arg| write!(f, "{} ", arg))
-        // TODO: there's an ugly space at the end of every command line when Display is invoked
-        // :) Just fix it
+        let args = &mut self.0.iter();
+        let mut idx = 0;
+        while idx < args.len() - 1 {
+            args.try_for_each(|arg| write!(f, "{} ", arg))?;
+            idx += 1;
+        }
+        args.try_for_each(|arg| write!(f, "{} ", arg))
     }
 }
 

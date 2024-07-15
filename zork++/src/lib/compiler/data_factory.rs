@@ -52,7 +52,7 @@ impl<'a> IntoIterator for CommonArgs<'a> {
 }
 
 /// Factory function for bring the data structure that holds the common arguments of a source
-/// command line for every translation unit, regardeless the underlying choosen compiler
+/// command line for every translation unit, regardless the underlying chosen compiler
 pub fn compiler_common_arguments_factory(
     model: &ZorkModel<'_>,
     cache: &ZorkCache<'_>,
