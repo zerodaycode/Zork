@@ -1,5 +1,5 @@
 use crate::cache::ZorkCache;
-use crate::cli::output::arguments::{Argument};
+use crate::cli::output::arguments::Argument;
 
 use crate::project_model::compiler::CppCompiler;
 use crate::project_model::ZorkModel;
