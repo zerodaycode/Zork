@@ -1,9 +1,11 @@
 use crate::cache::ZorkCache;
-use crate::cli::output::arguments::Arguments;
-use crate::cli::output::commands::SourceCommandLine;
+use crate::cli::output::arguments::{Argument};
+
+use crate::project_model::compiler::CppCompiler;
+use crate::project_model::ZorkModel;
 use crate::utils;
-use crate::utils::constants::COMPILATION_DATABASE;
-use color_eyre::eyre::{Context, Result};
+use crate::utils::constants::{error_messages, COMPILATION_DATABASE};
+use color_eyre::eyre::{Context, ContextCompat, Result};
 use serde::Serialize;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -14,16 +16,49 @@ pub type CompileCommands<'a> = Vec<CompileCommand<'a>>;
 /// for some static analysis external tools, like `clang-tidy`, and populates it with
 /// the generated commands for the translation units
 pub(crate) fn map_generated_commands_to_compilation_db<'a>(
-    cache: &'a ZorkCache<'a>,
-) -> Result<CompileCommands<'a>> {
-    log::trace!("Generating the compilation database...");
+    program_data: &ZorkModel,
+    cache: &mut ZorkCache<'a>,
+) -> Result<()> {
+    log::debug!("Generating the compilation database...");
 
     let generated_commands = cache.get_all_commands_iter();
     let mut compilation_db_entries: Vec<CompileCommand> =
-        Vec::with_capacity(cache.count_total_generated_commands()); // Without the linker one
+        Vec::with_capacity(cache.count_total_generated_commands());
 
-    for command in generated_commands {
-        compilation_db_entries.push(CompileCommand::from(command));
+    let general_args = cache
+        .generated_commands
+        .general_args
+        .as_ref()
+        .expect(error_messages::GENERAL_ARGS_NOT_FOUND)
+        .get_args();
+
+    let compiler_specific_shared_args = cache
+        .generated_commands
+        .compiler_common_args
+        .as_ref()
+        .with_context(|| error_messages::COMPILER_SPECIFIC_COMMON_ARGS_NOT_FOUND)?
+        .get_args();
+
+    let compile_but_dont_link: [Argument; 1] =
+        [Argument::from(match program_data.compiler.cpp_compiler {
+            CppCompiler::CLANG | CppCompiler::GCC => "-c",
+            CppCompiler::MSVC => "/c",
+        })];
+
+    for source_command_line in generated_commands {
+        let translation_unit_cmd_args = general_args
+            .iter()
+            .chain(compiler_specific_shared_args.iter())
+            .chain(&compile_but_dont_link)
+            .chain(source_command_line.args.iter())
+            .collect::<Vec<&Argument>>();
+
+        let compile_command = CompileCommand {
+            directory: &source_command_line.directory,
+            file: &source_command_line.filename,
+            arguments: translation_unit_cmd_args,
+        };
+        compilation_db_entries.push(compile_command);
     }
 
     let compile_commands_path = Path::new(COMPILATION_DATABASE);
@@ -32,28 +67,15 @@ pub(crate) fn map_generated_commands_to_compilation_db<'a>(
             .with_context(|| "Error creating the compilation database")?;
     }
 
-    utils::fs::serialize_object_to_file(Path::new(compile_commands_path), &compilation_db_entries)
-        .with_context(move || "Error saving the compilation database")?;
-
-    Ok(compilation_db_entries)
+    utils::fs::save_file(Path::new(compile_commands_path), &compilation_db_entries)
+        .with_context(move || "Error saving the compilation database")
 }
 
 /// Data model for serialize the data that will be outputted
 /// to the `compile_commands.json` compilation database file
-#[derive(Serialize, Debug, Default, Clone)]
+#[derive(Serialize, Debug)]
 pub struct CompileCommand<'a> {
-    pub directory: PathBuf,
-    pub file: String,
-    pub arguments: Arguments<'a>,
-}
-
-impl<'a> From<&SourceCommandLine<'a>> for CompileCommand<'a> {
-    fn from(value: &SourceCommandLine<'a>) -> Self {
-        let value = value.clone();
-        Self {
-            directory: value.directory,
-            file: value.filename,
-            arguments: value.args,
-        }
-    }
+    pub directory: &'a PathBuf,
+    pub file: &'a String,
+    pub arguments: Vec<&'a Argument<'a>>,
 }

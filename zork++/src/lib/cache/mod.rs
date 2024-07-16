@@ -12,23 +12,26 @@ use std::{
     fs,
     fs::File,
     path::{Path, PathBuf},
+    time::Instant,
 };
 
 use crate::config_file::ZorkConfigFile;
 use crate::domain::translation_unit::{TranslationUnit, TranslationUnitKind};
 use crate::project_model::sourceset::SourceFile;
-use crate::utils::constants::CACHE_FILE_EXT;
+use crate::utils::constants::{dir_names, error_messages};
 use crate::{
     cli::{
         input::CliArgs,
         output::commands::{Commands, SourceCommandLine},
     },
+    project_model,
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::{self},
 };
 use serde::{Deserialize, Serialize};
 
 use crate::project_model::compiler::StdLibMode;
+use crate::utils::constants;
 
 /// Standalone utility for load from the file system the Zork++ cache file
 /// for the target [`CppCompiler`]
@@ -43,27 +46,35 @@ pub fn load<'a>(
             .build
             .as_ref()
             .and_then(|build_attr| build_attr.output_dir)
-            .unwrap_or("out"),
+            .unwrap_or(dir_names::DEFAULT_OUTPUT_DIR),
     );
-    let cache_path = &output_dir.join("zork").join("cache");
+    let cache_path = output_dir.join(constants::ZORK).join(dir_names::CACHE);
 
     let cache_file_path = cache_path
         .join(compiler.as_ref())
-        .with_extension(CACHE_FILE_EXT);
+        .with_extension(constants::CACHE_FILE_EXT);
 
-    // TODO: analyze if the clear cache must be performed by target and/or active cfg file(s)
     // TODO: should we just have a cache dir with the <compiler>_<cfg_file>_<target>.json or similar?
     // Or just .../<compiler>/<cfg_file>_<target>.json
     let cache = if !cache_file_path.exists() {
-        File::create(&cache_file_path).with_context(|| "Error creating the cache file")?;
-        helpers::initialize_default_cache(cache_file_path, compiler, &output_dir)?
+        File::create(&cache_file_path).with_context(|| error_messages::FAILURE_LOADING_CACHE)?;
+        helpers::initialize_cache(cache_path, cache_file_path, compiler, &output_dir)?
     } else if cache_path.exists() && cli_args.clear_cache {
-        fs::remove_dir_all(cache_path).with_context(|| "Error cleaning the Zork++ cache")?;
-        fs::create_dir(cache_path)
-            .with_context(|| "Error creating the cache subdirectory for {compiler}")?;
-        File::create(&cache_file_path)
-            .with_context(|| "Error creating the cache file after cleaning the cache")?;
-        helpers::initialize_default_cache(cache_file_path, compiler, &output_dir)?
+        fs::remove_dir_all(&cache_path).with_context(|| error_messages::FAILURE_CLEANING_CACHE)?;
+        fs::create_dir(&cache_path).with_context(|| {
+            format!(
+                "{} for: {}",
+                error_messages::FAILURE_CREATING_COMPILER_CACHE_DIR,
+                compiler
+            )
+        })?;
+        File::create(&cache_file_path).with_context(|| {
+            format!(
+                "{} after cleaning the cache",
+                error_messages::FAILURE_LOADING_CACHE
+            )
+        })?;
+        helpers::initialize_cache(cache_path, cache_file_path, compiler, &output_dir)?
     } else {
         log::trace!(
             "Loading Zork++ cache file for {compiler} at: {:?}",
@@ -84,12 +95,12 @@ pub struct ZorkCache<'a> {
 }
 
 impl<'a> ZorkCache<'a> {
-    pub fn save(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
-        self.run_final_tasks(program_data)?;
+    pub fn save(&mut self, program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<()> {
+        self.run_final_tasks(program_data, cli_args)?;
         self.metadata.last_program_execution = Utc::now();
 
-        utils::fs::serialize_object_to_file(&self.metadata.cache_file_path, self)
-            .with_context(move || "Error saving data to the Zork++ cache")
+        utils::fs::save_file(&self.metadata.cache_file_path, self)
+            .with_context(|| error_messages::FAILURE_SAVING_CACHE)
     }
 
     pub fn get_cmd_for_translation_unit_kind<T: TranslationUnit<'a>>(
@@ -191,9 +202,27 @@ impl<'a> ZorkCache<'a> {
     }
 
     /// Runs the tasks just before end the program and save the cache
-    fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
-        if program_data.project.compilation_db && self.metadata.regenerate_compilation_database {
-            compile_commands::map_generated_commands_to_compilation_db(self)?;
+    fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<()> {
+        let process_removals = Instant::now();
+        let deletions_on_cfg = helpers::check_user_files_removals(self, program_data, cli_args);
+        log::debug!(
+            "Zork++ took a total of {:?} ms on checking and process removed items",
+            process_removals.elapsed().as_millis()
+        );
+
+        if self.metadata.save_project_model {
+            project_model::save(program_data, self)?;
+        }
+
+        if program_data.project.compilation_db
+            && (self.metadata.generate_compilation_database || deletions_on_cfg)
+        {
+            let compile_commands_time = Instant::now();
+            compile_commands::map_generated_commands_to_compilation_db(program_data, self)?;
+            log::debug!(
+                "Zork++ took a total of {:?} ms on generate the compilation database",
+                compile_commands_time.elapsed().as_millis()
+            );
         }
 
         Ok(())
@@ -244,8 +273,11 @@ pub struct CacheMetadata {
     pub process_no: i32,
     pub last_program_execution: DateTime<Utc>,
     pub cache_file_path: PathBuf,
+    pub project_model_file_path: PathBuf,
     #[serde(skip)]
-    pub regenerate_compilation_database: bool,
+    pub generate_compilation_database: bool,
+    #[serde(skip)]
+    pub save_project_model: bool,
 }
 
 /// Type alias for the underlying key-value based collection of environmental variables
@@ -411,28 +443,79 @@ mod helpers {
     use self::utils::constants::error_messages;
 
     use super::*;
+    use crate::cli::input::Command;
+    use crate::cli::output::commands::TranslationUnitStatus;
     use std::path::PathBuf;
 
-    pub(crate) fn initialize_default_cache<'a>(
+    pub(crate) fn initialize_cache<'a>(
+        cache_path: PathBuf,
         cache_file_path: PathBuf,
         compiler: CppCompiler,
         output_dir: &Path,
     ) -> Result<ZorkCache<'a>> {
-        let mut default_initialized = ZorkCache {
+        let project_model_file_path = cache_path
+            .join(format!("{}_pm", compiler.as_ref()))
+            .with_extension(constants::CACHE_FILE_EXT);
+
+        let mut cache = ZorkCache {
             metadata: CacheMetadata {
-                cache_file_path: cache_file_path.clone(),
+                cache_file_path,
+                project_model_file_path,
                 ..Default::default()
             },
             ..Default::default()
         };
 
-        utils::fs::serialize_object_to_file(&cache_file_path, &default_initialized)
-            .with_context(|| error_messages::FAILURE_SAVING_CACHE)?;
-
-        default_initialized
+        cache
             .run_tasks(compiler, output_dir)
             .with_context(|| error_messages::FAILURE_LOADING_INITIAL_CACHE_DATA)?;
 
-        Ok(default_initialized)
+        Ok(cache)
+    }
+
+    /// Checks for those translation units that the process detected that must be deleted from the
+    /// cache -> [`TranslationUnitStatus::ToDelete`] or if the file has been removed from the
+    /// Zork++ configuration file or if it has been removed from the fs
+    ///
+    /// Can we only call this when we know that the user modified the ZorkCache file for the current iteration?
+    pub(crate) fn check_user_files_removals(
+        cache: &mut ZorkCache,
+        program_data: &ZorkModel<'_>,
+        cli_args: &CliArgs,
+    ) -> bool {
+        remove_if_needed_from_cache_and_count_changes(
+            &mut cache.generated_commands.interfaces,
+            &program_data.modules.interfaces,
+        ) || remove_if_needed_from_cache_and_count_changes(
+            &mut cache.generated_commands.implementations,
+            &program_data.modules.implementations,
+        ) || remove_if_needed_from_cache_and_count_changes(
+            &mut cache.generated_commands.sources,
+            if !cli_args.command.eq(&Command::Test) {
+                &program_data.executable.sourceset.sources
+            } else {
+                &program_data.tests.sourceset.sources
+            },
+        ) || remove_if_needed_from_cache_and_count_changes(
+            &mut cache.generated_commands.system_modules,
+            &program_data.modules.sys_modules,
+        )
+    }
+
+    fn remove_if_needed_from_cache_and_count_changes<'a, T: TranslationUnit<'a>>(
+        cached_commands: &mut Vec<SourceCommandLine>,
+        user_declared_translation_units: &[T],
+    ) -> bool {
+        let removal_conditions = |scl: &SourceCommandLine| {
+            scl.status.eq(&TranslationUnitStatus::ToDelete)
+                || user_declared_translation_units
+                    .iter()
+                    .any(|cc: &T| cc.path().eq(&scl.path()))
+        };
+
+        let total_cached_source_command_lines = cached_commands.len();
+        cached_commands.retain(removal_conditions);
+
+        total_cached_source_command_lines > cached_commands.len()
     }
 }

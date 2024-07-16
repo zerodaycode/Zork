@@ -18,7 +18,7 @@ pub mod worker {
     use crate::config_file::ZorkConfigFile;
     use crate::project_model;
     use crate::{config_file, utils::fs::get_project_root_absolute_path};
-    use std::{fs, path::Path};
+    use std::{fs, path::Path, time::Instant};
 
     use crate::utils::constants::{dir_names, error_messages, ZORK};
     use crate::{
@@ -81,13 +81,16 @@ pub mod worker {
 
             create_output_directory(&config, &abs_project_root)?;
 
-            let cache: ZorkCache<'_> = cache::load(&config, cli_args, &abs_project_root)?;
+            let mut cache: ZorkCache<'_> = cache::load(&config, cli_args, &abs_project_root)?;
 
             let program_data: ZorkModel<'_> =
                 if config_file.last_time_modified > cache.metadata.last_program_execution {
+                    log::debug!("Rebuilding the ZorkModel due to changes of the cfg file");
+                    cache.metadata.save_project_model = true;
                     utils::reader::build_model(config, cli_args, &abs_project_root)?
                 } else {
-                    project_model::load(config, cli_args, &abs_project_root)?
+                    log::debug!("Loading the ZorkModel from the cache");
+                    project_model::load(&cache)?
                 };
 
             do_main_work_based_on_cli_input(cli_args, &program_data, cache).with_context(|| {
@@ -112,17 +115,16 @@ pub mod worker {
         program_data: &'a ZorkModel<'a>,
         mut cache: ZorkCache<'a>,
     ) -> Result<()> {
-        // TODO: if we split the line below, we can only check for changes on the modified
-        // files IF and only IF the configuration files has been modified
-        // so we will have the need_to_rebuild in other place before the commands generation
-        // one option is directly on the reader, by just checking it's modification datetime (for the tu)
-        //
-        // other is to have just a separate function that only passes the required data
-        // like cache to be modified and the new ones
-        //
-        // TODO: introduce debug times for the main processes
+        let generate_commands_ts = Instant::now();
+        // Generates the commands for every translation unit and/or checks on successive iterations
+        // of the program it any of them has been modified so the files must be marked to be
+        // rebuilt again
         generate_commands(program_data, &mut cache, cli_args)
             .with_context(|| error_messages::FAILURE_GENERATING_COMMANDS)?;
+        log::debug!(
+            "Zork++ took a total of {:?} ms on handling the generated commands",
+            generate_commands_ts.elapsed().as_millis()
+        );
 
         let execution_result = match cli_args.command {
             Command::Build => commands::run_generated_commands(program_data, &mut cache),
@@ -139,7 +141,7 @@ pub mod worker {
             _ => todo!("{}", error_messages::CLI_ARGS_CMD_NEW_BRANCH),
         };
 
-        cache.save(program_data)?;
+        cache.save(program_data, cli_args)?;
 
         execution_result
     }

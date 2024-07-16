@@ -48,7 +48,7 @@ pub struct ConfigFile {
 /// Checks for the existence of the `zork_<any>.toml` configuration files
 /// present in the same directory when the binary is called, and
 /// returns a collection of the ones found.
-//
+///
 /// *base_path* - A parameter for receive an input via command line
 /// parameter to indicate where the configuration files lives in
 /// the client's project. Defaults to `.`

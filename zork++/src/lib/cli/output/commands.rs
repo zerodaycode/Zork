@@ -52,22 +52,16 @@ pub fn run_generated_commands<'a>(
         CppCompiler::GCC => &cache.compilers_metadata.gcc.env_vars,
     };
 
-    let translation_units = generated_commands
-        .cpp_stdlib
-        .as_mut_slice()
-        .iter_mut()
-        .chain(generated_commands.c_compat_stdlib.as_mut_slice().iter_mut())
-        .chain(generated_commands.system_modules.as_mut_slice().iter_mut())
-        .chain(generated_commands.interfaces.as_mut_slice().iter_mut())
-        .chain(generated_commands.implementations.as_mut_slice().iter_mut())
-        .chain(generated_commands.sources.as_mut_slice().iter_mut())
-        .filter(|scl| scl.status.eq(&TranslationUnitStatus::PendingToBuild))
-        .collect::<Vec<&mut SourceCommandLine>>();
-
-    // let translation_units = generated_commands // TODO: how can I borrow twice generated_commands?
-    //     .get_all_command_lines()
-    //     .filter(|scl| scl.status.eq(&TranslationUnitStatus::PendingToBuild))
-    //     .collect::<Vec<&mut SourceCommandLine>>();
+    let translation_units_commands: Vec<&mut SourceCommandLine> =
+        helpers::get_translation_units_commands(
+            // Independent borrows to avoid have borrow checker yielding at me
+            &mut generated_commands.cpp_stdlib,
+            &mut generated_commands.c_compat_stdlib,
+            &mut generated_commands.system_modules,
+            &mut generated_commands.interfaces,
+            &mut generated_commands.implementations,
+            &mut generated_commands.sources,
+        );
 
     let compile_but_dont_link: [Argument; 1] =
         [Argument::from(match program_data.compiler.cpp_compiler {
@@ -75,7 +69,7 @@ pub fn run_generated_commands<'a>(
             CppCompiler::MSVC => "/c",
         })];
 
-    for translation_unit_cmd in translation_units {
+    for translation_unit_cmd in translation_units_commands {
         // Join the concrete args of any translation unit with the ones held in the flyweights
         let translation_unit_cmd_args: Arguments = general_args
             .iter()
@@ -88,7 +82,6 @@ pub fn run_generated_commands<'a>(
         translation_unit_cmd.status = TranslationUnitStatus::from(&r);
 
         if let Err(e) = r {
-            cache.save(program_data)?;
             return Err(e);
         } else if !r.as_ref().unwrap().success() {
             let err = eyre!(
@@ -100,22 +93,13 @@ pub fn run_generated_commands<'a>(
     }
 
     log::info!("Processing the linker command line...");
-    let r = execute_command(
+    let r = helpers::execute_linker_command_line(
         program_data,
-        &general_args
-            .iter()
-            .chain(compiler_specific_shared_args.iter())
-            .chain(
-                generated_commands
-                    .linker
-                    .get_target_output_for(program_data.compiler.cpp_compiler)
-                    .iter(),
-            )
-            .chain(generated_commands.linker.byproducts.iter())
-            .collect::<Arguments>(),
+        general_args,
+        compiler_specific_shared_args,
+        &generated_commands.linker,
         env_vars,
     );
-
     cache.generated_commands.linker.execution_result = TranslationUnitStatus::from(&r);
 
     if let Err(e) = r {
@@ -319,10 +303,33 @@ impl From<&Result<ExitStatus, Report>> for TranslationUnitStatus {
 
 mod helpers {
 
-    use crate::cli::output::commands::TranslationUnitStatus;
+    use crate::cli::output::commands::{
+        execute_command, LinkerCommandLine, SourceCommandLine, TranslationUnitStatus,
+    };
 
+    use crate::cache::EnvVars;
+    use crate::cli::output::arguments::Arguments;
+    use crate::project_model::ZorkModel;
     use color_eyre::eyre::Result;
     use std::process::ExitStatus;
+
+    pub(crate) fn execute_linker_command_line(
+        program_data: &ZorkModel,
+        general_args: Arguments,
+        compiler_specific_shared_args: Arguments,
+        linker_command_line: &LinkerCommandLine,
+        env_vars: &EnvVars,
+    ) -> Result<ExitStatus> {
+        let linker_args =
+            linker_command_line.get_target_output_for(program_data.compiler.cpp_compiler);
+        let args = general_args
+            .iter()
+            .chain(linker_args.iter())
+            .chain(compiler_specific_shared_args.iter())
+            .chain(linker_command_line.byproducts.iter())
+            .collect::<Arguments>();
+        execute_command(program_data, &args, env_vars)
+    }
 
     /// Convenient way of handle a command execution result avoiding duplicate code
     pub(crate) fn handle_command_execution_result(
@@ -338,5 +345,25 @@ mod helpers {
             }
             Err(_) => TranslationUnitStatus::Error,
         }
+    }
+
+    pub(crate) fn get_translation_units_commands<'a, 'b>(
+        cpp_stdlib: &'b mut Option<SourceCommandLine<'a>>,
+        c_compat_stdlib: &'b mut Option<SourceCommandLine<'a>>,
+        system_modules: &'b mut Vec<SourceCommandLine<'a>>,
+        interfaces: &'b mut Vec<SourceCommandLine<'a>>,
+        implementations: &'b mut Vec<SourceCommandLine<'a>>,
+        sources: &'b mut Vec<SourceCommandLine<'a>>,
+    ) -> Vec<&'b mut SourceCommandLine<'a>> {
+        cpp_stdlib
+            .as_mut_slice()
+            .iter_mut()
+            .chain(c_compat_stdlib.as_mut_slice().iter_mut())
+            .chain(system_modules.as_mut_slice().iter_mut())
+            .chain(interfaces.as_mut_slice().iter_mut())
+            .chain(implementations.as_mut_slice().iter_mut())
+            .chain(sources.as_mut_slice().iter_mut())
+            .filter(|scl| scl.status.eq(&TranslationUnitStatus::PendingToBuild))
+            .collect::<Vec<&mut SourceCommandLine>>()
     }
 }

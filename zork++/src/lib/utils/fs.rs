@@ -83,12 +83,12 @@ pub fn get_file_details<P: AsRef<Path>>(p: P) -> Result<(PathBuf, String, String
     ))
 }
 
-pub fn serialize_object_to_file<T>(path: &Path, data: &T) -> Result<()>
+pub fn save_file<T>(path: &Path, data: &T) -> Result<()>
 where
     T: Serialize + ?Sized,
 {
     serde_json::to_writer_pretty(
-        File::create(path).with_context(|| "Error opening the cache file")?,
+        File::create(path).with_context(|| format!("Error opening file: {:?}", path))?,
         data,
     )
     .with_context(|| "Error serializing data to the cache")
@@ -102,6 +102,7 @@ where
     let buffer = BufReader::new(
         File::open(path.as_ref()).with_context(|| format!("Error opening {:?}", path))?,
     );
+    // TODO: remove the panic, use the default
     Ok(serde_json::from_reader(buffer)
         .unwrap_or_else(|_| panic!("Unable to parse file: {:?}", path)))
 }

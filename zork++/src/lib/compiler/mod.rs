@@ -272,6 +272,7 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
 
         generated_cmd.status = build_translation_unit;
     } else {
+        cache.metadata.generate_compilation_database = true;
         let tu_with_erased_type = translation_unit.as_any();
 
         match &for_kind {
@@ -327,6 +328,7 @@ mod modules {
         ModuleImplementationModel, ModuleInterfaceModel, SystemModule,
     };
     use crate::project_model::ZorkModel;
+    use crate::utils::constants::dir_names;
 
     /// Generates the expected arguments for precompile the BMIs depending on self
     pub fn generate_module_interface_cmd<'a>(
@@ -361,8 +363,8 @@ mod modules {
                 arguments.push("/ifcOutput");
                 let implicit_lookup_mius_path = out_dir
                     .join(compiler.as_ref())
-                    .join("modules")
-                    .join("interfaces");
+                    .join(dir_names::MODULES)
+                    .join(dir_names::INTERFACES);
                 arguments.push(implicit_lookup_mius_path);
 
                 // The output .obj file
@@ -614,8 +616,8 @@ mod helpers {
     ) -> PathBuf {
         out_dir
             .join(compiler.as_ref())
-            .join("modules")
-            .join("interfaces")
+            .join(dir_names::MODULES)
+            .join(dir_names::INTERFACES)
             .join(format!(
                 "{module_name}.{}",
                 if compiler.eq(&CppCompiler::MSVC) {
