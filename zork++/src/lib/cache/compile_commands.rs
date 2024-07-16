@@ -15,9 +15,9 @@ pub type CompileCommands<'a> = Vec<CompileCommand<'a>>;
 /// Generates the `compile_commands.json` file, that acts as a compilation database
 /// for some static analysis external tools, like `clang-tidy`, and populates it with
 /// the generated commands for the translation units
-pub(crate) fn map_generated_commands_to_compilation_db<'a>(
+pub(crate) fn map_generated_commands_to_compilation_db(
     program_data: &ZorkModel,
-    cache: &mut ZorkCache<'a>,
+    cache: &mut ZorkCache,
 ) -> Result<()> {
     log::debug!("Generating the compilation database...");
 
