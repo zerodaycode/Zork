@@ -102,7 +102,6 @@ where
     let buffer = BufReader::new(
         File::open(path.as_ref()).with_context(|| format!("Error opening {:?}", path))?,
     );
-    // TODO: remove the panic, use the default
-    Ok(serde_json::from_reader(buffer)
-        .unwrap_or_else(|_| panic!("Unable to parse file: {:?}", path)))
+
+    Ok(serde_json::from_reader(buffer).unwrap_or_default())
 }
