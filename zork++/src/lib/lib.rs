@@ -25,7 +25,7 @@ pub mod worker {
         cache::{self, ZorkCache},
         cli::{
             input::{CliArgs, Command},
-            output::commands,
+            output::executors,
         },
         compiler::generate_commands,
         project_model::{compiler::CppCompiler, ZorkModel},
@@ -46,7 +46,7 @@ pub mod worker {
             .map(Path::new)
             .unwrap_or(Path::new("."));
         let abs_project_root = get_project_root_absolute_path(project_root)?;
-
+        // TODO: falta o do project model, gañans!
         if let Command::New {
             ref name,
             git,
@@ -127,10 +127,10 @@ pub mod worker {
         );
 
         let execution_result = match cli_args.command {
-            Command::Build => commands::run_generated_commands(program_data, &mut cache),
+            Command::Build => executors::run_generated_commands(program_data, &mut cache),
             Command::Run | Command::Test => {
-                match commands::run_generated_commands(program_data, &mut cache) {
-                    Ok(_) => commands::autorun_generated_binary(
+                match executors::run_generated_commands(program_data, &mut cache) {
+                    Ok(_) => executors::autorun_generated_binary(
                         &program_data.compiler.cpp_compiler,
                         &program_data.build.output_dir,
                         &program_data.executable.executable_name,

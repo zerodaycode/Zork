@@ -2,11 +2,11 @@ use core::fmt;
 use std::borrow::Cow;
 use std::path::PathBuf;
 
+use crate::domain::commands::arguments::Argument;
 use color_eyre::{eyre::Context, Result};
 use serde::{Deserialize, Serialize};
 use transient::Transient;
 
-use crate::cli::output::arguments::Argument;
 use crate::domain::translation_unit::TranslationUnit;
 use crate::impl_translation_unit_for;
 

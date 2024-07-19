@@ -1,9 +1,9 @@
 use crate::cli::input::CliArgs;
 
+use crate::domain::commands::arguments::Argument;
 use crate::project_model::modules::SystemModule;
 use crate::project_model::sourceset::SourceFile;
 use crate::{
-    cli::output::arguments::Argument,
     config_file::{
         build::BuildAttribute,
         compiler::CompilerAttribute,

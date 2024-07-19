@@ -1,6 +1,7 @@
 //! The higher abstractions of the program
 
-use crate::{cli::output::arguments::Argument, project_model::sourceset::SourceSet};
+use crate::domain::commands::arguments::Argument;
+use crate::project_model::sourceset::SourceSet;
 
 /// Bound for the user defined arguments that are passed to the compiler
 pub trait ExtraArgs<'a> {

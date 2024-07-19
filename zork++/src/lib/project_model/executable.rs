@@ -3,10 +3,8 @@ use std::borrow::Cow;
 use serde::{Deserialize, Serialize};
 
 use super::sourceset::SourceSet;
-use crate::{
-    cli::output::arguments::Argument,
-    domain::target::{ExecutableTarget, ExtraArgs},
-};
+use crate::domain::commands::arguments::Argument;
+use crate::domain::target::{ExecutableTarget, ExtraArgs};
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct ExecutableModel<'a> {

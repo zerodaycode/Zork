@@ -16,14 +16,12 @@ use std::{
 };
 
 use crate::config_file::ZorkConfigFile;
+use crate::domain::commands::command_lines::{Commands, SourceCommandLine};
 use crate::domain::translation_unit::{TranslationUnit, TranslationUnitKind};
 use crate::project_model::sourceset::SourceFile;
 use crate::utils::constants::{dir_names, error_messages};
 use crate::{
-    cli::{
-        input::CliArgs,
-        output::commands::{Commands, SourceCommandLine},
-    },
+    cli::input::CliArgs,
     project_model,
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::{self},
@@ -56,7 +54,7 @@ pub fn load<'a>(
 
     // TODO: should we just have a cache dir with the <compiler>_<cfg_file>_<target>.json or similar?
     // Or just .../<compiler>/<cfg_file>_<target>.json
-    let cache = if !cache_file_path.exists() {
+    let mut cache = if !cache_file_path.exists() {
         File::create(&cache_file_path).with_context(|| error_messages::FAILURE_LOADING_CACHE)?;
         helpers::initialize_cache(cache_path, cache_file_path, compiler, &output_dir)?
     } else if cache_path.exists() && cli_args.clear_cache {
@@ -83,6 +81,8 @@ pub fn load<'a>(
         utils::fs::load_and_deserialize(&cache_file_path)
             .with_context(|| "Error loading the Zork++ cache")?
     };
+
+    cache.metadata.process_no += 1;
 
     Ok(cache)
 }
@@ -230,6 +230,7 @@ impl<'a> ZorkCache<'a> {
 
     /// Method that returns the HashMap that holds the environmental variables that must be passed
     /// to the underlying shell
+    #[inline(always)]
     pub fn get_process_env_args(&'a mut self, compiler: CppCompiler) -> &'a EnvVars {
         match compiler {
             CppCompiler::MSVC => &self.compilers_metadata.msvc.env_vars,
@@ -441,10 +442,9 @@ mod msvc {
 
 mod helpers {
     use self::utils::constants::error_messages;
-
     use super::*;
     use crate::cli::input::Command;
-    use crate::cli::output::commands::TranslationUnitStatus;
+    use crate::domain::translation_unit::TranslationUnitStatus;
     use std::path::PathBuf;
 
     pub(crate) fn initialize_cache<'a>(
@@ -507,14 +507,21 @@ mod helpers {
         user_declared_translation_units: &[T],
     ) -> bool {
         let removal_conditions = |scl: &SourceCommandLine| {
-            scl.status.eq(&TranslationUnitStatus::ToDelete)
-                || user_declared_translation_units
+            scl.status.eq(&TranslationUnitStatus::ToDelete) || {
+                let r = user_declared_translation_units
                     .iter()
-                    .any(|cc: &T| cc.path().eq(&scl.path()))
+                    .any(|cc| cc.path().eq(&scl.path()));
+
+                if !r {
+                    log::debug!("Found translation_unit removed from cfg: {:?}", scl);
+                }
+                r
+            }
         };
 
         let total_cached_source_command_lines = cached_commands.len();
         cached_commands.retain(removal_conditions);
+        // TODO: remove them also from the linker
 
         total_cached_source_command_lines > cached_commands.len()
     }

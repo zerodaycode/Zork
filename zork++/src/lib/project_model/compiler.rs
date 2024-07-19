@@ -1,7 +1,7 @@
 use core::fmt;
 use std::borrow::Cow;
 
-use crate::cli::output::arguments::Argument;
+use crate::domain::commands::arguments::Argument;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::target::ExtraArgs;

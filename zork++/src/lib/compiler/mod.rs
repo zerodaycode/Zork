@@ -8,15 +8,13 @@ use std::path::Path;
 
 use color_eyre::Result;
 
-use crate::cli::output::commands::TranslationUnitStatus;
+use crate::domain::commands::arguments::Argument;
+use crate::domain::translation_unit::TranslationUnitStatus;
 use crate::project_model::modules::SystemModule;
 use crate::utils::constants::error_messages;
 use crate::{
     cache::ZorkCache,
-    cli::{
-        input::{CliArgs, Command},
-        output::{arguments::Argument, commands::SourceCommandLine},
-    },
+    cli::input::{CliArgs, Command},
     domain::{
         target::ExecutableTarget,
         translation_unit::{TranslationUnit, TranslationUnitKind},
@@ -318,11 +316,11 @@ mod modules {
     use std::path::Path;
 
     use crate::cache::ZorkCache;
-    use crate::cli::output::arguments::{clang_args, msvc_args, Arguments};
-    use crate::cli::output::commands::{SourceCommandLine, TranslationUnitStatus};
     use crate::compiler::helpers;
     use crate::compiler::helpers::generate_bmi_file_path;
-    use crate::domain::translation_unit::TranslationUnit;
+    use crate::domain::commands::arguments::{clang_args, msvc_args, Arguments};
+    use crate::domain::commands::command_lines::SourceCommandLine;
+    use crate::domain::translation_unit::{TranslationUnit, TranslationUnitStatus};
     use crate::project_model::compiler::{CppCompiler, StdLibMode};
     use crate::project_model::modules::{
         ModuleImplementationModel, ModuleInterfaceModel, SystemModule,
@@ -518,14 +516,12 @@ mod modules {
 /// Specific operations over source files
 mod sources {
     use crate::cache::ZorkCache;
-    use crate::cli::output::arguments::Arguments;
+    use crate::domain::commands::arguments::Arguments;
+    use crate::domain::commands::command_lines::SourceCommandLine;
     use crate::domain::target::ExecutableTarget;
     use crate::domain::translation_unit::TranslationUnit;
     use crate::project_model::sourceset::SourceFile;
-    use crate::{
-        cli::output::commands::SourceCommandLine,
-        project_model::{compiler::CppCompiler, ZorkModel},
-    };
+    use crate::project_model::{compiler::CppCompiler, ZorkModel};
 
     use super::helpers;
 
@@ -561,15 +557,12 @@ mod sources {
 /// kind of workflow that should be done with this parse, format and
 /// generate.
 mod helpers {
-    use std::path::PathBuf;
-
-    use chrono::{DateTime, Utc};
-
-    use crate::cli::output::commands::TranslationUnitStatus;
-
-    use crate::utils::constants::dir_names;
-
     use super::*;
+    use crate::domain::commands::command_lines::SourceCommandLine;
+    use crate::domain::translation_unit::TranslationUnitStatus;
+    use crate::utils::constants::dir_names;
+    use chrono::{DateTime, Utc};
+    use std::path::PathBuf;
 
     /// Creates the path for a prebuilt module interface, based on the default expected
     /// extension for BMI's given a compiler

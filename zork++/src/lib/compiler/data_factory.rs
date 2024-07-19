@@ -2,9 +2,9 @@
 //! translation unit, having shared data without replicating it until the final command line must
 //! be generated in order to be stored (in cache) and executed (in the underlying shell)
 
+use crate::domain::commands::arguments::{clang_args, Argument, Arguments};
 use crate::{
     cache::ZorkCache,
-    cli::output::arguments::{clang_args, Argument, Arguments},
     domain::target::ExtraArgs,
     project_model::{
         compiler::{CppCompiler, StdLib},

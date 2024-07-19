@@ -864,6 +864,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml_merge"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "toml",
+]
+
+[[package]]
 name = "transient"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

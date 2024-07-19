@@ -267,11 +267,10 @@ pub mod clang_args {
 }
 
 pub mod msvc_args {
+    use crate::cache::ZorkCache;
+    use crate::domain::commands::command_lines::SourceCommandLine;
     use crate::domain::translation_unit::TranslationUnit;
-    use crate::{
-        cache::ZorkCache, cli::output::commands::SourceCommandLine,
-        project_model::compiler::StdLibMode,
-    };
+    use crate::project_model::compiler::StdLibMode;
 
     use super::Arguments;
 

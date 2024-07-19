@@ -2,17 +2,12 @@
 //! by Zork++
 
 use std::ffi::OsStr;
-use std::fmt::Debug;
-use std::{
-    path::{Path, PathBuf},
-    process::ExitStatus,
-};
+use std::{path::Path, process::ExitStatus};
 
-use super::arguments::Argument;
 use crate::cache::EnvVars;
-use crate::cli::output::arguments::Arguments;
-use crate::compiler::data_factory::{CommonArgs, CompilerCommonArguments};
-use crate::domain::translation_unit::TranslationUnit;
+use crate::domain::commands::arguments::{Argument, Arguments};
+use crate::domain::commands::command_lines::SourceCommandLine;
+use crate::domain::translation_unit::TranslationUnitStatus;
 use crate::utils::constants::error_messages;
 use crate::{
     cache::ZorkCache,
@@ -24,7 +19,6 @@ use color_eyre::{
     eyre::{eyre, Context},
     Report, Result,
 };
-use serde::{Deserialize, Serialize};
 
 pub fn run_generated_commands<'a>(
     program_data: &ZorkModel<'a>,
@@ -169,146 +163,12 @@ where
         .with_context(|| format!("[{compiler}] - Command {arguments} failed!"))
 }
 
-/// Type for representing the command line that will be sent to the target compiler, and
-/// store its different components
-///
-/// * directory*: the path where the translation unit lives
-/// * filename*: the translation unit declared name on the fs with the extension
-/// * args*: member that holds all the cmd arguments that will be passed to the compiler driver
-/// * status*: A [`TranslationUnitStatus`] that represents all the different phases that a source command
-/// line can have among all the different iterations of the program, changing according to the modifications
-/// over the translation unit in the fs and the result of the build execution
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SourceCommandLine<'a> {
-    pub directory: PathBuf,
-    pub filename: String,
-    pub args: Arguments<'a>,
-    pub status: TranslationUnitStatus,
-}
-
-impl<'a> SourceCommandLine<'a> {
-    pub fn new<T: TranslationUnit<'a>>(tu: &T, args: Arguments<'a>) -> Self {
-        Self {
-            directory: PathBuf::from(tu.parent()),
-            filename: tu.filename(),
-            args,
-            status: TranslationUnitStatus::PendingToBuild,
-        }
-    }
-
-    pub fn path(&self) -> PathBuf {
-        self.directory.join(Path::new(&self.filename))
-    }
-
-    pub fn filename(&self) -> &String {
-        &self.filename
-    }
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct LinkerCommandLine<'a> {
-    pub target: Argument<'a>,
-    pub byproducts: Arguments<'a>,
-    pub extra_args: Arguments<'a>,
-    pub execution_result: TranslationUnitStatus,
-}
-
-impl<'a> LinkerCommandLine<'a> {
-    pub fn get_target_output_for(&self, compiler: CppCompiler) -> Vec<Argument> {
-        match compiler {
-            CppCompiler::CLANG | CppCompiler::GCC => {
-                vec![Argument::from("-o"), self.target.clone()]
-            }
-            CppCompiler::MSVC => vec![self.target.clone()],
-        }
-    }
-
-    /// Saves the path at which a compilation product of any translation unit will be placed,
-    /// in order to add it to the files that will be linked to generate the final product
-    /// in the two-phase compilation model
-    pub fn add_byproduct_path(&mut self, path: PathBuf) {
-        self.byproducts.push(path);
-    }
-}
-
-/// Holds the generated command line arguments for a concrete compiler
-#[derive(Serialize, Deserialize, Default, Debug)]
-pub struct Commands<'a> {
-    pub general_args: Option<CommonArgs<'a>>,
-    pub compiler_common_args: Option<Box<dyn CompilerCommonArguments>>,
-    pub cpp_stdlib: Option<SourceCommandLine<'a>>,
-    pub c_compat_stdlib: Option<SourceCommandLine<'a>>,
-    pub system_modules: Vec<SourceCommandLine<'a>>,
-    pub interfaces: Vec<SourceCommandLine<'a>>,
-    pub implementations: Vec<SourceCommandLine<'a>>,
-    pub sources: Vec<SourceCommandLine<'a>>,
-    pub linker: LinkerCommandLine<'a>,
-}
-
-impl<'a> Commands<'a> {
-    /// Returns a [std::iter::Chain] (behind the opaque impl clause return type signature)
-    /// which points to all the generated commands for the two variants of the compilers vendors C++ modular
-    /// standard libraries implementations (see: [crate::project_model::compiler::StdLibMode])
-    /// joined to all the commands generated for every [TranslationUnit] declared by the user for
-    /// its project
-    pub fn get_all_command_lines(
-        &mut self,
-    ) -> impl Iterator<Item = &mut SourceCommandLine<'a>> + Debug {
-        self.cpp_stdlib
-            .as_mut_slice()
-            .iter_mut()
-            .chain(self.c_compat_stdlib.as_mut_slice().iter_mut())
-            .chain(self.system_modules.as_mut_slice().iter_mut())
-            .chain(self.interfaces.as_mut_slice().iter_mut())
-            .chain(self.implementations.as_mut_slice().iter_mut())
-            .chain(self.sources.as_mut_slice().iter_mut())
-    }
-
-    pub fn add_linker_file_path(&mut self, path: PathBuf) {
-        self.linker.add_byproduct_path(path);
-    }
-}
-
-/// The different states of a translation unit in the whole lifecycle of
-/// the build process and across different iterations of the same
-#[derive(Debug, Default, Serialize, Deserialize, Clone, Copy, PartialEq)]
-pub enum TranslationUnitStatus {
-    /// A command that is executed correctly
-    Success,
-    /// A skipped command due to previous successful iterations
-    Cached,
-    /// A command which is return code indicates an unsuccessful execution
-    Failed,
-    /// Whenever a translation unit must be rebuilt
-    #[default]
-    PendingToBuild,
-    /// The associated [`TranslationUnit`] has been deleted from the user's configuration and therefore,
-    /// it should be removed from the cache as well as its generated byproducts
-    ToDelete,
-    /// The execution failed, returning a [`Result`] with the Err variant
-    Error,
-}
-
-impl From<Result<ExitStatus, Report>> for TranslationUnitStatus {
-    fn from(value: Result<ExitStatus, Report>) -> Self {
-        helpers::handle_command_execution_result(&value)
-    }
-}
-
-impl From<&Result<ExitStatus, Report>> for TranslationUnitStatus {
-    fn from(value: &Result<ExitStatus, Report>) -> Self {
-        helpers::handle_command_execution_result(value)
-    }
-}
-
 mod helpers {
-
-    use crate::cli::output::commands::{
-        execute_command, LinkerCommandLine, SourceCommandLine, TranslationUnitStatus,
-    };
-
     use crate::cache::EnvVars;
-    use crate::cli::output::arguments::Arguments;
+    use crate::cli::output::executors::execute_command;
+    use crate::domain::commands::arguments::Arguments;
+    use crate::domain::commands::command_lines::{LinkerCommandLine, SourceCommandLine};
+    use crate::domain::translation_unit::TranslationUnitStatus;
     use crate::project_model::ZorkModel;
     use color_eyre::eyre::Result;
     use std::process::ExitStatus;
@@ -329,22 +189,6 @@ mod helpers {
             .chain(linker_command_line.byproducts.iter())
             .collect::<Arguments>();
         execute_command(program_data, &args, env_vars)
-    }
-
-    /// Convenient way of handle a command execution result avoiding duplicate code
-    pub(crate) fn handle_command_execution_result(
-        value: &Result<ExitStatus>,
-    ) -> TranslationUnitStatus {
-        match value {
-            Ok(r) => {
-                if r.success() {
-                    TranslationUnitStatus::Success
-                } else {
-                    TranslationUnitStatus::Failed
-                }
-            }
-            Err(_) => TranslationUnitStatus::Error,
-        }
     }
 
     pub(crate) fn get_translation_units_commands<'a, 'b>(

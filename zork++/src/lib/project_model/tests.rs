@@ -1,9 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    cli::output::arguments::Argument,
-    domain::target::{ExecutableTarget, ExtraArgs},
-};
+use crate::domain::commands::arguments::Argument;
+use crate::domain::target::{ExecutableTarget, ExtraArgs};
 use std::borrow::Cow;
 
 use super::sourceset::SourceSet;
