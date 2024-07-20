@@ -1,5 +1,6 @@
 //! The module which holds the higher and generic abstractions over a source file
 
+use crate::domain::target::TargetIdentifier;
 use crate::project_model::compiler::StdLibMode;
 use color_eyre::Report;
 use serde::{Deserialize, Serialize};
@@ -92,17 +93,17 @@ macro_rules! impl_translation_unit_for {
 
 /// The different type of translation units that `Zork++` is able to deal with
 #[derive(Debug)]
-pub enum TranslationUnitKind {
+pub enum TranslationUnitKind<'a> {
     ModuleInterface,
     ModuleImplementation,
-    SourceFile,
+    SourceFile(TargetIdentifier<'a>),
     ModularStdLib(StdLibMode),
     SystemHeader,
 }
 
 /// The different states of a translation unit in the whole lifecycle of
 /// the build process and across different iterations of the same
-#[derive(Debug, Default, Serialize, Deserialize, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, Copy, Eq, PartialEq)]
 pub enum TranslationUnitStatus {
     /// A command that is executed correctly
     Success,

@@ -4,6 +4,7 @@ pub mod executable;
 pub mod modules;
 pub mod project;
 pub mod sourceset;
+mod target;
 pub mod tests;
 
 use std::fmt::Debug;

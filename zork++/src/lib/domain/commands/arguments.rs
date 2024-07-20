@@ -102,7 +102,7 @@ impl<'a> core::fmt::Display for Argument<'a> {
 }
 
 /// Strong type for represent a linear collection of [`Argument`]
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Arguments<'a>(Vec<Argument<'a>>);
 
 impl<'a> core::fmt::Display for Arguments<'a> {

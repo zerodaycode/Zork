@@ -39,6 +39,8 @@ pub mod error_messages {
     pub const GENERAL_ARGS_NOT_FOUND: &str = "Something went wrong loading the general arguments";
     pub const PROJECT_MODEL_MAPPING: &str = "Error building the project model";
     pub const PROJECT_MODEL_SAVE: &str = "Error caching and saving to the fs the project model";
+    pub const TARGET_ENTRY_NOT_FOUND: &str =
+        "Unlikely error happened while adding linkage data to a target";
     pub const COMPILER_SPECIFIC_COMMON_ARGS_NOT_FOUND: &str =
         "Something went wrong loading the general arguments";
     pub const DEFAULT_OF_COMPILER_COMMON_ARGUMENTS: &str =

@@ -52,8 +52,10 @@ pub fn generate_commands<'a>(
 
     // Translation units and linker
 
-    // 1st - Build the modules
+    // Generates commands for the modules
     process_modules(model, cache, cli_args)?;
+    // Generate commands for the declared targets
+    process_targets(model, cache, cli_args)?;
     // 2nd - Generate the commands for the non-module sources
     generate_sources_cmds_args(model, cache, cli_args)?;
     // 3rd - Generate the linker command for the 'target' declared by the user
@@ -135,6 +137,14 @@ fn process_modules<'a>(
     )
     .with_context(|| error_messages::FAILURE_MODULE_IMPLEMENTATIONS)?;
 
+    Ok(())
+}
+
+fn process_targets<'a>(
+    model: &'a ZorkModel<'a>,
+    cache: &mut ZorkCache<'a>,
+    cli_args: &'a CliArgs,
+) -> Result<()> {
     Ok(())
 }
 
@@ -287,7 +297,7 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
                 .with_context(|| helpers::wrong_downcast_msg(translation_unit))?;
                 modules::generate_module_implementation_cmd(model, cache, resolved_tu)
             }
-            TranslationUnitKind::SourceFile => {
+            TranslationUnitKind::SourceFile(related_target) => {
                 let target = if cli_args.command.eq(&Command::Test) {
                     &model.tests as &dyn ExecutableTarget
                 } else {
@@ -296,7 +306,13 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
                 let resolved_tu =
                     transient::Downcast::downcast_ref::<SourceFile>(tu_with_erased_type)
                         .with_context(|| helpers::wrong_downcast_msg(translation_unit))?;
-                sources::generate_sources_arguments(model, cache, resolved_tu, target)
+                sources::generate_sources_arguments(
+                    model,
+                    cache,
+                    resolved_tu,
+                    &related_target,
+                    target,
+                )?;
             }
             TranslationUnitKind::SystemHeader => {
                 let resolved_tu =
@@ -313,7 +329,7 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
 
 /// Command line arguments generators procedures for C++ standard modules
 mod modules {
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use crate::cache::ZorkCache;
     use crate::compiler::helpers;
@@ -391,11 +407,7 @@ mod modules {
         // The input file
         arguments.push(interface.path());
 
-        cache
-            .generated_commands
-            .add_linker_file_path(binary_module_ifc);
-
-        let cmd_line = SourceCommandLine::new(interface, arguments);
+        let cmd_line = SourceCommandLine::new(interface, arguments, binary_module_ifc);
         cache.generated_commands.interfaces.push(cmd_line);
     }
 
@@ -438,9 +450,7 @@ mod modules {
             }
         }
 
-        cache.generated_commands.add_linker_file_path(obj_file_path);
-
-        let cmd = SourceCommandLine::new(implementation.to_owned(), arguments);
+        let cmd = SourceCommandLine::new(implementation.to_owned(), arguments, obj_file_path);
         cache.generated_commands.implementations.push(cmd);
     }
 
@@ -484,6 +494,7 @@ mod modules {
             filename: sys_module.to_string(),
             args,
             status: TranslationUnitStatus::PendingToBuild,
+            byproduct: /* TODO:!!!!!!: */ PathBuf::default()
         };
         cache.generated_commands.system_modules.push(cmd);
     }
@@ -518,10 +529,12 @@ mod sources {
     use crate::cache::ZorkCache;
     use crate::domain::commands::arguments::Arguments;
     use crate::domain::commands::command_lines::SourceCommandLine;
-    use crate::domain::target::ExecutableTarget;
+    use crate::domain::target::{ExecutableTarget, TargetIdentifier};
     use crate::domain::translation_unit::TranslationUnit;
     use crate::project_model::sourceset::SourceFile;
     use crate::project_model::{compiler::CppCompiler, ZorkModel};
+    use crate::utils::constants::error_messages;
+    use color_eyre::eyre::{ContextCompat, Result};
 
     use super::helpers;
 
@@ -530,8 +543,9 @@ mod sources {
         model: &'a ZorkModel<'a>,
         cache: &mut ZorkCache<'a>,
         source: &'a SourceFile<'a>,
+        target_identifier: &TargetIdentifier,
         target: &'a (impl ExecutableTarget<'a> + ?Sized),
-    ) {
+    ) -> Result<()> {
         let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir.as_ref();
 
@@ -547,9 +561,22 @@ mod sources {
         arguments.push(format!("{fo}{}", obj_file.display()));
         arguments.push(source.path());
 
-        let command_line = SourceCommandLine::new(source, arguments);
-        cache.generated_commands.sources.push(command_line);
-        cache.generated_commands.add_linker_file_path(obj_file)
+        let command_line = SourceCommandLine::new(source, arguments, obj_file);
+        cache
+            .generated_commands
+            .targets
+            .get_mut(target_identifier)
+            .with_context(|| {
+                format!(
+                    "{}: {:?}",
+                    error_messages::TARGET_ENTRY_NOT_FOUND,
+                    target_identifier
+                )
+            })?
+            .sources
+            .push(command_line);
+
+        Ok(())
     }
 }
 
@@ -607,18 +634,17 @@ mod helpers {
         compiler: CppCompiler,
         module_name: &str,
     ) -> PathBuf {
-        out_dir
-            .join(compiler.as_ref())
-            .join(dir_names::MODULES)
-            .join(dir_names::INTERFACES)
-            .join(format!(
-                "{module_name}.{}",
-                if compiler.eq(&CppCompiler::MSVC) {
-                    compiler.get_obj_file_extension()
-                } else {
-                    compiler.get_typical_bmi_extension()
-                }
-            ))
+        let base = out_dir.join(compiler.as_ref());
+        let (intermediate, extension) = if compiler.eq(&CppCompiler::MSVC) {
+            let intermediate = base.join(dir_names::OBJECT_FILES);
+            (intermediate, compiler.get_obj_file_extension())
+        } else {
+            let intermediate = base.join(dir_names::MODULES).join(dir_names::INTERFACES);
+            (intermediate, compiler.get_typical_bmi_extension())
+        };
+
+        base.join(intermediate)
+            .join(format!("{module_name}.{}", extension))
     }
 
     /// Generates the [`PathBuf`] of the resultant `.obj` file of a [`TranslationUnit`] where the

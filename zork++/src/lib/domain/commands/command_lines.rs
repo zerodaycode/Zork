@@ -1,8 +1,12 @@
 use crate::compiler::data_factory::{CommonArgs, CompilerCommonArguments};
 use crate::domain::commands::arguments::{Argument, Arguments};
+use crate::domain::target::{Target, TargetIdentifier};
 use crate::domain::translation_unit::{TranslationUnit, TranslationUnitStatus};
 use crate::project_model::compiler::CppCompiler;
+use crate::utils::constants::error_messages;
+use color_eyre::eyre::{ContextCompat, Result};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 
@@ -15,21 +19,23 @@ use std::path::{Path, PathBuf};
 /// * status*: A [`TranslationUnitStatus`] that represents all the different phases that a source command
 /// line can have among all the different iterations of the program, changing according to the modifications
 /// over the translation unit in the fs and the result of the build execution
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct SourceCommandLine<'a> {
     pub directory: PathBuf,
     pub filename: String,
     pub args: Arguments<'a>,
     pub status: TranslationUnitStatus,
+    pub byproduct: PathBuf,
 }
 
 impl<'a> SourceCommandLine<'a> {
-    pub fn new<T: TranslationUnit<'a>>(tu: &T, args: Arguments<'a>) -> Self {
+    pub fn new<T: TranslationUnit<'a>>(tu: &T, args: Arguments<'a>, byproduct: PathBuf) -> Self {
         Self {
             directory: PathBuf::from(tu.parent()),
             filename: tu.filename(),
             args,
             status: TranslationUnitStatus::PendingToBuild,
+            byproduct,
         }
     }
 
@@ -42,8 +48,10 @@ impl<'a> SourceCommandLine<'a> {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, Eq, PartialEq)]
+
 pub struct LinkerCommandLine<'a> {
+    link_modules: bool,
     pub target: Argument<'a>,
     pub byproducts: Arguments<'a>,
     pub extra_args: Arguments<'a>,
@@ -78,8 +86,7 @@ pub struct Commands<'a> {
     pub system_modules: Vec<SourceCommandLine<'a>>,
     pub interfaces: Vec<SourceCommandLine<'a>>,
     pub implementations: Vec<SourceCommandLine<'a>>,
-    pub sources: Vec<SourceCommandLine<'a>>,
-    pub linker: LinkerCommandLine<'a>,
+    pub targets: HashMap<TargetIdentifier<'a>, Target<'a>>,
 }
 
 impl<'a> Commands<'a> {
@@ -98,10 +105,25 @@ impl<'a> Commands<'a> {
             .chain(self.system_modules.as_mut_slice().iter_mut())
             .chain(self.interfaces.as_mut_slice().iter_mut())
             .chain(self.implementations.as_mut_slice().iter_mut())
-            .chain(self.sources.as_mut_slice().iter_mut())
+        // TODO: .chain(self.sources.as_mut_slice().iter_mut())
     }
 
-    pub fn add_linker_file_path(&mut self, path: PathBuf) {
-        self.linker.add_byproduct_path(path);
+    pub fn add_linker_file_path(
+        &mut self,
+        target_identifier: &TargetIdentifier,
+        path: PathBuf,
+    ) -> Result<()> {
+        self.targets
+            .get_mut(target_identifier)
+            .with_context(|| {
+                format!(
+                    "{}: {:?}",
+                    error_messages::TARGET_ENTRY_NOT_FOUND,
+                    target_identifier
+                )
+            })?
+            .linker
+            .add_byproduct_path(path);
+        Ok(())
     }
 }
