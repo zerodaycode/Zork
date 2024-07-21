@@ -110,7 +110,7 @@ impl<'a> Commands<'a> {
 
     pub fn add_linker_file_path(
         &mut self,
-        target_identifier: &TargetIdentifier,
+        target_identifier: &TargetIdentifier<'a>,
         path: PathBuf,
     ) -> Result<()> {
         self.targets

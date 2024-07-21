@@ -9,6 +9,7 @@ use std::path::Path;
 use color_eyre::Result;
 
 use crate::domain::commands::arguments::Argument;
+use crate::domain::target::TargetIdentifier;
 use crate::domain::translation_unit::TranslationUnitStatus;
 use crate::project_model::modules::SystemModule;
 use crate::utils::constants::error_messages;
@@ -56,10 +57,6 @@ pub fn generate_commands<'a>(
     process_modules(model, cache, cli_args)?;
     // Generate commands for the declared targets
     process_targets(model, cache, cli_args)?;
-    // 2nd - Generate the commands for the non-module sources
-    generate_sources_cmds_args(model, cache, cli_args)?;
-    // 3rd - Generate the linker command for the 'target' declared by the user
-    generate_linkage_targets_commands(model, cache, cli_args);
 
     Ok(())
 }
@@ -145,6 +142,12 @@ fn process_targets<'a>(
     cache: &mut ZorkCache<'a>,
     cli_args: &'a CliArgs,
 ) -> Result<()> {
+    for target in &model.targets {
+        // 2nd - Generate the commands for the non-module sources
+        generate_sources_cmds_args(model, cache, cli_args)?;
+        // 3rd - Generate the linker command for the 'target' declared by the user
+        generate_linkage_targets_commands(model, cache, cli_args);
+    }
     Ok(())
 }
 
@@ -175,7 +178,7 @@ fn generate_sources_cmds_args<'a>(
         cache,
         cli_args,
         srcs,
-        TranslationUnitKind::SourceFile,
+        TranslationUnitKind::SourceFile(TargetIdentifier::default()), // TODO:
     )
     .with_context(|| error_messages::FAILURE_TARGET_SOURCES)
 }
@@ -213,7 +216,7 @@ pub fn generate_linker_general_command_line_args<'a>(
 ) {
     log::info!("Generating the linker command line...");
 
-    let linker = &mut cache.generated_commands.linker;
+    let linker = &mut cache.generated_commands.targets.get_mut(&TargetIdentifier::default()).unwrap().linker; // TODO:
 
     let compiler = &model.compiler.cpp_compiler;
     let out_dir: &Path = model.build.output_dir.as_ref();
@@ -250,7 +253,7 @@ fn process_kind_translation_units<'a, T: TranslationUnit<'a>>(
     cache: &mut ZorkCache<'a>,
     cli_args: &'a CliArgs,
     translation_units: &'a [T],
-    for_kind: TranslationUnitKind,
+    for_kind: TranslationUnitKind<'a>,
 ) -> Result<()> {
     for translation_unit in translation_units.iter() {
         process_kind_translation_unit(model, cache, cli_args, translation_unit, &for_kind)?
@@ -264,7 +267,7 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
     cache: &mut ZorkCache<'a>,
     cli_args: &'a CliArgs,
     translation_unit: &'a T,
-    for_kind: &TranslationUnitKind,
+    for_kind: &TranslationUnitKind<'a>,
 ) -> Result<()> {
     let compiler = model.compiler.cpp_compiler;
     let lpe = cache.metadata.last_program_execution;
@@ -543,7 +546,7 @@ mod sources {
         model: &'a ZorkModel<'a>,
         cache: &mut ZorkCache<'a>,
         source: &'a SourceFile<'a>,
-        target_identifier: &TargetIdentifier,
+        target_identifier: &TargetIdentifier<'a>,
         target: &'a (impl ExecutableTarget<'a> + ?Sized),
     ) -> Result<()> {
         let compiler = model.compiler.cpp_compiler;

@@ -1,4 +1,3 @@
-workspace = { members = ["merging_toml"] }
 [package]
 name = "zork"
 version = "0.9.0"

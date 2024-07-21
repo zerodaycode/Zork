@@ -22,7 +22,7 @@ pub struct Target<'a> {
 pub struct TargetIdentifier<'a>(Cow<'a, str>);
 
 /// The different types of final products
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default, Copy, Clone)]
 pub enum TargetKind {
     #[default]
     Executable,

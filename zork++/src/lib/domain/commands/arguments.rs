@@ -304,6 +304,6 @@ pub mod msvc_args {
             "/Fo{}", stdlib_obj_path.display()
         });
 
-        SourceCommandLine::new(stdlib_sf, arguments)
+        SourceCommandLine::new(stdlib_sf, arguments, stdlib_obj_path.to_path_buf())
     }
 }

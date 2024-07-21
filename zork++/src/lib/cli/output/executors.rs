@@ -46,6 +46,8 @@ pub fn run_generated_commands<'a>(
         CppCompiler::GCC => &cache.compilers_metadata.gcc.env_vars,
     };
 
+    let mut mock = vec![];
+
     let translation_units_commands: Vec<&mut SourceCommandLine> =
         helpers::get_translation_units_commands(
             // Independent borrows to avoid have borrow checker yielding at me
@@ -54,7 +56,8 @@ pub fn run_generated_commands<'a>(
             &mut generated_commands.system_modules,
             &mut generated_commands.interfaces,
             &mut generated_commands.implementations,
-            &mut generated_commands.sources,
+            // &mut generated_commands.sources,
+            &mut mock,
         );
 
     let compile_but_dont_link: [Argument; 1] =
@@ -86,7 +89,7 @@ pub fn run_generated_commands<'a>(
         }
     }
 
-    log::info!("Processing the linker command line...");
+    /* log::info!("Processing the linker command line...");
     let r = helpers::execute_linker_command_line(
         program_data,
         general_args,
@@ -102,7 +105,7 @@ pub fn run_generated_commands<'a>(
         return Err(eyre!(
             "Ending the program, because the linker command line execution failed",
         ));
-    }
+    } */
 
     Ok(())
 }

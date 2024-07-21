@@ -4,22 +4,21 @@ pub mod executable;
 pub mod modules;
 pub mod project;
 pub mod sourceset;
-mod target;
+pub mod target;
 pub mod tests;
 
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 use color_eyre::eyre::Context;
 use color_eyre::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::cache::ZorkCache;
+use crate::{cache::ZorkCache, domain::target::TargetIdentifier};
 
 use crate::utils;
 
 use self::{
-    build::BuildModel, compiler::CompilerModel, executable::ExecutableModel, modules::ModulesModel,
-    project::ProjectModel, tests::TestsModel,
+    build::BuildModel, compiler::CompilerModel, executable::ExecutableModel, modules::ModulesModel, project::ProjectModel, target::TargetModel, tests::TestsModel
 };
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -27,8 +26,9 @@ pub struct ZorkModel<'a> {
     pub project: ProjectModel<'a>,
     pub compiler: CompilerModel<'a>,
     pub build: BuildModel,
-    pub executable: ExecutableModel<'a>,
     pub modules: ModulesModel<'a>,
+    pub targets: HashMap<TargetIdentifier<'a>, TargetModel<'a>>,
+    pub executable: ExecutableModel<'a>,
     pub tests: TestsModel<'a>,
 }
 

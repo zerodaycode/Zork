@@ -1,8 +1,11 @@
 use crate::cli::input::CliArgs;
 
+use crate::config_file::target::TargetAttribute;
 use crate::domain::commands::arguments::Argument;
+use crate::domain::target::TargetIdentifier;
 use crate::project_model::modules::SystemModule;
 use crate::project_model::sourceset::SourceFile;
+use crate::project_model::target::TargetModel;
 use crate::{
     config_file::{
         build::BuildAttribute,
@@ -30,6 +33,7 @@ use crate::{
 use chrono::{DateTime, Utc};
 use color_eyre::{eyre::eyre, Result};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -103,12 +107,15 @@ pub fn build_model<'a>(
 
     let compiler = assemble_compiler_model(config.compiler, cli_args);
     let build = assemble_build_model(config.build, absolute_project_root);
+    let modules = assemble_modules_model(config.modules, absolute_project_root);
+
+    let targets = assemble_targets_model(config.targets, absolute_project_root);
+
     let executable = assemble_executable_model(
         Cow::Borrowed(proj_name),
         config.executable,
         absolute_project_root,
     );
-    let modules = assemble_modules_model(config.modules, absolute_project_root);
     let tests = assemble_tests_model(
         Cow::Borrowed(proj_name),
         config.tests,
@@ -119,11 +126,13 @@ pub fn build_model<'a>(
         project,
         compiler,
         build,
-        executable,
         modules,
+        targets,
+        executable,
         tests,
     })
 }
+
 
 fn assemble_project_model(config: ProjectAttribute) -> ProjectModel {
     ProjectModel {
@@ -173,42 +182,6 @@ fn assemble_build_model(config: Option<BuildAttribute>, project_root: &Path) -> 
 
     BuildModel {
         output_dir: Path::new(project_root).join(output_dir),
-    }
-}
-
-//noinspection ALL
-fn assemble_executable_model<'a>(
-    project_name: Cow<'a, str>,
-    config: Option<ExecutableAttribute<'a>>,
-    project_root: &Path,
-) -> ExecutableModel<'a> {
-    let config = config.as_ref();
-
-    let executable_name = config
-        .and_then(|exe| exe.executable_name)
-        .map(Cow::Borrowed)
-        .unwrap_or(project_name);
-
-    let sources = config
-        .and_then(|exe| exe.sources.as_ref())
-        .map(|srcs| {
-            srcs.iter()
-                .map(|src| Cow::Borrowed(*src))
-                .collect::<Vec<Cow<str>>>()
-        })
-        .unwrap_or_default();
-
-    let sourceset = get_sourceset_for(sources, project_root);
-
-    let extra_args = config
-        .and_then(|exe| exe.extra_args.as_ref())
-        .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
-        .unwrap_or_default();
-
-    ExecutableModel {
-        executable_name,
-        sourceset,
-        extra_args,
     }
 }
 
@@ -346,6 +319,47 @@ fn assemble_module_implementation_model<'a>(
     }
 }
 
+
+fn assemble_targets_model<'a>(targets: HashMap<&str, TargetAttribute<'a>>, absolute_project_root: &Path) -> HashMap<TargetIdentifier<'a>, TargetModel<'a>> {
+    todo!()
+}
+
+//noinspection ALL
+fn assemble_executable_model<'a>(
+    project_name: Cow<'a, str>,
+    config: Option<ExecutableAttribute<'a>>,
+    project_root: &Path,
+) -> ExecutableModel<'a> {
+    let config = config.as_ref();
+
+    let executable_name = config
+        .and_then(|exe| exe.executable_name)
+        .map(Cow::Borrowed)
+        .unwrap_or(project_name);
+
+    let sources = config
+        .and_then(|exe| exe.sources.as_ref())
+        .map(|srcs| {
+            srcs.iter()
+                .map(|src| Cow::Borrowed(*src))
+                .collect::<Vec<Cow<str>>>()
+        })
+        .unwrap_or_default();
+
+    let sourceset = get_sourceset_for(sources, project_root);
+
+    let extra_args = config
+        .and_then(|exe| exe.extra_args.as_ref())
+        .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
+        .unwrap_or_default();
+
+    ExecutableModel {
+        executable_name,
+        sourceset,
+        extra_args,
+    }
+}
+
 fn assemble_tests_model<'a>(
     project_name: Cow<'_, str>,
     config: Option<TestsAttribute<'a>>,
@@ -459,17 +473,18 @@ mod test {
             build: BuildModel {
                 output_dir: abs_path_for_mock.join("out"),
             },
-            executable: ExecutableModel {
-                executable_name: "Zork++".into(),
-                sourceset: SourceSet { sources: vec![] },
-                extra_args: vec![],
-            },
             modules: ModulesModel {
                 base_ifcs_dir: Cow::default(),
                 interfaces: vec![],
                 base_impls_dir: Cow::default(),
                 implementations: vec![],
                 sys_modules: vec![],
+            },
+            targets: Default::default(), // TODO:
+            executable: ExecutableModel {
+                executable_name: "Zork++".into(),
+                sourceset: SourceSet { sources: vec![] },
+                extra_args: vec![],
             },
             tests: TestsModel {
                 test_executable_name: "Zork++_test".into(),
@@ -507,11 +522,6 @@ mod test {
             },
             build: BuildModel {
                 output_dir: abs_path_for_mock.clone(),
-            },
-            executable: ExecutableModel {
-                executable_name: "zork".into(),
-                sourceset: SourceSet { sources: vec![] },
-                extra_args: vec![Argument::from("-Werr")],
             },
             modules: ModulesModel {
                 base_ifcs_dir: Cow::Borrowed(Path::new("ifcs")),
@@ -553,6 +563,12 @@ mod test {
                     ..Default::default()
                 }],
             },
+            executable: ExecutableModel {
+                executable_name: "zork".into(),
+                sourceset: SourceSet { sources: vec![] },
+                extra_args: vec![Argument::from("-Werr")],
+            },
+            targets: Default::default(), // TODO:
             tests: TestsModel {
                 test_executable_name: "zork_check".into(),
                 sourceset: SourceSet { sources: vec![] },
