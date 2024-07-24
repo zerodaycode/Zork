@@ -8,27 +8,20 @@ use crate::cache::EnvVars;
 use crate::domain::commands::arguments::{Argument, Arguments};
 use crate::domain::commands::command_lines::ModulesCommands;
 use crate::domain::target::{Target, TargetIdentifier};
-use crate::domain::translation_unit::TranslationUnitStatus;
-use crate::utils::constants::error_messages;
 use crate::{
-    cache::ZorkCache,
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::constants,
 };
-use color_eyre::eyre::ContextCompat;
-use color_eyre::{
-    eyre::{eyre, Context},
-    Report, Result,
-};
+use color_eyre::{eyre::Context, Report, Result};
 use indexmap::IndexMap;
 
-pub fn run_modules_generated_commands<'a> (
-    program_data: &ZorkModel<'a>,
-    general_args: &Arguments<'a>,
+pub fn run_modules_generated_commands(
+    program_data: &ZorkModel<'_>,
+    general_args: &Arguments<'_>,
     compiler_specific_shared_args: &Arguments,
-    modules_generated_commands: &mut ModulesCommands<'a>,
+    modules_generated_commands: &mut ModulesCommands<'_>,
     env_vars: &EnvVars,
-)-> Result<()> {
+) -> Result<()> {
     log::info!("Proceeding to execute the generated modules commands...");
 
     // Process the modules
@@ -41,11 +34,12 @@ pub fn run_modules_generated_commands<'a> (
     )
 }
 
-pub fn run_targets_generated_commands<'a>(
-    program_data: &ZorkModel<'a>,
-    general_args: &Arguments<'a>,
+pub fn run_targets_generated_commands(
+    program_data: &ZorkModel<'_>,
+    general_args: &Arguments<'_>,
     compiler_specific_shared_args: &Arguments,
     targets: &mut IndexMap<TargetIdentifier, Target>,
+    modules: &ModulesCommands<'_>,
     env_vars: &EnvVars,
 ) -> Result<()> {
     log::info!("Proceeding to execute the generated commands...");
@@ -57,23 +51,27 @@ pub fn run_targets_generated_commands<'a>(
             "Executing the linker command line for target: {:?}",
             target_name
         );
-        let r = helpers::execute_linker_command_line(
+
+        // Send to build to the compiler the sources declared for the current iteration target
+        for source in target_data.sources.iter_mut() {
+            helpers::execute_source_command_line(
+                program_data,
+                general_args,
+                compiler_specific_shared_args,
+                env_vars,
+                source,
+            )?;
+        }
+
+        // Invoke the linker to generate the final product for the current iteration target
+        helpers::execute_linker_command_line(
             program_data,
             general_args,
             compiler_specific_shared_args,
-            &target_data.linker,
+            modules,
             env_vars,
-            target_data
-        );
-        target_data.linker.execution_result = TranslationUnitStatus::from(&r);
-
-        if let Err(e) = r {
-            return Err(e);
-        } else if !r.as_ref().unwrap().success() {
-            return Err(eyre!(
-                "Ending the program, because the linker command line execution failed",
-            ));
-        }
+            target_data,
+        )?;
     }
 
     Ok(())
@@ -89,7 +87,6 @@ pub fn autorun_generated_binary(
     let args = &[Argument::from(
         output_dir
             .join(compiler.as_ref())
-            // TODO: join with the correct value
             .join(executable_name)
             .with_extension(constants::BINARY_EXTENSION),
     )];
@@ -111,75 +108,129 @@ pub fn autorun_generated_binary(
 
 /// Executes a new [`std::process::Command`] configured according the chosen
 /// compiler and the current operating system
-fn execute_command<T, S>(
+fn execute_command<'a, T, S>(
     model: &ZorkModel,
-    arguments: T,
+    arguments: &mut T,
     env_vars: &EnvVars,
 ) -> Result<ExitStatus, Report>
 where
-    T: IntoIterator<Item = S> + std::fmt::Display + Copy,
+    // T: IntoIterator<Item = S> + std::fmt::Display + Copy,
+    T: Iterator<Item = S> + std::fmt::Debug,
     S: AsRef<OsStr>,
+    Arguments<'a>: FromIterator<S>,
 {
     let compiler = model.compiler.cpp_compiler;
+    let driver = compiler.get_driver(&model.compiler);
     log::trace!(
         "[{compiler}] - Executing command => {:?}",
-        format!("{} {arguments}", compiler.get_driver(&model.compiler),)
+        format!("{} {}", driver, arguments.collect::<Arguments>())
     );
 
-    let driver = compiler.get_driver(&model.compiler);
     let os_driver = OsStr::new(driver.as_ref());
     std::process::Command::new(os_driver)
         .args(arguments)
         .envs(env_vars)
         .spawn()?
         .wait()
-        .with_context(|| format!("[{compiler}] - Command {arguments} failed!"))
+        .with_context(|| format!("[{compiler}] - Command failed!"))
 }
 
 mod helpers {
     use crate::cache::EnvVars;
     use crate::cli::output::executors::execute_command;
     use crate::domain::commands::arguments::{Argument, Arguments};
-    use crate::domain::commands::command_lines::{
-        LinkerCommandLine, ModulesCommands, SourceCommandLine,
-    };
+    use crate::domain::commands::command_lines::{ModulesCommands, SourceCommandLine};
     use crate::domain::target::Target;
     use crate::domain::translation_unit::TranslationUnitStatus;
     use crate::project_model::compiler::CppCompiler;
     use crate::project_model::ZorkModel;
 
     use color_eyre::eyre::{eyre, Result};
+    use std::collections::HashMap;
     use std::process::ExitStatus;
+
+    pub(crate) fn execute_source_command_line(
+        program_data: &ZorkModel<'_>,
+        general_args: &Arguments<'_>,
+        compiler_specific_shared_args: &Arguments<'_>,
+        env_vars: &HashMap<String, String>,
+        source: &mut SourceCommandLine<'_>,
+    ) -> Result<()> {
+        let compile_but_dont_link = [Argument::from("/c")];
+        let mut args = general_args
+            .iter()
+            .chain(compiler_specific_shared_args.iter())
+            .chain(source.args.as_slice().iter())
+            .chain(compile_but_dont_link.iter());
+
+        let r = execute_command(program_data, &mut args, env_vars);
+        source.status = TranslationUnitStatus::from(&r);
+
+        if let Err(e) = r {
+            return Err(e);
+        } else if !r.as_ref().unwrap().success() {
+            let err = eyre!(
+                "Ending the program, because the build of: {:?} failed",
+                source.filename
+            );
+            return Err(err);
+        }
+
+        Ok(())
+    }
 
     pub(crate) fn execute_linker_command_line(
         program_data: &ZorkModel,
         general_args: &Arguments,
         compiler_specific_shared_args: &Arguments,
-        linker_command_line: &LinkerCommandLine,
+        modules: &ModulesCommands<'_>,
         env_vars: &EnvVars,
-        target_data: &Target
+        target_data: &mut Target,
     ) -> Result<ExitStatus> {
-        let linker_args =
-            linker_command_line.get_target_output_for(program_data.compiler.cpp_compiler);
+        let linker_args = target_data
+            .linker
+            .get_target_output_for(program_data.compiler.cpp_compiler);
 
         let linker_sources_byproducts = target_data.sources.iter().map(|scl| &scl.byproduct);
-        // let modules_sources_byproducts =
+        let modules_byproducts = modules
+            .cpp_stdlib
+            .as_slice()
+            .iter()
+            .chain(modules.c_compat_stdlib.iter())
+            .chain(modules.interfaces.iter())
+            .chain(modules.implementations.iter())
+            .chain(modules.system_modules.iter())
+            .map(|scl| &scl.byproduct);
 
-        let args = general_args
+        let mut args = general_args
             .iter()
             .chain(linker_args.iter())
             .chain(compiler_specific_shared_args.iter())
-            .chain(linker_command_line.byproducts.iter())
+            // TODO:    // .chain(linker_command_line.byproducts.iter())
+            // TODO:    // .chain(modules.byproducts.iter()) review if it's worth to have them on
+            // separated caches entries or build the chained iterators
             .chain(linker_sources_byproducts)
-            .collect::<Arguments>();
-        execute_command(program_data, &args, env_vars)
+            .chain(modules_byproducts);
+
+        let r = execute_command(program_data, &mut args, env_vars);
+        target_data.linker.execution_result = TranslationUnitStatus::from(&r);
+
+        if let Err(e) = r {
+            return Err(e);
+        } else if !r.as_ref().unwrap().success() {
+            return Err(eyre!(
+                "Ending the program, because the linker command line execution failed",
+            ));
+        }
+
+        r
     }
 
-    pub(crate) fn process_modules_commands<'a>(
-        program_data: &ZorkModel<'a>,
+    pub(crate) fn process_modules_commands(
+        program_data: &ZorkModel<'_>,
         general_args: &Arguments,
         compiler_specific_shared_args: &Arguments,
-        generated_commands: &mut ModulesCommands<'a>,
+        generated_commands: &mut ModulesCommands<'_>,
         env_vars: &std::collections::HashMap<String, String>,
     ) -> Result<()> {
         let translation_units_commands: Vec<&mut SourceCommandLine> =
@@ -205,14 +256,13 @@ mod helpers {
 
         for translation_unit_cmd in translation_units_commands {
             // Join the concrete args of any translation unit with the ones held in the flyweights
-            let translation_unit_cmd_args: Arguments = general_args
+            let mut translation_unit_cmd_args = general_args
                 .iter()
                 .chain(compiler_specific_shared_args.iter())
                 .chain(&compile_but_dont_link)
-                .chain(translation_unit_cmd.args.iter())
-                .collect();
+                .chain(translation_unit_cmd.args.iter());
 
-            let r = execute_command(program_data, &translation_unit_cmd_args, env_vars);
+            let r = execute_command(program_data, &mut translation_unit_cmd_args, env_vars);
             translation_unit_cmd.status = TranslationUnitStatus::from(&r);
 
             if let Err(e) = r {

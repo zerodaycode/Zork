@@ -174,7 +174,8 @@ fn generate_sources_cmds_args<'a>(
         model,
         cache,
         cli_args,
-        &target_data.sources.sources,
+        &target_data.sources.sources, // FIX: the sources.sources access with the repeated field
+        // names
         TranslationUnitKind::SourceFile(target_identifier),
     )
     .with_context(|| error_messages::FAILURE_TARGET_SOURCES)
@@ -211,7 +212,7 @@ pub fn generate_linker_general_command_line_args<'a>(
         .generated_commands
         .targets
         .get_mut(target_identifier)
-        .unwrap()
+        .unwrap() // TODO: care, better use with_context, even tho this is a non-failable unwrap
         .linker;
 
     let compiler = &model.compiler.cpp_compiler;
@@ -220,10 +221,11 @@ pub fn generate_linker_general_command_line_args<'a>(
     let target_output = Argument::from(
         out_dir
             .join(compiler.as_ref())
-            .join(target_identifier.value().as_ref())
+            .join(target_identifier.name())
             .with_extension(constants::BINARY_EXTENSION),
     );
 
+    // Check if its necessary to change the target output details
     if linker.target.ne(&target_output) {
         match compiler {
             CppCompiler::CLANG | CppCompiler::GCC => linker.target = target_output,
@@ -231,6 +233,8 @@ pub fn generate_linker_general_command_line_args<'a>(
         };
     }
 
+    // Check if the extra args passed by the user to the linker has changed from previous
+    // iterations
     if Iterator::ne(linker.extra_args.iter(), target_details.extra_args.iter()) {
         linker.extra_args.clear();
         linker
@@ -263,7 +267,8 @@ fn process_kind_translation_units<'a, T: TranslationUnit<'a>>(
 fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
     model: &'a ZorkModel<'a>,
     cache: &mut ZorkCache<'a>,
-    _cli_args: &'a CliArgs,
+    _cli_args: &'a CliArgs, // TODO: review if it will be further required on other evolutions of
+    // the codebase
     translation_unit: &'a T,
     for_kind: &TranslationUnitKind<'a>,
 ) -> Result<()> {
@@ -302,7 +307,7 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
                 let resolved_tu =
                     transient::Downcast::downcast_ref::<SourceFile>(tu_with_erased_type)
                         .with_context(|| helpers::wrong_downcast_msg(translation_unit))?;
-                sources::generate_sources_arguments(model, cache, resolved_tu, &related_target)?;
+                sources::generate_sources_arguments(model, cache, resolved_tu, related_target)?;
             }
             TranslationUnitKind::SystemHeader => {
                 let resolved_tu =
@@ -319,7 +324,7 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
 
 /// Command line arguments generators procedures for C++ standard modules
 mod modules {
-    use std::path::{Path};
+    use std::path::Path;
 
     use crate::cache::ZorkCache;
     use crate::compiler::helpers;
@@ -519,7 +524,7 @@ mod sources {
     use crate::cache::ZorkCache;
     use crate::domain::commands::arguments::Arguments;
     use crate::domain::commands::command_lines::SourceCommandLine;
-    use crate::domain::target::{TargetIdentifier};
+    use crate::domain::target::TargetIdentifier;
     use crate::domain::translation_unit::TranslationUnit;
     use crate::project_model::sourceset::SourceFile;
     use crate::project_model::target::TargetModel;

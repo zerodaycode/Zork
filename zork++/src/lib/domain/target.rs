@@ -42,8 +42,8 @@ impl<'a> From<&'a str> for TargetIdentifier<'a> {
 }
 
 impl<'a> TargetIdentifier<'a> {
-    pub fn value(&self) -> &Cow<'a, str> {
-        &self.0
+    pub fn name(&'a self) -> &'a str {
+        self.0.as_ref()
     }
 }
 

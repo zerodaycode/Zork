@@ -7,7 +7,6 @@ use crate::utils::constants::error_messages;
 use color_eyre::eyre::{ContextCompat, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 
@@ -20,6 +19,8 @@ use std::path::{Path, PathBuf};
 /// * status*: A [`TranslationUnitStatus`] that represents all the different phases that a source command
 /// line can have among all the different iterations of the program, changing according to the modifications
 /// over the translation unit in the fs and the result of the build execution
+/// *byproduct*: A [`PathBuf`] like [`Argument`] which hold the physical address on the filesystem
+/// where the compiled object file will be dumped after building it
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct SourceCommandLine<'a> {
     pub directory: PathBuf,
@@ -30,7 +31,11 @@ pub struct SourceCommandLine<'a> {
 }
 
 impl<'a> SourceCommandLine<'a> {
-    pub fn new<T: TranslationUnit<'a>, B: Into<Argument<'a>>>(tu: &T, args: Arguments<'a>, byproduct: B) -> Self {
+    pub fn new<T: TranslationUnit<'a>, B: Into<Argument<'a>>>(
+        tu: &T,
+        args: Arguments<'a>,
+        byproduct: B,
+    ) -> Self {
         Self {
             directory: PathBuf::from(tu.parent()),
             filename: tu.filename(),
@@ -51,6 +56,8 @@ impl<'a> SourceCommandLine<'a> {
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct LinkerCommandLine<'a> {
+    // TODO: review if we do need this struct yet, since target does
+    // the same
     link_modules: bool, // TODO: pending
     pub target: Argument<'a>,
     pub modules_byproducts: Arguments<'a>,

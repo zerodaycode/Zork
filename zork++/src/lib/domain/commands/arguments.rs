@@ -149,7 +149,7 @@ impl<'a> Arguments<'a> {
     }
 
     /// Extends the underlying collection given a slice of any type that is convertible to [`Argument`]
-    /// and clonable
+    /// and implements [`Clone`]
     pub fn extend_from_to_argument_slice<F>(&mut self, slice: &'a [F])
     where
         F: Into<Argument<'a>> + Clone,
@@ -157,7 +157,7 @@ impl<'a> Arguments<'a> {
         self.0.extend(
             slice
                 .iter()
-                .map(|arg| Argument::from(<F as Into<Argument>>::into(arg.clone()))),
+                .map(|arg| <F as Into<Argument>>::into(arg.clone())),
         );
     }
 

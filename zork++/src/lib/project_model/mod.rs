@@ -5,7 +5,7 @@ pub mod project;
 pub mod sourceset;
 pub mod target;
 
-use std::{fmt::Debug};
+use std::fmt::Debug;
 
 use color_eyre::eyre::Context;
 use color_eyre::Result;
