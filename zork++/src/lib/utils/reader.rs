@@ -10,30 +10,26 @@ use crate::{
     config_file::{
         build::BuildAttribute,
         compiler::CompilerAttribute,
-        executable::ExecutableAttribute,
         modules::{ModuleImplementation, ModuleInterface, ModulesAttribute},
         project::ProjectAttribute,
-        tests::TestsAttribute,
         ZorkConfigFile,
     },
     project_model::{
         build::BuildModel,
         compiler::CompilerModel,
-        executable::ExecutableModel,
         modules::{
             ModuleImplementationModel, ModuleInterfaceModel, ModulePartitionModel, ModulesModel,
         },
         project::ProjectModel,
         sourceset::{GlobPattern, Source, SourceSet},
-        tests::TestsModel,
         ZorkModel,
     },
     utils,
 };
 use chrono::{DateTime, Utc};
 use color_eyre::{eyre::eyre, Result};
+use indexmap::IndexMap;
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
@@ -109,18 +105,7 @@ pub fn build_model<'a>(
     let build = assemble_build_model(config.build, absolute_project_root);
     let modules = assemble_modules_model(config.modules, absolute_project_root);
 
-    let targets = assemble_targets_model(config.targets, absolute_project_root);
-
-    let executable = assemble_executable_model(
-        Cow::Borrowed(proj_name),
-        config.executable,
-        absolute_project_root,
-    );
-    let tests = assemble_tests_model(
-        Cow::Borrowed(proj_name),
-        config.tests,
-        absolute_project_root,
-    );
+    let targets = assemble_targets_model(config.targets, proj_name, absolute_project_root);
 
     Ok(ZorkModel {
         project,
@@ -128,11 +113,8 @@ pub fn build_model<'a>(
         build,
         modules,
         targets,
-        executable,
-        tests,
     })
 }
-
 
 fn assemble_project_model(config: ProjectAttribute) -> ProjectModel {
     ProjectModel {
@@ -319,82 +301,52 @@ fn assemble_module_implementation_model<'a>(
     }
 }
 
-
-fn assemble_targets_model<'a>(targets: HashMap<&str, TargetAttribute<'a>>, absolute_project_root: &Path) -> HashMap<TargetIdentifier<'a>, TargetModel<'a>> {
-    todo!()
+fn assemble_targets_model<'a>(
+    targets: IndexMap<&'a str, TargetAttribute<'a>>,
+    project_name: &'a str,
+    absolute_project_root: &Path,
+) -> IndexMap<TargetIdentifier<'a>, TargetModel<'a>> {
+    targets
+        .into_iter()
+        .map(|(k, v)| {
+            (
+                TargetIdentifier(Cow::Borrowed(k)),
+                assemble_target_model(v, project_name, absolute_project_root),
+            )
+        })
+        .collect()
 }
 
-//noinspection ALL
-fn assemble_executable_model<'a>(
-    project_name: Cow<'a, str>,
-    config: Option<ExecutableAttribute<'a>>,
-    project_root: &Path,
-) -> ExecutableModel<'a> {
-    let config = config.as_ref();
-
-    let executable_name = config
-        .and_then(|exe| exe.executable_name)
+fn assemble_target_model<'a>(
+    target_config: TargetAttribute<'a>,
+    project_name: &'a str,
+    absolute_project_root: &Path,
+) -> TargetModel<'a> {
+    let sources = target_config
+        .sources
+        .into_iter()
         .map(Cow::Borrowed)
-        .unwrap_or(project_name);
+        .collect();
 
-    let sources = config
-        .and_then(|exe| exe.sources.as_ref())
-        .map(|srcs| {
-            srcs.iter()
-                .map(|src| Cow::Borrowed(*src))
-                .collect::<Vec<Cow<str>>>()
-        })
-        .unwrap_or_default();
+    let sources = get_sources_for_target(sources, absolute_project_root);
 
-    let sourceset = get_sourceset_for(sources, project_root);
-
-    let extra_args = config
-        .and_then(|exe| exe.extra_args.as_ref())
+    let extra_args = target_config
+        .extra_args
         .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
         .unwrap_or_default();
 
-    ExecutableModel {
-        executable_name,
-        sourceset,
+    TargetModel {
+        output_name: Cow::Borrowed(target_config.output_name.unwrap_or(project_name)),
+        sources,
         extra_args,
+        kind: target_config.kind.unwrap_or_default(),
     }
 }
 
-fn assemble_tests_model<'a>(
-    project_name: Cow<'_, str>,
-    config: Option<TestsAttribute<'a>>,
-    project_root: &Path,
-) -> TestsModel<'a> {
-    let config = config.as_ref();
-
-    let test_executable_name = config.and_then(|exe| exe.test_executable_name).map_or_else(
-        || format!("{project_name}_test"),
-        |exe_name| exe_name.to_owned(),
-    );
-
-    let sources = config
-        .and_then(|exe| exe.sources.as_ref())
-        .map(|srcs| {
-            srcs.iter()
-                .map(|src| Cow::Borrowed(*src))
-                .collect::<Vec<Cow<str>>>()
-        })
-        .unwrap_or_default();
-    let sourceset = get_sourceset_for(sources, project_root);
-
-    let extra_args = config
-        .and_then(|test| test.extra_args.as_ref())
-        .map(|args| args.iter().map(|arg| Argument::from(*arg)).collect())
-        .unwrap_or_default();
-
-    TestsModel {
-        test_executable_name: Cow::Owned(test_executable_name),
-        sourceset,
-        extra_args,
-    }
-}
-
-fn get_sourceset_for<'a>(srcs: Vec<Cow<str>>, project_root: &Path) -> SourceSet<'a> {
+/// Utilery function to map all the source files declared on the [`ZorkConfigFile::targets`]
+/// attribute to the domain model entity, including resolving any [`GlobPattern`] declared as
+/// any file on the input collection
+fn get_sources_for_target<'a>(srcs: Vec<Cow<str>>, project_root: &Path) -> SourceSet<'a> {
     let sources = srcs
         .iter()
         .map(|src| {
@@ -430,6 +382,7 @@ mod test {
     use std::borrow::Cow;
 
     use crate::config_file;
+    use crate::domain::target::TargetKind;
     use crate::utils::fs;
     use crate::{
         project_model::compiler::{CppCompiler, LanguageLevel, StdLib},
@@ -440,71 +393,44 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_project_model_with_minimal_config() -> Result<()> {
-        const CONFIG_FILE_MOCK: &str = r#"
-            [project]
-            name = 'Zork++'
-            authors = ['zerodaycode.gz@gmail.com']
-
-            [compiler]
-            cpp_compiler = 'clang'
-            cpp_standard = '20'
-        "#;
-
-        let config: ZorkConfigFile = config_file::zork_cfg_from_file(CONFIG_FILE_MOCK)?;
-        let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
-        let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
-        let model = build_model(config, &cli_args, &abs_path_for_mock);
-
-        let expected = ZorkModel {
-            project: ProjectModel {
-                name: "Zork++".into(),
-                authors: vec!["zerodaycode.gz@gmail.com".into()],
-                compilation_db: false,
-                project_root: None,
-            },
-            compiler: CompilerModel {
-                cpp_compiler: CppCompiler::CLANG,
-                driver_path: Cow::Borrowed(""),
-                cpp_standard: LanguageLevel::CPP20,
-                std_lib: None,
-                extra_args: vec![],
-            },
-            build: BuildModel {
-                output_dir: abs_path_for_mock.join("out"),
-            },
-            modules: ModulesModel {
-                base_ifcs_dir: Cow::default(),
-                interfaces: vec![],
-                base_impls_dir: Cow::default(),
-                implementations: vec![],
-                sys_modules: vec![],
-            },
-            targets: Default::default(), // TODO:
-            executable: ExecutableModel {
-                executable_name: "Zork++".into(),
-                sourceset: SourceSet { sources: vec![] },
-                extra_args: vec![],
-            },
-            tests: TestsModel {
-                test_executable_name: "Zork++_test".into(),
-                sourceset: SourceSet { sources: vec![] },
-                extra_args: vec![],
-            },
-        };
-
-        assert_eq!(model.unwrap(), expected);
-
-        Ok(())
-    }
-
-    #[test]
     fn test_project_model_with_full_config() -> Result<()> {
         let config: ZorkConfigFile =
             config_file::zork_cfg_from_file(utils::constants::CONFIG_FILE_MOCK)?;
         let cli_args = CliArgs::parse_from(["", "-vv", "run"]);
         let abs_path_for_mock = fs::get_project_root_absolute_path(Path::new("."))?;
         let model = build_model(config, &cli_args, &abs_path_for_mock);
+
+        let mut targets = IndexMap::new();
+        targets.insert(
+            TargetIdentifier::from("executable"),
+            TargetModel {
+                output_name: "zork".into(),
+                sources: SourceSet {
+                    sources: vec![SourceFile {
+                        path: PathBuf::default(),
+                        file_stem: Cow::Borrowed("main"),
+                        extension: Cow::Borrowed("cpp"),
+                    }],
+                },
+                extra_args: vec!["-Werr".into()],
+                kind: TargetKind::Executable,
+            },
+        );
+        targets.insert(
+            TargetIdentifier::from("tests"),
+            TargetModel {
+                output_name: "zork_tests".into(),
+                sources: SourceSet {
+                    sources: vec![SourceFile {
+                        path: PathBuf::default(),
+                        file_stem: Cow::Borrowed("tests_main"),
+                        extension: Cow::Borrowed("cpp"),
+                    }],
+                },
+                extra_args: vec![],
+                kind: TargetKind::Executable,
+            },
+        );
 
         let expected = ZorkModel {
             project: ProjectModel {
@@ -563,17 +489,7 @@ mod test {
                     ..Default::default()
                 }],
             },
-            executable: ExecutableModel {
-                executable_name: "zork".into(),
-                sourceset: SourceSet { sources: vec![] },
-                extra_args: vec![Argument::from("-Werr")],
-            },
-            targets: Default::default(), // TODO:
-            tests: TestsModel {
-                test_executable_name: "zork_check".into(),
-                sourceset: SourceSet { sources: vec![] },
-                extra_args: vec![Argument::from("-pedantic")],
-            },
+            targets,
         };
 
         assert_eq!(model.unwrap(), expected);

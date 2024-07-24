@@ -5,6 +5,7 @@ use crate::domain::translation_unit::{TranslationUnit, TranslationUnitStatus};
 use crate::project_model::compiler::CppCompiler;
 use crate::utils::constants::error_messages;
 use color_eyre::eyre::{ContextCompat, Result};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -25,17 +26,17 @@ pub struct SourceCommandLine<'a> {
     pub filename: String,
     pub args: Arguments<'a>,
     pub status: TranslationUnitStatus,
-    pub byproduct: PathBuf,
+    pub byproduct: Argument<'a>,
 }
 
 impl<'a> SourceCommandLine<'a> {
-    pub fn new<T: TranslationUnit<'a>>(tu: &T, args: Arguments<'a>, byproduct: PathBuf) -> Self {
+    pub fn new<T: TranslationUnit<'a>, B: Into<Argument<'a>>>(tu: &T, args: Arguments<'a>, byproduct: B) -> Self {
         Self {
             directory: PathBuf::from(tu.parent()),
             filename: tu.filename(),
             args,
             status: TranslationUnitStatus::PendingToBuild,
-            byproduct,
+            byproduct: byproduct.into(),
         }
     }
 
@@ -49,10 +50,10 @@ impl<'a> SourceCommandLine<'a> {
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone, Eq, PartialEq)]
-
 pub struct LinkerCommandLine<'a> {
-    link_modules: bool,
+    link_modules: bool, // TODO: pending
     pub target: Argument<'a>,
+    pub modules_byproducts: Arguments<'a>,
     pub byproducts: Arguments<'a>,
     pub extra_args: Arguments<'a>,
     pub execution_result: TranslationUnitStatus,
@@ -81,12 +82,17 @@ impl<'a> LinkerCommandLine<'a> {
 pub struct Commands<'a> {
     pub general_args: Option<CommonArgs<'a>>,
     pub compiler_common_args: Option<Box<dyn CompilerCommonArguments>>,
+    pub modules: ModulesCommands<'a>,
+    pub targets: IndexMap<TargetIdentifier<'a>, Target<'a>>,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct ModulesCommands<'a> {
     pub cpp_stdlib: Option<SourceCommandLine<'a>>,
     pub c_compat_stdlib: Option<SourceCommandLine<'a>>,
     pub system_modules: Vec<SourceCommandLine<'a>>,
     pub interfaces: Vec<SourceCommandLine<'a>>,
     pub implementations: Vec<SourceCommandLine<'a>>,
-    pub targets: HashMap<TargetIdentifier<'a>, Target<'a>>,
 }
 
 impl<'a> Commands<'a> {
@@ -95,19 +101,20 @@ impl<'a> Commands<'a> {
     /// standard libraries implementations (see: [crate::project_model::compiler::StdLibMode])
     /// joined to all the commands generated for every [TranslationUnit] declared by the user for
     /// its project
-    pub fn get_all_command_lines(
+    pub fn get_all_modules_command_lines(
         &mut self,
     ) -> impl Iterator<Item = &mut SourceCommandLine<'a>> + Debug {
-        self.cpp_stdlib
+        self.modules
+            .cpp_stdlib
             .as_mut_slice()
             .iter_mut()
-            .chain(self.c_compat_stdlib.as_mut_slice().iter_mut())
-            .chain(self.system_modules.as_mut_slice().iter_mut())
-            .chain(self.interfaces.as_mut_slice().iter_mut())
-            .chain(self.implementations.as_mut_slice().iter_mut())
-        // TODO: .chain(self.sources.as_mut_slice().iter_mut())
+            .chain(self.modules.c_compat_stdlib.as_mut_slice().iter_mut())
+            .chain(self.modules.system_modules.as_mut_slice().iter_mut())
+            .chain(self.modules.interfaces.as_mut_slice().iter_mut())
+            .chain(self.modules.implementations.as_mut_slice().iter_mut())
     }
 
+    // TODO: unused, think that doesn't makes sense anymore with the current architechture
     pub fn add_linker_file_path(
         &mut self,
         target_identifier: &TargetIdentifier<'a>,

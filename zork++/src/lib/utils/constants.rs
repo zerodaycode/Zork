@@ -57,6 +57,8 @@ pub mod error_messages {
         "An error happened while generating the commands for the module implementations";
     pub const FAILURE_TARGET_SOURCES: &str =
         "An error happened while generating the commands for the declared sources of the target";
+    pub const FAILURE_FINDING_TARGET: &str =
+        "An error happened while retrieving the target information";
     pub const FAILURE_SYSTEM_MODULES: &str =
         "An error happened while generating the commands for the declared system headers as modules";
     pub const WRONG_DOWNCAST_FOR: &str = "An error happened while resolving the original type of";
@@ -111,21 +113,15 @@ extra_args = [ "-Wall" ]
 [build]
 output_dir = ""
 
-[executable]
-executable_name = "zork"
-sources_base_path = "bin"
-sources = [
-    "*.cpp"
-]
-extra_args = [ "-Werr" ]
+[targets.executable]
+output_name = 'zork'
+sources = [ 'main.cpp' ]
+extra_args = [ '-Werr' ]
 
-[tests]
-test_executable_name = "zork_check"
-sources_base_path = "test"
-sources = [
-    "*.cpp"
-]
-extra_args = [ "-pedantic" ]
+[targets.tests]
+output_name = 'zork_tests'
+sources = [ 'tests_main.cpp' ]
+target_kind = 'executable'
 
 [modules]
 base_ifcs_dir = "ifcs"
@@ -139,6 +135,8 @@ implementations = [
     { file = "maths.cpp" },
     { file = 'some_module_impl.cpp', dependencies = ['iostream'] }
 ]
+
 sys_modules = [ "iostream" ]
+
 extra_args = [ "-Wall" ]
 "#;

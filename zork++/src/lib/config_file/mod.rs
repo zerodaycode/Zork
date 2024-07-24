@@ -1,20 +1,20 @@
 //! root file for the crate where the datastructures that holds the TOML
 //! parsed data lives.
-pub mod project;
-pub mod compiler;
 pub mod build;
-pub mod modules;
-pub mod target;
+pub mod compiler;
 pub mod executable;
+pub mod modules;
+pub mod project;
+pub mod target;
 pub mod tests;
 
-use std::{collections::HashMap, fmt::Debug};
-
-use serde::{Deserialize, Serialize};
+use indexmap::IndexMap;
+use serde::{Deserialize, Deserializer, Serialize};
 
 use self::{
     build::BuildAttribute, compiler::CompilerAttribute, executable::ExecutableAttribute,
-    modules::ModulesAttribute, target::TargetAttribute, project::ProjectAttribute, tests::TestsAttribute
+    modules::ModulesAttribute, project::ProjectAttribute, target::TargetAttribute,
+    tests::TestsAttribute,
 };
 
 /// ```rust
@@ -91,12 +91,22 @@ pub struct ZorkConfigFile<'a> {
     pub build: Option<BuildAttribute<'a>>,
     #[serde(borrow)]
     pub modules: Option<ModulesAttribute<'a>>,
-    #[serde(borrow)]
-    pub targets: HashMap<&'a str, TargetAttribute<'a>>,
+    #[serde(deserialize_with = "deserialize_targets")]
+    pub targets: IndexMap<&'a str, TargetAttribute<'a>>,
     #[serde(borrow)]
     pub executable: Option<ExecutableAttribute<'a>>,
     #[serde(borrow)]
     pub tests: Option<TestsAttribute<'a>>,
+}
+
+fn deserialize_targets<'de, D>(
+    deserializer: D,
+) -> Result<IndexMap<&'de str, TargetAttribute<'de>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let helper: IndexMap<&str, TargetAttribute> = Deserialize::deserialize(deserializer)?;
+    Ok(helper)
 }
 
 pub fn zork_cfg_from_file(cfg: &'_ str) -> Result<ZorkConfigFile<'_>, toml::de::Error> {

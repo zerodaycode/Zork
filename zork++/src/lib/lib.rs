@@ -16,6 +16,7 @@ pub mod utils;
 /// data sent to stdout/stderr
 pub mod worker {
     use crate::config_file::ZorkConfigFile;
+    use crate::domain::target::Target;
     use crate::project_model;
     use crate::{config_file, utils::fs::get_project_root_absolute_path};
     use std::{fs, path::Path, time::Instant};
@@ -35,6 +36,7 @@ pub mod worker {
             template::create_templated_project,
         },
     };
+    use color_eyre::eyre::ContextCompat;
     use color_eyre::{eyre::Context, Report, Result};
 
     /// The main work of the project. Runs the tasks
@@ -85,7 +87,6 @@ pub mod worker {
 
             let program_data: ZorkModel<'_> =
                 if config_file.last_time_modified > cache.metadata.last_program_execution {
-                    log::debug!("Rebuilding the ZorkModel due to changes of the cfg file");
                     cache.metadata.save_project_model = true;
                     utils::reader::build_model(config, cli_args, &abs_project_root)?
                 } else {
@@ -93,14 +94,31 @@ pub mod worker {
                     project_model::load(&cache)?
                 };
 
-            do_main_work_based_on_cli_input(cli_args, &program_data, cache).with_context(|| {
+            map_model_targets_to_cache(&program_data, &mut cache);
+
+        let generate_commands_ts = Instant::now();
+        // Generates the commands for every translation unit and/or checks on successive iterations
+        // of the program it any of them has been modified so the files must be marked to be
+        // rebuilt again
+        generate_commands(&program_data, &mut cache, cli_args)
+            .with_context(|| error_messages::FAILURE_GENERATING_COMMANDS)?;
+
+        log::debug!(
+            "Zork++ took a total of {:?} ms on handling the generated commands",
+            generate_commands_ts.elapsed().as_millis()
+        );
+            let tmp = do_main_work_based_on_cli_input(cli_args, &program_data, cache).with_context(|| {
                 format!(
                     "{}: {:?}",
                     error_messages::FAILED_BUILD_FOR_CFG_FILE,
                     cfg_path
                 )
             })?;
+
+
         }
+
+
 
         Ok(())
     }
@@ -115,35 +133,76 @@ pub mod worker {
         program_data: &'a ZorkModel<'a>,
         mut cache: ZorkCache<'a>,
     ) -> Result<()> {
-        let generate_commands_ts = Instant::now();
-        // Generates the commands for every translation unit and/or checks on successive iterations
-        // of the program it any of them has been modified so the files must be marked to be
-        // rebuilt again
-        generate_commands(program_data, &mut cache, cli_args)
-            .with_context(|| error_messages::FAILURE_GENERATING_COMMANDS)?;
-        log::debug!(
-            "Zork++ took a total of {:?} ms on handling the generated commands",
-            generate_commands_ts.elapsed().as_millis()
-        );
 
-        let execution_result = match cli_args.command {
-            Command::Build => executors::run_generated_commands(program_data, &mut cache),
+        let generated_commands = &mut cache.generated_commands;
+
+        let general_args = generated_commands
+            .general_args.clone()
+            .with_context(|| error_messages::GENERAL_ARGS_NOT_FOUND)?
+            .get_args();
+
+        let compiler_specific_shared_args = generated_commands
+            .compiler_common_args
+            .as_mut()
+            .with_context(|| error_messages::COMPILER_SPECIFIC_COMMON_ARGS_NOT_FOUND)?
+            .get_args();
+
+        let env_vars = match program_data.compiler.cpp_compiler {
+            CppCompiler::MSVC => &cache.compilers_metadata.msvc.env_vars,
+            CppCompiler::CLANG => &cache.compilers_metadata.clang.env_vars,
+            CppCompiler::GCC => &cache.compilers_metadata.gcc.env_vars,
+        };
+
+        executors::run_modules_generated_commands(program_data, &general_args, &compiler_specific_shared_args, &mut generated_commands.modules, &env_vars)?;
+        // TODO: cache save by not propagating Err with ?
+
+        match cli_args.command {
+            Command::Build => executors::run_targets_generated_commands(program_data, &general_args, &compiler_specific_shared_args, &mut generated_commands.targets, &env_vars),
             Command::Run | Command::Test => {
-                match executors::run_generated_commands(program_data, &mut cache) {
-                    Ok(_) => executors::autorun_generated_binary(
-                        &program_data.compiler.cpp_compiler,
-                        &program_data.build.output_dir,
-                        &program_data.executable.executable_name,
-                    ),
+                // TODO: for target in cache and filtered by cmdargs
+                match executors::run_targets_generated_commands(program_data, &general_args, &compiler_specific_shared_args, &mut generated_commands.targets, &env_vars) {
+                    Ok(_) => {
+                        for (target_name, target_data) in generated_commands.targets.iter() {
+                            executors::autorun_generated_binary(
+                                &program_data.compiler.cpp_compiler,
+                                &program_data.build.output_dir,
+                                target_name.value(),
+                                // &program_data.executable.executable_name,
+                            )?
+                        }
+                        return Ok(());
+                    }
                     Err(e) => Err(e),
                 }
             }
             _ => todo!("{}", error_messages::CLI_ARGS_CMD_NEW_BRANCH),
         };
 
-        cache.save(program_data, cli_args)?;
 
-        execution_result
+        cache.save(&program_data, cli_args)
+    }
+
+    /// Helper to map the user declared targets on the [`ZorkModel`], previously mapped from the
+    /// [`ZorkConfigFile`] into the [`ZorkCache`], in order to avoid later calls with entry or insert
+    /// which will be hidden on the code an harder to read for newcomers or after time without
+    /// reading the codebase
+    fn map_model_targets_to_cache<'a>(
+        program_data: &ZorkModel<'a>,
+        cache: &mut ZorkCache<'a>,
+    ) {
+        for (target_identifier, target_data) in program_data.targets.iter() {
+            if !cache
+                .generated_commands
+                .targets
+                .contains_key(target_identifier)
+            {
+                log::debug!("Adding a new target to the cache: {:?}", target_identifier);
+                cache.generated_commands.targets.insert(
+                    target_identifier.clone(),
+                    Target::new_default_for_kind(target_data.kind),
+                );
+            }
+        }
     }
 
     /// Creates the directory for output the elements generated
@@ -173,7 +232,7 @@ pub mod worker {
         let out_dir = Path::new(project_root).join(binding);
 
         if out_dir.exists() {
-            return Ok(());
+            return Ok(()); // TODO: remeber that this causes a bug
         } // early guard. If the out_dir already exists, all
           // the sub-structure must exists and be correct.
           // Otherwise, a full out dir wipe will be preferable

@@ -1,16 +1,15 @@
 pub mod build;
 pub mod compiler;
-pub mod executable;
 pub mod modules;
 pub mod project;
 pub mod sourceset;
 pub mod target;
-pub mod tests;
 
-use std::{collections::HashMap, fmt::Debug};
+use std::{fmt::Debug};
 
 use color_eyre::eyre::Context;
 use color_eyre::Result;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{cache::ZorkCache, domain::target::TargetIdentifier};
@@ -18,7 +17,8 @@ use crate::{cache::ZorkCache, domain::target::TargetIdentifier};
 use crate::utils;
 
 use self::{
-    build::BuildModel, compiler::CompilerModel, executable::ExecutableModel, modules::ModulesModel, project::ProjectModel, target::TargetModel, tests::TestsModel
+    build::BuildModel, compiler::CompilerModel, modules::ModulesModel, project::ProjectModel,
+    target::TargetModel,
 };
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -27,9 +27,7 @@ pub struct ZorkModel<'a> {
     pub compiler: CompilerModel<'a>,
     pub build: BuildModel,
     pub modules: ModulesModel<'a>,
-    pub targets: HashMap<TargetIdentifier<'a>, TargetModel<'a>>,
-    pub executable: ExecutableModel<'a>,
-    pub tests: TestsModel<'a>,
+    pub targets: IndexMap<TargetIdentifier<'a>, TargetModel<'a>>,
 }
 
 /// Loads the mapped [`ZorkModel`] for a concrete [`ZorkConfigFile`] from the [`ZorkCache`]

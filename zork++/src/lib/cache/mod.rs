@@ -112,7 +112,9 @@ impl<'a> ZorkCache<'a> {
         match translation_unit_kind {
             TranslationUnitKind::ModuleInterface => self.get_module_ifc_cmd(translation_unit),
             TranslationUnitKind::ModuleImplementation => self.get_module_impl_cmd(translation_unit),
-            TranslationUnitKind::SourceFile(for_target) => self.get_source_cmd(translation_unit, for_target),
+            TranslationUnitKind::SourceFile(for_target) => {
+                self.get_source_cmd(translation_unit, for_target)
+            }
             TranslationUnitKind::SystemHeader => self.get_system_module_cmd(translation_unit),
             TranslationUnitKind::ModularStdLib(stdlib_mode) => match stdlib_mode {
                 StdLibMode::Cpp => self.get_cpp_stdlib_cmd(),
@@ -126,6 +128,7 @@ impl<'a> ZorkCache<'a> {
         module_interface: &T,
     ) -> Option<&mut SourceCommandLine<'a>> {
         self.generated_commands
+            .modules
             .interfaces
             .iter_mut()
             .find(|cached_tu| module_interface.path().eq(&cached_tu.path()))
@@ -136,6 +139,7 @@ impl<'a> ZorkCache<'a> {
         module_impl: &T,
     ) -> Option<&mut SourceCommandLine<'a>> {
         self.generated_commands
+            .modules
             .implementations
             .iter_mut()
             .find(|cached_tu| module_impl.path().eq(&cached_tu.path()))
@@ -144,15 +148,17 @@ impl<'a> ZorkCache<'a> {
     fn get_source_cmd<T: TranslationUnit<'a>>(
         &mut self,
         source: &T,
-        for_target: &TargetIdentifier<'a>
+        for_target: &TargetIdentifier<'a>,
     ) -> Option<&mut SourceCommandLine<'a>> {
         self.generated_commands
             .targets
             .get_mut(for_target)
-            .expect(error_messages::FAILURE_TARGET_SOURCES)
-            .sources
-            .iter_mut()
-            .find(|cached_tu| source.path().eq(&cached_tu.path()))
+            .and_then(|target| {
+                target
+                    .sources
+                    .iter_mut()
+                    .find(|cached_tu| source.path().eq(&cached_tu.path()))
+            })
     }
 
     /// Gets the target [`SystemModule`] generated [`SourceCommandLine`] from the cache
@@ -164,6 +170,7 @@ impl<'a> ZorkCache<'a> {
         system_module: &T,
     ) -> Option<&mut SourceCommandLine<'a>> {
         self.generated_commands
+            .modules
             .system_modules
             .iter_mut()
             .find(|cached_tu| system_module.file_stem().eq(cached_tu.filename()))
@@ -174,8 +181,8 @@ impl<'a> ZorkCache<'a> {
         stdlib_mode: StdLibMode,
     ) -> Option<&mut SourceCommandLine<'a>> {
         match stdlib_mode {
-            StdLibMode::Cpp => self.generated_commands.cpp_stdlib.as_mut(),
-            StdLibMode::CCompat => self.generated_commands.c_compat_stdlib.as_mut(),
+            StdLibMode::Cpp => self.generated_commands.modules.cpp_stdlib.as_mut(),
+            StdLibMode::CCompat => self.generated_commands.modules.c_compat_stdlib.as_mut(),
         }
     }
 
@@ -185,16 +192,16 @@ impl<'a> ZorkCache<'a> {
         cmd_line: Option<SourceCommandLine<'a>>,
     ) {
         match stdlib_mode {
-            StdLibMode::Cpp => self.generated_commands.cpp_stdlib = cmd_line,
-            StdLibMode::CCompat => self.generated_commands.c_compat_stdlib = cmd_line,
+            StdLibMode::Cpp => self.generated_commands.modules.cpp_stdlib = cmd_line,
+            StdLibMode::CCompat => self.generated_commands.modules.c_compat_stdlib = cmd_line,
         }
     }
     fn get_cpp_stdlib_cmd(&mut self) -> Option<&mut SourceCommandLine<'a>> {
-        self.generated_commands.cpp_stdlib.as_mut()
+        self.generated_commands.modules.cpp_stdlib.as_mut()
     }
 
     fn get_ccompat_stdlib_cmd(&mut self) -> Option<&mut SourceCommandLine<'a>> {
-        self.generated_commands.c_compat_stdlib.as_mut()
+        self.generated_commands.modules.c_compat_stdlib.as_mut()
     }
 
     /// The tasks associated with the cache after load it from the file system
@@ -249,13 +256,19 @@ impl<'a> ZorkCache<'a> {
         let generated_commands = &self.generated_commands;
 
         generated_commands
+            .modules
             .cpp_stdlib
             .as_slice()
             .iter()
-            .chain(generated_commands.c_compat_stdlib.as_slice().iter())
-            .chain(generated_commands.interfaces.iter())
-            .chain(generated_commands.implementations.iter())
-            // TODO: .chain(generated_commands.sources.iter())
+            .chain(generated_commands.modules.c_compat_stdlib.as_slice().iter())
+            .chain(generated_commands.modules.interfaces.iter())
+            .chain(generated_commands.modules.implementations.iter())
+            .chain(
+                generated_commands
+                    .targets
+                    .values()
+                    .flat_map(|target| target.sources.iter()),
+            )
     }
 
     /// The current integer value that is the total of commands generated for all the
@@ -264,11 +277,11 @@ impl<'a> ZorkCache<'a> {
     pub fn count_total_generated_commands(&self) -> usize {
         let latest_commands = &self.generated_commands;
 
-        latest_commands.interfaces.len()
-            + latest_commands.implementations.len()
-            // + latest_commands.sources.len() // TODO:
-            + latest_commands.system_modules.len()
+        latest_commands.modules.interfaces.len()
+            + latest_commands.modules.implementations.len()
+            + latest_commands.modules.system_modules.len()
             + 2 // the cpp_stdlib and the c_compat_stdlib
+            + latest_commands.targets.values().flat_map(|target| target.sources.iter()).count()
     }
 }
 
@@ -448,7 +461,6 @@ mod msvc {
 mod helpers {
     use self::utils::constants::error_messages;
     use super::*;
-    use crate::cli::input::Command;
     use crate::domain::translation_unit::TranslationUnitStatus;
     use std::path::PathBuf;
 
@@ -486,25 +498,27 @@ mod helpers {
     pub(crate) fn check_user_files_removals(
         cache: &mut ZorkCache,
         program_data: &ZorkModel<'_>,
-        cli_args: &CliArgs,
+        _cli_args: &CliArgs,
     ) -> bool {
         remove_if_needed_from_cache_and_count_changes(
-            &mut cache.generated_commands.interfaces,
+            &mut cache.generated_commands.modules.interfaces,
             &program_data.modules.interfaces,
         ) || remove_if_needed_from_cache_and_count_changes(
-            &mut cache.generated_commands.implementations,
+            &mut cache.generated_commands.modules.implementations,
             &program_data.modules.implementations,
-        )
-            /* ||
-            remove_if_needed_from_cache_and_count_changes(
-            &mut cache.generated_commands.sources,
-            if !cli_args.command.eq(&Command::Test) {
-                &program_data.executable.sourceset.sources
-            } else {
-                &program_data.tests.sourceset.sources
-            },  ) */
-        || remove_if_needed_from_cache_and_count_changes(
-            &mut cache.generated_commands.system_modules,
+        ) || {
+            for (target_name, target_data) in cache.generated_commands.targets.iter_mut() {
+                let changes = remove_if_needed_from_cache_and_count_changes(
+                    &mut target_data.sources,
+                    &program_data.targets.get(target_name).unwrap(/*TODO:*/).sources.sources,
+                );
+                if changes {
+                    return true;
+                }
+            }
+            return false;
+        } || remove_if_needed_from_cache_and_count_changes(
+            &mut cache.generated_commands.modules.system_modules,
             &program_data.modules.sys_modules,
         )
     }

@@ -12,14 +12,12 @@ use crate::domain::commands::arguments::Argument;
 use crate::domain::target::TargetIdentifier;
 use crate::domain::translation_unit::TranslationUnitStatus;
 use crate::project_model::modules::SystemModule;
+use crate::project_model::target::TargetModel;
 use crate::utils::constants::error_messages;
 use crate::{
     cache::ZorkCache,
-    cli::input::{CliArgs, Command},
-    domain::{
-        target::ExecutableTarget,
-        translation_unit::{TranslationUnit, TranslationUnitKind},
-    },
+    cli::input::CliArgs,
+    domain::translation_unit::{TranslationUnit, TranslationUnitKind},
     project_model::{
         compiler::{CppCompiler, StdLibMode},
         modules::{ModuleImplementationModel, ModuleInterfaceModel},
@@ -144,9 +142,9 @@ fn process_targets<'a>(
 ) -> Result<()> {
     for target in &model.targets {
         // 2nd - Generate the commands for the non-module sources
-        generate_sources_cmds_args(model, cache, cli_args)?;
+        generate_sources_cmds_args(model, cache, cli_args, target)?;
         // 3rd - Generate the linker command for the 'target' declared by the user
-        generate_linkage_targets_commands(model, cache, cli_args);
+        generate_linkage_targets_commands(model, cache, cli_args, target);
     }
     Ok(())
 }
@@ -162,46 +160,38 @@ fn generate_sources_cmds_args<'a>(
     model: &'a ZorkModel<'a>,
     cache: &mut ZorkCache<'a>,
     cli_args: &'a CliArgs,
+    target: (&'a TargetIdentifier<'a>, &'a TargetModel<'a>),
 ) -> Result<()> {
-    log::info!("Generating the commands for the source files...");
+    log::info!(
+        "Generating the commands for the source files of target: {:?}",
+        &target.0
+    );
 
-    let is_tests_run = cli_args.command.eq(&Command::Test);
-
-    let srcs = if is_tests_run {
-        &model.tests.sourceset.sources
-    } else {
-        &model.executable.sourceset.sources
-    };
+    let target_identifier = target.0;
+    let target_data = target.1;
 
     process_kind_translation_units(
         model,
         cache,
         cli_args,
-        srcs,
-        TranslationUnitKind::SourceFile(TargetIdentifier::default()), // TODO:
+        &target_data.sources.sources,
+        TranslationUnitKind::SourceFile(target_identifier),
     )
     .with_context(|| error_messages::FAILURE_TARGET_SOURCES)
 }
 
-/// Generates the command line that will be passed to the linker to generate an [`ExecutableTarget`]
-/// Generates the commands for the C++ modules declared in the project
-///
-/// Legacy:
-/// If this flow is enabled by the Cli arg `Tests`, then the executable will be generated
-/// for the files and properties declared for the tests section in the configuration file
+/// Generates the command line that will be passed to the linker to generate an target final product
 fn generate_linkage_targets_commands<'a>(
     model: &'a ZorkModel<'_>,
     cache: &mut ZorkCache<'a>,
-    cli_args: &'a CliArgs,
+    _cli_args: &'a CliArgs,
+    target: (&'a TargetIdentifier<'a>, &'a TargetModel<'a>),
 ) {
-    // TODO: Shouldn't we start to think about named targets? So introduce the static and dynamic
-    // libraries wouldn't be such a pain?
-    let is_tests_run = cli_args.command.eq(&Command::Test);
-    if is_tests_run {
-        generate_linker_general_command_line_args(model, cache, &model.tests);
-    } else {
-        generate_linker_general_command_line_args(model, cache, &model.executable);
-    }
+    log::info!(
+        "Generating the linker command line for target: {:?}",
+        &target.0
+    );
+    generate_linker_general_command_line_args(model, cache, target);
 }
 
 /// Generates the general command line arguments for the desired target
@@ -212,11 +202,17 @@ fn generate_linkage_targets_commands<'a>(
 pub fn generate_linker_general_command_line_args<'a>(
     model: &ZorkModel<'_>,
     cache: &mut ZorkCache<'a>,
-    target: &'a impl ExecutableTarget<'a>,
+    target: (&'a TargetIdentifier<'a>, &'a TargetModel<'a>),
 ) {
-    log::info!("Generating the linker command line...");
+    let target_identifier = target.0;
+    let target_details = target.1;
 
-    let linker = &mut cache.generated_commands.targets.get_mut(&TargetIdentifier::default()).unwrap().linker; // TODO:
+    let linker = &mut cache
+        .generated_commands
+        .targets
+        .get_mut(target_identifier)
+        .unwrap()
+        .linker;
 
     let compiler = &model.compiler.cpp_compiler;
     let out_dir: &Path = model.build.output_dir.as_ref();
@@ -224,7 +220,7 @@ pub fn generate_linker_general_command_line_args<'a>(
     let target_output = Argument::from(
         out_dir
             .join(compiler.as_ref())
-            .join(target.name())
+            .join(target_identifier.value().as_ref())
             .with_extension(constants::BINARY_EXTENSION),
     );
 
@@ -235,9 +231,11 @@ pub fn generate_linker_general_command_line_args<'a>(
         };
     }
 
-    if Iterator::ne(linker.extra_args.iter(), target.extra_args().iter()) {
+    if Iterator::ne(linker.extra_args.iter(), target_details.extra_args.iter()) {
         linker.extra_args.clear();
-        linker.extra_args.extend_from_slice(target.extra_args());
+        linker
+            .extra_args
+            .extend_from_to_argument_slice(&target_details.extra_args);
     }
 }
 
@@ -265,7 +263,7 @@ fn process_kind_translation_units<'a, T: TranslationUnit<'a>>(
 fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
     model: &'a ZorkModel<'a>,
     cache: &mut ZorkCache<'a>,
-    cli_args: &'a CliArgs,
+    _cli_args: &'a CliArgs,
     translation_unit: &'a T,
     for_kind: &TranslationUnitKind<'a>,
 ) -> Result<()> {
@@ -301,21 +299,10 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
                 modules::generate_module_implementation_cmd(model, cache, resolved_tu)
             }
             TranslationUnitKind::SourceFile(related_target) => {
-                let target = if cli_args.command.eq(&Command::Test) {
-                    &model.tests as &dyn ExecutableTarget
-                } else {
-                    &model.executable as &dyn ExecutableTarget
-                };
                 let resolved_tu =
                     transient::Downcast::downcast_ref::<SourceFile>(tu_with_erased_type)
                         .with_context(|| helpers::wrong_downcast_msg(translation_unit))?;
-                sources::generate_sources_arguments(
-                    model,
-                    cache,
-                    resolved_tu,
-                    &related_target,
-                    target,
-                )?;
+                sources::generate_sources_arguments(model, cache, resolved_tu, &related_target)?;
             }
             TranslationUnitKind::SystemHeader => {
                 let resolved_tu =
@@ -332,12 +319,12 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
 
 /// Command line arguments generators procedures for C++ standard modules
 mod modules {
-    use std::path::{Path, PathBuf};
+    use std::path::{Path};
 
     use crate::cache::ZorkCache;
     use crate::compiler::helpers;
     use crate::compiler::helpers::generate_bmi_file_path;
-    use crate::domain::commands::arguments::{clang_args, msvc_args, Arguments};
+    use crate::domain::commands::arguments::{clang_args, msvc_args, Argument, Arguments};
     use crate::domain::commands::command_lines::SourceCommandLine;
     use crate::domain::translation_unit::{TranslationUnit, TranslationUnitStatus};
     use crate::project_model::compiler::{CppCompiler, StdLibMode};
@@ -411,7 +398,7 @@ mod modules {
         arguments.push(interface.path());
 
         let cmd_line = SourceCommandLine::new(interface, arguments, binary_module_ifc);
-        cache.generated_commands.interfaces.push(cmd_line);
+        cache.generated_commands.modules.interfaces.push(cmd_line);
     }
 
     /// Generates the required arguments for compile the implementation module files
@@ -454,7 +441,7 @@ mod modules {
         }
 
         let cmd = SourceCommandLine::new(implementation.to_owned(), arguments, obj_file_path);
-        cache.generated_commands.implementations.push(cmd);
+        cache.generated_commands.modules.implementations.push(cmd);
     }
 
     /// System headers can be imported as modules, but they must be built before being imported.
@@ -497,9 +484,9 @@ mod modules {
             filename: sys_module.to_string(),
             args,
             status: TranslationUnitStatus::PendingToBuild,
-            byproduct: /* TODO:!!!!!!: */ PathBuf::default()
+            byproduct: /* TODO:!!!!!!: */ Argument::default()
         };
-        cache.generated_commands.system_modules.push(cmd);
+        cache.generated_commands.modules.system_modules.push(cmd);
     }
 
     pub(crate) fn generate_modular_cpp_stdlib_args<'a>(
@@ -532,9 +519,10 @@ mod sources {
     use crate::cache::ZorkCache;
     use crate::domain::commands::arguments::Arguments;
     use crate::domain::commands::command_lines::SourceCommandLine;
-    use crate::domain::target::{ExecutableTarget, TargetIdentifier};
+    use crate::domain::target::{TargetIdentifier};
     use crate::domain::translation_unit::TranslationUnit;
     use crate::project_model::sourceset::SourceFile;
+    use crate::project_model::target::TargetModel;
     use crate::project_model::{compiler::CppCompiler, ZorkModel};
     use crate::utils::constants::error_messages;
     use color_eyre::eyre::{ContextCompat, Result};
@@ -547,13 +535,16 @@ mod sources {
         cache: &mut ZorkCache<'a>,
         source: &'a SourceFile<'a>,
         target_identifier: &TargetIdentifier<'a>,
-        target: &'a (impl ExecutableTarget<'a> + ?Sized),
     ) -> Result<()> {
         let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir.as_ref();
+        let target: &TargetModel<'_> = model
+            .targets
+            .get(target_identifier)
+            .with_context(|| error_messages::FAILURE_FINDING_TARGET)?;
 
         let mut arguments = Arguments::default();
-        arguments.extend_from_slice(target.extra_args());
+        arguments.extend_from_to_argument_slice(&target.extra_args);
 
         let obj_file = helpers::generate_obj_file(compiler, out_dir, source);
         let fo = if compiler.eq(&CppCompiler::MSVC) {
@@ -563,6 +554,9 @@ mod sources {
         };
         arguments.push(format!("{fo}{}", obj_file.display()));
         arguments.push(source.path());
+
+        log::warn!("Adding target entry for: {:?}", target_identifier);
+        log::warn!("Targets status: {:?}", cache.generated_commands.targets);
 
         let command_line = SourceCommandLine::new(source, arguments, obj_file);
         cache

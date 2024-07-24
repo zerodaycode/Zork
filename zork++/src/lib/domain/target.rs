@@ -15,11 +15,37 @@ pub struct Target<'a> {
     pub kind: TargetKind,
 }
 
+impl<'a> Target<'a> {
+    /// Defaults initializes a new [`Target`] when the unique data
+    /// is the [`TargetKind`]. This is useful in our internals when there's
+    /// no entry for this target on the [`ZorkCache`] and we want to create a new
+    /// one in place to add a new [`SourceCommandLine`]
+    pub fn new_default_for_kind(kind: TargetKind) -> Self {
+        Self {
+            sources: Vec::default(),
+            linker: LinkerCommandLine::default(),
+            kind,
+        }
+    }
+}
+
 /// Strong type for storing the target unique identifier, which instead of being
 /// composite within the [`Target`] struct, is externalized in this wrapped type, so
 /// we can use a strong type on the [`Commands.targets`] container
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
-pub struct TargetIdentifier<'a>(Cow<'a, str>);
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default, Hash, Clone)]
+pub struct TargetIdentifier<'a>(pub Cow<'a, str>);
+
+impl<'a> From<&'a str> for TargetIdentifier<'a> {
+    fn from(value: &'a str) -> Self {
+        Self(Cow::Borrowed(value))
+    }
+}
+
+impl<'a> TargetIdentifier<'a> {
+    pub fn value(&self) -> &Cow<'a, str> {
+        &self.0
+    }
+}
 
 /// The different types of final products
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default, Copy, Clone)]

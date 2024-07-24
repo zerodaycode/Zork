@@ -96,7 +96,7 @@ macro_rules! impl_translation_unit_for {
 pub enum TranslationUnitKind<'a> {
     ModuleInterface,
     ModuleImplementation,
-    SourceFile(TargetIdentifier<'a>),
+    SourceFile(&'a TargetIdentifier<'a>),
     ModularStdLib(StdLibMode),
     SystemHeader,
 }
