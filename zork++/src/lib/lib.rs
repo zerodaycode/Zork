@@ -303,6 +303,7 @@ pub mod worker {
             CppCompiler::GCC => &cache.compilers_metadata.gcc.env_vars,
         };
 
+        let modules_time = Instant::now();
         executors::run_modules_generated_commands(
             program_data,
             &general_args,
@@ -310,6 +311,10 @@ pub mod worker {
             &mut generated_commands.modules,
             env_vars,
         )?;
+        log::debug!(
+            "Took {:?} in analyze and run the generated modules commands",
+            modules_time.elapsed()
+        );
 
         match cli_args.command {
             Command::Build => executors::run_targets_generated_commands(
@@ -320,27 +325,37 @@ pub mod worker {
                 &generated_commands.modules,
                 env_vars,
             ), // TODO: group the duplicated calls
-            Command::Run | Command::Test => match executors::run_targets_generated_commands(
-                program_data,
-                &general_args,
-                &compiler_specific_shared_args,
-                &mut generated_commands.targets,
-                &generated_commands.modules,
-                env_vars,
-            ) {
-                Ok(_) => {
-                    for target_name in generated_commands.targets.keys() {
-                        executors::autorun_generated_binary(
-                            &program_data.compiler.cpp_compiler,
-                            &program_data.build.output_dir,
-                            target_name.name(),
-                        )?
-                    }
 
-                    return Ok(());
-                }
-                Err(e) => Err(e),
-            }?,
+            Command::Run | Command::Test => {
+                let rgtct = Instant::now();
+                let rgtc = executors::run_targets_generated_commands(
+                    program_data,
+                    &general_args,
+                    &compiler_specific_shared_args,
+                    &mut generated_commands.targets,
+                    &generated_commands.modules,
+                    env_vars,
+                );
+                log::debug!(
+                    "Took {:?} in analyze and run the current target",
+                    rgtct.elapsed()
+                );
+
+                match rgtc {
+                    Ok(_) => {
+                        for target_name in generated_commands.targets.keys() {
+                            executors::autorun_generated_binary(
+                                &program_data.compiler.cpp_compiler,
+                                &program_data.build.output_dir,
+                                target_name.name(),
+                            )?
+                        }
+
+                        return Ok(());
+                    }
+                    Err(e) => Err(e),
+                }?
+            }
             _ => todo!("{}", error_messages::CLI_ARGS_CMD_NEW_BRANCH),
         }
     }

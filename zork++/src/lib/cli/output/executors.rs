@@ -2,12 +2,14 @@
 //! by Zork++
 
 use std::ffi::OsStr;
+use std::time::Instant;
 use std::{path::Path, process::ExitStatus};
 
 use crate::cache::EnvVars;
 use crate::domain::commands::arguments::{Argument, Arguments};
 use crate::domain::commands::command_lines::ModulesCommands;
 use crate::domain::target::{Target, TargetIdentifier};
+use crate::domain::translation_unit::TranslationUnitStatus;
 use crate::{
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::constants,
@@ -45,14 +47,19 @@ pub fn run_targets_generated_commands(
     log::info!("Proceeding to execute the generated commands...");
 
     // Process the user declared targets TODO: Filtered by cli?
-    // TODO: avoid the callee of the autorun binary by decoupling modules from linkers execs
     for (target_name, target_data) in targets {
         log::info!(
             "Executing the generated commands of the sources declared for target: {:?}",
             target_name
         );
+
         // Send to build to the compiler the sources declared for the current iteration target
-        for source in target_data.sources.iter_mut() {
+        let srcs_time = Instant::now();
+        for source in target_data
+            .sources
+            .iter_mut()
+            .filter(|scl| scl.status.eq(&TranslationUnitStatus::PendingToBuild))
+        {
             helpers::execute_source_command_line(
                 program_data,
                 general_args,
@@ -61,7 +68,13 @@ pub fn run_targets_generated_commands(
                 source,
             )?;
         }
+        log::debug!(
+            "Took {:?} in process the sources for target: {}",
+            srcs_time.elapsed(),
+            target_name.name()
+        );
 
+        let linker_time = Instant::now();
         log::info!(
             "Executing the linker command line for target: {:?}",
             target_name
@@ -75,6 +88,11 @@ pub fn run_targets_generated_commands(
             env_vars,
             target_data,
         )?;
+        log::debug!(
+            "Took {:?} in process the linker cmd line for target: {}",
+            linker_time.elapsed(),
+            target_name.name()
+        );
     }
 
     Ok(())
@@ -121,11 +139,6 @@ where
     T: IntoIterator<Item = S> + std::fmt::Display + std::marker::Copy,
     S: AsRef<OsStr>,
 {
-    /* fn execute_command(
-        model: &ZorkModel,
-        arguments: &Arguments,
-        env_vars: &EnvVars,
-    ) -> Result<ExitStatus, Report> { */
     let compiler = model.compiler.cpp_compiler;
     log::trace!(
         "[{compiler}] - Executing command => {:?}",
