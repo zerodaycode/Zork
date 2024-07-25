@@ -8,15 +8,11 @@ use crate::cache::EnvVars;
 use crate::domain::commands::arguments::{Argument, Arguments};
 use crate::domain::commands::command_lines::ModulesCommands;
 use crate::domain::target::{Target, TargetIdentifier};
-use crate::domain::translation_unit::TranslationUnitStatus;
 use crate::{
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::constants,
 };
-use color_eyre::{
-    eyre::{eyre, Context},
-    Report, Result,
-};
+use color_eyre::{eyre::Context, Report, Result};
 use indexmap::IndexMap;
 
 pub fn run_modules_generated_commands(
@@ -52,10 +48,9 @@ pub fn run_targets_generated_commands(
     // TODO: avoid the callee of the autorun binary by decoupling modules from linkers execs
     for (target_name, target_data) in targets {
         log::info!(
-            "Executing the linker command line for target: {:?}",
+            "Executing the generated commands of the sources declared for target: {:?}",
             target_name
         );
-
         // Send to build to the compiler the sources declared for the current iteration target
         for source in target_data.sources.iter_mut() {
             helpers::execute_source_command_line(
@@ -67,24 +62,19 @@ pub fn run_targets_generated_commands(
             )?;
         }
 
+        log::info!(
+            "Executing the linker command line for target: {:?}",
+            target_name
+        );
         // Invoke the linker to generate the final product for the current iteration target
-        let r = helpers::execute_linker_command_line(
+        helpers::execute_linker_command_line(
             program_data,
             general_args,
             compiler_specific_shared_args,
             modules,
             env_vars,
             target_data,
-        );
-        target_data.linker.execution_result = TranslationUnitStatus::from(&r);
-
-        if let Err(e) = r {
-            return Err(e);
-        } else if !r.as_ref().unwrap().success() {
-            return Err(eyre!(
-                "Ending the program, because the linker command line execution failed",
-            ));
-        }
+        )?;
     }
 
     Ok(())
@@ -124,28 +114,32 @@ pub fn autorun_generated_binary(
 /// compiler and the current operating system
 fn execute_command<T, S>(
     model: &ZorkModel,
-    arguments: &mut T,
+    arguments: T,
     env_vars: &EnvVars,
 ) -> Result<ExitStatus, Report>
 where
-    // T: IntoIterator<Item = S> + std::fmt::Display + Copy,
-    T: Iterator<Item = S> + std::fmt::Debug,
+    T: IntoIterator<Item = S> + std::fmt::Display + std::marker::Copy,
     S: AsRef<OsStr>,
 {
+    /* fn execute_command(
+        model: &ZorkModel,
+        arguments: &Arguments,
+        env_vars: &EnvVars,
+    ) -> Result<ExitStatus, Report> { */
     let compiler = model.compiler.cpp_compiler;
     log::trace!(
         "[{compiler}] - Executing command => {:?}",
-        format!("{} {:?}", compiler.get_driver(&model.compiler), arguments)
+        format!("{} {}", compiler.get_driver(&model.compiler), arguments)
     );
 
     let driver = compiler.get_driver(&model.compiler);
     let os_driver = OsStr::new(driver.as_ref());
-    Ok(std::process::Command::new(os_driver)
+    std::process::Command::new(os_driver)
         .args(arguments)
         .envs(env_vars)
         .spawn()?
-        .wait()?)
-    // .with_context(|| format!("[{compiler}] - Command {:?} failed!", arguments))
+        .wait()
+        .with_context(|| format!("[{compiler}] - Command {} failed!", arguments))
 }
 
 mod helpers {
@@ -170,12 +164,14 @@ mod helpers {
         source: &mut SourceCommandLine<'_>,
     ) -> Result<()> {
         let compile_but_dont_link = [Argument::from("/c")];
-        let mut args = general_args
+        let args = general_args
             .iter()
             .chain(compiler_specific_shared_args.iter())
             .chain(source.args.as_slice().iter())
-            .chain(compile_but_dont_link.iter());
-        let r = execute_command(program_data, &mut args, env_vars);
+            .chain(compile_but_dont_link.iter())
+            .collect::<Arguments>();
+
+        let r = execute_command(program_data, &args, env_vars);
         source.status = TranslationUnitStatus::from(&r);
 
         if let Err(e) = r {
@@ -197,7 +193,7 @@ mod helpers {
         compiler_specific_shared_args: &Arguments,
         modules: &ModulesCommands<'_>,
         env_vars: &EnvVars,
-        target_data: &Target,
+        target_data: &mut Target,
     ) -> Result<ExitStatus> {
         let linker_args = target_data
             .linker
@@ -214,16 +210,28 @@ mod helpers {
             .chain(modules.system_modules.iter())
             .map(|scl| &scl.byproduct);
 
-        let mut args = general_args
+        let args = general_args
             .iter()
             .chain(linker_args.iter())
             .chain(compiler_specific_shared_args.iter())
             // .chain(linker_command_line.byproducts.iter())
             .chain(linker_sources_byproducts)
-            .chain(modules_byproducts);
+            .chain(modules_byproducts)
+            .collect::<Arguments>();
 
-        log::warn!("-----Linker args: {:?}", &args);
-        execute_command(program_data, &mut args, env_vars)
+        let r = execute_command(program_data, &args, env_vars);
+
+        target_data.linker.execution_result = TranslationUnitStatus::from(&r);
+
+        if let Err(e) = r {
+            return Err(e);
+        } else if !r.as_ref().unwrap().success() {
+            return Err(eyre!(
+                "Ending the program, because the linker command line execution failed",
+            ));
+        }
+
+        r
     }
 
     pub(crate) fn process_modules_commands(
@@ -256,13 +264,14 @@ mod helpers {
 
         for translation_unit_cmd in translation_units_commands {
             // Join the concrete args of any translation unit with the ones held in the flyweights
-            let mut translation_unit_cmd_args = general_args
+            let translation_unit_cmd_args = general_args
                 .iter()
                 .chain(compiler_specific_shared_args.iter())
                 .chain(&compile_but_dont_link)
-                .chain(translation_unit_cmd.args.iter());
+                .chain(translation_unit_cmd.args.iter())
+                .collect::<Arguments>();
 
-            let r = execute_command(program_data, &mut translation_unit_cmd_args, env_vars);
+            let r = execute_command(program_data, &translation_unit_cmd_args, env_vars);
             translation_unit_cmd.status = TranslationUnitStatus::from(&r);
 
             if let Err(e) = r {
