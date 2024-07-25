@@ -246,10 +246,16 @@ pub mod worker {
             );
 
             // Perform main work
-            perform_main_work(cli_args, &program_data, &mut cache, cfg_path)?;
+            let cfg_result = perform_main_work(cli_args, &program_data, &mut cache, cfg_path);
 
             // Now save the cache
             cache.save(&program_data, cli_args)?;
+
+            // Handle the errors after ensure that the cache is saved (if it didn't failed)
+            if cfg_result.is_err() {
+                log::error!("Failed to complete the job for: {:?}", cfg_path);
+                cfg_result?
+            }
         }
 
         Ok(())
