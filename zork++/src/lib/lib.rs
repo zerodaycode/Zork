@@ -148,9 +148,7 @@ pub mod worker {
         let general_args = generated_commands
             .general_args
             .as_mut()
-            .with_context(|| error_messages::GENERAL_ARGS_NOT_FOUND)? // TODO: remove the optionals
-            // from the shared data on
-            // the flyweights
+            .with_context(|| error_messages::GENERAL_ARGS_NOT_FOUND)?
             .get_args();
 
         let compiler_specific_shared_args = generated_commands
@@ -165,7 +163,6 @@ pub mod worker {
             CppCompiler::GCC => &cache.compilers_metadata.gcc.env_vars,
         };
 
-        let modules_time = Instant::now();
         executors::run_modules_generated_commands(
             program_data,
             &general_args,
@@ -173,10 +170,6 @@ pub mod worker {
             &mut generated_commands.modules,
             env_vars,
         )?;
-        log::debug!(
-            "Took {:?} in analyze and run the generated modules commands",
-            modules_time.elapsed()
-        );
 
         match cli_args.command {
             Command::Build => executors::run_targets_generated_commands(
@@ -189,7 +182,6 @@ pub mod worker {
             ), // TODO: group the duplicated calls
 
             Command::Run | Command::Test => {
-                let rgtct = Instant::now();
                 let rgtc = executors::run_targets_generated_commands(
                     program_data,
                     &general_args,
@@ -197,10 +189,6 @@ pub mod worker {
                     &mut generated_commands.targets,
                     &generated_commands.modules,
                     env_vars,
-                );
-                log::debug!(
-                    "Took {:?} in analyze and run the current target",
-                    rgtct.elapsed()
                 );
 
                 match rgtc {
@@ -262,6 +250,7 @@ pub mod worker {
     /// reading the codebase
     fn map_model_targets_to_cache<'a>(program_data: &ZorkModel<'a>, cache: &mut ZorkCache<'a>) {
         for (target_identifier, target_data) in program_data.targets.iter() {
+            // 1st - Check if there's any new target to add to the tracked ones
             if !cache
                 .generated_commands
                 .targets

@@ -99,13 +99,21 @@ pub fn build_model<'a>(
     absolute_project_root: &Path,
 ) -> Result<ZorkModel<'a>> {
     let proj_name = config.project.name;
-    let project = assemble_project_model(config.project);
 
+    let project = assemble_project_model(config.project);
     let compiler = assemble_compiler_model(config.compiler, cli_args);
     let build = assemble_build_model(config.build, absolute_project_root);
-    let modules = assemble_modules_model(config.modules, absolute_project_root);
 
-    let targets = assemble_targets_model(config.targets, proj_name, absolute_project_root);
+    let code_root = PathBuf::from(absolute_project_root).join(
+        project
+            .code_root
+            .as_ref()
+            .map(|pr| pr.to_string())
+            .unwrap_or_default(),
+    );
+
+    let modules = assemble_modules_model(config.modules, &code_root);
+    let targets = assemble_targets_model(config.targets, proj_name, &code_root);
 
     Ok(ZorkModel {
         project,
@@ -169,7 +177,7 @@ fn assemble_build_model(config: Option<BuildAttribute>, project_root: &Path) -> 
 
 fn assemble_modules_model<'a>(
     config: Option<ModulesAttribute<'a>>,
-    project_root: &Path,
+    code_root: &Path,
 ) -> ModulesModel<'a> {
     let modules = config.unwrap_or_default();
 
@@ -184,7 +192,7 @@ fn assemble_modules_model<'a>(
         .map(|ifcs| {
             ifcs.into_iter()
                 .map(|m_ifc| -> ModuleInterfaceModel<'_> {
-                    assemble_module_interface_model(m_ifc, &base_ifcs_dir, project_root)
+                    assemble_module_interface_model(m_ifc, &base_ifcs_dir, code_root)
                 })
                 .collect()
         })
@@ -202,7 +210,7 @@ fn assemble_modules_model<'a>(
             impls
                 .into_iter()
                 .map(|m_impl| {
-                    assemble_module_implementation_model(m_impl, &base_impls_dir, project_root)
+                    assemble_module_implementation_model(m_impl, &base_impls_dir, code_root)
                 })
                 .collect()
         })
@@ -233,11 +241,12 @@ fn assemble_modules_model<'a>(
 fn assemble_module_interface_model<'a>(
     config: ModuleInterface<'a>,
     base_path: &Path,
-    project_root: &Path,
+    code_root: &Path,
 ) -> ModuleInterfaceModel<'a> {
     let cfg_file = config.file;
 
-    let file_path = Path::new(project_root).join(base_path).join(cfg_file);
+    let file_path = Path::new(code_root).join(base_path).join(cfg_file);
+
     let module_name = if let Some(mod_name) = config.module_name {
         Cow::Borrowed(mod_name)
     } else {
@@ -269,7 +278,7 @@ fn assemble_module_interface_model<'a>(
 fn assemble_module_implementation_model<'a>(
     config: ModuleImplementation<'a>,
     base_path: &Path,
-    project_root: &Path,
+    code_root: &Path,
 ) -> ModuleImplementationModel<'a> {
     let mut dependencies = config
         .dependencies
@@ -278,7 +287,8 @@ fn assemble_module_implementation_model<'a>(
         .map(Cow::Borrowed)
         .collect::<Vec<Cow<str>>>();
 
-    let file_path = Path::new(project_root).join(base_path).join(config.file);
+    let file_path = Path::new(code_root).join(base_path).join(config.file);
+
     if dependencies.is_empty() {
         let last_dot_index = config.file.rfind('.');
         if let Some(idx) = last_dot_index {
@@ -304,14 +314,14 @@ fn assemble_module_implementation_model<'a>(
 fn assemble_targets_model<'a>(
     targets: IndexMap<&'a str, TargetAttribute<'a>>,
     project_name: &'a str,
-    absolute_project_root: &Path,
+    code_root: &Path,
 ) -> IndexMap<TargetIdentifier<'a>, TargetModel<'a>> {
     targets
         .into_iter()
         .map(|(k, v)| {
             (
                 TargetIdentifier(Cow::Borrowed(k)),
-                assemble_target_model(v, project_name, absolute_project_root),
+                assemble_target_model(v, project_name, code_root),
             )
         })
         .collect()
@@ -320,7 +330,7 @@ fn assemble_targets_model<'a>(
 fn assemble_target_model<'a>(
     target_config: TargetAttribute<'a>,
     project_name: &'a str,
-    absolute_project_root: &Path,
+    code_root: &Path,
 ) -> TargetModel<'a> {
     let sources = target_config
         .sources
@@ -328,7 +338,7 @@ fn assemble_target_model<'a>(
         .map(Cow::Borrowed)
         .collect();
 
-    let sources = get_sources_for_target(sources, absolute_project_root);
+    let sources = get_sources_for_target(sources, code_root);
 
     let extra_args = target_config
         .extra_args
@@ -346,11 +356,11 @@ fn assemble_target_model<'a>(
 /// Utilery function to map all the source files declared on the [`ZorkConfigFile::targets`]
 /// attribute to the domain model entity, including resolving any [`GlobPattern`] declared as
 /// any file on the input collection
-fn get_sources_for_target<'a>(srcs: Vec<Cow<str>>, project_root: &Path) -> SourceSet<'a> {
+fn get_sources_for_target<'a>(srcs: Vec<Cow<str>>, code_root: &Path) -> SourceSet<'a> {
     let sources = srcs
         .iter()
         .map(|src| {
-            let target_src = project_root.join(src.as_ref());
+            let target_src = code_root.join(src.as_ref());
             if src.contains('*') {
                 Source::Glob(GlobPattern(target_src))
             } else {

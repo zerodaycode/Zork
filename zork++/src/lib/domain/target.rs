@@ -12,6 +12,8 @@ pub struct Target<'a> {
     pub sources: Vec<SourceCommandLine<'a>>,
     pub linker: LinkerCommandLine<'a>,
     pub kind: TargetKind,
+    #[serde(skip)]
+    pub enabled_for_current_program_iteration: bool,
 }
 
 impl<'a> Target<'a> {
@@ -24,6 +26,7 @@ impl<'a> Target<'a> {
             sources: Vec::default(),
             linker: LinkerCommandLine::default(),
             kind,
+            enabled_for_current_program_iteration: true,
         }
     }
 }
@@ -50,8 +53,23 @@ impl<'a> TargetIdentifier<'a> {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default, Copy, Clone)]
 pub enum TargetKind {
     #[default]
+    #[serde(alias = "Executable", alias = "executable", alias = "exe")]
     Executable,
+    #[serde(
+        alias = "StaticLib",
+        alias = "static lib",
+        alias = "static-lib",
+        alias = "static_lib",
+        alias = "staticlib"
+    )]
     StaticLib,
+    #[serde(
+        alias = "DynamicLib",
+        alias = "dynamic lib",
+        alias = "dyn-lib",
+        alias = "dyn_lib",
+        alias = "dylib"
+    )]
     DyLib,
 }
 
