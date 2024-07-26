@@ -560,9 +560,6 @@ mod sources {
         arguments.push(format!("{fo}{}", obj_file.display()));
         arguments.push(source.path());
 
-        log::warn!("Adding target entry for: {:?}", target_identifier);
-        log::warn!("Targets status: {:?}", cache.generated_commands.targets);
-
         let command_line = SourceCommandLine::new(source, arguments, obj_file);
         cache
             .generated_commands

@@ -407,7 +407,7 @@ mod test {
                 output_name: "zork".into(),
                 sources: SourceSet {
                     sources: vec![SourceFile {
-                        path: PathBuf::default(),
+                        path: abs_path_for_mock.clone(),
                         file_stem: Cow::Borrowed("main"),
                         extension: Cow::Borrowed("cpp"),
                     }],
@@ -422,7 +422,7 @@ mod test {
                 output_name: "zork_tests".into(),
                 sources: SourceSet {
                     sources: vec![SourceFile {
-                        path: PathBuf::default(),
+                        path: abs_path_for_mock.clone(),
                         file_stem: Cow::Borrowed("tests_main"),
                         extension: Cow::Borrowed("cpp"),
                     }],

@@ -3,8 +3,6 @@ use crate::domain::commands::arguments::{Argument, Arguments};
 use crate::domain::target::{Target, TargetIdentifier};
 use crate::domain::translation_unit::{TranslationUnit, TranslationUnitStatus};
 use crate::project_model::compiler::CppCompiler;
-use crate::utils::constants::error_messages;
-use color_eyre::eyre::{ContextCompat, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -56,12 +54,7 @@ impl<'a> SourceCommandLine<'a> {
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct LinkerCommandLine<'a> {
-    // TODO: review if we do need this struct yet, since target does
-    // the same
-    link_modules: bool, // TODO: pending
     pub target: Argument<'a>,
-    pub modules_byproducts: Arguments<'a>,
-    pub byproducts: Arguments<'a>,
     pub extra_args: Arguments<'a>,
     pub execution_result: TranslationUnitStatus,
 }
@@ -74,13 +67,6 @@ impl<'a> LinkerCommandLine<'a> {
             }
             CppCompiler::MSVC => vec![self.target.clone()],
         }
-    }
-
-    /// Saves the path at which a compilation product of any translation unit will be placed,
-    /// in order to add it to the files that will be linked to generate the final product
-    /// in the two-phase compilation model
-    pub fn add_byproduct_path(&mut self, path: PathBuf) {
-        self.byproducts.push(path);
     }
 }
 
@@ -119,25 +105,5 @@ impl<'a> Commands<'a> {
             .chain(self.modules.system_modules.as_mut_slice().iter_mut())
             .chain(self.modules.interfaces.as_mut_slice().iter_mut())
             .chain(self.modules.implementations.as_mut_slice().iter_mut())
-    }
-
-    // TODO: unused, think that doesn't makes sense anymore with the current architechture
-    pub fn add_linker_file_path(
-        &mut self,
-        target_identifier: &TargetIdentifier<'a>,
-        path: PathBuf,
-    ) -> Result<()> {
-        self.targets
-            .get_mut(target_identifier)
-            .with_context(|| {
-                format!(
-                    "{}: {:?}",
-                    error_messages::TARGET_ENTRY_NOT_FOUND,
-                    target_identifier
-                )
-            })?
-            .linker
-            .add_byproduct_path(path);
-        Ok(())
     }
 }

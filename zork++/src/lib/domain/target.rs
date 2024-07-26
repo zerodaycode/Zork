@@ -9,7 +9,6 @@ use std::borrow::Cow;
 /// The final product that will be made after the building process
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct Target<'a> {
-    // pub identifier: Cow<'a, str>,
     pub sources: Vec<SourceCommandLine<'a>>,
     pub linker: LinkerCommandLine<'a>,
     pub kind: TargetKind,

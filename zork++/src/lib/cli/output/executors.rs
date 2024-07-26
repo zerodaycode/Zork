@@ -2,7 +2,6 @@
 //! by Zork++
 
 use std::ffi::OsStr;
-use std::time::Instant;
 use std::{path::Path, process::ExitStatus};
 
 use crate::cache::EnvVars;
@@ -54,7 +53,6 @@ pub fn run_targets_generated_commands(
         );
 
         // Send to build to the compiler the sources declared for the current iteration target
-        let srcs_time = Instant::now();
         for source in target_data
             .sources
             .iter_mut()
@@ -68,13 +66,7 @@ pub fn run_targets_generated_commands(
                 source,
             )?;
         }
-        log::debug!(
-            "Took {:?} in process the sources for target: {}",
-            srcs_time.elapsed(),
-            target_name.name()
-        );
 
-        let linker_time = Instant::now();
         log::info!(
             "Executing the linker command line for target: {:?}",
             target_name
@@ -88,11 +80,6 @@ pub fn run_targets_generated_commands(
             env_vars,
             target_data,
         )?;
-        log::debug!(
-            "Took {:?} in process the linker cmd line for target: {}",
-            linker_time.elapsed(),
-            target_name.name()
-        );
     }
 
     Ok(())
@@ -176,7 +163,12 @@ mod helpers {
         env_vars: &HashMap<String, String>,
         source: &mut SourceCommandLine<'_>,
     ) -> Result<()> {
-        let compile_but_dont_link = [Argument::from("/c")];
+        let compile_but_dont_link: [Argument; 1] =
+            [Argument::from(match program_data.compiler.cpp_compiler {
+                CppCompiler::CLANG | CppCompiler::GCC => "-c",
+                CppCompiler::MSVC => "/c",
+            })];
+
         let args = general_args
             .iter()
             .chain(compiler_specific_shared_args.iter())
@@ -227,13 +219,11 @@ mod helpers {
             .iter()
             .chain(linker_args.iter())
             .chain(compiler_specific_shared_args.iter())
-            // .chain(linker_command_line.byproducts.iter())
             .chain(linker_sources_byproducts)
             .chain(modules_byproducts)
             .collect::<Arguments>();
 
         let r = execute_command(program_data, &args, env_vars);
-
         target_data.linker.execution_result = TranslationUnitStatus::from(&r);
 
         if let Err(e) = r {
@@ -297,6 +287,7 @@ mod helpers {
                 return Err(err);
             }
         }
+
         Ok(())
     }
 
