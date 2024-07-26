@@ -97,7 +97,7 @@ pub enum TemplateValues {
 }
 
 /// [`CppCompiler`] The C++ compilers available within Zork++ as a command line argument for the `new` argument
-/// TODO Possible future interesting on support the Intel's C++ compiler?
+/// TODO: Possible future interesting on support the Intel's C++ compiler?
 #[derive(ValueEnum, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum CppCompiler {
     CLANG,

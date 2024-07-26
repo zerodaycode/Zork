@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 /// assert_eq!(config.name, "Zork++ serde tests");
 /// assert_eq!(config.authors, Some(vec!["zerodaycode.gz@gmail.com"]));
 /// assert_eq!(config.compilation_db, Some(true));
-/// assert_eq!(config.project_root, None);
+/// assert_eq!(config.code_root, None);
 /// ```
 ///
 /// > Note: TOML table are toml commented (#) to allow us to parse
@@ -45,5 +45,5 @@ pub struct ProjectAttribute<'a> {
     pub authors: Option<Vec<&'a str>>,
     pub compilation_db: Option<bool>,
     #[serde(borrow)]
-    pub project_root: Option<&'a str>,
+    pub code_root: Option<&'a str>,
 }

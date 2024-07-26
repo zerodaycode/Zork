@@ -56,7 +56,7 @@ pub struct ConfigFile {
 /// This function fails if there's no configuration file
 /// (or isn't present in any directory of the project)
 pub fn find_config_files(
-    base_path: &Path, // TODO: create the cfg arg to specifically receive where's located the
+    base_path: &Path, // TODO:(Workspaces) create the cfg arg to specifically receive where's located the
     // user's Zork config files if they're not in the root of the project
     // nor matches the tree structure from user's root cmd arg value
     filename_match: &Option<String>,
@@ -65,7 +65,7 @@ pub fn find_config_files(
     let mut files = vec![];
 
     for e in WalkDir::new(base_path)
-        .max_depth(2) // TODO: so, max_depth should be zero when the cfg arg is ready
+        .max_depth(2) // TODO:(Workspaces) so, max_depth should be zero when the cfg arg is ready
         .into_iter()
         .filter_map(|e| e.ok())
     {
@@ -129,7 +129,7 @@ fn assemble_project_model(config: ProjectAttribute) -> ProjectModel {
                     .collect::<Vec<_>>()
             }),
         compilation_db: config.compilation_db.unwrap_or_default(),
-        project_root: config.project_root.map(Cow::Borrowed),
+        code_root: config.code_root.map(Cow::Borrowed),
     }
 }
 
@@ -437,7 +437,7 @@ mod test {
                 name: "Zork++".into(),
                 authors: vec!["zerodaycode.gz@gmail.com".into()],
                 compilation_db: true,
-                project_root: None,
+                code_root: None,
             },
             compiler: CompilerModel {
                 cpp_compiler: CppCompiler::CLANG,

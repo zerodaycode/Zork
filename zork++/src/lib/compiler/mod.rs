@@ -44,15 +44,15 @@ pub fn generate_commands<'a>(
     // Build the std library as a module
     generate_modular_stdlibs_cmds(model, cache);
 
-    // Pre-tasks
+    // System headers as modules
     if model.compiler.cpp_compiler != CppCompiler::MSVC && !model.modules.sys_modules.is_empty() {
         generate_sys_modules_commands(model, cache)?;
     }
 
-    // Translation units and linker
-
     // Generates commands for the modules
     process_modules(model, cache)?;
+
+    // Translation units and linker
     // Generate commands for the declared targets
     process_targets(model, cache, cli_args)?;
 
