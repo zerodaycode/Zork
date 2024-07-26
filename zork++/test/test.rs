@@ -219,7 +219,7 @@ mod local_env_tests {
     /// use a debugger to figure out what our changes are doing and how are affecting the codebase.
     #[test]
     #[ignore]
-    fn test_local_clang_full_process_manually_by_specifying_the_project_root_on_linux() {
+    fn test_local_clang_full_process_manually_by_specifying_the_project_root() {
         // Using env::home_dir because this test should be Unix specific
         // For any developer, change the path to whatever C++ project based on modules
         // you want to test Zork++ against

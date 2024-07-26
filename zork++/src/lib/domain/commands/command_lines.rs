@@ -8,6 +8,24 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 
+/// Holds the generated command line arguments for a concrete compiler
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct Commands<'a> {
+    pub general_args: Option<CommonArgs<'a>>,
+    pub compiler_common_args: Option<Box<dyn CompilerCommonArguments>>,
+    pub modules: ModulesCommands<'a>,
+    pub targets: IndexMap<TargetIdentifier<'a>, Target<'a>>,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+pub struct ModulesCommands<'a> {
+    pub cpp_stdlib: Option<SourceCommandLine<'a>>,
+    pub c_compat_stdlib: Option<SourceCommandLine<'a>>,
+    pub system_modules: Vec<SourceCommandLine<'a>>,
+    pub interfaces: Vec<SourceCommandLine<'a>>,
+    pub implementations: Vec<SourceCommandLine<'a>>,
+}
+
 /// Type for representing the command line that will be sent to the target compiler, and
 /// store its different components
 ///
@@ -68,24 +86,6 @@ impl<'a> LinkerCommandLine<'a> {
             CppCompiler::MSVC => vec![self.target.clone()],
         }
     }
-}
-
-/// Holds the generated command line arguments for a concrete compiler
-#[derive(Serialize, Deserialize, Default, Debug)]
-pub struct Commands<'a> {
-    pub general_args: Option<CommonArgs<'a>>,
-    pub compiler_common_args: Option<Box<dyn CompilerCommonArguments>>,
-    pub modules: ModulesCommands<'a>,
-    pub targets: IndexMap<TargetIdentifier<'a>, Target<'a>>,
-}
-
-#[derive(Serialize, Deserialize, Default, Debug)]
-pub struct ModulesCommands<'a> {
-    pub cpp_stdlib: Option<SourceCommandLine<'a>>,
-    pub c_compat_stdlib: Option<SourceCommandLine<'a>>,
-    pub system_modules: Vec<SourceCommandLine<'a>>,
-    pub interfaces: Vec<SourceCommandLine<'a>>,
-    pub implementations: Vec<SourceCommandLine<'a>>,
 }
 
 impl<'a> Commands<'a> {
