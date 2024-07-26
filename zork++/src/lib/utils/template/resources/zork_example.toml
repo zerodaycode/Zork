@@ -12,12 +12,12 @@ std_lib = "LIBCPP"
 [build]
 output_dir = "out"
 
-[executable]
-executable_name = "<project_name>"
+[targets.executable]
+output_name = "<project_name>"
 sources = [ "*.cpp" ]
 
-[tests]
-tests_executable_name = "zork_proj_tests"
+[targets.tests]
+output_name = "zork_proj_tests"
 sources = [ "*.cpp" ]
 
 [modules]
