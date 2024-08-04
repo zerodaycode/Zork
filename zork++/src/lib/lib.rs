@@ -301,13 +301,7 @@ pub mod worker {
             }
         }
 
-        log::warn!("TARGETS STATUS: {:?}", program_data.targets);
-        log::warn!(
-            "CACHE TARGETS STATUS: {:?}",
-            cache.generated_commands.targets
-        );
-
-        // 3rd - Remove from the cache the ones that the user removed from the cfg file (if they
+        // TODO: 3rd - Remove from the cache the ones that the user removed from the cfg file (if they
         // was tracked already)
 
         Ok(())

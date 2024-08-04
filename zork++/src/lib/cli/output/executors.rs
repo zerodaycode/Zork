@@ -202,9 +202,8 @@ mod helpers {
         env_vars: &EnvVars,
         target_data: &mut Target,
     ) -> Result<ExitStatus> {
-        let linker_args = target_data
-            .linker
-            .get_target_output_for(program_data.compiler.cpp_compiler);
+        let compiler = program_data.compiler.cpp_compiler;
+        let linker_args = target_data.linker.get_target_output_for(compiler);
 
         let linker_sources_byproducts = target_data.sources.iter().map(|scl| &scl.byproduct);
         let modules_byproducts = modules
@@ -213,16 +212,22 @@ mod helpers {
             .iter()
             .chain(modules.c_compat_stdlib.iter())
             .chain(modules.interfaces.iter())
-            .chain(modules.implementations.iter())
-            .chain(modules.system_modules.iter())
+            .chain(if compiler.ne(&CppCompiler::GCC) {
+                modules.system_modules.iter()
+            } else {
+                [].iter()
+            })
+            // NOTE: The embedeed if above allows us to avoid to clone iterators by reasining data
+            // if the compiler is GCC, where we don't want to chain the system modules since GCC
+            // already handles their compilation products itself (gcm.cache)
             .map(|scl| &scl.byproduct);
 
         let args = general_args
             .iter()
             .chain(linker_args.iter())
             .chain(compiler_specific_shared_args.iter())
-            .chain(linker_sources_byproducts)
             .chain(modules_byproducts)
+            .chain(linker_sources_byproducts)
             .collect::<Arguments>();
 
         let r = execute_command(program_data, &args, env_vars);
