@@ -47,7 +47,7 @@ pub mod worker {
 
         // If this run is just for create a new C++ project with the given Zork++ projects creation
         // by template, create it and exit
-        if is_template_creation_then_create(cli_args, &abs_project_root)? {
+        if it_is_template_creation_then_create(cli_args, &abs_project_root)? {
             return Ok(());
         };
 
@@ -66,21 +66,31 @@ pub mod worker {
             let config: ZorkConfigFile<'_> = config_file::zork_cfg_from_file(raw_file.as_str())
                 .with_context(|| error_messages::PARSE_CFG_FILE)?;
 
-            create_output_directory(&config, &abs_project_root)?;
+            create_output_directory(&config, &abs_project_root)?; // NOTE: review if the must
+                                                                  // rebuilt the cache and model if the
+                                                                  // output dir changes from
+                                                                  // previous
 
             let mut cache: ZorkCache<'_> = cache::load(&config, cli_args, &abs_project_root)?;
 
-            let program_data: ZorkModel<'_> = load_zork_model(
-                &mut cache,
-                &config_file,
-                config,
-                cli_args,
-                &abs_project_root,
-            )?;
-            map_model_targets_to_cache(&program_data, &mut cache);
+            let program_data = {
+                // The purpose of this scope is to let the reader to see clearly
+                // that the model will only be mutated within the scope of this
+                // block, and after it, it will be read-only data
+                let mut program_data: ZorkModel<'_> = load_zork_model(
+                    &mut cache,
+                    &config_file,
+                    config,
+                    cli_args,
+                    &abs_project_root,
+                )?;
+                map_model_targets_to_cache(&mut program_data, &mut cache, cli_args)?;
+
+                program_data
+            };
 
             let generate_commands_ts = Instant::now();
-            generate_commands(&program_data, &mut cache, cli_args)
+            generate_commands(&program_data, &mut cache)
                 .with_context(|| error_messages::FAILURE_GENERATING_COMMANDS)?;
 
             log::debug!(
@@ -89,16 +99,9 @@ pub mod worker {
             );
 
             // Perform main work
-            let cfg_result = perform_main_work(cli_args, &program_data, &mut cache, cfg_path);
-
-            // Now save the cache
-            cache.save(&program_data, cli_args)?;
-
-            // Handle the errors after ensure that the cache is saved (if it didn't failed)
-            if cfg_result.is_err() {
-                log::error!("Failed to complete the job for: {:?}", cfg_path);
-                cfg_result?
-            }
+            perform_main_work(cli_args, &program_data, &mut cache, cfg_path)?; // NOTE: study if we
+                                                                               // must provide a flag to continue working with other cfgs (if present) if the current
+                                                                               // fails or abort without continuing (current behaviour)
         }
 
         Ok(())
@@ -106,7 +109,7 @@ pub mod worker {
 
     /// Inspects the [`CliArgs`] main passed argument, and if it's [`Command::New`] just creates a
     /// new *C++* project at the *abs_project_root* and exits
-    fn is_template_creation_then_create(
+    fn it_is_template_creation_then_create(
         cli_args: &CliArgs,
         abs_project_root: &Path,
     ) -> Result<bool> {
@@ -129,13 +132,19 @@ pub mod worker {
         cache: &mut ZorkCache<'_>,
         cfg_path: &Path,
     ) -> Result<()> {
-        do_main_work_based_on_cli_input(cli_args, program_data, cache).with_context(|| {
-            format!(
-                "{}: {:?}",
-                error_messages::FAILED_BUILD_FOR_CFG_FILE,
-                cfg_path
-            )
-        })
+        let work_result = do_main_work_based_on_cli_input(cli_args, program_data, cache)
+            .with_context(|| {
+                format!(
+                    "{}: {:?}",
+                    error_messages::FAILED_BUILD_FOR_CFG_FILE,
+                    cfg_path
+                )
+            });
+
+        // Save the cached data for this config file
+        cache.save(program_data, cli_args)?;
+
+        work_result.with_context(|| format!("Failed to complete the job for: {:?}", cfg_path))
     }
 
     fn do_main_work_based_on_cli_input(
@@ -171,41 +180,36 @@ pub mod worker {
             env_vars,
         )?;
 
+        let target_executed_commands = executors::run_targets_generated_commands(
+            program_data,
+            &general_args,
+            &compiler_specific_shared_args,
+            &mut generated_commands.targets,
+            &generated_commands.modules,
+            env_vars,
+        );
+
         match cli_args.command {
-            Command::Build => executors::run_targets_generated_commands(
-                program_data,
-                &general_args,
-                &compiler_specific_shared_args,
-                &mut generated_commands.targets,
-                &generated_commands.modules,
-                env_vars,
-            ), // TODO: group the duplicated calls
-
-            Command::Run | Command::Test => {
-                let rgtc = executors::run_targets_generated_commands(
-                    program_data,
-                    &general_args,
-                    &compiler_specific_shared_args,
-                    &mut generated_commands.targets,
-                    &generated_commands.modules,
-                    env_vars,
-                );
-
-                match rgtc {
-                    Ok(_) => {
-                        for target_name in generated_commands.targets.keys() {
+            Command::Build => target_executed_commands,
+            Command::Run | Command::Test => match target_executed_commands {
+                Ok(_) => {
+                    // NOTE: study if it's worth to use the same loop for building and
+                    // autoexecuting, or otherwise, first build all, then autorun (actual
+                    // behaviour)
+                    for (target_identifier, target_data) in generated_commands.targets.iter() {
+                        if target_data.enabled_for_current_program_iteration {
                             executors::autorun_generated_binary(
                                 &program_data.compiler.cpp_compiler,
                                 &program_data.build.output_dir,
-                                target_name.name(),
+                                target_identifier.name(),
                             )?
                         }
-
-                        return Ok(());
                     }
-                    Err(e) => Err(e),
-                }?
-            }
+
+                    return Ok(());
+                }
+                Err(e) => Err(e),
+            }?,
             _ => todo!("{}", error_messages::CLI_ARGS_CMD_NEW_BRANCH),
         }
     }
@@ -248,21 +252,65 @@ pub mod worker {
     /// [`ZorkConfigFile`] into the [`ZorkCache`], in order to avoid later calls with entry or insert
     /// which will be hidden on the code an harder to read for newcomers or after time without
     /// reading the codebase
-    fn map_model_targets_to_cache<'a>(program_data: &ZorkModel<'a>, cache: &mut ZorkCache<'a>) {
-        for (target_identifier, target_data) in program_data.targets.iter() {
+    fn map_model_targets_to_cache<'a>(
+        program_data: &mut ZorkModel<'a>,
+        cache: &mut ZorkCache<'a>,
+        cli_args: &CliArgs,
+    ) -> Result<()> {
+        for (target_identifier, target_data) in program_data.targets.iter_mut() {
+            let target_name = target_identifier.name();
+            // TODO: romper cada step en un único helper que puede ser unit tested
+
             // 1st - Check if there's any new target to add to the tracked ones
             if !cache
                 .generated_commands
                 .targets
                 .contains_key(target_identifier)
             {
-                log::debug!("Adding a new target to the cache: {:?}", target_identifier);
+                log::debug!("Adding a new target to the cache: {}", target_name);
                 cache.generated_commands.targets.insert(
                     target_identifier.clone(),
                     Target::new_default_for_kind(target_data.kind),
                 );
             }
+
+            // 2nd - Inspect the CliArgs to enable or disable targets for the current iteration
+            let cached_target = cache
+                .generated_commands
+                .targets
+                .get_mut(target_identifier)
+                .with_context(|| error_messages::TARGET_ENTRY_NOT_FOUND)?;
+
+            if let Some(filtered_targets) = cli_args.targets.as_ref() {
+                // If there's Some(v), there's no need to check for emptyness on the underlying Vec
+                // (at least must be one)
+                let enabled = filtered_targets.iter().any(|t| t.eq(target_name));
+                target_data.enabled_for_current_program_iteration = enabled;
+                // NOTE: we can perform the same check on the reader and rebuild the model if the
+                // cfg atrs changes via cli over iterations, avoiding having to mutate it here
+                log::info!(
+                    "Target: {target_name} is {} from CLI for this iteration of Zork++",
+                    if enabled { "enabled" } else { "disabled" }
+                );
+
+                cached_target.enabled_for_current_program_iteration = enabled;
+                // }
+            } else {
+                target_data.enabled_for_current_program_iteration = true;
+                cached_target.enabled_for_current_program_iteration = true;
+            }
         }
+
+        log::warn!("TARGETS STATUS: {:?}", program_data.targets);
+        log::warn!(
+            "CACHE TARGETS STATUS: {:?}",
+            cache.generated_commands.targets
+        );
+
+        // 3rd - Remove from the cache the ones that the user removed from the cfg file (if they
+        // was tracked already)
+
+        Ok(())
     }
 
     /// Creates the directory for output the elements generated

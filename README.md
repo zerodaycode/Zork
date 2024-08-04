@@ -524,7 +524,10 @@ a minimal setup. This command includes some arguments to make it more flexible, 
 #### Arguments (they should be placed before the main subcommands described above)
 
 - `--root` => instructs `Zork++` where is the working directory of the project, otherwise, the *cwd* from where
-the `Zork++` binary was invokated will be used as the project's root
+the `Zork++` binary was invokated will be used as the project's root.
+- `--targets` => filters the targets by its declared name on the `targets.<target_identifier>` entry that will be
+processed in the current iteration. Expected to be formatted as: `--targets=target1,target2,target3`. NOTE: Empty
+whitespaces won't be trim so `target1, target2` will evaluate to ["target1", " target2"].
 - `--match-files` => Accepts an string value that will be used to perform a filter to the detected `Zork++`
 configuration files present in the project. Acts like the classical `contains` method, by checking that the value
 that you passed in is a substring of some of the detected config files.

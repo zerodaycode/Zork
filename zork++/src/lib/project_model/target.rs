@@ -10,4 +10,5 @@ pub struct TargetModel<'a> {
     pub sources: SourceSet<'a>,
     pub extra_args: Vec<Argument<'a>>,
     pub kind: TargetKind,
+    pub enabled_for_current_program_iteration: bool,
 }

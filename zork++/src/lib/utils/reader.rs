@@ -350,6 +350,8 @@ fn assemble_target_model<'a>(
         sources,
         extra_args,
         kind: target_config.kind.unwrap_or_default(),
+        enabled_for_current_program_iteration: true, // NOTE: For now, it can only be manually
+                                                     // disabled by cli args
     }
 }
 
@@ -424,6 +426,7 @@ mod test {
                 },
                 extra_args: vec!["-Werr".into()],
                 kind: TargetKind::Executable,
+                enabled_for_current_program_iteration: true,
             },
         );
         targets.insert(
@@ -439,6 +442,7 @@ mod test {
                 },
                 extra_args: vec![],
                 kind: TargetKind::Executable,
+                enabled_for_current_program_iteration: true,
             },
         );
 

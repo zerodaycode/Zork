@@ -12,7 +12,6 @@ pub struct Target<'a> {
     pub sources: Vec<SourceCommandLine<'a>>,
     pub linker: LinkerCommandLine<'a>,
     pub kind: TargetKind,
-    #[serde(skip)]
     pub enabled_for_current_program_iteration: bool,
 }
 

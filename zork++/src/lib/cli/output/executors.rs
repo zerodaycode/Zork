@@ -45,11 +45,14 @@ pub fn run_targets_generated_commands(
 ) -> Result<()> {
     log::info!("Proceeding to execute the generated commands...");
 
-    // Process the user declared targets TODO: Filtered by cli?
-    for (target_name, target_data) in targets {
+    // Process the user declared targets
+    for (target_identifier, target_data) in targets
+        .iter_mut()
+        .filter(|(_, target_data)| target_data.enabled_for_current_program_iteration)
+    {
         log::info!(
             "Executing the generated commands of the sources declared for target: {:?}",
-            target_name
+            target_identifier.name()
         );
 
         // Send to build to the compiler the sources declared for the current iteration target
@@ -69,7 +72,7 @@ pub fn run_targets_generated_commands(
 
         log::info!(
             "Executing the linker command line for target: {:?}",
-            target_name
+            target_identifier.name()
         );
         // Invoke the linker to generate the final product for the current iteration target
         helpers::execute_linker_command_line(
@@ -95,7 +98,6 @@ pub fn autorun_generated_binary(
     let args = &[Argument::from(
         output_dir
             .join(compiler.as_ref())
-            // TODO: join with the correct value
             .join(executable_name)
             .with_extension(constants::BINARY_EXTENSION),
     )];

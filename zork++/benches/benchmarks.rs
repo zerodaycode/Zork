@@ -20,7 +20,7 @@ pub fn build_project_benchmark(c: &mut Criterion) {
     let mut cache = ZorkCache::default();
 
     c.bench_function("Generate commands", |b| {
-        b.iter(|| generate_commands(black_box(&program_data), black_box(&mut cache), &cli_args))
+        b.iter(|| generate_commands(black_box(&program_data), black_box(&mut cache)))
     });
 
     /* c.bench_function("Cache loading time", |b| {

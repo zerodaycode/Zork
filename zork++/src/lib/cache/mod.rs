@@ -53,8 +53,6 @@ pub fn load<'a>(
         .join(compiler.as_ref())
         .with_extension(constants::CACHE_FILE_EXT);
 
-    // TODO: should we just have a cache dir with the <compiler>_<cfg_file>_<target>.json or similar?
-    // Or just .../<compiler>/<cfg_file>_<target>.json
     let mut cache = if !cache_file_path.exists() {
         File::create(&cache_file_path).with_context(|| error_messages::FAILURE_LOADING_CACHE)?;
         helpers::initialize_cache(cache_path, cache_file_path, compiler, &output_dir)?
@@ -510,7 +508,12 @@ mod helpers {
             for (target_name, target_data) in cache.generated_commands.targets.iter_mut() {
                 let changes = remove_if_needed_from_cache_and_count_changes(
                     &mut target_data.sources,
-                    &program_data.targets.get(target_name).unwrap(/*TODO:*/).sources.sources,
+                    &program_data
+                        .targets
+                        .get(target_name)
+                        .unwrap()
+                        .sources
+                        .sources,
                 );
                 if changes {
                     return true;
