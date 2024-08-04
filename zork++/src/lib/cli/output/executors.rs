@@ -212,6 +212,7 @@ mod helpers {
             .iter()
             .chain(modules.c_compat_stdlib.iter())
             .chain(modules.interfaces.iter())
+            .chain(modules.implementations.iter())
             .chain(if compiler.ne(&CppCompiler::GCC) {
                 modules.system_modules.iter()
             } else {
