@@ -323,12 +323,12 @@ pub mod worker {
     ///
     /// Under /zork, some new folders are created:
     /// - a /intrinsics folder in created as well,
-    /// where different specific details of Zork++ are stored
-    /// related with the C++ compilers
+    ///     where different specific details of Zork++ are stored
+    ///     related with the C++ compilers
     ///
     /// - a /cache folder, where lives the metadata cached by Zork++
-    /// in order to track different aspects of the program (last time
-    /// modified files, last process build time...)
+    ///     in order to track different aspects of the program (last time
+    ///     modified files, last process build time...)
     fn create_output_directory(config: &ZorkConfigFile, project_root: &Path) -> Result<()> {
         let compiler: CppCompiler = config.compiler.cpp_compiler.into();
         let compiler_name = compiler.as_ref();

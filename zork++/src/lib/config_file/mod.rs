@@ -2,19 +2,16 @@
 //! parsed data lives.
 pub mod build;
 pub mod compiler;
-pub mod executable;
 pub mod modules;
 pub mod project;
 pub mod target;
-pub mod tests;
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use self::{
-    build::BuildAttribute, compiler::CompilerAttribute, executable::ExecutableAttribute,
-    modules::ModulesAttribute, project::ProjectAttribute, target::TargetAttribute,
-    tests::TestsAttribute,
+    build::BuildAttribute, compiler::CompilerAttribute, modules::ModulesAttribute,
+    project::ProjectAttribute, target::TargetAttribute,
 };
 
 /// ```rust
@@ -24,7 +21,7 @@ use self::{
 ///     target::TargetAttribute
 /// };
 /// use zork::domain::target::TargetKind;
-/// use std::collections::HashMap;
+/// use indexmap::IndexMap;
 ///
 /// const CONFIG_FILE_MOCK: &str = r#"
 ///     [project]
@@ -56,7 +53,7 @@ use self::{
 /// assert_eq!(compiler_attribute.cpp_compiler, CppCompiler::CLANG);
 /// assert_eq!(compiler_attribute.cpp_standard, LanguageLevel::CPP20);
 ///
-/// let targets: &HashMap<&str, TargetAttribute<'_>> = &config.targets;
+/// let targets: &IndexMap<&str, TargetAttribute<'_>> = &config.targets;
 /// assert!(!targets.is_empty());
 ///
 /// let executable_target: &TargetAttribute<'_> = targets.get("executable").expect("Target named
@@ -93,10 +90,6 @@ pub struct ZorkConfigFile<'a> {
     pub modules: Option<ModulesAttribute<'a>>,
     #[serde(deserialize_with = "deserialize_targets")]
     pub targets: IndexMap<&'a str, TargetAttribute<'a>>,
-    #[serde(borrow)]
-    pub executable: Option<ExecutableAttribute<'a>>,
-    #[serde(borrow)]
-    pub tests: Option<TestsAttribute<'a>>,
 }
 
 fn deserialize_targets<'de, D>(

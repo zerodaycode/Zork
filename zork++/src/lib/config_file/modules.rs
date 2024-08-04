@@ -2,13 +2,13 @@
 
 use serde::{Deserialize, Serialize};
 
-/// [`ModulesAttribute`] -  The core section to instruct the compiler to work with C++20 modules. The most important are the base path to the interfaces and implementation files
+/// [`ModulesAttribute`] -  The core section to instruct the compiler to work with C++20 modules.
 /// * `base_ifcs_dir`- Base directory to shortcut the path of the implementation files
 /// * `interfaces` - A list to define the module interface translation units for the project
 /// * `base_impls_dir` - Base directory to shortcut the path of the implementation files
 /// * `implementations` - A list to define the module interface translation units for the project
 /// * `sys_modules` - An array field explicitly declare which system headers
-/// must be precompiled in order to make the importable translation units
+///     must be precompiled in order to make the importable translation units
 ///
 /// ### Tests
 ///
@@ -78,16 +78,16 @@ pub struct ModulesAttribute<'a> {
 /// * `file`- The path of a primary module interface (relative to base_ifcs_path if applies)
 ///
 /// * `module_name` - An optional field for make an explicit declaration of the
-/// C++ module declared on this module interface with the `export module 'module_name'
-/// statement. If this attribute isn't present, Zork++ will assume that the
-/// C++ module declared within this file is equals to the filename
+///     C++ module declared on this module interface with the `export module 'module_name'
+///     statement. If this attribute isn't present, Zork++ will assume that the
+///     C++ module declared within this file is equals to the filename
 ///
 /// * `partition` - Whenever this attribute is present, we are telling Zork++ that the
-/// actual translation unit is a partition, either an interface partition or an implementation
-/// partition unit
+///     actual translation unit is a partition, either an interface partition or an implementation
+///     partition unit
 ///
 /// * `dependencies` - An optional array field for declare the module interfaces
-/// in which this file is dependent on
+///     in which this file is dependent on
 /// ### Tests
 /// ```rust
 /// use zork::config_file::modules::ModulesAttribute;
@@ -148,13 +148,13 @@ pub struct ModuleInterface<'a> {
 /// * `module`- The interface module unit that this partitions belongs to
 ///
 /// * `partition_name` - An optional field for explicitly declare the name of a module interface
-/// partition, or a module implementation partition.
-/// Currently this requirement is only needed if your partitions file names aren't
-/// declared as the modules convention, that is `module_name-partition_name.extension`
+///     partition, or a module implementation partition.
+///     Currently this requirement is only needed if your partitions file names aren't
+///     declared as the modules convention, that is `module_name-partition_name.extension`
 ///
 /// * `is_internal_partition` - Optional field for declare that the module is actually
-/// a module for hold implementation details, known as module implementation partitions.
-/// This option only takes effect with MSVC
+///     a module for hold implementation details, known as module implementation partitions.
+///     This option only takes effect with MSVC
 #[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct ModulePartition<'a> {
     #[serde(borrow)]
@@ -169,7 +169,7 @@ pub struct ModulePartition<'a> {
 ///
 /// * `file`- The path of a primary module interface (relative to base_ifcs_path)
 /// * `dependencies` - An optional array field for declare the module interfaces
-/// in which this file is dependent on
+///     in which this file is dependent on
 ///
 /// ### Tests
 /// ```rust

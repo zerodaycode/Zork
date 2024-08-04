@@ -15,6 +15,7 @@ use crate::domain::target::TargetKind;
 ///
 /// ```rust
 /// use zork::config_file::target::TargetAttribute;
+/// use zork::domain::target::TargetKind;
 /// const CONFIG_FILE_MOCK: &str = r#"
 ///     #[target.executable]
 ///     output_name = "some_executable"
@@ -26,16 +27,16 @@ use crate::domain::target::TargetKind;
 /// let config: TargetAttribute = toml::from_str(CONFIG_FILE_MOCK)
 ///    .expect("A failure happened parsing the Zork toml file");
 ///
-/// assert_eq!(config.executable_name, Some("some_executable"));
-/// assert_eq!(config.sources, Some(vec!["*.cpp"]));
-/// assert_eq!(config.extra_args, Some(vec!["-Wall"]))
-/// assert_eq!(config.kind, TargetKind::Executable)
+/// assert_eq!(config.output_name, Some("some_executable"));
+/// assert_eq!(config.sources, vec!["*.cpp"]);
+/// assert_eq!(config.extra_args, Some(vec!["-Wall"]));
+/// assert_eq!(config.kind, Some(TargetKind::Executable));
 /// ```
 /// > Note: TOML table are toml commented (#) to allow us to parse
-/// the inner attributes as the direct type that they belongs to.
-/// That commented tables aren't the real TOML, they are just there
-/// for testing and exemplification purposes of the inner attributes
-/// of the configuration file.
+/// > the inner attributes as the direct type that they belongs to.
+/// > That commented tables aren't the real TOML, they are just there
+/// > for testing and exemplification purposes of the inner attributes
+/// > of the configuration file.
 ///
 /// For a test over a real example, please look at the
 /// [`zork::config_file::ZorkConfigFile`] doc-test

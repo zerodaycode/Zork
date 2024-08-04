@@ -6,9 +6,9 @@ use serde::*;
 /// [`BuildAttribute`] - Stores build process specific configuration
 ///
 /// * `output_dir` - An string representing a relative to the root path
-/// where the compiler should dump the files generated in the build process.
-/// If isn't specified, `Zork++` will generate an `./out/...` folder
-/// by default
+///     where the compiler should dump the files generated in the build process.
+///     If isn't specified, `Zork++` will generate an `./out/...` folder
+///     by default
 ///
 /// ```rust
 /// use zork::config_file::build::{BuildAttribute};

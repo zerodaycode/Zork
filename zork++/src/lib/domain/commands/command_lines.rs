@@ -33,8 +33,8 @@ pub struct ModulesCommands<'a> {
 /// * filename*: the translation unit declared name on the fs with the extension
 /// * args*: member that holds all the cmd arguments that will be passed to the compiler driver
 /// * status*: A [`TranslationUnitStatus`] that represents all the different phases that a source command
-/// line can have among all the different iterations of the program, changing according to the modifications
-/// over the translation unit in the fs and the result of the build execution
+///     line can have among all the different iterations of the program, changing according to the modifications
+///     over the translation unit in the fs and the result of the build execution
 /// *byproduct*: A [`PathBuf`] like [`Argument`] which hold the physical address on the filesystem
 /// where the compiled object file will be dumped after building it
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]

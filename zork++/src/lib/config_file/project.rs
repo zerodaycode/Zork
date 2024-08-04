@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// [`ProjectAttribute`] - Metadata about the user's project
 /// * `name` - The C++ project's name
 /// * `authors` - A comma separated list of strings indicating the
-/// authors that are responsible for the project
+///     authors that are responsible for the project
 ///
 /// ### Tests
 ///
@@ -29,10 +29,10 @@ use serde::{Deserialize, Serialize};
 /// ```
 ///
 /// > Note: TOML table are toml commented (#) to allow us to parse
-/// the inner attributes as the direct type that they belongs to.
-/// That commented tables aren't the real TOML, they are just there
-/// for testing and exemplification purposes of the inner attributes
-/// of the configuration file.
+/// > the inner attributes as the direct type that they belongs to.
+/// > That commented tables aren't the real TOML, they are just there
+/// > for testing and exemplification purposes of the inner attributes
+/// > of the configuration file.
 ///
 /// For a test over a real example, please look at the
 /// [`zork::config_file::ZorkConfigFile`] doc-test
