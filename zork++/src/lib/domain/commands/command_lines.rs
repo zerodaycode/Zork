@@ -35,8 +35,9 @@ pub struct ModulesCommands<'a> {
 /// * status*: A [`TranslationUnitStatus`] that represents all the different phases that a source command
 ///     line can have among all the different iterations of the program, changing according to the modifications
 ///     over the translation unit in the fs and the result of the build execution
+///
 /// *byproduct*: A [`PathBuf`] like [`Argument`] which hold the physical address on the filesystem
-/// where the compiled object file will be dumped after building it
+///     where the compiled object file will be dumped after building it
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct SourceCommandLine<'a> {
     pub directory: PathBuf,
