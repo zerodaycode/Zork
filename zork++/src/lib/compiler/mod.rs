@@ -160,11 +160,11 @@ fn generate_sources_cmds_args<'a>(
     process_kind_translation_units(
         model,
         cache,
-        &target_data.sources.sources, // FIX: the sources.sources access with the repeated field
+        target_data.sources.as_slice(),
         // names
         TranslationUnitKind::SourceFile(target_identifier),
     )
-    .with_context(|| error_messages::FAILURE_TARGET_SOURCES)
+    .with_context(|| error_messages::TARGET_SOURCES_FAILURE)
 }
 
 /// Generates the command line that will be passed to the linker to generate an target final product
@@ -185,7 +185,7 @@ fn generate_linkage_targets_commands<'a>(
         .generated_commands
         .targets
         .get_mut(target_identifier)
-        .with_context(|| error_messages::FAILURE_TARGET_SOURCES)?
+        .with_context(|| error_messages::TARGET_SOURCES_FAILURE)?
         .linker;
 
     let compiler = &model.compiler.cpp_compiler;

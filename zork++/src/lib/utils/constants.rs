@@ -58,7 +58,7 @@ pub mod error_messages {
         "An error happened while generating the commands for the module interfaces";
     pub const FAILURE_MODULE_IMPLEMENTATIONS: &str =
         "An error happened while generating the commands for the module implementations";
-    pub const FAILURE_TARGET_SOURCES: &str =
+    pub const TARGET_SOURCES_FAILURE: &str =
         "An error happened while generating the commands for the declared sources of the target";
     pub const FAILURE_FINDING_TARGET: &str =
         "An error happened while retrieving the target information";

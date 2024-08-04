@@ -386,7 +386,7 @@ fn get_sources_for_target<'a>(srcs: Vec<Cow<str>>, code_root: &Path) -> SourceSe
         })
         .collect();
 
-    SourceSet { sources }
+    SourceSet::new(sources)
 }
 
 #[cfg(test)]
@@ -417,13 +417,11 @@ mod test {
             TargetIdentifier::from("executable"),
             TargetModel {
                 output_name: "zork".into(),
-                sources: SourceSet {
-                    sources: vec![SourceFile {
-                        path: abs_path_for_mock.clone(),
-                        file_stem: Cow::Borrowed("main"),
-                        extension: Cow::Borrowed("cpp"),
-                    }],
-                },
+                sources: SourceSet::new(vec![SourceFile {
+                    path: abs_path_for_mock.clone(),
+                    file_stem: Cow::Borrowed("main"),
+                    extension: Cow::Borrowed("cpp"),
+                }]),
                 extra_args: vec!["-Werr".into()],
                 kind: TargetKind::Executable,
                 enabled_for_current_program_iteration: true,
@@ -433,13 +431,11 @@ mod test {
             TargetIdentifier::from("tests"),
             TargetModel {
                 output_name: "zork_tests".into(),
-                sources: SourceSet {
-                    sources: vec![SourceFile {
-                        path: abs_path_for_mock.clone(),
-                        file_stem: Cow::Borrowed("tests_main"),
-                        extension: Cow::Borrowed("cpp"),
-                    }],
-                },
+                sources: SourceSet::new(vec![SourceFile {
+                    path: abs_path_for_mock.clone(),
+                    file_stem: Cow::Borrowed("tests_main"),
+                    extension: Cow::Borrowed("cpp"),
+                }]),
                 extra_args: vec![],
                 kind: TargetKind::Executable,
                 enabled_for_current_program_iteration: true,

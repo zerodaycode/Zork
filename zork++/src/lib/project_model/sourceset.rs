@@ -58,13 +58,19 @@ impl GlobPattern {
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default, Clone)]
-pub struct SourceSet<'a> {
-    pub sources: Vec<SourceFile<'a>>,
-}
+pub struct SourceSet<'a>(Vec<SourceFile<'a>>);
 
 impl<'a> SourceSet<'a> {
+    pub fn new(sources: Vec<SourceFile<'a>>) -> Self {
+        Self(sources)
+    }
+
+    pub fn as_slice(&self) -> &[SourceFile<'a>] {
+        self.0.as_slice()
+    }
+
     pub fn as_args_to(&self, dst: &mut Vec<Argument>) -> Result<()> {
-        let args = self.sources.iter().map(|sf| sf.path()).map(Argument::from);
+        let args = self.0.iter().map(|sf| sf.path()).map(Argument::from);
 
         dst.extend(args);
 

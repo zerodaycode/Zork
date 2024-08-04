@@ -508,12 +508,12 @@ mod helpers {
             for (target_name, target_data) in cache.generated_commands.targets.iter_mut() {
                 let changes = remove_if_needed_from_cache_and_count_changes(
                     &mut target_data.sources,
-                    &program_data
+                    program_data
                         .targets
                         .get(target_name)
                         .unwrap()
                         .sources
-                        .sources,
+                        .as_slice(),
                 );
                 if changes {
                     return true;
