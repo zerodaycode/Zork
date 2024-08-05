@@ -30,9 +30,9 @@ use self::data_factory::CommonArgs;
 
 pub mod data_factory;
 
-/// The core procedure. Generates the commands that will be sent to the compiler
+/// The core procedure. Generates the commands arguments that will be sent to the compiler
 /// for every translation unit declared by the user for its project
-pub fn generate_commands<'a>(model: &'a ZorkModel<'a>, cache: &mut ZorkCache<'a>) -> Result<()> {
+pub fn generate_commands_arguments<'a>(model: &'a ZorkModel<'a>, cache: &mut ZorkCache<'a>) -> Result<()> {
     // Load the general args and the compiler specific ones if it's necessary
     load_flyweights_for_general_shared_data(model, cache);
 
@@ -329,6 +329,7 @@ mod modules {
                 arguments.push("-x");
                 arguments.push("c++-module");
                 arguments.push("--precompile");
+                arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
                 clang_args::add_direct_module_interfaces_dependencies(
                     &interface.dependencies,
                     compiler,
@@ -399,6 +400,7 @@ mod modules {
                 arguments.push("-o");
                 arguments.push(&obj_file_path);
 
+                arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
                 clang_args::add_direct_module_interfaces_dependencies(
                     &implementation.dependencies,
                     compiler,
@@ -492,12 +494,11 @@ mod modules {
 /// Specific operations over source files
 mod sources {
     use crate::cache::ZorkCache;
-    use crate::domain::commands::arguments::Arguments;
+    use crate::domain::commands::arguments::{clang_args, Arguments};
     use crate::domain::commands::command_lines::SourceCommandLine;
     use crate::domain::target::TargetIdentifier;
     use crate::domain::translation_unit::TranslationUnit;
     use crate::project_model::sourceset::SourceFile;
-    use crate::project_model::target::TargetModel;
     use crate::project_model::{compiler::CppCompiler, ZorkModel};
     use crate::utils::constants::error_messages;
     use color_eyre::eyre::{ContextCompat, Result};
@@ -513,13 +514,15 @@ mod sources {
     ) -> Result<()> {
         let compiler = model.compiler.cpp_compiler;
         let out_dir = model.build.output_dir.as_ref();
-        let target: &TargetModel<'_> = model
-            .targets
-            .get(target_identifier)
-            .with_context(|| error_messages::FAILURE_FINDING_TARGET)?;
 
         let mut arguments = Arguments::default();
-        arguments.extend_from_to_argument_slice(&target.extra_args);
+
+        if compiler.eq(&CppCompiler::CLANG) {
+            arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
+        }
+
+        // arguments.extend_from_to_argument_slice(&target.extra_args); // TODO: add them as flyweight
+        // data on the executors
 
         let obj_file = helpers::generate_obj_file(compiler, out_dir, source);
         let fo = if compiler.eq(&CppCompiler::MSVC) {
@@ -549,9 +552,7 @@ mod sources {
     }
 }
 
-/// Helpers for reduce the cyclomatic complexity introduced by the
-/// kind of workflow that should be done with this parse, format and
-/// generate.
+/// Helpers for reduce the cyclomatic complexity
 mod helpers {
     use super::*;
     use crate::domain::commands::command_lines::SourceCommandLine;

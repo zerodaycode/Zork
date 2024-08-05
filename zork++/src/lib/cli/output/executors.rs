@@ -5,43 +5,36 @@ use std::ffi::OsStr;
 use std::{path::Path, process::ExitStatus};
 
 use crate::cache::EnvVars;
-use crate::domain::commands::arguments::{Argument, Arguments};
+use crate::domain::commands::arguments::Argument;
 use crate::domain::commands::command_lines::ModulesCommands;
+use crate::domain::flyweight_data::FlyweightData;
 use crate::domain::target::{Target, TargetIdentifier};
 use crate::domain::translation_unit::TranslationUnitStatus;
+use crate::utils::constants::error_messages;
 use crate::{
     project_model::{compiler::CppCompiler, ZorkModel},
     utils::constants,
 };
+use color_eyre::eyre::ContextCompat;
 use color_eyre::{eyre::Context, Report, Result};
 use indexmap::IndexMap;
 
 pub fn run_modules_generated_commands(
     program_data: &ZorkModel<'_>,
-    general_args: &Arguments<'_>,
-    compiler_specific_shared_args: &Arguments,
+    flyweight_data: &FlyweightData,
     modules_generated_commands: &mut ModulesCommands<'_>,
-    env_vars: &EnvVars,
 ) -> Result<()> {
     log::info!("Proceeding to execute the generated modules commands...");
 
     // Process the modules
-    helpers::process_modules_commands(
-        program_data,
-        general_args,
-        compiler_specific_shared_args,
-        modules_generated_commands,
-        env_vars,
-    )
+    helpers::process_modules_commands(program_data, flyweight_data, modules_generated_commands)
 }
 
 pub fn run_targets_generated_commands(
     program_data: &ZorkModel<'_>,
-    general_args: &Arguments<'_>,
-    compiler_specific_shared_args: &Arguments,
+    flyweight_data: &FlyweightData,
     targets: &mut IndexMap<TargetIdentifier, Target>,
     modules: &ModulesCommands<'_>,
-    env_vars: &EnvVars,
 ) -> Result<()> {
     log::info!("Proceeding to execute the generated commands...");
 
@@ -50,10 +43,32 @@ pub fn run_targets_generated_commands(
         .iter_mut()
         .filter(|(_, target_data)| target_data.enabled_for_current_program_iteration)
     {
+        let env_vars = flyweight_data.env_vars;
+
         log::info!(
             "Executing the generated commands of the sources declared for target: {:?}",
             target_identifier.name()
         );
+
+        let extra_args = &program_data
+            .targets
+            .get(target_identifier)
+            .with_context(|| error_messages::TARGET_ENTRY_NOT_FOUND)?
+            .extra_args;
+
+        let compile_but_dont_link: [Argument; 1] =
+            [Argument::from(match program_data.compiler.cpp_compiler {
+                CppCompiler::CLANG | CppCompiler::GCC => "-c",
+                CppCompiler::MSVC => "/c",
+            })];
+
+        let shared_args = flyweight_data
+            .general_args
+            .iter()
+            .chain(flyweight_data.shared_args.iter())
+            .chain(extra_args.as_slice())
+            .chain(compile_but_dont_link.iter())
+            .collect();
 
         // Send to build to the compiler the sources declared for the current iteration target
         for source in target_data
@@ -61,24 +76,21 @@ pub fn run_targets_generated_commands(
             .iter_mut()
             .filter(|scl| scl.status.eq(&TranslationUnitStatus::PendingToBuild))
         {
-            helpers::execute_source_command_line(
-                program_data,
-                general_args,
-                compiler_specific_shared_args,
-                env_vars,
-                source,
-            )?;
+            helpers::execute_source_command_line(program_data, &shared_args, env_vars, source)?;
         }
 
         log::info!(
             "Executing the linker command line for target: {:?}",
             target_identifier.name()
         );
+
         // Invoke the linker to generate the final product for the current iteration target
+        let (_compile_but_dont_link, linker_shared_args) = shared_args.split_last()
+            .expect("Unlikely error happened while removing the compile but don't link flag from the flyweight data. This is a BUG, so please, open an issue on upsteam");
+
         helpers::execute_linker_command_line(
             program_data,
-            general_args,
-            compiler_specific_shared_args,
+            linker_shared_args,
             modules,
             env_vars,
             target_data,
@@ -149,6 +161,7 @@ mod helpers {
     use crate::cli::output::executors::execute_command;
     use crate::domain::commands::arguments::{Argument, Arguments};
     use crate::domain::commands::command_lines::{ModulesCommands, SourceCommandLine};
+    use crate::domain::flyweight_data::FlyweightData;
     use crate::domain::target::Target;
     use crate::domain::translation_unit::TranslationUnitStatus;
     use crate::project_model::compiler::CppCompiler;
@@ -160,22 +173,14 @@ mod helpers {
 
     pub(crate) fn execute_source_command_line(
         program_data: &ZorkModel<'_>,
-        general_args: &Arguments<'_>,
-        compiler_specific_shared_args: &Arguments<'_>,
+        shared_args: &Arguments<'_>,
         env_vars: &HashMap<String, String>,
         source: &mut SourceCommandLine<'_>,
     ) -> Result<()> {
-        let compile_but_dont_link: [Argument; 1] =
-            [Argument::from(match program_data.compiler.cpp_compiler {
-                CppCompiler::CLANG | CppCompiler::GCC => "-c",
-                CppCompiler::MSVC => "/c",
-            })];
-
-        let args = general_args
+        let args = shared_args
+            .as_slice()
             .iter()
-            .chain(compiler_specific_shared_args.iter())
             .chain(source.args.as_slice().iter())
-            .chain(compile_but_dont_link.iter())
             .collect::<Arguments>();
 
         let r = execute_command(program_data, &args, env_vars);
@@ -196,8 +201,7 @@ mod helpers {
 
     pub(crate) fn execute_linker_command_line(
         program_data: &ZorkModel,
-        general_args: &Arguments,
-        compiler_specific_shared_args: &Arguments,
+        shared_args: &[Argument],
         modules: &ModulesCommands<'_>,
         env_vars: &EnvVars,
         target_data: &mut Target,
@@ -223,10 +227,9 @@ mod helpers {
             // already handles their compilation products itself (gcm.cache)
             .map(|scl| &scl.byproduct);
 
-        let args = general_args
+        let args = shared_args
             .iter()
             .chain(linker_args.iter())
-            .chain(compiler_specific_shared_args.iter())
             .chain(modules_byproducts)
             .chain(linker_sources_byproducts)
             .collect::<Arguments>();
@@ -247,10 +250,8 @@ mod helpers {
 
     pub(crate) fn process_modules_commands(
         program_data: &ZorkModel<'_>,
-        general_args: &Arguments,
-        compiler_specific_shared_args: &Arguments,
+        flyweight_data: &FlyweightData,
         generated_commands: &mut ModulesCommands<'_>,
-        env_vars: &std::collections::HashMap<String, String>,
     ) -> Result<()> {
         let translation_units_commands: Vec<&mut SourceCommandLine> =
             get_modules_translation_units_commands(
@@ -275,14 +276,19 @@ mod helpers {
 
         for translation_unit_cmd in translation_units_commands {
             // Join the concrete args of any translation unit with the ones held in the flyweights
-            let translation_unit_cmd_args = general_args
+            let translation_unit_cmd_args = flyweight_data
+                .general_args
                 .iter()
-                .chain(compiler_specific_shared_args.iter())
+                .chain(flyweight_data.shared_args.iter())
                 .chain(&compile_but_dont_link)
                 .chain(translation_unit_cmd.args.iter())
                 .collect::<Arguments>();
 
-            let r = execute_command(program_data, &translation_unit_cmd_args, env_vars);
+            let r = execute_command(
+                program_data,
+                &translation_unit_cmd_args,
+                flyweight_data.env_vars,
+            );
             translation_unit_cmd.status = TranslationUnitStatus::from(&r);
 
             if let Err(e) = r {

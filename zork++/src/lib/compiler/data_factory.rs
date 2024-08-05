@@ -85,7 +85,6 @@ impl CompilerCommonArguments for ClangCommonArgs {
         args.push(self.std_lib.as_arg());
         args.push(&self.implicit_modules);
         args.push(&self.implicit_module_map);
-        args.push(&self.prebuilt_module_path);
         args
     }
 }
@@ -125,18 +124,15 @@ pub struct ClangCommonArgs {
     std_lib: StdLib,
     implicit_modules: Cow<'static, str>,
     implicit_module_map: Cow<'static, str>,
-    prebuilt_module_path: String,
 }
 impl ClangCommonArgs {
     pub fn new(model: &ZorkModel<'_>) -> Self {
-        let compiler = model.compiler.cpp_compiler;
         let out_dir: &Path = model.build.output_dir.as_ref();
 
         Self {
             std_lib: model.compiler.std_lib.unwrap_or_default(),
             implicit_modules: "-fimplicit-modules".into(),
             implicit_module_map: clang_args::implicit_module_map(out_dir),
-            prebuilt_module_path: clang_args::add_prebuilt_module_path(compiler, out_dir),
         }
     }
 }

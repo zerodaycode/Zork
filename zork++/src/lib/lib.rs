@@ -17,6 +17,7 @@ pub mod utils;
 pub mod worker {
     use crate::config_file;
     use crate::config_file::ZorkConfigFile;
+    use crate::domain::flyweight_data::FlyweightData;
     use crate::domain::target::Target;
     use crate::project_model;
     use std::path::PathBuf;
@@ -29,7 +30,7 @@ pub mod worker {
             input::{CliArgs, Command},
             output::executors,
         },
-        compiler::generate_commands,
+        compiler::generate_commands_arguments,
         project_model::{compiler::CppCompiler, ZorkModel},
         utils::{
             self,
@@ -66,7 +67,7 @@ pub mod worker {
             let config: ZorkConfigFile<'_> = config_file::zork_cfg_from_file(raw_file.as_str())
                 .with_context(|| error_messages::PARSE_CFG_FILE)?;
 
-            create_output_directory(&config, &abs_project_root)?; // NOTE: review if the must
+            create_output_directory(&config, &abs_project_root)?; // NOTE: review if we must
                                                                   // rebuilt the cache and model if the
                                                                   // output dir changes from
                                                                   // previous
@@ -88,15 +89,6 @@ pub mod worker {
 
                 program_data
             };
-
-            let generate_commands_ts = Instant::now();
-            generate_commands(&program_data, &mut cache)
-                .with_context(|| error_messages::FAILURE_GENERATING_COMMANDS)?;
-
-            log::debug!(
-                "Zork++ took a total of {:?} ms on handling the generated commands",
-                generate_commands_ts.elapsed().as_millis()
-            );
 
             // Perform main work
             perform_main_work(cli_args, &program_data, &mut cache, cfg_path)?; // NOTE: study if we
@@ -126,12 +118,22 @@ pub mod worker {
         Ok(false)
     }
 
-    fn perform_main_work(
+    fn perform_main_work<'a>(
         cli_args: &CliArgs,
-        program_data: &ZorkModel<'_>,
-        cache: &mut ZorkCache<'_>,
+        program_data: &'a ZorkModel<'a>,
+        cache: &mut ZorkCache<'a>,
         cfg_path: &Path,
     ) -> Result<()> {
+        let generate_commands_ts = Instant::now();
+
+        generate_commands_arguments(program_data, cache)
+            .with_context(|| error_messages::FAILURE_GENERATING_COMMANDS)?;
+
+        log::debug!(
+            "Zork++ took a total of {:?} ms on handling the generated commands",
+            generate_commands_ts.elapsed().as_millis()
+        );
+
         let work_result = do_main_work_based_on_cli_input(cli_args, program_data, cache)
             .with_context(|| {
                 format!(
@@ -152,41 +154,28 @@ pub mod worker {
         program_data: &ZorkModel<'_>,
         cache: &mut ZorkCache<'_>,
     ) -> Result<()> {
-        let generated_commands = &mut cache.generated_commands;
+        let compilers_metadata = &mut cache.compilers_metadata;
 
-        let general_args = generated_commands
-            .general_args
-            .as_mut()
-            .with_context(|| error_messages::GENERAL_ARGS_NOT_FOUND)?
-            .get_args();
+        let general_args = &mut cache.generated_commands.general_args;
+        let shared_args = &mut cache.generated_commands.compiler_common_args;
 
-        let compiler_specific_shared_args = generated_commands
-            .compiler_common_args
-            .as_mut()
-            .with_context(|| error_messages::COMPILER_SPECIFIC_COMMON_ARGS_NOT_FOUND)?
-            .get_args();
+        let modules_generated_commands = &mut cache.generated_commands.modules;
+        let targets_generated_commands = &mut cache.generated_commands.targets;
 
-        let env_vars = match program_data.compiler.cpp_compiler {
-            CppCompiler::MSVC => &cache.compilers_metadata.msvc.env_vars,
-            CppCompiler::CLANG => &cache.compilers_metadata.clang.env_vars,
-            CppCompiler::GCC => &cache.compilers_metadata.gcc.env_vars,
-        };
+        let flyweight_data =
+            FlyweightData::new(program_data, general_args, shared_args, compilers_metadata)?;
 
         executors::run_modules_generated_commands(
             program_data,
-            &general_args,
-            &compiler_specific_shared_args,
-            &mut generated_commands.modules,
-            env_vars,
+            &flyweight_data,
+            modules_generated_commands,
         )?;
 
         let target_executed_commands = executors::run_targets_generated_commands(
             program_data,
-            &general_args,
-            &compiler_specific_shared_args,
-            &mut generated_commands.targets,
-            &generated_commands.modules,
-            env_vars,
+            &flyweight_data,
+            targets_generated_commands,
+            modules_generated_commands,
         );
 
         match cli_args.command {
@@ -196,7 +185,7 @@ pub mod worker {
                     // NOTE: study if it's worth to use the same loop for building and
                     // autoexecuting, or otherwise, first build all, then autorun (actual
                     // behaviour)
-                    for (target_identifier, target_data) in generated_commands.targets.iter() {
+                    for (target_identifier, target_data) in targets_generated_commands.iter() {
                         if target_data.enabled_for_current_program_iteration {
                             executors::autorun_generated_binary(
                                 &program_data.compiler.cpp_compiler,
@@ -294,7 +283,6 @@ pub mod worker {
                 );
 
                 cached_target.enabled_for_current_program_iteration = enabled;
-                // }
             } else {
                 target_data.enabled_for_current_program_iteration = true;
                 cached_target.enabled_for_current_program_iteration = true;
