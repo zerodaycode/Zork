@@ -4,7 +4,7 @@ use std::path::Path;
 
 use clap::Parser;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use zork::compiler::generate_commands;
+use zork::compiler::generate_commands_arguments;
 use zork::{
     cache::ZorkCache,
     cli::input::CliArgs,
@@ -20,7 +20,7 @@ pub fn build_project_benchmark(c: &mut Criterion) {
     let mut cache = ZorkCache::default();
 
     c.bench_function("Generate commands", |b| {
-        b.iter(|| generate_commands(black_box(&program_data), black_box(&mut cache)))
+        b.iter(|| generate_commands_arguments(black_box(&program_data), black_box(&mut cache)))
     });
 
     /* c.bench_function("Cache loading time", |b| {

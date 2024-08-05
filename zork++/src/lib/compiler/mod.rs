@@ -32,7 +32,10 @@ pub mod data_factory;
 
 /// The core procedure. Generates the commands arguments that will be sent to the compiler
 /// for every translation unit declared by the user for its project
-pub fn generate_commands_arguments<'a>(model: &'a ZorkModel<'a>, cache: &mut ZorkCache<'a>) -> Result<()> {
+pub fn generate_commands_arguments<'a>(
+    model: &'a ZorkModel<'a>,
+    cache: &mut ZorkCache<'a>,
+) -> Result<()> {
     // Load the general args and the compiler specific ones if it's necessary
     load_flyweights_for_general_shared_data(model, cache);
 
