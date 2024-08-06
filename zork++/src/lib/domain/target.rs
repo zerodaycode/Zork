@@ -43,6 +43,7 @@ impl<'a> From<&'a str> for TargetIdentifier<'a> {
 }
 
 impl<'a> TargetIdentifier<'a> {
+    #[inline(always)]
     pub fn name(&'a self) -> &'a str {
         self.0.as_ref()
     }

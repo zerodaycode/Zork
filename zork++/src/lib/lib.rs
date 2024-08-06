@@ -238,59 +238,30 @@ pub mod worker {
     }
 
     /// Helper to map the user declared targets on the [`ZorkModel`], previously mapped from the
-    /// [`ZorkConfigFile`] into the [`ZorkCache`], in order to avoid later calls with entry or insert
-    /// which will be hidden on the code an harder to read for newcomers or after time without
-    /// reading the codebase
+    /// [`ZorkConfigFile`] into the [`ZorkCache`]
+    /// Also, it takes care about enabling or disabling (based on their presence on the cfg during
+    /// the program iterations) and handles cache removes when they are deleted from the cfg
     fn map_model_targets_to_cache<'a>(
         program_data: &mut ZorkModel<'a>,
         cache: &mut ZorkCache<'a>,
         cli_args: &CliArgs,
     ) -> Result<()> {
         for (target_identifier, target_data) in program_data.targets.iter_mut() {
-            let target_name = target_identifier.name();
-            // TODO: romper cada step en un único helper que puede ser unit tested
-
             // 1st - Check if there's any new target to add to the tracked ones
-            if !cache
-                .generated_commands
-                .targets
-                .contains_key(target_identifier)
-            {
-                log::debug!("Adding a new target to the cache: {}", target_name);
-                cache.generated_commands.targets.insert(
-                    target_identifier.clone(),
-                    Target::new_default_for_kind(target_data.kind),
-                );
-            }
+            helpers::add_new_target_to_cache(target_identifier, target_data, cache);
 
             // 2nd - Inspect the CliArgs to enable or disable targets for the current iteration
-            let cached_target = cache
-                .generated_commands
-                .targets
-                .get_mut(target_identifier)
-                .with_context(|| error_messages::TARGET_ENTRY_NOT_FOUND)?;
-
-            if let Some(filtered_targets) = cli_args.targets.as_ref() {
-                // If there's Some(v), there's no need to check for emptyness on the underlying Vec
-                // (at least must be one)
-                let enabled = filtered_targets.iter().any(|t| t.eq(target_name));
-                target_data.enabled_for_current_program_iteration = enabled;
-                // NOTE: we can perform the same check on the reader and rebuild the model if the
-                // cfg atrs changes via cli over iterations, avoiding having to mutate it here
-                log::info!(
-                    "Target: {target_name} is {} from CLI for this iteration of Zork++",
-                    if enabled { "enabled" } else { "disabled" }
-                );
-
-                cached_target.enabled_for_current_program_iteration = enabled;
-            } else {
-                target_data.enabled_for_current_program_iteration = true;
-                cached_target.enabled_for_current_program_iteration = true;
-            }
+            helpers::enable_and_disable_targets_based_on_cli_inputs(
+                target_identifier,
+                target_data,
+                cache,
+                cli_args,
+            )?;
         }
 
-        // TODO: 3rd - Remove from the cache the ones that the user removed from the cfg file (if they
+        // 3rd - Remove from the cache the ones that the user removed from the cfg file (if they
         // was tracked already)
+        helpers::delete_from_cache_removed_targets_from_cfg_file(program_data, cache);
 
         Ok(())
     }
@@ -362,15 +333,100 @@ pub mod worker {
         Ok(())
     }
 
+    mod helpers {
+        use crate::domain::target::TargetIdentifier;
+        use project_model::target::TargetModel;
+
+        use super::*;
+
+        pub(crate) fn add_new_target_to_cache<'a>(
+            target_identifier: &TargetIdentifier<'a>,
+            target_data: &mut TargetModel<'a>,
+            cache: &mut ZorkCache<'a>,
+        ) {
+            if !cache
+                .generated_commands
+                .targets
+                .contains_key(target_identifier)
+            {
+                log::debug!(
+                    "Adding a new target to the cache: {}",
+                    target_identifier.name()
+                );
+                cache.generated_commands.targets.insert(
+                    target_identifier.clone(),
+                    Target::new_default_for_kind(target_data.kind),
+                );
+            }
+        }
+
+        pub(crate) fn enable_and_disable_targets_based_on_cli_inputs<'a>(
+            target_identifier: &TargetIdentifier<'a>,
+            target_data: &mut TargetModel,
+            cache: &mut ZorkCache<'a>,
+            cli_args: &CliArgs,
+        ) -> Result<()> {
+            let target_name = target_identifier.name();
+
+            let cached_target = cache
+                .generated_commands
+                .targets
+                .get_mut(target_identifier)
+                .with_context(|| error_messages::TARGET_ENTRY_NOT_FOUND)?;
+
+            if let Some(filtered_targets) = cli_args.targets.as_ref() {
+                // If there's Some(v), there's no need to check for emptyness on the underlying Vec
+                // (at least must be one)
+                let enabled = filtered_targets.iter().any(|t| t.eq(target_name));
+                target_data.enabled_for_current_program_iteration = enabled;
+                // NOTE: we can perform the same check on the reader and rebuild the model if the
+                // cfg atrs changes via cli over iterations, avoiding having to mutate it here
+
+                log::info!(
+                    "Target: {target_name} is {} from CLI for this iteration of Zork++",
+                    if enabled { "enabled" } else { "disabled" }
+                );
+
+                cached_target.enabled_for_current_program_iteration = enabled;
+            } else {
+                target_data.enabled_for_current_program_iteration = true;
+                cached_target.enabled_for_current_program_iteration = true;
+            };
+
+            Ok(())
+        }
+
+        pub(crate) fn delete_from_cache_removed_targets_from_cfg_file(
+            program_data: &ZorkModel,
+            cache: &mut ZorkCache,
+        ) {
+            let targets = &mut cache.generated_commands.targets;
+            targets.retain(|cached_target_identifier, _| {
+                program_data.targets.contains_key(cached_target_identifier)
+            });
+        }
+    }
+
     #[cfg(test)]
     mod tests {
+        use std::borrow::Cow;
+        use std::path::Path;
+
+        use crate::cache::{self, ZorkCache};
+        use crate::cli::input::CliArgs;
+        use crate::domain::target::TargetIdentifier;
         use crate::project_model::compiler::CppCompiler;
+        use crate::project_model::ZorkModel;
+        use crate::utils;
         use crate::utils::template::resources::CONFIG_FILE;
+        use clap::Parser;
         use color_eyre::Result;
         use tempfile::tempdir;
 
         use crate::config_file::{self, ZorkConfigFile};
         use crate::utils::constants::{dir_names, ZORK};
+
+        use super::{helpers, map_model_targets_to_cache};
 
         #[test]
         fn test_creation_directories() -> Result<()> {
@@ -407,6 +463,113 @@ pub mod worker {
             assert!(zork_dir.exists());
             assert!(zork_dir.join(dir_names::CACHE).exists());
             assert!(zork_dir.join(dir_names::INTRINSICS).exists());
+
+            Ok(())
+        }
+
+        #[test]
+        fn test_add_entry_to_cache() -> Result<()> {
+            let cli_args: CliArgs = CliArgs::parse_from(["", "build"]);
+            let zcf: ZorkConfigFile = config_file::zork_cfg_from_file(CONFIG_FILE)?;
+            let mut model: ZorkModel = utils::reader::build_model(zcf, &cli_args, Path::new("."))?;
+            let mut cache: ZorkCache = cache::ZorkCache::default();
+
+            for (target_identifier, target_data) in model.targets.iter_mut() {
+                helpers::add_new_target_to_cache(target_identifier, target_data, &mut cache);
+                assert!(cache
+                    .generated_commands
+                    .targets
+                    .contains_key(target_identifier));
+                assert!(!cache
+                    .generated_commands
+                    .targets
+                    .contains_key(&TargetIdentifier(Cow::Borrowed("other"))));
+            }
+
+            Ok(())
+        }
+
+        #[test]
+        fn test_enable_disable_targets_by_cli_input() -> Result<()> {
+            let cli_args: CliArgs =
+                CliArgs::parse_from(["", "--targets", "executable,tests", "build"]);
+            let zcf: ZorkConfigFile = config_file::zork_cfg_from_file(CONFIG_FILE)?;
+            let mut model: ZorkModel = utils::reader::build_model(zcf, &cli_args, Path::new("."))?;
+            let mut cache: ZorkCache = cache::ZorkCache::default();
+
+            // map_model_targets_to_cache(&mut model, &mut cache, &cli_args)?;
+
+            for (target_identifier, target_data) in model.targets.iter_mut() {
+                helpers::add_new_target_to_cache(target_identifier, target_data, &mut cache);
+                helpers::enable_and_disable_targets_based_on_cli_inputs(
+                    target_identifier,
+                    target_data,
+                    &mut cache,
+                    &cli_args,
+                )?;
+                assert!(cache
+                    .generated_commands
+                    .targets
+                    .contains_key(target_identifier));
+
+                let cached_target = cache
+                    .generated_commands
+                    .targets
+                    .get(target_identifier)
+                    .unwrap();
+                assert!(cached_target.enabled_for_current_program_iteration);
+            }
+
+            Ok(())
+        }
+
+        #[test]
+        fn test_clean_removed_targets_from_cfg() -> Result<()> {
+            let cli_args: CliArgs = CliArgs::parse_from(["", "--targets", "executable", "build"]);
+            let zcf: ZorkConfigFile = config_file::zork_cfg_from_file(CONFIG_FILE)?;
+            let mut model: ZorkModel = utils::reader::build_model(zcf, &cli_args, Path::new("."))?;
+            let mut cache: ZorkCache = cache::ZorkCache::default();
+
+            map_model_targets_to_cache(&mut model, &mut cache, &cli_args)?;
+
+            let tests_ti = TargetIdentifier::from("tests");
+            let tests = cache.generated_commands.targets.get(&tests_ti).unwrap();
+            assert!(!tests.enabled_for_current_program_iteration);
+
+            model.targets.retain(|k, _| k.ne(&tests_ti));
+            map_model_targets_to_cache(&mut model, &mut cache, &cli_args)?;
+
+            assert!(cache.generated_commands.targets.get(&tests_ti).is_none());
+
+            Ok(())
+        }
+
+        #[test]
+        fn test_map_model_targets_to_cache_and_enabled_status() -> Result<()> {
+            let cli_args: CliArgs =
+                CliArgs::parse_from(["", "--targets", "executable,tests", "build"]);
+            let zcf: ZorkConfigFile = config_file::zork_cfg_from_file(CONFIG_FILE)?;
+            let mut model: ZorkModel = utils::reader::build_model(zcf, &cli_args, Path::new("."))?;
+            let mut cache: ZorkCache = cache::ZorkCache::default();
+
+            map_model_targets_to_cache(&mut model, &mut cache, &cli_args)?;
+
+            let cached_targets = cache.generated_commands.targets;
+
+            for (target_identifier, _) in model.targets.iter_mut() {
+                let cached_target = cached_targets.get(target_identifier);
+                assert!(cached_target.is_some());
+            }
+
+            let executable = cached_targets
+                .get(&TargetIdentifier::from("executable"))
+                .unwrap();
+            assert!(executable.enabled_for_current_program_iteration);
+
+            let tests = cached_targets
+                .get(&TargetIdentifier::from("tests"))
+                .unwrap();
+            assert!(tests.enabled_for_current_program_iteration);
 
             Ok(())
         }
