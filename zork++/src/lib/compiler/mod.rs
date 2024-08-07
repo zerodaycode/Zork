@@ -178,7 +178,7 @@ fn generate_linkage_targets_commands<'a>(
 ) -> Result<()> {
     log::info!(
         "Generating the linker command line for target: {:?}",
-        &target.0
+        &target.0.name()
     );
 
     let target_identifier = target.0;
@@ -524,9 +524,6 @@ mod sources {
             arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
         }
 
-        // arguments.extend_from_to_argument_slice(&target.extra_args); // TODO: add them as flyweight
-        // data on the executors
-
         let obj_file = helpers::generate_obj_file(compiler, out_dir, source);
         let fo = if compiler.eq(&CppCompiler::MSVC) {
             "/Fo"
@@ -555,8 +552,12 @@ mod sources {
     }
 }
 
-/// Helpers for reduce the cyclomatic complexity
-mod helpers {
+/// Helpers for reduce the cyclomatic complexity of generating command lines, arguments
+/// and in other cases, paths depending on what kind of [`TranslationUnitKind`] we are
+/// processing
+///
+/// This module is actually public(crate) reexported since we need to
+pub(crate) mod helpers {
     use super::*;
     use crate::domain::commands::command_lines::SourceCommandLine;
     use crate::domain::translation_unit::TranslationUnitStatus;

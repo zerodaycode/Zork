@@ -26,6 +26,7 @@ pub mod debug_messages {
 pub mod error_messages {
     pub const READ_CFG_FILE: &str = "Could not read the configuration file";
     pub const PARSE_CFG_FILE: &str = "Could not parse the configuration file";
+    pub const REMOVE_FILE: &str = "Unable to remove file from fs";
     pub const FAILURE_GENERATING_COMMANDS: &str =
         "Failed to generated the commands for the project";
     pub const FAILED_BUILD_FOR_CFG_FILE: &str = "Failed to build the project for the config file";

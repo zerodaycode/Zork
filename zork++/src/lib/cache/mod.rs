@@ -448,6 +448,8 @@ mod msvc {
 }
 
 pub(crate) mod helpers {
+    use color_eyre::eyre::ContextCompat;
+
     use self::utils::constants::error_messages;
     use super::*;
     use crate::domain::translation_unit::TranslationUnitStatus;
@@ -501,7 +503,7 @@ pub(crate) mod helpers {
                     program_data
                         .targets
                         .get(target_name)
-                        .unwrap()
+                        .with_context(|| error_messages::TARGET_ENTRY_NOT_FOUND)?
                         .sources
                         .as_slice(),
                 );
@@ -522,7 +524,7 @@ pub(crate) mod helpers {
         cached_commands: &mut Vec<SourceCommandLine>,
         user_declared_translation_units: &[T],
     ) -> bool {
-        let removal_conditions = |scl: &SourceCommandLine| {
+        let removal_conditions = |scl: &SourceCommandLine| -> bool {
             scl.status.eq(&TranslationUnitStatus::ToDelete) || {
                 let r = user_declared_translation_units
                     .iter()
@@ -530,7 +532,6 @@ pub(crate) mod helpers {
 
                 if !r {
                     log::debug!("Found translation_unit removed from cfg: {:?}", scl);
-                    utils::fs::
                 }
                 r
             }

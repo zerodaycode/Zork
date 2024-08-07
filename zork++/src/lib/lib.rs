@@ -234,7 +234,7 @@ pub mod worker {
                 utils::reader::build_model(zork_config_file, cli_args, abs_project_root)?;
 
             // Check for the changes made by the user on the cfg
-            check_for_changes_in_cfg(&project_model, cache)
+            check_for_deletions_in_cfg(&project_model, cache)
                 .with_context(|| error_messages::CHECK_FOR_DELETIONS)?;
 
             Ok(project_model)
@@ -244,7 +244,9 @@ pub mod worker {
         }
     }
 
-    fn check_for_changes_in_cfg(
+    /// Little helper to check if the user remove files from the [`ZorkConfigFile`] and therefore,
+    /// they should be removed from the cache
+    fn check_for_deletions_in_cfg(
         project_model: &ZorkModel,
         cache: &mut ZorkCache<'_>,
     ) -> Result<()> {
@@ -316,13 +318,6 @@ pub mod worker {
             .and_then(|build_attr| build_attr.output_dir)
             .unwrap_or("out");
         let out_dir = Path::new(project_root).join(binding);
-
-        if out_dir.exists() {
-            return Ok(()); // TODO: remeber that this causes a bug
-        } // early guard. If the out_dir already exists, all
-          // the sub-structure must exists and be correct.
-          // Otherwise, a full out dir wipe will be preferable
-          // that checking if they all exists on every run
 
         // Recursively create the directories below and all of its parent components if they are missing
         let modules_path = out_dir.join(compiler_name).join(dir_names::MODULES);
@@ -404,9 +399,6 @@ pub mod worker {
                 // (at least must be one)
                 let enabled = filtered_targets.iter().any(|t| t.eq(target_name));
                 target_data.enabled_for_current_program_iteration = enabled;
-                // NOTE: we can perform the same check on the reader and rebuild the model if the
-                // cfg atrs changes via cli over iterations, avoiding having to mutate it here
-
                 log::info!(
                     "Target: {target_name} is {} from CLI for this iteration of Zork++",
                     if enabled { "enabled" } else { "disabled" }

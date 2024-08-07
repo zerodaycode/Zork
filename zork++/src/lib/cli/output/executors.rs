@@ -222,9 +222,6 @@ mod helpers {
             } else {
                 [].iter()
             })
-            // NOTE: The embedeed if above allows us to avoid to clone iterators by reasining data
-            // if the compiler is GCC, where we don't want to chain the system modules since GCC
-            // already handles their compilation products itself (gcm.cache)
             .map(|scl| &scl.byproduct);
 
         let args = shared_args
@@ -254,14 +251,7 @@ mod helpers {
         generated_commands: &mut ModulesCommands<'_>,
     ) -> Result<()> {
         let translation_units_commands: Vec<&mut SourceCommandLine> =
-            get_modules_translation_units_commands(
-                // Independent borrows to avoid have borrow checker yielding at me
-                &mut generated_commands.cpp_stdlib,
-                &mut generated_commands.c_compat_stdlib,
-                &mut generated_commands.system_modules,
-                &mut generated_commands.interfaces,
-                &mut generated_commands.implementations,
-            );
+            get_modules_translation_units_commands(generated_commands);
 
         if translation_units_commands.is_empty() {
             log::debug!("No modules to process, build or rebuild in this iteration.");
@@ -305,21 +295,20 @@ mod helpers {
         Ok(())
     }
 
-    /// TODO: create strong types or aliases at least
     pub(crate) fn get_modules_translation_units_commands<'a, 'b>(
-        cpp_stdlib: &'b mut Option<SourceCommandLine<'a>>,
-        c_compat_stdlib: &'b mut Option<SourceCommandLine<'a>>,
-        system_modules: &'b mut Vec<SourceCommandLine<'a>>,
-        interfaces: &'b mut Vec<SourceCommandLine<'a>>,
-        implementations: &'b mut Vec<SourceCommandLine<'a>>,
+        generated_commands: &'b mut ModulesCommands<'a>,
     ) -> Vec<&'b mut SourceCommandLine<'a>> {
+        let cpp_stdlib = generated_commands.cpp_stdlib.as_mut_slice().iter_mut();
+        let c_compat_stdlib = generated_commands.c_compat_stdlib.as_mut_slice().iter_mut();
+        let system_modules = generated_commands.system_modules.as_mut_slice().iter_mut();
+        let interfaces = generated_commands.interfaces.as_mut_slice().iter_mut();
+        let implementations = generated_commands.implementations.as_mut_slice().iter_mut();
+
         cpp_stdlib
-            .as_mut_slice()
-            .iter_mut()
-            .chain(c_compat_stdlib.as_mut_slice().iter_mut())
-            .chain(system_modules.as_mut_slice().iter_mut())
-            .chain(interfaces.as_mut_slice().iter_mut())
-            .chain(implementations.as_mut_slice().iter_mut())
+            .chain(c_compat_stdlib)
+            .chain(system_modules)
+            .chain(interfaces)
+            .chain(implementations)
             .filter(|scl| scl.status.eq(&TranslationUnitStatus::PendingToBuild))
             .collect::<Vec<&mut SourceCommandLine>>()
     }

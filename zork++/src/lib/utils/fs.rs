@@ -8,6 +8,8 @@ use std::{
 };
 use walkdir::WalkDir;
 
+use super::constants::error_messages;
+
 /// Creates a new file in the filesystem if the given does not exists yet at the specified location
 pub fn create_file<'a>(path: &Path, filename: &'a str, buff_write: &'a [u8]) -> Result<()> {
     let file_path = path.join(filename);
@@ -33,6 +35,13 @@ pub fn find_file(search_root: &Path, target_filename: &str) -> Option<walkdir::D
                 .map(|filename| filename.contains(target_filename))
                 .unwrap_or(false)
         })
+}
+
+pub fn delete_file(path: &Path) -> Result<()> {
+    if path.exists() {
+        return std::fs::remove_file(path).with_context(|| error_messages::REMOVE_FILE);
+    }
+    Ok(())
 }
 
 /// Recursively creates a new directory pointed at the value of target if not exists yet
