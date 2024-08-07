@@ -182,9 +182,6 @@ pub mod worker {
             Command::Build => target_executed_commands,
             Command::Run | Command::Test => match target_executed_commands {
                 Ok(_) => {
-                    // NOTE: study if it's worth to use the same loop for building and
-                    // autoexecuting, or otherwise, first build all, then autorun (actual
-                    // behaviour)
                     for (target_identifier, target_data) in targets_generated_commands.iter() {
                         if target_data.enabled_for_current_program_iteration {
                             executors::autorun_generated_binary(
@@ -266,7 +263,7 @@ pub mod worker {
 
     /// Helper to map the user declared targets on the [`ZorkModel`], previously mapped from the
     /// [`ZorkConfigFile`] into the [`ZorkCache`]
-    /// Also, it takes care about enabling or disabling (based on their presence on the cfg during
+    /// Also, it takes care about enabling or disabling targets (based on their presence on the cfg during
     /// the program iterations) and handles cache removes when they are deleted from the cfg
     fn map_model_targets_to_cache<'a>(
         program_data: &mut ZorkModel<'a>,
@@ -278,13 +275,23 @@ pub mod worker {
             helpers::add_new_target_to_cache(target_identifier, target_data, cache);
 
             // 2nd - Inspect the CliArgs to enable or disable targets for the current iteration
-            helpers::enable_and_disable_targets_based_on_cli_inputs(
+            helpers::enable_or_disable_target_based_on_cli_inputs(
                 target_identifier,
                 target_data,
                 cache,
                 cli_args,
             )?;
         }
+
+        log::info!(
+            "Target enabled for this iteration of Zork++: {:?}",
+            program_data
+                .targets
+                .iter()
+                .filter(|(_, data)| data.enabled_for_current_program_iteration)
+                .map(|(id, _)| id.name())
+                .collect::<Vec<_>>()
+        );
 
         // 3rd - Remove from the cache the ones that the user removed from the cfg file (if they
         // was tracked already)
@@ -380,7 +387,7 @@ pub mod worker {
             }
         }
 
-        pub(crate) fn enable_and_disable_targets_based_on_cli_inputs<'a>(
+        pub(crate) fn enable_or_disable_target_based_on_cli_inputs<'a>(
             target_identifier: &TargetIdentifier<'a>,
             target_data: &mut TargetModel,
             cache: &mut ZorkCache<'a>,
@@ -394,21 +401,24 @@ pub mod worker {
                 .get_mut(target_identifier)
                 .with_context(|| error_messages::TARGET_ENTRY_NOT_FOUND)?;
 
-            if let Some(filtered_targets) = cli_args.targets.as_ref() {
-                // If there's Some(v), there's no need to check for emptyness on the underlying Vec
-                // (at least must be one)
+            let enabled = if let Some(filtered_targets) = cli_args.targets.as_ref() {
+                // If there's Some(v), there's no need to check for emptyness on the underlying Vec (at least must be one)
                 let enabled = filtered_targets.iter().any(|t| t.eq(target_name));
-                target_data.enabled_for_current_program_iteration = enabled;
-                log::info!(
-                    "Target: {target_name} is {} from CLI for this iteration of Zork++",
-                    if enabled { "enabled" } else { "disabled" }
-                );
-
-                cached_target.enabled_for_current_program_iteration = enabled;
+                enabled
             } else {
-                target_data.enabled_for_current_program_iteration = true;
-                cached_target.enabled_for_current_program_iteration = true;
+                true
             };
+
+            // If it's a [CliArgs::Test] command invokation, enable only the ones that contains
+            // a <*test*> string in its identifier
+            let enabled = if cli_args.command.eq(&Command::Test) {
+                target_name.contains("test")
+            } else {
+                enabled
+            };
+
+            target_data.enabled_for_current_program_iteration = enabled;
+            cached_target.enabled_for_current_program_iteration = enabled;
 
             Ok(())
         }
@@ -518,7 +528,7 @@ pub mod worker {
 
             for (target_identifier, target_data) in model.targets.iter_mut() {
                 helpers::add_new_target_to_cache(target_identifier, target_data, &mut cache);
-                helpers::enable_and_disable_targets_based_on_cli_inputs(
+                helpers::enable_or_disable_target_based_on_cli_inputs(
                     target_identifier,
                     target_data,
                     &mut cache,

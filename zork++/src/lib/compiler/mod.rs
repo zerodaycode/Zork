@@ -157,7 +157,7 @@ fn generate_sources_cmds_args<'a>(
 
     log::info!(
         "Generating the commands for the source files of target: {:?}",
-        target_identifier
+        target_identifier.name()
     );
 
     process_kind_translation_units(
