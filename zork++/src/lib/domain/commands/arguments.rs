@@ -1,35 +1,61 @@
 //! Types and procedures that represents a command line argument,
 //! or collections of command line arguments
 
+use std::borrow::Cow;
 use std::ops::Deref;
 use std::path::Path;
 use std::{borrow::Borrow, ffi::OsStr, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::project_model::compiler::LanguageLevel;
+
 /// Wrapper type for represent and storing a command line argument
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Argument<'a> {
-    pub value: &'a str,
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Argument<'a>(Cow<'a, str>);
+
+impl<'a> Argument<'a> {
+    pub fn value(&self) -> &Cow<'a, str> {
+        &self.0
+    }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl<'a> From<&'a str> for Argument<'a> {
     fn from(value: &'a str) -> Self {
-        Self { value }
+        Self(Cow::Borrowed(value))
+    }
+}
+
+impl<'a> From<&'a String> for Argument<'a> {
+    fn from(value: &'a String) -> Self {
+        Self(Cow::Borrowed(value))
+    }
+}
+
+impl<'a> From<Cow<'a, str>> for Argument<'a> {
+    fn from(value: Cow<'a, str>) -> Self {
+        Self(value)
+    }
+}
+
+impl<'a> From<&Cow<'a, str>> for Argument<'a> {
+    fn from(value: &Cow<'a, str>) -> Self {
+        Self(value.clone())
     }
 }
 
 impl<'a> From<String> for Argument<'a> {
     fn from(value: String) -> Argument<'a> {
-        Self {
-            value: Box::leak(value.into_boxed_str()),
-        }
+        Self(Cow::Owned(value))
     }
 }
 
 impl<'a> From<&'a Path> for Argument<'a> {
     fn from(value: &'a Path) -> Self {
-        Self::from(format!("{}", value.display()))
+        Self::from(value.to_string_lossy())
     }
 }
 
@@ -45,35 +71,46 @@ impl<'a> From<&PathBuf> for Argument<'a> {
     }
 }
 
-impl<'a> Deref for Argument<'a> {
-    type Target = &'a str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.value
+impl<'a> From<LanguageLevel> for Argument<'a> {
+    fn from(value: LanguageLevel) -> Self {
+        Self::from(value.as_ref().to_string())
     }
 }
 
 impl<'a> Borrow<str> for Argument<'a> {
     fn borrow(&self) -> &str {
-        self.value
+        &self.0
     }
 }
 
 impl<'a> AsRef<OsStr> for Argument<'a> {
     fn as_ref(&self) -> &OsStr {
-        OsStr::new(self.value)
+        OsStr::new(self.0.as_ref())
+    }
+}
+
+impl<'a> AsRef<str> for Argument<'a> {
+    fn as_ref(&self) -> &str {
+        &self.0
     }
 }
 
 impl<'a> core::fmt::Display for Argument<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "{}", self.0)
     }
 }
 
 /// Strong type for represent a linear collection of [`Argument`]
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Arguments<'a>(Vec<Argument<'a>>);
+
+impl<'a> core::fmt::Display for Arguments<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.iter().try_for_each(|arg| write!(f, "{} ", arg))
+    }
+}
+
 impl<'a> Arguments<'a> {
     /// Wraps an existing [`std::vec::Vec`] of [`Argument`]
     pub fn from_vec(vec: Vec<Argument<'a>>) -> Self {
@@ -86,35 +123,51 @@ impl<'a> Arguments<'a> {
     }
 
     /// Creates and stores a new [`Argument`] to the end of this collection
-    pub fn create_and_push<T>(&mut self, val: T)
+    /// from any type *T* that can be coerced into an [`Argument`] type
+    pub fn push<T>(&mut self, val: T)
     where
         T: Into<Argument<'a>>,
     {
         self.0.push(val.into())
     }
 
-    /// Appends a new [`Argument`] to the end of this collection
-    pub fn push(&mut self, arg: Argument<'a>) {
-        self.0.push(arg)
-    } // TODO: aren't this one and the one above redundant? Wouldn't be better to unify both
-      // interfaces in only one method call? With a better name, btw? Like <add> or <add_new>
-
-    /// Given an optional, adds the wrapper inner value if there's some element,
-    /// otherwise leaves
+    /// Given an optional, adds the inner value if there's Some(<[Argument]>)
     pub fn push_opt(&mut self, arg: Option<Argument<'a>>) {
         if let Some(val) = arg {
             self.0.push(val)
         }
     }
 
-    /// Extends the underlying collection from a Iterator of [`Argument`]
+    /// Extends the underlying collection from an Iterator of [`Argument`]
     pub fn extend(&mut self, iter: impl IntoIterator<Item = Argument<'a>>) {
         self.0.extend(iter);
     }
 
     /// Extends the underlying collection given a slice of [`Argument`]
-    pub fn extend_from_slice(&mut self, slice: &'a [Argument<'a>]) {
+    pub fn extend_from_slice(&mut self, slice: &'a [Argument]) {
         self.0.extend_from_slice(slice);
+    }
+
+    /// Extends the underlying collection given a slice of any type that is convertible to [`Argument`]
+    /// and implements [`Clone`]
+    pub fn extend_from_to_argument_slice<F>(&mut self, slice: &'a [F])
+    where
+        F: Into<Argument<'a>> + Clone,
+    {
+        self.0.extend(
+            slice
+                .iter()
+                .map(|arg| <F as Into<Argument>>::into(arg.clone())),
+        );
+    }
+
+    pub fn as_slice(&self) -> &[Argument] {
+        &self.0
+    }
+
+    /// Clears the contained values of the wrapped [`std::vec::Vec`]
+    pub fn clear(&mut self) {
+        self.0.clear()
     }
 }
 
@@ -135,7 +188,36 @@ impl<'a> IntoIterator for Arguments<'a> {
     }
 }
 
-/// Isolated module to storing custom procedures to easy create and add new command line arguments
+impl<'a> IntoIterator for &Arguments<'a> {
+    type Item = Argument<'a>;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.clone().into_iter()
+    }
+}
+
+impl<'a> FromIterator<Argument<'a>> for Arguments<'a> {
+    fn from_iter<I: IntoIterator<Item = Argument<'a>>>(iter: I) -> Self {
+        let mut vec = Vec::new();
+        for item in iter {
+            vec.push(item);
+        }
+        Arguments(vec)
+    }
+}
+
+impl<'a> FromIterator<&'a Argument<'a>> for Arguments<'a> {
+    fn from_iter<I: IntoIterator<Item = &'a Argument<'a>>>(iter: I) -> Arguments<'a> {
+        let mut vec = Vec::new();
+        for item in iter {
+            vec.push(item.clone());
+        }
+        Arguments(vec)
+    }
+}
+
+/// Isolated module to storing custom procedures to easily create and add new command line arguments
 /// or flags specific to Clang, that otherwise, will be bloating the main procedures with a lot
 /// of cognitive complexity
 pub mod clang_args {
@@ -150,9 +232,9 @@ pub mod clang_args {
     // The Windows variant is a Zork++ feature to allow the users to write `import std;`
     // under -std=c++20 with clang linking against GCC with
     // some MinGW installation or similar
-    pub(crate) fn implicit_module_maps<'a>(out_dir: &Path) -> Argument<'a> {
+    pub(crate) fn implicit_module_map<'a>(out_dir: &Path) -> Cow<'a, str> {
         if std::env::consts::OS.eq("windows") {
-            Argument::from(format!(
+            Cow::Owned(format!(
                 "-fmodule-map-file={}",
                 out_dir
                     .join("zork")
@@ -161,26 +243,26 @@ pub mod clang_args {
                     .display()
             ))
         } else {
-            Argument::from("-fimplicit-module-maps")
+            Cow::Borrowed("-fimplicit-module-maps")
         }
     }
 
-    pub(crate) fn add_prebuilt_module_path(compiler: CppCompiler, out_dir: &Path) -> Argument<'_> {
-        Argument::from(format!(
+    pub(crate) fn add_prebuilt_module_path(compiler: CppCompiler, out_dir: &Path) -> String {
+        format!(
             "-fprebuilt-module-path={}",
             out_dir
                 .join(compiler.as_ref())
                 .join("modules")
                 .join("interfaces")
                 .display()
-        ))
+        )
     }
 
     pub(crate) fn add_direct_module_interfaces_dependencies(
-        dependencies: &[&str],
+        dependencies: &[Cow<str>],
         compiler: CppCompiler,
         out_dir: &Path,
-        arguments: &mut Arguments<'_>,
+        arguments: &mut Arguments,
     ) {
         dependencies.iter().for_each(|ifc_dep| {
             arguments.push(Argument::from(format!(
@@ -189,7 +271,7 @@ pub mod clang_args {
                     .join(compiler.as_ref())
                     .join("modules")
                     .join("interfaces")
-                    .join(ifc_dep)
+                    .join::<&str>(ifc_dep)
                     .with_extension(compiler.get_typical_bmi_extension())
                     .display()
             )))
@@ -198,18 +280,15 @@ pub mod clang_args {
 }
 
 pub mod msvc_args {
-    use crate::{
-        bounds::TranslationUnit,
-        cache::ZorkCache,
-        cli::output::commands::{CommandExecutionResult, SourceCommandLine},
-        project_model::{compiler::StdLibMode, ZorkModel},
-    };
+    use crate::cache::ZorkCache;
+    use crate::domain::commands::command_lines::SourceCommandLine;
+    use crate::domain::translation_unit::TranslationUnit;
+    use crate::project_model::compiler::StdLibMode;
 
     use super::Arguments;
 
-    pub(crate) fn generate_std_cmd_args<'a>(
-        model: &'a ZorkModel<'_>,
-        cache: &ZorkCache,
+    pub(crate) fn generate_std_cmd<'a>(
+        cache: &ZorkCache<'a>,
         stdlib_mode: StdLibMode,
     ) -> SourceCommandLine<'a> {
         let mut arguments = Arguments::default();
@@ -217,43 +296,27 @@ pub mod msvc_args {
 
         let (stdlib_sf, stdlib_bmi_path, stdlib_obj_path) = if stdlib_mode.eq(&StdLibMode::Cpp) {
             (
-                msvc.vs_stdlib_path.as_ref().unwrap(),
+                &msvc.vs_stdlib_path,
                 &msvc.stdlib_bmi_path,
                 &msvc.stdlib_obj_path,
             )
         } else {
             (
-                msvc.vs_c_stdlib_path.as_ref().unwrap(),
-                &msvc.c_stdlib_bmi_path,
-                &msvc.c_stdlib_obj_path,
+                &msvc.vs_ccompat_stdlib_path,
+                &msvc.ccompat_stdlib_bmi_path,
+                &msvc.ccompat_stdlib_obj_path,
             )
         };
 
-        arguments.push(model.compiler.language_level_arg());
-        arguments.create_and_push("/EHsc");
-        arguments.create_and_push("/nologo");
-        arguments.create_and_push("/W4");
-
-        arguments.create_and_push("/reference");
-        arguments.create_and_push(format! {
-            "std={}", msvc.stdlib_bmi_path.display()
-        });
-
-        arguments.create_and_push("/c");
-        arguments.create_and_push(stdlib_sf.file());
-        arguments.create_and_push("/ifcOutput");
-        arguments.create_and_push(format! {
+        arguments.push(stdlib_sf.path());
+        arguments.push("/ifcOutput");
+        arguments.push(format! {
             "{}", stdlib_bmi_path.display()
         });
-        arguments.create_and_push(format! {
+        arguments.push(format! {
             "/Fo{}", stdlib_obj_path.display()
         });
 
-        SourceCommandLine::from_translation_unit(
-            stdlib_sf,
-            arguments,
-            false,
-            CommandExecutionResult::default(),
-        )
+        SourceCommandLine::new(stdlib_sf, arguments, stdlib_obj_path.to_path_buf())
     }
 }

@@ -95,7 +95,7 @@ We recommend installing it in `/usr/bin`.
 
 ### macOS and another platforms
 
-We currently don't provide installers or precompiled binaries for other operating systems. 
+We currently don't provide installers or precompiled binaries for other operating systems.
 
 You can build `Zork++` manually if your platform is a supported `Rust` target.
 You can check out [the list of available targets here](https://doc.rust-lang.org/nightly/rustc/platform-support.html).
@@ -179,10 +179,10 @@ What happened here?
 See [The zork.toml config file](#zork_conf) section to have a better understanding on how to write the configuration file and your project.
 
 > [!NOTE]
-> 
+>
 > This structure is just a guideline. You may prefer to organize your files in a completely different way. We are just providing a predefined layout, so you can quickly start working on your project.
 
->`Zork++` comes with this basic example by default, where is based on some driver code on the main file, a couple of module interfaces and module implementations. By passing `--template partitions` as a command line argument, you will have access to a more complex example, where module partitions and other module stuff appears, being a more sophisticated C++ modules project example. 
+>`Zork++` comes with this basic example by default, where is based on some driver code on the main file, a couple of module interfaces and module implementations. By passing `--template partitions` as a command line argument, you will have access to a more complex example, where module partitions and other module stuff appears, being a more sophisticated C++ modules project example.
 
 
 ## Let's explore the `out` directory a little
@@ -228,22 +228,10 @@ std_lib = "libc++"  # This concrete property will only be applied to Clang
 [build]
 output_dir = "./out"
 
-[executable]
-executable_name = "github-example"
-sources = [
-    "./github-example/*.cpp"
-]
-
-[tests]
-tests_executable_name = "zork_proj_tests"
-sources = [
-    "./github-example/*.cpp"
-]
-
 [modules]
 base_ifcs_dir = "./github-example/ifc"
-interfaces = [ 
-    { file = 'math.cppm' }    
+interfaces = [
+    { file = 'math.cppm' }
 ]
 base_impls_dir = "./github-example/src"
 implementations = [
@@ -251,6 +239,18 @@ implementations = [
     { file = 'math2.cpp', dependencies = ['math'] }
 ]
 sys_modules = ['iostream']
+
+[targets.executable]
+executable_name = "github-example"
+sources = [
+    "./github-example/*.cpp"
+]
+
+[targets.tests]
+tests_executable_name = "zork_proj_tests"
+sources = [
+    "./github-example/*.cpp"
+]
 ```
 
 This is `toml` table syntax. You may choose whatever `toml` available syntax you prefer though.
@@ -268,38 +268,46 @@ It is used to specify whether to use the `libc++` or `libstdc++` Standard librar
 
 - `[build]` ⇒ Specifics about how and where the generated files are dumped or treated. Here you specify where you want to create that directory.
 
-- `[executable]` ⇒ Whenever `Zork++` sees this attribute, it knows that he must produce an executable. You must specify the name of the generated binary and the sources that will be taken into consideration to produce that executable.
-
 - `[modules]` ⇒ The core section to instruct the compiler to work with `C++20 modules`. The most important attributes are the base path to the *interfaces* and *implementation* files (usually you don't want to spread your files elsewhere).
 `Zork++` only looks for your `interfaces` and `implementation` files in the respective directories.
 
-- `[tests]` ⇒ The `tests` section allows you to run the tests written for your application in a convenient way.
-You only have to provide the sources, and you are ready to go!
-`Zork++` will take care of the rest.
+- `[targets.<target_identifier>]` ⇒ Targets are named entries that are meant to produce a final product. Currently,
+`Zork++` can produce *binary* products, *static libraries* and/or *dynamic libraries*.
+    - You can have as many *targets* you want and or you need. Or the reference section of this doc, you'll find all the
+different options that you can use to configure every target.
+    - A very important note is that targets are processed in the declaration order of the configuration file, so be aware
+of this fact when you do design your product lifecycle.
+    - Also, 
 
-For now, tests run independent of the executables or library generations.
-So if you want to check the health of your applications and run your tests, just invoke the `test` command.
+Tests run independent of the executables or library generations. They are a shortcut alias to --targets
+but with the particular behaviour that it will filter all the targets that include after the `.` in its
+identifier the *word* `test` (any position, clasical 'contains'). Of course, you can mix them with the `--targets`
+flag, so only *test* targets (with the *test* in its identifier) and the ones provided in the *CLI* argument
+will be taking in consideration.
 
-`$ zork++ -v test`
+For example. Suppose that you have three different targets to test three different areas of your project.
+Let's name them `test1`, `test2` and `test3`.
 
-You must manually provide a test framework for now.
-There are plans to include support for one or more of the major ones with `Zork++` directly, like `boost::ut` or `Catch2`.
-But for now, you must manually download the source files and pass them (if applies) to `Zork++`.
+```bash
+$ zork++ -v --targets test2,test3 test
+```
 
-The optional `base_path` property allows you to specify a path where `Zork++` looks for your source files, so you don't have to specify the full path for every source.
+For this `Zork++` invokation, it will only be processed and executed `test2` and `test3`.
 
+To summarize: the `test` argument implies `build` + `run` but only for targets that contains a `test` substring
+within its target identifier (which is the string after the `.` on the `[targets.<target_identifier>]`) entry.
 
 ## :bulb: Additional notes on the `[modules]` attribute
 
 > Whenever you declare a module interface or a module implementation in the configuration file, you must take in consideration that sometimes modules (both interfaces or implementations) depend on other modules. Dependencies of one or more modules are declared as shown below:
 
 ```toml
-interfaces = [ 
-    { file = 'math.cppm' }    
+interfaces = [
+    { file = 'math.cppm' }
 ]
 implementations = [
     { file = 'math.cpp' }, # Direct mapping with the interface `math`
-    { file = 'math2.cpp', dependencies = ['math'] } 
+    { file = 'math2.cpp', dependencies = ['math'] }
     # math2 isn't the same as math, so we need to specify the `math` dependency.
 ]
 ```
@@ -322,12 +330,12 @@ One thing that we haven't discussed are `module partitions`. As described by the
 
 ```toml
 [modules]
-interfaces = [ 
+interfaces = [
     { file = 'interface_partition.cppm', partition = { module = 'partitions' } },
     { file = 'internal_partition.cpp', partition = { module = 'partitions', partition_name = 'internal_partition', is_internal_partition = true } },
     { file = 'partitions.cppm' }
 ]
-``` 
+```
 *A closer look on how to work with module partitions within Zork++*
 
 We included `partitions` inside the `interfaces` key because, most of the time, other module interfaces will require some partition, and having a separate key for them will break the way of letting you decide in which order the translation units must be processed.
@@ -342,7 +350,7 @@ Some peculiarities by compiler at the time of writing:
 This means that you aren't obligated to explicitly declare module names or module partition names... But, there's a specific case: `internal module partitions`. So, whenever you have an internal module partition, you must declare your translation unit as `partition`, and then provide at least `module` and `is_internal_partition` in order to make it work
 
 > [!NOTE]
-> 
+>
 > In future releases, things about module partitions may change drastically (or not!). For example, we are expecting Clang to implement a good way of making implicit declarations but having the opportunity to specify a concrete output directory, among other things in other compilers too.
 
 ## The sys_modules property
@@ -369,14 +377,15 @@ ZorkConfigFile {
     tests: Option<TestsAttribute>,
 }
 
-/// The [project] key 
+/// The [project] key
 ProjectAttribute {
-    name: &'a str
+    name: str
     authors: Option<Vec<str>>,
     compilation_db : bool
+    code_root: str // A joinable path after the project root to add to every translation unit
 }
 
-/// The [compiler] key 
+/// The [compiler] key
 CompilerAttribute {
     cpp_compiler: CppCompiler, // clang, msvc or gcc
     driver_path: Option<str>, // The invokable name for the compiler's binary
@@ -385,17 +394,29 @@ CompilerAttribute {
     extra_args: Option<Vec<str>>
 }
 
-/// The [build] key 
+/// The [build] key
 BuildAttribute {
     output_dir: Option<str>,
 }
 
-/// The [executable] key
-ExecutableAttribute {
-    executable_name: Option<str>,
-    sources_base_path: Option<str>,
+/// The [targets.<any_name_as_str>] key
+/// Any value after targets. will be used as the user's defined identifier for the target
+/// Any entry in this format will be a new [`TargetAttribute`] which determines the final
+/// product generated by `Zork++`
+targets: Map<str, TargetAttribute>
+
+
+/// [`TargetAttribute`] - The type for holding the build details of every
+/// user defined target
+/// * `output_name`- The name with which the final byproduct will be generated
+/// * `sources` - The sources to be included in the compilation of this target
+/// * `extra_args` - Holds extra arguments that the user wants to introduce
+/// * `kind` - Determined which type of byproduct will be generated (binary, library...)
+TargetAttribute {
+    output_name: Option<str>,
     sources: Option<Vec<str>>,
     extra_args: Option<Vec<str>>,
+    kind: Option<TargetKind>,
 }
 
 /// [`ModulesAttribute`] -  The core section to instruct the compiler to work with C++20 modules. The most important are the base path to the interfaces and implementation files
@@ -404,24 +425,13 @@ ExecutableAttribute {
 /// * `base_impls_dir` - Base directory. So you don't have to specify the full path of the implementation files
 /// * `implementations` - A list to define the module interface translation units for the project
 /// * `sys_modules` - An array field explicitly declare which system headers must be precompiled
-/// * `extra_args` - Extra arguments that will be added to the generated command lines
 ModulesAttribute {
     base_ifcs_dir: Option<str>,
     interfaces: Option<Vec<ModuleInterface>>,
     base_impls_dir: Option<str>,
     implementations: Option<Vec<ModuleImplementation>>,
     sys_modules: Option<Vec<str>>,
-    extra_args: Option<Vec<str>>,
 }
-
-/// The [tests] key
-TestsAttribute {
-    test_executable_name: Option<str>,
-    sources_base_path: Option<str>,
-    sources: Option<Vec<str>>,
-    extra_args: Option<Vec<str>>,
-} 
-```
 
 ## A closer look on the `ModulesAttribute` key
 
@@ -429,19 +439,19 @@ TestsAttribute {
 /// [`ModuleInterface`] -  A module interface structure for dealing
 /// with the parse work of prebuilt module interface units
 ///
-/// * `file`- The path of a primary module interface 
+/// * `file`- The path of a primary module interface
 /// (relative to base_ifcs_path if applies)
 ///
 /// * `module_name` - An optional field for make an explicit
-/// declaration of the C++ module on this module interface 
+/// declaration of the C++ module on this module interface
 /// with the `export module 'module_name' statement.
 /// If this attribute isn't present, Zork++ will assume that the
-/// C++ module declared within this file is equals 
+/// C++ module declared within this file is equals
 /// to the filename
 ///
-/// * `partition` - Whenever this attribute is present, 
+/// * `partition` - Whenever this attribute is present,
 /// we are telling Zork++ that the actual translation unit
-/// is a partition, either an interface partition 
+/// is a partition, either an interface partition
 /// or an implementation partition unit
 ///
 /// * `dependencies` - An optional array field for declare the module interfaces
@@ -460,11 +470,11 @@ ModuleInterface {
 ///
 /// * `partition_name` - An optional field for explicitly declare the name of a module interface
 /// partition, or a module implementation partition.
-/// Currently this requirement is only needed if your partitions 
+/// Currently this requirement is only needed if your partitions
 /// file names aren't declared as the modules convention,
 /// that is `module_name-partition_name.extension`
 ///
-/// * `is_internal_partition` - Optional field for declare that 
+/// * `is_internal_partition` - Optional field for declare that
 /// the module is actually a module for hold implementation
 /// details, known as module implementation partitions.
 /// This option only takes effect with MSVC
@@ -497,7 +507,10 @@ For example:
   - `msvc` ⇒ (alias = "MSVC", alias = "Msvc", alias = "msvc")
   - `gcc` ⇒ (alias = "MSVC", alias = "Msvc", alias = "msvc")
 - The supported standard libraries to link against (`compiler.std_lib`, only applies to `Clang`) ⇒ `stdlibc++` or `libc++`
-
+- Supported kind of targets
+  - `executable` => (alias = "Executable", alias = "executable", alias = "exe")
+  - `static_lib` => (alias = "StaticLib", alias = "static lib", alias = "static-lib", alias = "static_lib", alias = "staticlib")
+  - `dylib` => (alias = "DynamicLib", alias = "dynamic lib", alias = "dyn-lib", alias = "dyn_lib", alias = "dylib")
 
 # :bookmark_tabs: The `Zork++` command line interface <a href="zork_command_line"></a>
 
@@ -506,10 +519,10 @@ Our direct intention was to mimic the standard way of working with `Rust`'s `Car
 as it is a world-class tool well known and valued.
 To summarize, we are offering the following commands and arguments:
 
-- `build` ⇒ just compiles the project
-- `run` ⇒ compiles the project and then runs the generated binary
-- `test` ⇒ compiles the project and then runs the test suite as described in the configuration file automatically
-- `new` ⇒ generates a new `C++20` onwards template project with a minimal configuration and
+- `build` ⇒ just compiles the project for every target declared (unless filtered by cli args)
+- `run` ⇒ compiles the project and then runs the generated binary for every target declared (unless filtered by cli args)
+- `test` ⇒ compiles the project and then runs the binary generated for any [`targets.<contains_test_here>`] (unless filtered by cli args)
+- `new` ⇒ generates a new `C++2X` template project with a minimal configuration and
 a minimal setup. This command includes some arguments to make it more flexible, like:
   - `--name <NAME>` ⇒ the name of the autogenerated project
   - `--git` ⇒ initializes a new git empty repository
@@ -518,6 +531,11 @@ a minimal setup. This command includes some arguments to make it more flexible, 
 
 #### Arguments (they should be placed before the main subcommands described above)
 
+- `--root` => instructs `Zork++` where is the working directory of the project, otherwise, the *cwd* from where
+the `Zork++` binary was invokated will be used as the project's root.
+- `--targets` => filters the targets by its declared name on the `targets.<target_identifier>` entry that will be
+processed in the current iteration. Expected to be formatted as: `--targets=target1,target2,target3`. NOTE: Empty
+whitespaces won't be trim so `target1, target2` will evaluate to ["target1", " target2"].
 - `--match-files` => Accepts an string value that will be used to perform a filter to the detected `Zork++`
 configuration files present in the project. Acts like the classical `contains` method, by checking that the value
 that you passed in is a substring of some of the detected config files.
@@ -529,9 +547,7 @@ Controls which kind of `C++` code template is generated.
 - `-v` ⇒ Outputs more information to stdout. The classical `verbose` command line flag. You have until
 `-vv`, which is the maximum verbosity allowed, that will unlock the trace level logs.
 - `-c,`--clear-cache` ⇒ Clears the files in the cache, so, in the next iteration, cached items
-must be processed again. This is useful after a lot of program iterations, when the cache starts
-to slow down the build process.
-
+must be processed again.
 
 # :bookmark_tabs: Compilation Database <a href="compilation-database"></a>
 
@@ -557,19 +573,18 @@ But this is not available in every compiler using `C++20`, and at the time of wr
 In `Zork++`, you have this feature enabled if:
 
 - You're working with `Clang` because the `modulemap` feature of `Clang`. So, in your project, you're able to:
-  
+
   - `import std;` This our preferred way, in line with the C++23 feature. Under *Windows*, this is made automatically, because we manually generate a `module.modulemap` file that takes care to include the need system headers under the `import std;` statement. In *Unix* kind of operating systems, this is automatically passed as a requirement to `Clang` with a requirement. `libc++` must be installed in your machine. If there's no `libc++` or `libc++-dev` library installed in your computer, you will see some error like: `import std; --> Error, module not found`
   So, make sure that you installed the `Clang's` implementation of the *standard library* to take advantage of this feature. On *Debian* based systems, you can just use `$ sudo apt install libc++-dev`. On *Arch* systems, just `$ sudo pacman -Sy libc++`.
 
   > In any case, make sure that you enabled *libc++* as your standard library in your **zork.toml** configuration file.
-       
-  - As alternative, you can use `import <system_header_name>;` This is, individually import some specific system header as a module. 
+
+  - As alternative, you can use `import <system_header_name>;` This is, individually import some specific system header as a module.
   Needs an explicit pre-compilation process. This is supported by `Clang` and `GCC` (since we are not able to do an `import std` for `GCC` builds).
-  
 
-- You're working with `MSVC`, you are able to use `import std.core`, as a compiler specific feature. But this will allow you to use import statements instead of `#include` directives.
-In upcoming releases will we adapt to the real way on how Microsoft's compiler deals with this feature, so `Zork++` users will be able to correctly use `import std;` in their codebases with *MSVC*, not the workarounds existing up until this point.
-
+- `MSVC` => full support is available from `Zork++` *v0.9.0* onwards. No aditional user configuration required.
+- `GCC` => We just don't know. We will be glad if some reader that knows about could give us some guidance in this regard. So there's
+no `import std` feature nor workaround within `Zork++` for `GCC`
 
 
 # :balloon: Developers Guide <a href="dev_guide"></a>

@@ -35,8 +35,8 @@ fn test_clang_full_process() -> Result<()> {
         "-vv",
         "--root",
         &project_root,
-        /* "--driver-path",
-        "clang++-16", // Local cfg issues */
+        /*        "--driver-path",
+        "clang++-16", // Local cfg issues*/
         "run",
     ]));
     assert!(process_result.is_ok(), "{}", process_result.unwrap_err());
@@ -114,7 +114,6 @@ fn test_msvc_full_process() -> Result<()> {
 
 #[cfg(target_os = "windows")]
 #[test]
-#[ignore]
 fn test_gcc_windows_full_process() -> Result<()> {
     let project_name = "gcc_example";
 
@@ -220,7 +219,7 @@ mod local_env_tests {
     /// use a debugger to figure out what our changes are doing and how are affecting the codebase.
     #[test]
     #[ignore]
-    fn test_local_clang_full_process_manually_by_specifying_the_project_root_on_linux() {
+    fn test_local_clang_full_process_manually_by_specifying_the_project_root() {
         // Using env::home_dir because this test should be Unix specific
         // For any developer, change the path to whatever C++ project based on modules
         // you want to test Zork++ against

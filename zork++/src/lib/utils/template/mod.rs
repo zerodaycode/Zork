@@ -108,7 +108,7 @@ pub fn create_templated_project(
     utils::fs::create_file(
         &project_root,
         &format!(
-            "{}_{}{}",
+            "{}_{}.{}",
             utils::constants::CONFIG_FILE_NAME,
             compiler.as_ref(),
             utils::constants::CONFIG_FILE_EXT
@@ -122,52 +122,6 @@ pub fn create_templated_project(
 
     Ok(())
 }
-
-/*
-* TODO: pending to be implemented when we decide if it's worth to update to the newest trash
-* versions of the crate `toml`, and procedurally generate the config files (w/o templates)
-*
-   let mut config: ZorkConfigFile<'_> = config_file::zork_cfg_from_file(template)
-       .with_context(|| "Could not parse the template configuration file")?;
-   println!("Zork config loaded: {:?}", &config);
-
-   config.project.name = project_name;
-   match compiler {
-       CppCompiler::CLANG => {
-           config.compiler.cpp_compiler = CfgCppCompiler::CLANG;
-           config.compiler.cpp_standard = LanguageLevel::CPP2B;
-           config.compiler.std_lib = Some(StdLib::LIBCPP);
-       }
-       CppCompiler::MSVC => {
-           config.compiler.cpp_compiler = CfgCppCompiler::MSVC;
-           config.compiler.cpp_standard = LanguageLevel::LATEST;
-           config.compiler.std_lib = None;
-       }
-       CppCompiler::GCC => {
-           config.compiler.cpp_compiler = CfgCppCompiler::GCC;
-           config.compiler.cpp_standard = LanguageLevel::CPP20;
-           config.compiler.std_lib = Some(StdLib::STDLIBCPP);
-       }
-   }
-
-   let exec = config.executable.as_mut().unwrap();
-   exec.executable_name = Some(project_name);
-   exec.sources = vec!["*.cpp"].into(); // TDOO aggg sove this
-
-   let tests = config.tests.as_mut().unwrap();
-   tests.sources = vec!["*.cpp"].into(); // TDOO aggg sove this
-
-   let modules = config.modules.as_mut().unwrap();
-   modules.base_ifcs_dir = Some("ifc");
-   modules.base_impls_dir = Some("src");
-
-   println!("Zork config after: {:?}", &config);
-   let conf_as_str = toml::to_string(config.borrow())
-       .with_context(|| "Failed to serialize the `ZorkConfigFile` of the template")?
-       .replace("cppm", compiler.get_default_module_extension()); // TODO: yet this legacy
-                                                                  // replace...
-
-*/
 
 fn check_project_root_available(project_root: &Path) -> Result<()> {
     if !project_root.exists() {

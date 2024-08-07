@@ -10,14 +10,14 @@ use crate::project_model;
 /// use zork::cli::input::{CliArgs, Command, CppCompiler,TemplateValues};
 ///
 /// let parser = CliArgs::parse_from(
-///     ["", "-vv", "--match-files", "zork_linux.toml", "--root", ".", "--clear-cache", "--driver-path", "/usr/bin/clang-15/clang++", "test"]
+///     ["", "-vv", "--match-files", "zork_linux.toml", "--root", ".", "--clear-cache", "--driver-path", "/usr/bin/clang-15/clang++", "--targets", "executable,tests", "test"]
 /// );
 /// assert_eq!(parser.command, Command::Test);
 /// assert_eq!(parser.verbose, 2);
 /// assert_eq!(parser.root, Some(String::from(".")));
 /// assert_eq!(parser.clear_cache, true);
 /// assert_eq!(parser.driver_path, Some(String::from("/usr/bin/clang-15/clang++")));
-/// assert_eq!(parser.match_files, Some(String::from("zork_linux.toml")));
+/// assert_eq!(parser.targets, Some(vec![String::from("executable"), String::from("tests")]));
 ///
 // Create Template Project
 /// let parser = CliArgs::parse_from(["", "new", "example", "--git", "--compiler", "clang"]);
@@ -47,6 +47,14 @@ pub struct CliArgs {
 
     #[arg(short, long, help = "Allows the user to specify the project's root")]
     pub root: Option<String>,
+
+    #[arg(
+        short,
+        long,
+        help = "The name of the targets that Zork++ must take in consideration for the current invokation",
+        value_delimiter(',')
+    )]
+    pub targets: Option<Vec<String>>,
 
     #[arg(
         short,
@@ -97,7 +105,6 @@ pub enum TemplateValues {
 }
 
 /// [`CppCompiler`] The C++ compilers available within Zork++ as a command line argument for the `new` argument
-/// TODO Possible future interesting on support the Intel's C++ compiler?
 #[derive(ValueEnum, Copy, Clone, Debug, PartialEq, Eq)]
 pub enum CppCompiler {
     CLANG,

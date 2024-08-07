@@ -1,81 +1,25 @@
 use core::fmt;
-use std::path::{Path, PathBuf};
+use std::borrow::Cow;
+use std::path::PathBuf;
 
-use crate::bounds::TranslationUnit;
+use crate::domain::commands::arguments::Argument;
 use color_eyre::{eyre::Context, Result};
 use serde::{Deserialize, Serialize};
+use transient::Transient;
 
-use crate::cli::output::arguments::Argument;
+use crate::domain::translation_unit::TranslationUnit;
+use crate::impl_translation_unit_for;
 
-// Since every file on the system has a path, this acts as a cheap conceptual
-// conversion to unifify PATH querying operations over anything that can be
-// saved on a persistence system with an access route
-pub trait File {
-    fn get_path(&self) -> PathBuf;
-}
-
-impl File for Path {
-    fn get_path(&self) -> PathBuf {
-        self.to_path_buf()
-    }
-}
-
-impl File for PathBuf {
-    fn get_path(&self) -> PathBuf {
-        self.to_path_buf()
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
-pub struct SourceFile {
+#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize, Transient)]
+pub struct SourceFile<'a> {
     pub path: PathBuf,
-    pub file_stem: String,
-    pub extension: String,
+    pub file_stem: Cow<'a, str>,
+    pub extension: Cow<'a, str>,
 }
 
-impl TranslationUnit for SourceFile {
-    fn file(&self) -> PathBuf {
-        let mut tmp = self.path.join(&self.file_stem).into_os_string();
-        tmp.push("."); // TODO: use the correct PATH APIs
-        tmp.push(&self.extension);
-        PathBuf::from(tmp)
-    }
+impl_translation_unit_for!(SourceFile<'a>);
 
-    fn path(&self) -> PathBuf {
-        self.path.clone()
-    }
-
-    fn file_stem(&self) -> String {
-        self.file_stem.clone()
-    }
-
-    fn extension(&self) -> String {
-        self.extension.clone()
-    }
-}
-
-impl TranslationUnit for &SourceFile {
-    fn file(&self) -> PathBuf {
-        let mut tmp = self.path.join(&self.file_stem).into_os_string();
-        tmp.push(".");
-        tmp.push(&self.extension);
-        PathBuf::from(tmp)
-    }
-
-    fn path(&self) -> PathBuf {
-        self.path.clone()
-    }
-
-    fn file_stem(&self) -> String {
-        self.file_stem.clone()
-    }
-
-    fn extension(&self) -> String {
-        self.extension.clone()
-    }
-}
-
-impl fmt::Display for SourceFile {
+impl<'a> fmt::Display for SourceFile<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -113,14 +57,20 @@ impl GlobPattern {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct SourceSet {
-    pub sources: Vec<SourceFile>,
-}
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default, Clone)]
+pub struct SourceSet<'a>(Vec<SourceFile<'a>>);
 
-impl SourceSet {
-    pub fn as_args_to(&self, dst: &mut Vec<Argument<'_>>) -> Result<()> {
-        let args = self.sources.iter().map(|sf| sf.file()).map(Argument::from);
+impl<'a> SourceSet<'a> {
+    pub fn new(sources: Vec<SourceFile<'a>>) -> Self {
+        Self(sources)
+    }
+
+    pub fn as_slice(&self) -> &[SourceFile<'a>] {
+        self.0.as_slice()
+    }
+
+    pub fn as_args_to(&self, dst: &mut Vec<Argument>) -> Result<()> {
+        let args = self.0.iter().map(|sf| sf.path()).map(Argument::from);
 
         dst.extend(args);
 

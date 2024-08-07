@@ -1,14 +1,14 @@
 //!!  The core section to instruct the compiler to work with C++20 modules. The most important are the base path to the interfaces and implementation files
+
 use serde::{Deserialize, Serialize};
 
-/// [`ModulesAttribute`] -  The core section to instruct the compiler to work with C++20 modules. The most important are the base path to the interfaces and implementation files
+/// [`ModulesAttribute`] -  The core section to instruct the compiler to work with C++20 modules.
 /// * `base_ifcs_dir`- Base directory to shortcut the path of the implementation files
 /// * `interfaces` - A list to define the module interface translation units for the project
 /// * `base_impls_dir` - Base directory to shortcut the path of the implementation files
 /// * `implementations` - A list to define the module interface translation units for the project
 /// * `sys_modules` - An array field explicitly declare which system headers
-/// must be precompiled in order to make the importable translation units
-/// * `extra_args` - Extra arguments that will be added to the generated command lines
+///     must be precompiled in order to make the importable translation units
 ///
 /// ### Tests
 ///
@@ -24,7 +24,6 @@ use serde::{Deserialize, Serialize};
 ///         { file = 'math.cpp' }, { file = 'some_module_impl.cpp', dependencies = ['iostream'] }
 ///     ]
 ///     sys_modules = ['iostream', 'vector', 'string', 'type_traits', 'functional']
-///     extra_args = ['-Wall']
 /// "#;
 ///
 /// let config: ModulesAttribute = toml::from_str(CONFIG_FILE_MOCK)
@@ -59,7 +58,7 @@ use serde::{Deserialize, Serialize};
 /// assert_eq!(&gcc_sys_headers[3], &"type_traits");
 /// assert_eq!(&gcc_sys_headers[4], &"functional");
 /// ```
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct ModulesAttribute<'a> {
     #[serde(borrow)]
     pub base_ifcs_dir: Option<&'a str>,
@@ -71,8 +70,6 @@ pub struct ModulesAttribute<'a> {
     pub implementations: Option<Vec<ModuleImplementation<'a>>>,
     #[serde(borrow)]
     pub sys_modules: Option<Vec<&'a str>>,
-    #[serde(borrow)]
-    pub extra_args: Option<Vec<&'a str>>,
 }
 
 /// [`ModuleInterface`] -  A module interface structure for dealing
@@ -81,16 +78,16 @@ pub struct ModulesAttribute<'a> {
 /// * `file`- The path of a primary module interface (relative to base_ifcs_path if applies)
 ///
 /// * `module_name` - An optional field for make an explicit declaration of the
-/// C++ module declared on this module interface with the `export module 'module_name'
-/// statement. If this attribute isn't present, Zork++ will assume that the
-/// C++ module declared within this file is equals to the filename
+///     C++ module declared on this module interface with the `export module 'module_name'
+///     statement. If this attribute isn't present, Zork++ will assume that the
+///     C++ module declared within this file is equals to the filename
 ///
 /// * `partition` - Whenever this attribute is present, we are telling Zork++ that the
-/// actual translation unit is a partition, either an interface partition or an implementation
-/// partition unit
+///     actual translation unit is a partition, either an interface partition or an implementation
+///     partition unit
 ///
 /// * `dependencies` - An optional array field for declare the module interfaces
-/// in which this file is dependent on
+///     in which this file is dependent on
 /// ### Tests
 /// ```rust
 /// use zork::config_file::modules::ModulesAttribute;
@@ -132,7 +129,7 @@ pub struct ModulesAttribute<'a> {
 /// assert_eq!(ifc_3.file, "some_module_part.cppm");
 /// assert_eq!(ifc_3.module_name, Some("math_part"));
 /// ```
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct ModuleInterface<'a> {
     #[serde(borrow)]
@@ -151,14 +148,14 @@ pub struct ModuleInterface<'a> {
 /// * `module`- The interface module unit that this partitions belongs to
 ///
 /// * `partition_name` - An optional field for explicitly declare the name of a module interface
-/// partition, or a module implementation partition.
-/// Currently this requirement is only needed if your partitions file names aren't
-/// declared as the modules convention, that is `module_name-partition_name.extension`
+///     partition, or a module implementation partition.
+///     Currently this requirement is only needed if your partitions file names aren't
+///     declared as the modules convention, that is `module_name-partition_name.extension`
 ///
 /// * `is_internal_partition` - Optional field for declare that the module is actually
-/// a module for hold implementation details, known as module implementation partitions.
-/// This option only takes effect with MSVC
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+///     a module for hold implementation details, known as module implementation partitions.
+///     This option only takes effect with MSVC
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct ModulePartition<'a> {
     #[serde(borrow)]
     pub module: &'a str,
@@ -172,7 +169,7 @@ pub struct ModulePartition<'a> {
 ///
 /// * `file`- The path of a primary module interface (relative to base_ifcs_path)
 /// * `dependencies` - An optional array field for declare the module interfaces
-/// in which this file is dependent on
+///     in which this file is dependent on
 ///
 /// ### Tests
 /// ```rust
@@ -200,7 +197,7 @@ pub struct ModulePartition<'a> {
 /// assert_eq!(deps[1], "type_traits");
 /// assert_eq!(deps[2], "iostream");
 /// ```
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Default, PartialEq)]
 pub struct ModuleImplementation<'a> {
     #[serde(borrow)]
     pub file: &'a str,
