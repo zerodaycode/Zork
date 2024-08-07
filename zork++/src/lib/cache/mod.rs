@@ -94,8 +94,8 @@ pub struct ZorkCache<'a> {
 }
 
 impl<'a> ZorkCache<'a> {
-    pub fn save(&mut self, program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<()> {
-        self.run_final_tasks(program_data, cli_args)?;
+    pub fn save(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
+        self.run_final_tasks(program_data)?;
         self.metadata.last_program_execution = Utc::now();
 
         utils::fs::save_file(&self.metadata.cache_file_path, self)
@@ -212,21 +212,12 @@ impl<'a> ZorkCache<'a> {
     }
 
     /// Runs the tasks just before end the program and save the cache
-    fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>, cli_args: &CliArgs) -> Result<()> {
-        let process_removals = Instant::now();
-        let deletions_on_cfg = helpers::check_user_files_removals(self, program_data, cli_args);
-        log::debug!(
-            "Zork++ took a total of {:?} ms on checking and process removed items",
-            process_removals.elapsed().as_millis()
-        );
-
+    fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
         if self.metadata.save_project_model {
             project_model::save(program_data, self)?;
         }
 
-        if program_data.project.compilation_db
-            && (self.metadata.generate_compilation_database || deletions_on_cfg)
-        {
+        if program_data.project.compilation_db && self.metadata.generate_compilation_database {
             let compile_commands_time = Instant::now();
             compile_commands::map_generated_commands_to_compilation_db(program_data, self)?;
             log::debug!(
@@ -456,7 +447,7 @@ mod msvc {
     }
 }
 
-mod helpers {
+pub(crate) mod helpers {
     use self::utils::constants::error_messages;
     use super::*;
     use crate::domain::translation_unit::TranslationUnitStatus;
@@ -496,9 +487,8 @@ mod helpers {
     pub(crate) fn check_user_files_removals(
         cache: &mut ZorkCache,
         program_data: &ZorkModel<'_>,
-        _cli_args: &CliArgs,
-    ) -> bool {
-        remove_if_needed_from_cache_and_count_changes(
+    ) -> Result<bool> {
+        let deletions_on_cfg = remove_if_needed_from_cache_and_count_changes(
             &mut cache.generated_commands.modules.interfaces,
             &program_data.modules.interfaces,
         ) || remove_if_needed_from_cache_and_count_changes(
@@ -516,14 +506,16 @@ mod helpers {
                         .as_slice(),
                 );
                 if changes {
-                    return true;
+                    return Ok(true);
                 }
             }
-            return false;
+            return Ok(false);
         } || remove_if_needed_from_cache_and_count_changes(
             &mut cache.generated_commands.modules.system_modules,
             &program_data.modules.sys_modules,
-        )
+        );
+
+        Ok(deletions_on_cfg)
     }
 
     fn remove_if_needed_from_cache_and_count_changes<'a, T: TranslationUnit<'a>>(
@@ -538,6 +530,7 @@ mod helpers {
 
                 if !r {
                     log::debug!("Found translation_unit removed from cfg: {:?}", scl);
+                    utils::fs::
                 }
                 r
             }
@@ -545,7 +538,6 @@ mod helpers {
 
         let total_cached_source_command_lines = cached_commands.len();
         cached_commands.retain(removal_conditions);
-        // TODO: remove them also from the linker
 
         total_cached_source_command_lines > cached_commands.len()
     }

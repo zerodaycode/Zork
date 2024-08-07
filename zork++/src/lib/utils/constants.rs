@@ -38,6 +38,7 @@ pub mod error_messages {
     pub const FAILURE_LOADING_INITIAL_CACHE_DATA: &str = "Failed to load the cache initial data";
     pub const FAILURE_CLEANING_CACHE: &str = "Error cleaning the Zork++ cache";
     pub const FAILURE_SAVING_CACHE: &str = "Error saving data to the Zork++ cache";
+    pub const CHECK_FOR_DELETIONS: &str = "Error while checking the user files deletions on cfg";
     pub const GENERAL_ARGS_NOT_FOUND: &str = "Something went wrong loading the general arguments";
     pub const PROJECT_MODEL_MAPPING: &str = "Error building the project model";
     pub const PROJECT_MODEL_LOAD: &str = "Error loading from the fs the project model";

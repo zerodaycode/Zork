@@ -144,7 +144,7 @@ pub mod worker {
             });
 
         // Save the cached data for this config file
-        cache.save(program_data, cli_args)?;
+        cache.save(program_data)?;
 
         work_result.with_context(|| format!("Failed to complete the job for: {:?}", cfg_path))
     }
@@ -230,11 +230,36 @@ pub mod worker {
     ) -> Result<ZorkModel<'a>> {
         if meta_config_file.last_time_modified > cache.metadata.last_program_execution {
             cache.metadata.save_project_model = true;
-            utils::reader::build_model(zork_config_file, cli_args, abs_project_root)
+            let project_model =
+                utils::reader::build_model(zork_config_file, cli_args, abs_project_root)?;
+
+            // Check for the changes made by the user on the cfg
+            check_for_changes_in_cfg(&project_model, cache)
+                .with_context(|| error_messages::CHECK_FOR_DELETIONS)?;
+
+            Ok(project_model)
         } else {
             log::debug!("Loading the ZorkModel from the cache");
             project_model::load(cache)
         }
+    }
+
+    fn check_for_changes_in_cfg(
+        project_model: &ZorkModel,
+        cache: &mut ZorkCache<'_>,
+    ) -> Result<()> {
+        let process_removals = Instant::now();
+        let deletions_on_cfg = cache::helpers::check_user_files_removals(cache, project_model);
+        log::debug!(
+            "Zork++ took a total of {:?} ms on checking and process removed items",
+            process_removals.elapsed().as_millis()
+        );
+
+        if deletions_on_cfg? {
+            cache.metadata.generate_compilation_database = true;
+        }
+
+        Ok(())
     }
 
     /// Helper to map the user declared targets on the [`ZorkModel`], previously mapped from the

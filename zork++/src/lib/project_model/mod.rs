@@ -5,12 +5,11 @@ pub mod project;
 pub mod sourceset;
 pub mod target;
 
-use std::fmt::Debug;
-
 use color_eyre::eyre::Context;
 use color_eyre::Result;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 
 use crate::utils::constants::error_messages;
 use crate::{cache::ZorkCache, domain::target::TargetIdentifier};
