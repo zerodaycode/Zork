@@ -131,9 +131,9 @@ fn process_targets<'a>(model: &'a ZorkModel<'a>, cache: &mut ZorkCache<'a>) -> R
         .iter()
         .filter(|(_, target_data)| target_data.enabled_for_current_program_iteration)
     {
-        // 2nd - Generate the commands for the non-module sources
+        // 1st - Generate the commands for the non-module sources
         generate_sources_cmds_args(model, cache, target)?;
-        // 3rd - Generate the linker command for the 'target' declared by the user
+        // 2nd - Generate the linker command for the 'target' declared by the user
         generate_linkage_targets_commands(model, cache, target)?;
     }
 
