@@ -18,7 +18,7 @@ jobs:
           - { icon: '🟦', sys: mingw64 }
             #   - { icon: '🟨', sys: ucrt64  }
             # - { icon: '🟧', sys: clang64 }
-    name: ${{ matrix.icon }} ${{ matrix.sys }}
+    - name: ${{ matrix.icon }} ${{ matrix.sys }}
       defaults:
         run:
           shell: msys2 {0}
