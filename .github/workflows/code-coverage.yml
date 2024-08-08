@@ -2,7 +2,7 @@ name: Code Coverage
 
 on:
   push:
-    tags:        
+    tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
 
@@ -21,21 +21,44 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install Clang 17
+        run: |
+          # Exit on error
+          set -e
+          # Download and execute the LLVM installation script for the specified Clang version
+          echo "-----> Downloading and executing the LLVM installation script for Clang 17"
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 17
+
+          echo "-----> Installing libc++"
+          sudo apt-get install -y libc++-17-dev libc++abi-17-dev libunwind-17 libunwind-17-dev libc6 libzstd1
+
+          # Update the symbolic link to point to the newly installed Clang version
+          echo "-----> Updating the symbolic link to point to Clang 17"
+          sudo rm -f /usr/bin/clang++
+          sudo ln -s /usr/bin/clang++-17 /usr/bin/clang++
+
+          # Display the installation directory and version of the installed Clang
+          echo "-----> Clang-17 was installed on:"
+          which clang-17
+          echo "-----> Clang++ was installed on:"
+          which clang++-17
+
       - name: Use nightly toolchain
         run: |
           rustup toolchain install nightly
           rustup override set nightly
-      
+
       - name: Caching cargo dependencies
         id: project-cache
         uses: Swatinem/rust-cache@v2
-      
+
       - if: ${{ steps.cache-cargo.outputs.cache-hit != 'true' }}
         name: Install grcov
         run: cargo install grcov
 
       - name: Make the USER own the working directory
-        if: ${{ matrix.os == 'ubuntu-latest' }}
         run: sudo chown -R $USER:$USER ${{ github.workspace }}
 
       - name: Run tests
@@ -56,7 +79,7 @@ jobs:
           path: |
             ./zork++/target/debug/coverage/code_cov.xml
             ./zork++/target/debug/coverage/index.html
-      
+
       - name: Publish coverage report to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
