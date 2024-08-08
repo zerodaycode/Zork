@@ -57,7 +57,7 @@ jobs:
     - name: Running the tests for the project
       run: |
         cd zork++
-      RUST_LOG=trace cargo test 2>&1 gcc_windows --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1
+        RUST_LOG=trace cargo test 2>&1 gcc_windows --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1
 
     - name: Cache 3rd party dependencies
       id: cache-save-3rd-party-deps
