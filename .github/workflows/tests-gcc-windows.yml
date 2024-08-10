@@ -14,56 +14,57 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          #   - { icon: '⬛', sys: mingw32 }
           - { icon: '🟦', sys: mingw64 }
-            #   - { icon: '🟨', sys: ucrt64  }
             # - { icon: '🟧', sys: clang64 }
-            name: ${{ matrix.icon }} ${{ matrix.sys }}
-            defaults:
-              run:
-                shell: msys2 {0}
-            steps:
+    defaults:
+      run:
+        shell: msys2 {0}
 
-              - name: '🧰 Checkout'
-            uses: actions/checkout@v4
-            with:
-              fetch-depth: 0
+    steps:
 
-          - name: '${{ matrix.icon }} Setup MSYS2'
-            uses: msys2/setup-msys2@v2
-            with:
-              msystem: ${{matrix.sys}}
-            cache: true
-            update: true
-            install: >-
-              git
-            pacboy: >-
-              toolchain:p
-              cmake:p
-              ninja:p
+    - name: '🧰 Checkout'
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-          - name: Cache 3rd party dependencies
-            id: cache-3rd-party-deps-restore
-            uses: actions/cache/restore@v3
-            with:
-              path: |
-                install
-            key: ${{ runner.os }}-cache-3rd-party-deps
+    - name: '${{ matrix.icon }} Setup MSYS2'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{matrix.sys}}
+        cache: true
+        update: true
+        install: >-
+          git
+        pacboy: >-
+          toolchain:p
+          cmake:p
+          ninja:p
+
+    - name: Cache 3rd party dependencies
+      id: cache-3rd-party-deps-restore
+      uses: actions/cache/restore@v3
+      with:
+        path: |
+          install
+        key: ${{ runner.os }}-cache-3rd-party-deps
 
 
-          - name: Caching project dependencies
-            id: project-cache
-            uses: Swatinem/rust-cache@v2
+    - name: Caching project dependencies
+      id: project-cache
+      uses: Swatinem/rust-cache@v2
 
-          - name: Running the tests for the project
-            run: |
-              cd zork++
-            RUST_LOG=trace cargo test 2>&1 gcc_windows --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1
+    - name: Running the tests for the project
+      run: |
+        export PATH=$PATH:C:\Users\runneradmin\.cargo\bin
+        exec bash
+        cd zork++
+        RUST_LOG=trace cargo test 2>&1 gcc_windows --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1
 
-          - name: Cache 3rd party dependencies
-            id: cache-save-3rd-party-deps
-            uses: actions/cache/save@v3
-            with:
-              path: |
-                install
-            key: ${{ steps.cache-3rd-party-deps-restore.outputs.cache-primary-key }}
+    - name: Cache 3rd party dependencies
+      id: cache-save-3rd-party-deps
+      uses: actions/cache/save@v3
+      with:
+        path: |
+          install
+        key: ${{ steps.cache-3rd-party-deps-restore.outputs.cache-primary-key }}
+
