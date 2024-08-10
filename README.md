@@ -26,6 +26,19 @@
 
 ---
 
+<div align="center">
+
+[![Clang Tests For Linux builds](https://github.com/zerodaycode/Zork/actions/workflows/tests-clang-linux.yml/badge.svg)](https://github.com/zerodaycode/Zork/actions/workflows/tests-clang-linux.yml)
+
+[![GCC Tests For Linux builds](https://github.com/zerodaycode/Zork/actions/workflows/tests-gcc-linux.yml/badge.svg)](https://github.com/zerodaycode/Zork/actions/workflows/tests-gcc-linux.yml)
+[![GCC Tests For Windows MINGW based builds](https://github.com/zerodaycode/Zork/actions/workflows/tests-gcc-windows.yml/badge.svg)](https://github.com/zerodaycode/Zork/actions/workflows/tests-gcc-windows.yml)
+
+[![MSVC Tests For Windows builds](https://github.com/zerodaycode/Zork/actions/workflows/tests-msvc.yml/badge.svg)](https://github.com/zerodaycode/Zork/actions/workflows/tests-msvc.yml)
+
+</div>
+
+---
+
 # :memo: Table of Contents
 
 <div align="center">
