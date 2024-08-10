@@ -5,6 +5,7 @@ on:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
+    branch: main
 
 env:
   CARGO_TERM_COLOR: always
@@ -17,33 +18,34 @@ jobs:
       CARGO_INCREMENTAL: '0'
       RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
       RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+      LLVM_PROFILE_FILE: 'your_name-%p-%m.profraw'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Clang 17
+      - name: Install Clang 16
         run: |
           # Exit on error
           set -e
           # Download and execute the LLVM installation script for the specified Clang version
-          echo "-----> Downloading and executing the LLVM installation script for Clang 17"
+          echo "-----> Downloading and executing the LLVM installation script for Clang 16"
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh 17
+          sudo ./llvm.sh 16
 
           echo "-----> Installing libc++"
-          sudo apt-get install -y libc++-17-dev libc++abi-17-dev libunwind-17 libunwind-17-dev libc6 libzstd1
+          sudo apt-get install -y libc++-16-dev libc++abi-16-dev libunwind-16 libunwind-16-dev libc6 libzstd1
 
           # Update the symbolic link to point to the newly installed Clang version
-          echo "-----> Updating the symbolic link to point to Clang 17"
+          echo "-----> Updating the symbolic link to point to Clang 16"
           sudo rm -f /usr/bin/clang++
-          sudo ln -s /usr/bin/clang++-17 /usr/bin/clang++
+          sudo ln -s /usr/bin/clang++-16 /usr/bin/clang++
 
           # Display the installation directory and version of the installed Clang
-          echo "-----> Clang-17 was installed on:"
-          which clang-17
+          echo "-----> Clang-16 was installed on:"
+          which clang-16
           echo "-----> Clang++ was installed on:"
-          which clang++-17
+          which clang++-16
 
       - name: Use nightly toolchain
         run: |
@@ -56,7 +58,9 @@ jobs:
 
       - if: ${{ steps.cache-cargo.outputs.cache-hit != 'true' }}
         name: Install grcov
-        run: cargo install grcov
+        run: |
+          cargo install grcov
+          rustup component add llvm-tools-preview
 
       - name: Make the USER own the working directory
         run: sudo chown -R $USER:$USER ${{ github.workspace }}
@@ -64,13 +68,13 @@ jobs:
       - name: Run tests
         working-directory: zork++
         run: |
+          cargo build
           cargo test --all-features --no-fail-fast --target=x86_64-unknown-linux-gnu -- --show-output --test-threads=1
 
       - name: Generate code coverage report
         working-directory: zork++
         run: |
           grcov . -s . --binary-path ./target/debug/ -t html --branch --ignore-not-existing -o ./target/debug/coverage
-          grcov . -s . --binary-path ./target/debug/ -t cobertura --branch --ignore-not-existing -o ./target/debug/coverage/code_cov.xml
 
       - name: Publish Test Results
         uses: actions/upload-artifact@v3
@@ -78,7 +82,6 @@ jobs:
           name: Unit Test Results
           path: |
             ./zork++/target/debug/coverage/code_cov.xml
-            ./zork++/target/debug/coverage/index.html
 
       - name: Publish coverage report to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
