@@ -5,9 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.2] - 2024 - 08 - 10
+
+### Fixes
+
+- The `driver-path` property from the configuration file wasn't being picked when declared
+
+## [0.10.1] - 2024 - 08 - 10
+
+### Fixes
+
+- GitHub code coverage actions
+
 ## [0.10.0] - 2024 - 08 - 07
 
-### Feature
+### Features
 
 - **Breaking** - *Targets*: `Executable` and `Tests` toml entries are removed in favour of `[targets.<target_identifier>]` entries.
 Each targets allow the user to build *N* independent final products, being these `binaries (executables)` for now, while static

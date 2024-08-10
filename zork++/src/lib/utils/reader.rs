@@ -152,11 +152,11 @@ fn assemble_compiler_model<'a>(
 
     CompilerModel {
         cpp_compiler: config.cpp_compiler.into(),
-        driver_path: if let Some(driver_path) = cli_args.driver_path.as_ref() {
-            Cow::Borrowed(driver_path)
+        driver_path: Cow::Borrowed(if let Some(driver_path) = cli_args.driver_path.as_ref() {
+            driver_path
         } else {
-            Cow::Owned(cli_args.driver_path.clone().unwrap_or_default())
-        },
+            config.driver_path.unwrap_or_default()
+        }),
         cpp_standard: config.cpp_standard.clone().into(),
         std_lib: config.std_lib.clone().map(|lib| lib.into()),
         extra_args,
