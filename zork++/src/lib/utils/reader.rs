@@ -240,19 +240,19 @@ fn assemble_modules_model<'a>(
 
 fn assemble_module_interface_model<'a>(
     config: ModuleInterface<'a>,
-    base_path: &Path,
+    base_ifcs_dir_path: &Path,
     code_root: &Path,
 ) -> ModuleInterfaceModel<'a> {
-    let cfg_file = config.file;
+    let file = config.file;
 
-    let file_path = Path::new(code_root).join(base_path).join(cfg_file);
+    let file_path = get_file_path(code_root, Some(base_ifcs_dir_path), file);
 
     let module_name = if let Some(mod_name) = config.module_name {
         Cow::Borrowed(mod_name)
     } else {
-        Path::new(cfg_file)
+        Path::new(file)
             .file_stem()
-            .unwrap_or_else(|| panic!("Found ill-formed file_stem data for: {cfg_file}"))
+            .unwrap_or_else(|| panic!("Found ill-formed file_stem data for: {file}"))
             .to_string_lossy()
     };
     let dependencies = config
@@ -277,9 +277,11 @@ fn assemble_module_interface_model<'a>(
 
 fn assemble_module_implementation_model<'a>(
     config: ModuleImplementation<'a>,
-    base_path: &Path,
+    base_impls_dir_path: &Path,
     code_root: &Path,
 ) -> ModuleImplementationModel<'a> {
+    let file = config.file;
+
     let mut dependencies = config
         .dependencies
         .unwrap_or_default()
@@ -287,7 +289,7 @@ fn assemble_module_implementation_model<'a>(
         .map(Cow::Borrowed)
         .collect::<Vec<Cow<str>>>();
 
-    let file_path = Path::new(code_root).join(base_path).join(config.file);
+    let file_path = get_file_path(code_root, Some(base_impls_dir_path), file);
 
     if dependencies.is_empty() {
         let last_dot_index = config.file.rfind('.');
@@ -362,7 +364,7 @@ fn get_sources_for_target<'a>(srcs: Vec<Cow<str>>, code_root: &Path) -> SourceSe
     let sources = srcs
         .iter()
         .map(|src| {
-            let target_src = code_root.join(src.as_ref());
+            let target_src = get_file_path(code_root, None, src.as_ref());
             if src.contains('*') {
                 Source::Glob(GlobPattern(target_src))
             } else {
@@ -387,6 +389,20 @@ fn get_sources_for_target<'a>(srcs: Vec<Cow<str>>, code_root: &Path) -> SourceSe
         .collect();
 
     SourceSet::new(sources)
+}
+
+/// Helper to build the file path of a [`TranslationUnit`]
+/// Parameter *reduction* is any intermediate path offered by configuration that lives after the
+/// code root and before the file itself
+fn get_file_path(code_root: &Path, reduction: Option<&Path>, declared_file_path: &str) -> PathBuf {
+    let declared_file_path = Path::new(declared_file_path);
+    if declared_file_path.is_absolute() {
+        declared_file_path.to_owned()
+    } else if let Some(reduction_path) = reduction {
+        code_root.join(reduction_path).join(declared_file_path)
+    } else {
+        code_root.join(declared_file_path)
+    }
 }
 
 #[cfg(test)]
