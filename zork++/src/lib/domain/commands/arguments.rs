@@ -266,7 +266,7 @@ pub mod clang_args {
     ) {
         dependencies.iter().for_each(|ifc_dep| {
             arguments.push(Argument::from(format!(
-                "-fmodule-file={}",
+                "-fmodule-file={ifc_dep}={}",
                 out_dir
                     .join(compiler.as_ref())
                     .join("modules")
