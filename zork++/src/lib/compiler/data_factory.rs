@@ -58,7 +58,7 @@ pub fn compiler_common_arguments_factory(
     cache: &ZorkCache<'_>,
 ) -> Box<dyn CompilerCommonArguments> {
     match model.compiler.cpp_compiler {
-        CppCompiler::CLANG => Box::new(ClangCommonArgs::new(model)),
+        CppCompiler::CLANG => Box::new(ClangCommonArgs::new(model, cache)),
         CppCompiler::MSVC => Box::new(MsvcCommonArgs::new(model, cache)),
         CppCompiler::GCC => Box::new(GccCommonArgs::new()),
     }
@@ -81,11 +81,7 @@ impl Default for Box<dyn CompilerCommonArguments> {
 #[typetag::serde]
 impl CompilerCommonArguments for ClangCommonArgs {
     fn get_args(&self) -> Arguments {
-        let mut args = Arguments::default();
-        args.push(self.std_lib.as_arg());
-        args.push(&self.implicit_modules);
-        args.push(&self.implicit_module_map);
-        args
+        self.to_args()
     }
 }
 
@@ -122,18 +118,35 @@ impl CompilerCommonArguments for GccCommonArgs {
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct ClangCommonArgs {
     std_lib: StdLib,
-    implicit_modules: Cow<'static, str>,
-    implicit_module_map: Cow<'static, str>,
+    implicit_modules: Option<Cow<'static, str>>,
+    implicit_module_map: Option<Cow<'static, str>>,
 }
 impl ClangCommonArgs {
-    pub fn new(model: &ZorkModel<'_>) -> Self {
+    pub fn new(model: &ZorkModel<'_>, cache: &ZorkCache<'_>) -> Self {
         let out_dir: &Path = model.build.output_dir.as_ref();
+        let major = cache.compilers_metadata.clang.major;
 
         Self {
             std_lib: model.compiler.std_lib.unwrap_or_default(),
-            implicit_modules: "-fimplicit-modules".into(),
-            implicit_module_map: clang_args::implicit_module_map(out_dir),
+            implicit_modules: if major > 17 {
+                None
+            } else {
+                Some("-fimplicit-modules".into())
+            },
+            implicit_module_map: if major > 17 {
+                None
+            } else {
+                Some(clang_args::implicit_module_map(out_dir))
+            },
         }
+    }
+
+    pub fn to_args(&self) -> Arguments {
+        let mut args = Arguments::default();
+        args.push(self.std_lib.as_arg());
+        args.push_opt(self.implicit_modules.clone());
+        args.push_opt(self.implicit_module_map.clone());
+        args
     }
 }
 

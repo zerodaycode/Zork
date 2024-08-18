@@ -132,9 +132,9 @@ impl<'a> Arguments<'a> {
     }
 
     /// Given an optional, adds the inner value if there's Some(<[Argument]>)
-    pub fn push_opt(&mut self, arg: Option<Argument<'a>>) {
+    pub fn push_opt<T: Into<Argument<'a>>>(&mut self, arg: Option<T>) {
         if let Some(val) = arg {
-            self.0.push(val)
+            self.0.push(val.into())
         }
     }
 

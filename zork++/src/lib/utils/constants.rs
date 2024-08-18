@@ -36,7 +36,8 @@ pub mod error_messages {
     pub const FAILURE_CREATING_COMPILER_CACHE_DIR: &str =
         "Error creating the cache subdirectory for compiler";
     pub const FAILURE_LOADING_CACHE: &str = "Failed to load the Zork++ cache";
-    pub const FAILURE_LOADING_INITIAL_CACHE_DATA: &str = "Failed to load the cache initial data";
+    pub const FAILURE_LOADING_COMPILER_METADATA: &str =
+        "Failed while gathering the current compiler's metadata";
     pub const FAILURE_CLEANING_CACHE: &str = "Error cleaning the Zork++ cache";
     pub const FAILURE_SAVING_CACHE: &str = "Error saving data to the Zork++ cache";
     pub const CHECK_FOR_DELETIONS: &str = "Error while checking the user files deletions on cfg";
@@ -79,6 +80,17 @@ pub mod error_messages {
             "Ill-formed key while parsing MSVC env vars";
         pub const MISSING_OR_CORRUPTED_MSVC_DEV_COMMAND_PROMPT: &str =
             "Missing or corrupted path for the MSVC developers command prompt";
+    }
+
+    pub mod clang {
+        pub const FAILURE_READING_CLANG_DRIVER_INFO: &str =
+            "Unable to read and parse the metadata of the declared compiler driver";
+        pub const FAILURE_PARSING_CLANG_VERSION: &str =
+            "Unable to parse the clang version";
+        pub const FAILURE_GETTING_VER_MAJOR: &str = "Unable to parse clang version and get the major component";
+        pub const FAILURE_GETTING_VER_MINOR: &str = "Unable to parse clang version and get the minor component";
+        pub const FAILURE_GETTING_VER_PATCH: &str = "Unable to parse clang version and get the patch component";
+        pub const INSTALLED_DIR: &str = "Unable to parse the installed dir of the invoked clang driver";
     }
 }
 
