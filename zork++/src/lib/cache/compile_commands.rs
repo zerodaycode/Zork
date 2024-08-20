@@ -22,23 +22,18 @@ pub(crate) fn map_generated_commands_to_compilation_db(
     log::debug!("Generating the compilation database...");
     let compiler = program_data.compiler.cpp_compiler;
 
+    let flyweight_data = cache
+        .generated_commands
+        .flyweight_data
+        .as_ref()
+        .with_context(|| error_messages::FAILURE_LOADING_FLYWEIGHT_DATA)?;
     let generated_commands = cache.get_all_commands_iter();
     let mut compilation_db_entries: Vec<CompileCommand> =
         Vec::with_capacity(cache.count_total_generated_commands());
 
-    let general_args = cache
-        .generated_commands
-        .general_args
-        .as_ref()
-        .expect(error_messages::GENERAL_ARGS_NOT_FOUND)
-        .get_args();
+    let general_args = flyweight_data.general_args.as_ref();
 
-    let compiler_specific_shared_args = cache
-        .generated_commands
-        .compiler_common_args
-        .as_ref()
-        .with_context(|| error_messages::COMPILER_SPECIFIC_COMMON_ARGS_NOT_FOUND)?
-        .get_args();
+    let compiler_specific_shared_args = flyweight_data.shared_args.as_ref();
 
     let compile_but_dont_link: [Argument; 1] = [Argument::from(match compiler {
         CppCompiler::CLANG | CppCompiler::GCC => "-c",

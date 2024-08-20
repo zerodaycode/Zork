@@ -26,19 +26,12 @@ use crate::{
     utils::constants,
 };
 
-use self::data_factory::CommonArgs;
-
-pub mod data_factory;
-
 /// The core procedure. Generates the commands arguments that will be sent to the compiler
 /// for every translation unit declared by the user for its project
 pub fn generate_commands_arguments<'a>(
     model: &'a ZorkModel<'a>,
     cache: &mut ZorkCache<'a>,
 ) -> Result<()> {
-    // Load the general args and the compiler specific ones if it's necessary
-    load_flyweights_for_general_shared_data(model, cache);
-
     // Build the std library as a module
     generate_modular_stdlibs_cmds(model, cache);
 
@@ -55,20 +48,6 @@ pub fn generate_commands_arguments<'a>(
     process_targets(model, cache)?;
 
     Ok(())
-}
-
-/// Adds to the cache the data on the *flyweight* data structures that holds all the
-/// command line arguments that are shared among the command lines
-fn load_flyweights_for_general_shared_data<'a>(model: &'a ZorkModel, cache: &mut ZorkCache<'a>) {
-    if cache.generated_commands.general_args.is_none() {
-        cache.generated_commands.general_args = Some(CommonArgs::from(model));
-    }
-
-    if cache.generated_commands.compiler_common_args.is_none() {
-        cache.generated_commands.compiler_common_args = Some(
-            data_factory::compiler_common_arguments_factory(model, cache),
-        );
-    }
 }
 
 /// Generates the cmds for build the C++ standard libraries (std and std.compat) according to the specification

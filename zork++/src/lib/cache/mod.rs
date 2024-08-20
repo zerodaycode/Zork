@@ -17,6 +17,7 @@ use std::{
 
 use crate::config_file::ZorkConfigFile;
 use crate::domain::commands::command_lines::{Commands, SourceCommandLine};
+use crate::domain::flyweight_data::FlyweightData;
 use crate::domain::target::TargetIdentifier;
 use crate::domain::translation_unit::{TranslationUnit, TranslationUnitKind};
 use crate::project_model::sourceset::SourceFile;
@@ -203,7 +204,7 @@ impl<'a> ZorkCache<'a> {
     }
 
     /// The tasks associated with the cache after load it from the file system
-    pub fn process_compiler_metadata(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
+    pub fn process_compiler_metadata(&mut self, program_data: &'a ZorkModel<'_>) -> Result<()> {
         let compiler = program_data.compiler.cpp_compiler;
 
         if cfg!(target_os = "windows") && compiler.eq(&CppCompiler::MSVC) {
@@ -213,6 +214,13 @@ impl<'a> ZorkCache<'a> {
         }
 
         Ok(())
+    }
+
+    pub fn load_flyweight_data(&mut self, program_data: &'a ZorkModel<'_>) {
+        if self.generated_commands.flyweight_data.is_none() {
+            self.generated_commands.flyweight_data =
+                Some(FlyweightData::new(program_data, &self.compilers_metadata));
+        }
     }
 
     /// Runs the tasks just before end the program and save the cache

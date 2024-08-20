@@ -53,7 +53,7 @@ pub fn run_targets_generated_commands(
         .iter_mut()
         .filter(|(_, target_data)| target_data.enabled_for_current_program_iteration)
     {
-        let env_vars = flyweight_data.env_vars;
+        let env_vars = &flyweight_data.env_vars;
 
         log::info!(
             "Executing the generated commands of the sources declared for target: {:?}",
@@ -172,13 +172,12 @@ mod helpers {
     use crate::project_model::ZorkModel;
 
     use color_eyre::eyre::{eyre, Result};
-    use std::collections::HashMap;
     use std::process::ExitStatus;
 
     pub(crate) fn execute_source_command_line(
         program_data: &ZorkModel<'_>,
         shared_args: &Arguments<'_>,
-        env_vars: &HashMap<String, String>,
+        env_vars: &EnvVars,
         source: &mut SourceCommandLine<'_>,
     ) -> Result<()> {
         let args = shared_args
@@ -283,7 +282,7 @@ mod helpers {
             let r = execute_command(
                 program_data,
                 &translation_unit_cmd_args,
-                flyweight_data.env_vars,
+                &flyweight_data.env_vars,
             );
             std_lib.status = TranslationUnitStatus::from(&r);
 
@@ -330,7 +329,7 @@ mod helpers {
             let r = execute_command(
                 program_data,
                 &translation_unit_cmd_args,
-                flyweight_data.env_vars,
+                &flyweight_data.env_vars,
             );
             translation_unit_cmd.status = TranslationUnitStatus::from(&r);
 

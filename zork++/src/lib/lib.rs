@@ -17,7 +17,6 @@ pub mod utils;
 pub mod worker {
     use crate::config_file;
     use crate::config_file::ZorkConfigFile;
-    use crate::domain::flyweight_data::FlyweightData;
     use crate::domain::target::Target;
     use crate::project_model;
     use std::path::PathBuf;
@@ -94,6 +93,8 @@ pub mod worker {
                 .process_compiler_metadata(&program_data)
                 .with_context(|| error_messages::FAILURE_LOADING_COMPILER_METADATA)?;
 
+            cache.load_flyweight_data(&program_data);
+
             // Perform main work
             perform_main_work(cli_args, &program_data, &mut cache, cfg_path)?; // NOTE: study if we
                                                                                // must provide a flag to continue working with other cfgs (if present) if the current
@@ -158,22 +159,24 @@ pub mod worker {
         program_data: &ZorkModel<'_>,
         cache: &mut ZorkCache<'_>,
     ) -> Result<()> {
-        let compilers_metadata = &mut cache.compilers_metadata;
-
         let modules_generated_commands = &mut cache.generated_commands.modules;
         let targets_generated_commands = &mut cache.generated_commands.targets;
 
-        let flyweight_data = FlyweightData::new(program_data, compilers_metadata)?;
+        let flyweight_data = &mut cache
+            .generated_commands
+            .flyweight_data
+            .as_ref()
+            .with_context(|| error_messages::FAILURE_LOADING_FLYWEIGHT_DATA)?;
 
         executors::run_modules_generated_commands(
             program_data,
-            &flyweight_data,
+            flyweight_data,
             modules_generated_commands,
         )?;
 
         let target_executed_commands = executors::run_targets_generated_commands(
             program_data,
-            &flyweight_data,
+            flyweight_data,
             targets_generated_commands,
             modules_generated_commands,
         );

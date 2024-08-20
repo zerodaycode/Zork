@@ -1,6 +1,7 @@
 use std::path::Path;
 
-use color_eyre::eyre::Result;
+use serde::Deserialize;
+use serde::Serialize;
 
 use super::commands::arguments::clang_args;
 use super::commands::arguments::Argument;
@@ -14,20 +15,18 @@ use crate::{
 /// Convenient datastructure to hold the common args for all the [`super::commands::command_lines::SourceCommandLine`]
 /// once they are initialized and stored on the cache, so we just move them once (into this type)
 /// and we can pass the struct around to the executors
+#[derive(Serialize, Deserialize, Default, Debug)]
 pub struct FlyweightData<'a> {
     pub general_args: Arguments<'a>,
     pub shared_args: Arguments<'a>,
     pub std_references: Arguments<'a>, // the correct format of explicitly add the std modular libs
     // to the compiler
     pub compile_but_dont_link: [Argument<'a>; 1],
-    pub env_vars: &'a EnvVars,
+    pub env_vars: EnvVars,
 }
 
 impl<'a> FlyweightData<'a> {
-    pub fn new(
-        program_data: &'a ZorkModel,
-        compilers_metadata: &'a CompilersMetadata,
-    ) -> Result<Self> {
+    pub fn new(program_data: &'a ZorkModel, compilers_metadata: &CompilersMetadata) -> Self {
         let mut general_args = Arguments::default();
         general_args.push(program_data.compiler.language_level_arg());
         general_args.extend_from_slice(&program_data.compiler.extra_args);
@@ -65,19 +64,19 @@ impl<'a> FlyweightData<'a> {
                 CppCompiler::MSVC => "/c",
             })];
 
-        Ok(Self {
+        Self {
             general_args,
             shared_args,
             std_references,
             compile_but_dont_link,
-            env_vars,
-        })
+            env_vars: env_vars.clone(),
+        }
     }
 }
 
 fn generate_msvc_flyweight_args<'a>(
-    program_data: &ZorkModel<'a>,
-    compilers_metadata: &CompilersMetadata<'a>,
+    program_data: &ZorkModel<'_>,
+    compilers_metadata: &CompilersMetadata<'_>,
 ) -> SharedArgsStdRefsTuple<'a> {
     let out_dir: &Path = program_data.build.output_dir.as_ref();
     let mut compiler_flyweight_args = Arguments::default();
@@ -105,8 +104,8 @@ fn generate_msvc_flyweight_args<'a>(
 type SharedArgsStdRefsTuple<'a> = (Arguments<'a>, Arguments<'a>);
 
 fn generate_clang_flyweight_args<'a>(
-    program_data: &'a ZorkModel<'a>,
-    compilers_metadata: &'a CompilersMetadata,
+    program_data: &'a ZorkModel<'_>,
+    compilers_metadata: &CompilersMetadata<'_>,
 ) -> SharedArgsStdRefsTuple<'a> {
     let mut compiler_flyweight_args = Arguments::default();
     let mut std_references = Arguments::default();
