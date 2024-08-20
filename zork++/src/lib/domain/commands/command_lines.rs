@@ -74,6 +74,7 @@ impl<'a> SourceCommandLine<'a> {
 #[derive(Debug, Default, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct LinkerCommandLine<'a> {
     pub target: Argument<'a>,
+    pub args: Arguments<'a>,
     pub extra_args: Arguments<'a>,
     pub execution_result: TranslationUnitStatus,
 }

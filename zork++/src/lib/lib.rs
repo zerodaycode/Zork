@@ -90,10 +90,9 @@ pub mod worker {
                 program_data
             };
 
-        cache
-            .process_compiler_metadata(&program_data)
-            .with_context(|| error_messages::FAILURE_LOADING_COMPILER_METADATA)?;
-
+            cache
+                .process_compiler_metadata(&program_data)
+                .with_context(|| error_messages::FAILURE_LOADING_COMPILER_METADATA)?;
 
             // Perform main work
             perform_main_work(cli_args, &program_data, &mut cache, cfg_path)?; // NOTE: study if we
@@ -161,14 +160,10 @@ pub mod worker {
     ) -> Result<()> {
         let compilers_metadata = &mut cache.compilers_metadata;
 
-        let general_args = &mut cache.generated_commands.general_args;
-        let shared_args = &mut cache.generated_commands.compiler_common_args;
-
         let modules_generated_commands = &mut cache.generated_commands.modules;
         let targets_generated_commands = &mut cache.generated_commands.targets;
 
-        let flyweight_data =
-            FlyweightData::new(program_data, general_args, shared_args, compilers_metadata)?;
+        let flyweight_data = FlyweightData::new(program_data, compilers_metadata)?;
 
         executors::run_modules_generated_commands(
             program_data,

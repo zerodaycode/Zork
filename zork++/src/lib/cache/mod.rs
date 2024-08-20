@@ -330,6 +330,9 @@ pub struct ClangMetadata {
     pub minor: i32,
     pub patch: i32,
     pub installed_dir: String,
+    pub libcpp_path: PathBuf,
+    pub stdlib_pcm: PathBuf,
+    pub ccompat_pcm: PathBuf,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
@@ -341,7 +344,8 @@ pub struct GccMetadata {
 mod clang {
     use color_eyre::eyre::{self, Context, ContextCompat, Result};
     use regex::Regex;
-    use std::ffi::OsStr;
+    use std::{ffi::OsStr, path::Path};
+    use walkdir::WalkDir;
 
     use super::{ClangMetadata, ZorkCache};
     use crate::{project_model::ZorkModel, utils::constants::error_messages};
@@ -359,16 +363,103 @@ mod clang {
             .arg("-###")
             .output()
             .with_context(|| error_messages::clang::FAILURE_READING_CLANG_DRIVER_INFO)?;
-        cache.compilers_metadata.clang = process_frontend_driver_info(clang_cmd_info)?;
+
+        // Typically, the useful information will be in stderr for `clang++ -###` commands
+        cache.compilers_metadata.clang = process_frontend_driver_info(&clang_cmd_info.stderr)?;
+
+        if cache.compilers_metadata.clang.major >= 17 {
+            discover_modular_stdlibs(program_data, cache)?;
+        }
 
         Ok(())
     }
 
-    fn process_frontend_driver_info(clang_cmd_info: std::process::Output) -> Result<ClangMetadata> {
-        let stderr = String::from_utf8_lossy(&clang_cmd_info.stderr);
+    fn discover_modular_stdlibs(program_data: &ZorkModel<'_>, cache: &mut ZorkCache) -> Result<()> {
+        let out_dir = &program_data.build.output_dir;
+
+        let user_declared_libcpp_location = &program_data.compiler.std_lib_installed_dir;
+        if let Some(user_libcpp_location) = user_declared_libcpp_location {
+            set_libcpp_installation_dir_by_declared_user_input(user_libcpp_location, cache)?;
+        } else {
+            try_find_libcpp_with_assumed_roots(cache)?;
+        }
+
+        // Byproducts
+        cache.compilers_metadata.clang.stdlib_pcm = out_dir
+            .join("clang")
+            .join("modules")
+            .join("std")
+            .join("std")
+            .with_extension("pcm");
+        let compat = String::from("compat.");
+        cache.compilers_metadata.clang.ccompat_pcm = out_dir
+            .join("clang")
+            .join("modules")
+            .join("std") // Folder
+            .join("std") // Partial filename
+            .with_extension(
+                compat.clone()
+                    + program_data
+                        .compiler
+                        .cpp_compiler
+                        .get_typical_bmi_extension(),
+            );
+
+        Ok(())
+    }
+
+    fn set_libcpp_installation_dir_by_declared_user_input(
+        user_libcpp_declared_location: &Path,
+        cache: &mut ZorkCache,
+    ) -> Result<()> {
+        let user_libcpp_path = Path::new(user_libcpp_declared_location.as_os_str());
+        if user_libcpp_path.exists() {
+            log::debug!(
+                "Found the declared LIBC++ installation at: {:?}",
+                user_libcpp_path
+            );
+            cache.compilers_metadata.clang.libcpp_path = user_libcpp_path.to_path_buf();
+            Ok(())
+        } else {
+            Err(eyre::eyre!(
+                "Provided LIBC++ path on the cfg file is incorrect, such directory doens't exists"
+            ))
+        }
+    }
+
+    fn try_find_libcpp_with_assumed_roots(cache: &mut ZorkCache) -> Result<()> {
+        let assumed_root = if cfg!(target_os = "windows") {
+            "C:"
+        } else {
+            "/usr/include"
+        };
+
+        for entry in WalkDir::new(assumed_root)
+            .min_depth(1)
+            .into_iter()
+            .filter_map(Result::ok)
+        {
+            let path = entry.path();
+            if path.is_dir() && path.file_name().map_or(false, |f| f == "c++") {
+                let libcpp_path = path.join("v1");
+                if libcpp_path.is_dir() {
+                    log::debug!(
+                        "Found a LIBC++ installation in automatic mode at: {:?}",
+                        libcpp_path
+                    );
+                    cache.compilers_metadata.clang.libcpp_path = libcpp_path;
+                    return Ok(());
+                }
+            }
+        }
+
+        Err(eyre::eyre!("Unable to find a LIBC++ installation for the invoked driver. Please, provide the right one explicitly via the configuration file."))
+    }
+
+    fn process_frontend_driver_info(clang_cmd_info: &[u8]) -> Result<ClangMetadata> {
+        let stderr = String::from_utf8_lossy(clang_cmd_info);
         let mut clang_metadata = ClangMetadata::default();
 
-        // Typically, the useful information will be in stderr for `clang++ -###` commands
         for line in stderr.lines() {
             if line.starts_with("clang version") {
                 let (version_str, major, minor, patch) = extract_clang_version(line)?;
@@ -384,7 +475,9 @@ mod clang {
         if clang_metadata.major != 0 {
             Ok(clang_metadata)
         } else {
-            Err(eyre::eyre!("Unable to gather information about the configured Clang driver"))
+            Err(eyre::eyre!(
+                "Unable to gather information about the configured Clang driver"
+            ))
         }
     }
 

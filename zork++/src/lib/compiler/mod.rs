@@ -8,7 +8,7 @@ use std::path::Path;
 
 use color_eyre::Result;
 
-use crate::domain::commands::arguments::Argument;
+use crate::domain::commands::arguments::{clang_args, Argument};
 use crate::domain::target::TargetIdentifier;
 use crate::domain::translation_unit::TranslationUnitStatus;
 use crate::project_model::modules::SystemModule;
@@ -74,11 +74,18 @@ fn load_flyweights_for_general_shared_data<'a>(model: &'a ZorkModel, cache: &mut
 /// Generates the cmds for build the C++ standard libraries (std and std.compat) according to the specification
 /// of each compiler vendor
 fn generate_modular_stdlibs_cmds<'a>(model: &'a ZorkModel<'a>, cache: &mut ZorkCache<'a>) {
-    // NOTE: Provisionally 'If' guarded because only MSVC is supported now to build the
-    // C++ standard library implementations
-    if model.compiler.cpp_compiler.eq(&CppCompiler::MSVC) {
-        modules::generate_modular_cpp_stdlib_args(model, cache, StdLibMode::Cpp);
-        modules::generate_modular_cpp_stdlib_args(model, cache, StdLibMode::CCompat);
+    match model.compiler.cpp_compiler {
+        CppCompiler::CLANG => {
+            if cache.compilers_metadata.clang.major >= 17 {
+                modules::generate_modular_cpp_stdlib_args(model, cache, StdLibMode::Cpp);
+                modules::generate_modular_cpp_stdlib_args(model, cache, StdLibMode::CCompat);
+            }
+        }
+        CppCompiler::MSVC => {
+            modules::generate_modular_cpp_stdlib_args(model, cache, StdLibMode::Cpp);
+            modules::generate_modular_cpp_stdlib_args(model, cache, StdLibMode::CCompat);
+        }
+        _ => (),
     }
 }
 
@@ -207,6 +214,12 @@ fn generate_linkage_targets_commands<'a>(
             CppCompiler::CLANG | CppCompiler::GCC => linker.target = target_output,
             CppCompiler::MSVC => linker.target = Argument::from(format!("/Fe{}", target_output)),
         };
+    }
+
+    if compiler.eq(&CppCompiler::CLANG) {
+        linker
+            .args
+            .push(clang_args::add_prebuilt_module_path(*compiler, out_dir));
     }
 
     // Check if the extra args passed by the user to the linker has changed from previous
@@ -488,7 +501,11 @@ mod modules {
                 stdlib_mode.printable_info()
             );
 
-            let scl = msvc_args::generate_std_cmd(cache, stdlib_mode);
+            let scl = match compiler {
+                CppCompiler::CLANG => clang_args::generate_std_cmd(cache, model, stdlib_mode),
+                CppCompiler::MSVC => msvc_args::generate_std_cmd(cache, stdlib_mode),
+                CppCompiler::GCC => todo!(),
+            };
             cache.set_cpp_stdlib_cmd_by_kind(stdlib_mode, Some(scl));
         }
     }

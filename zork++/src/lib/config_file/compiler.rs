@@ -45,7 +45,9 @@ use crate::project_model;
 ///     #[compiler]
 ///     cpp_compiler = 'CLANG'
 ///     cpp_standard = '20'
+///     driver_path = 'clang++-19'
 ///     std_lib = 'libcpp'
+///     std_lib_installed_dir = '/usr/include/c++/v1'
 ///     extra_args = ['-O3', '-Wall']
 ///"#;
 ///
@@ -54,7 +56,9 @@ use crate::project_model;
 ///
 /// assert_eq!(config.cpp_compiler, CppCompiler::CLANG);
 /// assert_eq!(config.cpp_standard, LanguageLevel::CPP20);
+/// assert_eq!(config.driver_path, Some("clang++-19"));
 /// assert_eq!(config.std_lib, Some(StdLib::LIBCPP));
+/// assert_eq!(config.std_lib_installed_dir, Some("/usr/include/c++/v1"));
 /// assert_eq!(config.extra_args, Some(vec!["-O3", "-Wall"]));
 /// assert_eq!(config.system_headers_path, None);
 /// ```
@@ -75,6 +79,8 @@ pub struct CompilerAttribute<'a> {
     pub driver_path: Option<&'a str>,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
+    #[serde(borrow)]
+    pub std_lib_installed_dir: Option<&'a str>,
     #[serde(borrow)]
     pub extra_args: Option<Vec<&'a str>>,
     #[serde(borrow)]

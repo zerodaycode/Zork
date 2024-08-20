@@ -159,6 +159,9 @@ fn assemble_compiler_model<'a>(
         }),
         cpp_standard: config.cpp_standard.clone().into(),
         std_lib: config.std_lib.clone().map(|lib| lib.into()),
+        std_lib_installed_dir: config
+            .std_lib_installed_dir
+            .map(|inst_dir| Cow::Borrowed(Path::new(inst_dir))),
         extra_args,
     }
 }
@@ -470,6 +473,7 @@ mod test {
                 driver_path: Cow::Borrowed(""),
                 cpp_standard: LanguageLevel::CPP2B,
                 std_lib: Some(StdLib::LIBCPP),
+                std_lib_installed_dir: None,
                 extra_args: vec![Argument::from("-Wall")],
             },
             build: BuildModel {

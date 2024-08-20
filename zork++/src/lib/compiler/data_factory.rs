@@ -120,25 +120,46 @@ pub struct ClangCommonArgs {
     std_lib: StdLib,
     implicit_modules: Option<Cow<'static, str>>,
     implicit_module_map: Option<Cow<'static, str>>,
+    direct_std_ref: Option<String>,
+    direct_ccompat_std_ref: Option<String>,
 }
 impl ClangCommonArgs {
     pub fn new(model: &ZorkModel<'_>, cache: &ZorkCache<'_>) -> Self {
         let out_dir: &Path = model.build.output_dir.as_ref();
-        let major = cache.compilers_metadata.clang.major;
+        let clang_metadata = &cache.compilers_metadata.clang;
+        let major = clang_metadata.major;
 
-        Self {
+        let s = Self {
             std_lib: model.compiler.std_lib.unwrap_or_default(),
-            implicit_modules: if major > 17 {
+            implicit_modules: if major >= 17 {
                 None
             } else {
                 Some("-fimplicit-modules".into())
             },
-            implicit_module_map: if major > 17 {
+            implicit_module_map: if major >= 17 {
                 None
             } else {
                 Some(clang_args::implicit_module_map(out_dir))
             },
-        }
+            direct_std_ref: if major >= 17 {
+                Some(format!(
+                    "-fmodule-file=std={}",
+                    clang_metadata.stdlib_pcm.display()
+                ))
+            } else {
+                None
+            },
+            direct_ccompat_std_ref: if major >= 17 {
+                Some(format!(
+                    "-fmodule-file=std.compat={}",
+                    clang_metadata.ccompat_pcm.display()
+                ))
+            } else {
+                None
+            },
+        };
+        log::error!("FLYW: {:?}", s);
+        s
     }
 
     pub fn to_args(&self) -> Arguments {
@@ -146,6 +167,8 @@ impl ClangCommonArgs {
         args.push(self.std_lib.as_arg());
         args.push_opt(self.implicit_modules.clone());
         args.push_opt(self.implicit_module_map.clone());
+        args.push_opt(self.direct_std_ref.clone());
+        args.push_opt(self.direct_ccompat_std_ref.clone());
         args
     }
 }

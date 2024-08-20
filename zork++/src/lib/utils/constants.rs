@@ -68,6 +68,7 @@ pub mod error_messages {
     pub const FAILURE_SYSTEM_MODULES: &str =
         "An error happened while generating the commands for the declared system headers as modules";
     pub const WRONG_DOWNCAST_FOR: &str = "An error happened while resolving the original type of";
+    pub const FILTERING_COMPILE_BUT_DONT_LINK: &str = "Unlikely error happened while removing the compile but don't link flag from the flyweight data. This is a BUG, so please, open an issue on upsteam";
 
     pub mod msvc {
         pub const STDLIB_MODULES_NOT_FOUND: &str =
@@ -85,12 +86,15 @@ pub mod error_messages {
     pub mod clang {
         pub const FAILURE_READING_CLANG_DRIVER_INFO: &str =
             "Unable to read and parse the metadata of the declared compiler driver";
-        pub const FAILURE_PARSING_CLANG_VERSION: &str =
-            "Unable to parse the clang version";
-        pub const FAILURE_GETTING_VER_MAJOR: &str = "Unable to parse clang version and get the major component";
-        pub const FAILURE_GETTING_VER_MINOR: &str = "Unable to parse clang version and get the minor component";
-        pub const FAILURE_GETTING_VER_PATCH: &str = "Unable to parse clang version and get the patch component";
-        pub const INSTALLED_DIR: &str = "Unable to parse the installed dir of the invoked clang driver";
+        pub const FAILURE_PARSING_CLANG_VERSION: &str = "Unable to parse the clang version";
+        pub const FAILURE_GETTING_VER_MAJOR: &str =
+            "Unable to parse clang version and get the major component";
+        pub const FAILURE_GETTING_VER_MINOR: &str =
+            "Unable to parse clang version and get the minor component";
+        pub const FAILURE_GETTING_VER_PATCH: &str =
+            "Unable to parse clang version and get the patch component";
+        pub const INSTALLED_DIR: &str =
+            "Unable to parse the installed dir of the invoked clang driver";
     }
 }
 
