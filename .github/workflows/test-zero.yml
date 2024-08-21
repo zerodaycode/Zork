@@ -51,8 +51,8 @@ jobs:
           cd zork++
           cargo build --release
           mv ./target/release/zork ./target/release/zork++
-          cp ./target/release/zork++ ../../Zero
-          cd ../..
+          cp ./target/release/zork++ ../Zero
+          cd ..
 
       - name: Running the tests for ${{ matrix.os }} with Zork++
         run: |
