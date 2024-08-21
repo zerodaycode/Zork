@@ -93,8 +93,6 @@ pub mod worker {
                 .process_compiler_metadata(&program_data)
                 .with_context(|| error_messages::FAILURE_LOADING_COMPILER_METADATA)?;
 
-            cache.load_flyweight_data(&program_data);
-
             // Perform main work
             perform_main_work(cli_args, &program_data, &mut cache, cfg_path)?; // NOTE: study if we
                                                                                // must provide a flag to continue working with other cfgs (if present) if the current

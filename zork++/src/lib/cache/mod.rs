@@ -17,7 +17,6 @@ use std::{
 
 use crate::config_file::ZorkConfigFile;
 use crate::domain::commands::command_lines::{Commands, SourceCommandLine};
-use crate::domain::flyweight_data::FlyweightData;
 use crate::domain::target::TargetIdentifier;
 use crate::domain::translation_unit::{TranslationUnit, TranslationUnitKind};
 use crate::project_model::sourceset::SourceFile;
@@ -216,13 +215,6 @@ impl<'a> ZorkCache<'a> {
         Ok(())
     }
 
-    pub fn load_flyweight_data(&mut self, program_data: &'a ZorkModel<'_>) {
-        if self.generated_commands.flyweight_data.is_none() {
-            self.generated_commands.flyweight_data =
-                Some(FlyweightData::new(program_data, &self.compilers_metadata));
-        }
-    }
-
     /// Runs the tasks just before end the program and save the cache
     fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
         if self.metadata.save_project_model {
@@ -362,6 +354,11 @@ mod clang {
         cache: &mut ZorkCache,
         program_data: &ZorkModel,
     ) -> color_eyre::Result<()> {
+        if cache.compilers_metadata.clang.major != 0 {
+            log::debug!("Clang metadata already gathered on the cache");
+            return Ok(());
+        }
+
         let compiler = program_data.compiler.cpp_compiler;
         let driver = compiler.get_driver(&program_data.compiler);
 
@@ -371,9 +368,11 @@ mod clang {
             .arg("-###")
             .output()
             .with_context(|| error_messages::clang::FAILURE_READING_CLANG_DRIVER_INFO)?;
-
+        // Combine stdout and stderr into a single output string
+        let combined_output = String::from_utf8_lossy(&clang_cmd_info.stdout).to_string()
+            + &String::from_utf8_lossy(&clang_cmd_info.stderr);
         // Typically, the useful information will be in stderr for `clang++ -###` commands
-        cache.compilers_metadata.clang = process_frontend_driver_info(&clang_cmd_info.stderr)?;
+        cache.compilers_metadata.clang = process_frontend_driver_info(&combined_output)?;
 
         if cache.compilers_metadata.clang.major >= 17 {
             discover_modular_stdlibs(program_data, cache)?;
@@ -429,15 +428,14 @@ mod clang {
             cache.compilers_metadata.clang.libcpp_path = user_libcpp_path.to_path_buf();
             Ok(())
         } else {
-            Err(eyre::eyre!(
-                "Provided LIBC++ path on the cfg file is incorrect, such directory doens't exists"
-            ))
+            Err(eyre::eyre!(error_messages::clang::WRONG_LIBCPP_DIR))
         }
     }
 
     fn try_find_libcpp_with_assumed_roots(cache: &mut ZorkCache) -> Result<()> {
         let assumed_root = if cfg!(target_os = "windows") {
-            "C:"
+            "C:" // TODO: should we return an Err and force the user to mandatory
+                 // provide an installation?
         } else {
             "/usr/include"
         };
@@ -461,14 +459,15 @@ mod clang {
             }
         }
 
-        Err(eyre::eyre!("Unable to find a LIBC++ installation for the invoked driver. Please, provide the right one explicitly via the configuration file."))
+        Err(eyre::eyre!(
+            error_messages::clang::MISSING_LIBCPP_INSTALLATION
+        ))
     }
 
-    fn process_frontend_driver_info(clang_cmd_info: &[u8]) -> Result<ClangMetadata> {
-        let stderr = String::from_utf8_lossy(clang_cmd_info);
+    fn process_frontend_driver_info(clang_cmd_info: &str) -> Result<ClangMetadata> {
         let mut clang_metadata = ClangMetadata::default();
 
-        for line in stderr.lines() {
+        for line in clang_cmd_info.lines() {
             if line.starts_with("clang version") {
                 let (version_str, major, minor, patch) = extract_clang_version(line)?;
                 clang_metadata.version = version_str;
@@ -483,9 +482,7 @@ mod clang {
         if clang_metadata.major != 0 {
             Ok(clang_metadata)
         } else {
-            Err(eyre::eyre!(
-                "Unable to gather information about the configured Clang driver"
-            ))
+            Err(eyre::eyre!(error_messages::clang::METADATA_GATHER_FAILED))
         }
     }
 

@@ -9,6 +9,7 @@ use std::path::Path;
 use color_eyre::Result;
 
 use crate::domain::commands::arguments::{clang_args, Argument};
+use crate::domain::flyweight_data::FlyweightData;
 use crate::domain::target::TargetIdentifier;
 use crate::domain::translation_unit::TranslationUnitStatus;
 use crate::project_model::modules::SystemModule;
@@ -32,6 +33,12 @@ pub fn generate_commands_arguments<'a>(
     model: &'a ZorkModel<'a>,
     cache: &mut ZorkCache<'a>,
 ) -> Result<()> {
+    // Load the flyweight arguments (repeated args across all the source command lines)
+    if cache.generated_commands.flyweight_data.is_none() {
+        cache.generated_commands.flyweight_data =
+            Some(FlyweightData::new(model, &cache.compilers_metadata));
+    }
+
     // Build the std library as a module
     generate_modular_stdlibs_cmds(model, cache);
 

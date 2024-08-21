@@ -88,6 +88,11 @@ pub mod error_messages {
     pub mod clang {
         pub const FAILURE_READING_CLANG_DRIVER_INFO: &str =
             "Unable to read and parse the metadata of the declared compiler driver";
+        pub const MISSING_LIBCPP_INSTALLATION: &str = "Unable to find a LIBC++ installation for the invoked driver. Please, provide the right one explicitly via the configuration file.";
+        pub const WRONG_LIBCPP_DIR: &str =
+            "Provided LIBC++ path on the cfg file is incorrect, such directory doens't exists";
+        pub const METADATA_GATHER_FAILED: &str =
+            "Unable to gather information about the configured Clang driver";
         pub const FAILURE_PARSING_CLANG_VERSION: &str = "Unable to parse the clang version";
         pub const FAILURE_GETTING_VER_MAJOR: &str =
             "Unable to parse clang version and get the major component";
