@@ -1,0 +1,60 @@
+
+name: The 'Zero' library compiles and passes the tests 
+
+on:
+  push:
+    branches: 'main'
+  pull_request:
+    branches: '*'
+
+jobs:
+  tests:
+    name: Run the tests - Clang
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        clang_version: [16, 19]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Caching project dependencies
+        id: project-cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Clone Zork++
+        uses: GuillaumeFalourd/clone-github-repo-action@v2.3
+        with:
+          owner: 'ZeroDayCode'
+          repository: 'Zero'
+          branch: 'development'
+
+      - name: Installing LLVM ${{ matrix.clang_version }}
+        run: |
+          # Exit on error
+          set -e
+          # Download and execute the LLVM installation script for the specified Clang version
+          echo "-----> Downloading and executing the LLVM installation script for Clang ${{ matrix.clang_version }}"
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{ matrix.clang_version }}
+
+          echo "-----> Installing libc++"
+          sudo apt-get install -y libc++-${{ matrix.clang_version }}-dev libc++abi-${{ matrix.clang_version }}-dev libunwind-${{ matrix.clang_version }} libunwind-${{ matrix.clang_version }}-dev libc6 libzstd1
+
+          # Update the symbolic link to point to the newly installed Clang version
+          echo "-----> Updating the symbolic link to point to Clang ${{ matrix.clang_version }}"
+          sudo rm -f /usr/bin/clang++
+          sudo ln -s /usr/bin/clang++-${{ matrix.clang_version }} /usr/bin/clang++
+
+      - name: Generate a Zork++ release build
+        run: |
+          cd zork++
+          cargo build --release
+          mv ./target/release/zork ./target/release/zork++
+          cp ./target/release/zork++ ../../Zero
+          cd ../..
+
+      - name: Running the tests for ${{ matrix.os }} with Zork++
+        run: |
+          cd Zero
+          ./zork++ -vv --match-files gh_linux test
