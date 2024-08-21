@@ -466,6 +466,7 @@ mod clang {
 
     fn process_frontend_driver_info(clang_cmd_info: &str) -> Result<ClangMetadata> {
         let mut clang_metadata = ClangMetadata::default();
+        log::trace!("Clang stdout of -###: {clang_cmd_info}");
 
         for line in clang_cmd_info.lines() {
             if line.starts_with("clang version") {
@@ -478,6 +479,8 @@ mod clang {
                 clang_metadata.installed_dir = extract_installed_dir(line)?;
             }
         }
+
+        log::trace!("Clang metadata: {:?}", &clang_metadata);
 
         if clang_metadata.major != 0 {
             Ok(clang_metadata)
