@@ -433,11 +433,12 @@ mod clang {
     }
 
     fn try_find_libcpp_with_assumed_roots(cache: &mut ZorkCache) -> Result<()> {
+        log::info!("No libc++ installation path was provided. Try to find one in the system");
         let assumed_root = if cfg!(target_os = "windows") {
             "C:" // TODO: should we return an Err and force the user to mandatory
                  // provide an installation?
         } else {
-            "/usr/include"
+            "/usr"
         };
 
         for entry in WalkDir::new(assumed_root)

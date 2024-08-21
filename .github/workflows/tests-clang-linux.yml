@@ -13,15 +13,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        clang_version: [15, 16, 17, 18]
+        clang_version: [15, 16, 17, 18, 19, 20]
     steps:
       - uses: actions/checkout@v3
       - name: Caching project dependencies
         id: project-cache
         uses: Swatinem/rust-cache@v2
 
-      - if: ${{ matrix.clang_version < 18 }}
-        name: Install Clang ${{ matrix.clang_version }}
+      - name: Install Clang ${{ matrix.clang_version }}
         run: |
           # Exit on error
           set -e
@@ -45,8 +44,7 @@ jobs:
           echo "-----> Clang++ was installed on:"
           which clang++-${{ matrix.clang_version }}
 
-      - if: ${{ matrix.clang_version < 18 }}
-        name: Running the tests for the project
+      - name: Running the tests for the project
         run: |
           cd zork++
           RUST_LOG=trace cargo test 2>&1 clang --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1
