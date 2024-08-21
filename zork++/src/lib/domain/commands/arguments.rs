@@ -272,18 +272,25 @@ pub mod clang_args {
         compiler: CppCompiler,
         out_dir: &Path,
         arguments: &mut Arguments,
+        clang_major_version: i32,
     ) {
         dependencies.iter().for_each(|ifc_dep| {
-            arguments.push(Argument::from(format!(
-                "-fmodule-file={ifc_dep}={}",
-                out_dir
-                    .join(compiler.as_ref())
-                    .join("modules")
-                    .join("interfaces")
-                    .join::<&str>(ifc_dep)
-                    .with_extension(compiler.get_typical_bmi_extension())
-                    .display()
-            )))
+            let module_file_path = out_dir
+                .join(compiler.as_ref())
+                .join("modules")
+                .join("interfaces")
+                .join::<&str>(ifc_dep)
+                .with_extension(compiler.get_typical_bmi_extension())
+                .display()
+                .to_string();
+
+            let argument = if clang_major_version > 15 {
+                format!("-fmodule-file={}={}", ifc_dep, module_file_path)
+            } else {
+                format!("-fmodule-file={}", module_file_path)
+            };
+
+            arguments.push(Argument::from(argument));
         });
     }
 

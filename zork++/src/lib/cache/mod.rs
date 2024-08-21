@@ -544,7 +544,7 @@ mod clang {
             );
 
             let mock_version_3: &'static str = "Ubuntu clang version 16.0.5 (++20231112100510+7cbf1a259152-1~exp1~20231112100554.106)";
-            let expected = ("16..5".to_string(), 16, 0, 5);
+            let expected = ("16.0.5".to_string(), 16, 0, 5);
             assert_eq!(
                 expected,
                 super::extract_clang_version(mock_version_3).unwrap()

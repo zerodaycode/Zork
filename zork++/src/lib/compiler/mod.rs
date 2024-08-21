@@ -337,6 +337,7 @@ mod modules {
                     compiler,
                     out_dir,
                     &mut arguments,
+                    cache.compilers_metadata.clang.major,
                 );
 
                 // The generated BMI
@@ -408,6 +409,7 @@ mod modules {
                     compiler,
                     out_dir,
                     &mut arguments,
+                    cache.compilers_metadata.clang.major,
                 );
             }
             CppCompiler::MSVC => {
