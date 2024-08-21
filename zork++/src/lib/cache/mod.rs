@@ -374,7 +374,7 @@ mod clang {
         // Typically, the useful information will be in stderr for `clang++ -###` commands
         cache.compilers_metadata.clang = process_frontend_driver_info(&combined_output)?;
 
-        if cache.compilers_metadata.clang.major >= 17 {
+        if cache.compilers_metadata.clang.major > 17 {
             discover_modular_stdlibs(program_data, cache)?;
         }
 

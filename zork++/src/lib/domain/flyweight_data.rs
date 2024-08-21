@@ -115,7 +115,7 @@ fn generate_clang_flyweight_args<'a>(
     let major = clang_metadata.major;
 
     compiler_flyweight_args.push_opt(program_data.compiler.stdlib_arg());
-    if major < 17 {
+    if major <= 17 {
         compiler_flyweight_args.push("-fimplicit-modules");
         compiler_flyweight_args.push(clang_args::implicit_module_map(out_dir));
     } else {

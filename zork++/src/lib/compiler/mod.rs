@@ -62,7 +62,7 @@ pub fn generate_commands_arguments<'a>(
 fn generate_modular_stdlibs_cmds<'a>(model: &'a ZorkModel<'a>, cache: &mut ZorkCache<'a>) {
     match model.compiler.cpp_compiler {
         CppCompiler::CLANG => {
-            if cache.compilers_metadata.clang.major >= 17 {
+            if cache.compilers_metadata.clang.major > 17 {
                 modules::generate_modular_cpp_stdlib_args(model, cache, StdLibMode::Cpp);
                 modules::generate_modular_cpp_stdlib_args(model, cache, StdLibMode::CCompat);
             }
