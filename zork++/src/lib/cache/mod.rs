@@ -344,7 +344,7 @@ pub struct GccMetadata {
 mod clang {
     use color_eyre::eyre::{self, Context, ContextCompat, Result};
     use regex::Regex;
-    use std::{ffi::OsStr, path::Path};
+    use std::{ffi::OsStr, path::Path, time::Instant};
     use walkdir::WalkDir;
 
     use super::{ClangMetadata, ZorkCache};
@@ -433,29 +433,39 @@ mod clang {
     }
 
     fn try_find_libcpp_with_assumed_roots(cache: &mut ZorkCache) -> Result<()> {
-        log::info!("No libc++ installation path was provided. Try to find one in the system");
+        log::info!(
+            "No libc++ installation path was provided. Trying to find one in the system with the standard modules..\
+            \nThis may take a while..."
+        );
         let assumed_root = if cfg!(target_os = "windows") {
             "C:" // TODO: should we return an Err and force the user to mandatory
                  // provide an installation?
         } else {
-            "/usr"
+            "/"
         };
 
+        let start = Instant::now();
+        // TODO: maybe we could add some assumed default 'BIG paths' instead of just one
         for entry in WalkDir::new(assumed_root)
-            .min_depth(1)
             .into_iter()
             .filter_map(Result::ok)
         {
             let path = entry.path();
-            if path.is_dir() && path.file_name().map_or(false, |f| f == "c++") {
+
+            if path.is_dir() && path.file_name().map_or(false, |f| f == "libc++") {
                 let libcpp_path = path.join("v1");
                 if libcpp_path.is_dir() {
-                    log::debug!(
-                        "Found a LIBC++ installation in automatic mode at: {:?}",
-                        libcpp_path
-                    );
-                    cache.compilers_metadata.clang.libcpp_path = libcpp_path;
-                    return Ok(());
+                    let std_cppm_path = libcpp_path.join("std.cppm");
+
+                    if std_cppm_path.exists() {
+                        log::debug!(
+                            "Found a valid LIBC++ installation with std.cppm at: {:?}. Took: {:?}",
+                            libcpp_path,
+                            start.elapsed()
+                        );
+                        cache.compilers_metadata.clang.libcpp_path = libcpp_path;
+                        return Ok(());
+                    }
                 }
             }
         }
