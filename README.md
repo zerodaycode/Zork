@@ -598,12 +598,13 @@ In `Zork++`, you have this feature enabled if:
 
   > In any case, make sure that you enabled *libc++* as your standard library in your **zork.toml** configuration file.
 
-  - As alternative, you can use `import <system_header_name>;` This is, individually import some specific system header as a module.
-  Needs an explicit pre-compilation process. This is supported by `Clang` and `GCC` (since we are not able to do an `import std` for `GCC` builds).
-
 - `MSVC` => full support is available from `Zork++` *v0.9.0* onwards. No aditional user configuration required.
 - `GCC` => We just don't know. We will be glad if some reader that knows about could give us some guidance in this regard. So there's
 no `import std` feature nor workaround within `Zork++` for `GCC`
+
+ - As alternative, you can use `import <system_header_name>;` This is, individually import some specific system header as a module.
+  Needs an explicit pre-compilation process, and also needs to be declared on the `system_headers` array-like attribute.
+  This is supported by `Clang` and `GCC` (since we are not able to do an `import std` for `GCC` builds).
 
 
 # :balloon: Developers Guide <a href="dev_guide"></a>
@@ -638,14 +639,8 @@ Then you just need to run `$ cargo test --all`.
 ## :sparkles: The things that we desire to implement or upgrade in Zork++
 
 - Support the Intel's C++ compiler (not a priority, but it would be nice)
-- Dump the commands generated in a text file different from the cache by a command line order
-- Have full support for module (interface or implementation) partitions
 - Take an eye on how the compilers are implementing the `C++23` `import std;` feature,
-and then include it in `Zork++` by default
-- Enable an option in the config file where the user can activate the parsing of the project
-for every iteration by reading the data save in the cache and checking the last time that a
-file included in the config file has been modified, so we will only be generating commands
-for the modified files
+and then include it in `Zork++` by default (only `GCC` is missed ATM)
 - Include and offer test frameworks directly in the project. That means integrating
 third party test frameworks directly in `Zork++`
 
