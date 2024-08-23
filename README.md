@@ -43,7 +43,7 @@
 
 <div align="center">
 
-[About](#-about-a-hrefabouta) **|** [Getting Started](#-getting-started-a-href--gettingstarteda) **|** [A quick start example](#generating-a-new-c-project-a-href--gettingstartedexamplea) **|** [The `zork.toml` reference guide](#-the-zorktoml-reference-guide-a-hrefzorktomlreferencea) **|** [The `Zork++` command_line](#-the-zork-command-line-interface-a-hrefzorkcommandlinea) **|** [Compilation Database (`compile_commands.json`)](#-compilation-database-a-hrefcompilation-databasea) **|** [C++23 `import std;`](#-c23-import-std-feature-a-hrefimportstda) **|** [The developers and contributors guide](#-developers-guide-a-hrefdevguidea) **|** [The future features](#-todo-zone-a-href--todozonea) **|** [Built Using](#-built-using-a-href--builtusinga) **|** [Contributing](./CONTRIBUTING.md) **|** [License](./LICENSE) **|** [Authors](#-authors-a-href--authorsa) **|** [Acknowledgements](#-acknowledgements-a-href--acknowledgementa)
+[About](#about) **|** [Getting Started](#getting_started) **|** [A quick start example](#a-quick-start-example) **|** [The `zork.toml` reference guide](#the-zorktoml-reference-guide) **|** [The `Zork++` command_line](#the-zork-command-line) **|** [Compilation Database (`compile_commands.json`)](#compilation-database) **|** [C++23 `import std;`](#c23-import-std) **|** [The developers and contributors guide](#the-developers-and- contributores-guide) **|** [The future features](#todo-zone-a-href--todozonea) **|** [Built Using](#built-using) **|** [Contributing](./CONTRIBUTING.md) **|** [License](./LICENSE) **|** [Authors](#authors) **|** [Acknowledgements](#acknowledgements)
 
 </div>
 
