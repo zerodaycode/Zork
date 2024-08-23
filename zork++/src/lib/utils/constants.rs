@@ -36,8 +36,11 @@ pub mod error_messages {
     pub const FAILURE_CREATING_COMPILER_CACHE_DIR: &str =
         "Error creating the cache subdirectory for compiler";
     pub const FAILURE_LOADING_CACHE: &str = "Failed to load the Zork++ cache";
-    pub const FAILURE_LOADING_INITIAL_CACHE_DATA: &str = "Failed to load the cache initial data";
+    pub const FAILURE_LOADING_COMPILER_METADATA: &str =
+        "Failed while gathering the current compiler's metadata";
     pub const FAILURE_CLEANING_CACHE: &str = "Error cleaning the Zork++ cache";
+    pub const FAILURE_LOADING_FLYWEIGHT_DATA: &str =
+        "Failed while initializating the flyweight data of the shared command lines arguments";
     pub const FAILURE_SAVING_CACHE: &str = "Error saving data to the Zork++ cache";
     pub const CHECK_FOR_DELETIONS: &str = "Error while checking the user files deletions on cfg";
     pub const GENERAL_ARGS_NOT_FOUND: &str = "Something went wrong loading the general arguments";
@@ -67,6 +70,7 @@ pub mod error_messages {
     pub const FAILURE_SYSTEM_MODULES: &str =
         "An error happened while generating the commands for the declared system headers as modules";
     pub const WRONG_DOWNCAST_FOR: &str = "An error happened while resolving the original type of";
+    pub const FILTERING_COMPILE_BUT_DONT_LINK: &str = "Unlikely error happened while removing the compile but don't link flag from the flyweight data. This is a BUG, so please, open an issue on upsteam";
 
     pub mod msvc {
         pub const STDLIB_MODULES_NOT_FOUND: &str =
@@ -79,6 +83,25 @@ pub mod error_messages {
             "Ill-formed key while parsing MSVC env vars";
         pub const MISSING_OR_CORRUPTED_MSVC_DEV_COMMAND_PROMPT: &str =
             "Missing or corrupted path for the MSVC developers command prompt";
+    }
+
+    pub mod clang {
+        pub const FAILURE_READING_CLANG_DRIVER_INFO: &str =
+            "Unable to read and parse the metadata of the declared compiler driver";
+        pub const MISSING_LIBCPP_INSTALLATION: &str = "Unable to find a LIBC++ installation for the invoked driver. Please, provide the right one explicitly via the configuration file.";
+        pub const WRONG_LIBCPP_DIR: &str =
+            "Provided LIBC++ path on the cfg file is incorrect, such directory doens't exists";
+        pub const METADATA_GATHER_FAILED: &str =
+            "Unable to gather information about the configured Clang driver";
+        pub const FAILURE_PARSING_CLANG_VERSION: &str = "Unable to parse the clang version";
+        pub const FAILURE_GETTING_VER_MAJOR: &str =
+            "Unable to parse clang version and get the major component";
+        pub const FAILURE_GETTING_VER_MINOR: &str =
+            "Unable to parse clang version and get the minor component";
+        pub const FAILURE_GETTING_VER_PATCH: &str =
+            "Unable to parse clang version and get the patch component";
+        pub const INSTALLED_DIR: &str =
+            "Unable to parse the installed dir of the invoked clang driver";
     }
 }
 

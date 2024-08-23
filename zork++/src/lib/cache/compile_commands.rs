@@ -1,7 +1,6 @@
 use crate::cache::ZorkCache;
 
 use crate::domain::commands::arguments::Argument;
-use crate::project_model::compiler::CppCompiler;
 use crate::project_model::ZorkModel;
 use crate::utils;
 use crate::utils::constants::{error_messages, COMPILATION_DATABASE};
@@ -22,28 +21,15 @@ pub(crate) fn map_generated_commands_to_compilation_db(
     log::debug!("Generating the compilation database...");
     let compiler = program_data.compiler.cpp_compiler;
 
+    let flyweight_data = cache
+        .generated_commands
+        .flyweight_data
+        .as_ref()
+        .with_context(|| error_messages::FAILURE_LOADING_FLYWEIGHT_DATA)?;
+
     let generated_commands = cache.get_all_commands_iter();
     let mut compilation_db_entries: Vec<CompileCommand> =
         Vec::with_capacity(cache.count_total_generated_commands());
-
-    let general_args = cache
-        .generated_commands
-        .general_args
-        .as_ref()
-        .expect(error_messages::GENERAL_ARGS_NOT_FOUND)
-        .get_args();
-
-    let compiler_specific_shared_args = cache
-        .generated_commands
-        .compiler_common_args
-        .as_ref()
-        .with_context(|| error_messages::COMPILER_SPECIFIC_COMMON_ARGS_NOT_FOUND)?
-        .get_args();
-
-    let compile_but_dont_link: [Argument; 1] = [Argument::from(match compiler {
-        CppCompiler::CLANG | CppCompiler::GCC => "-c",
-        CppCompiler::MSVC => "/c",
-    })];
 
     let compiler_driver: [Argument; 1] =
         [Argument::from(compiler.get_driver(&program_data.compiler))];
@@ -51,9 +37,10 @@ pub(crate) fn map_generated_commands_to_compilation_db(
     for source_command_line in generated_commands {
         let translation_unit_cmd_args = compiler_driver
             .iter()
-            .chain(general_args.iter())
-            .chain(compiler_specific_shared_args.iter())
-            .chain(&compile_but_dont_link)
+            .chain(flyweight_data.general_args.as_ref().iter())
+            .chain(flyweight_data.shared_args.as_ref().iter())
+            .chain(flyweight_data.std_references.iter())
+            .chain(flyweight_data.compile_but_dont_link.iter())
             .chain(source_command_line.args.iter())
             .collect::<Vec<&Argument>>();
 

@@ -132,9 +132,9 @@ impl<'a> Arguments<'a> {
     }
 
     /// Given an optional, adds the inner value if there's Some(<[Argument]>)
-    pub fn push_opt(&mut self, arg: Option<Argument<'a>>) {
+    pub fn push_opt<T: Into<Argument<'a>>>(&mut self, arg: Option<T>) {
         if let Some(val) = arg {
-            self.0.push(val)
+            self.0.push(val.into())
         }
     }
 
@@ -223,7 +223,16 @@ impl<'a> FromIterator<&'a Argument<'a>> for Arguments<'a> {
 pub mod clang_args {
     use std::path::Path;
 
-    use crate::project_model::compiler::CppCompiler;
+    use crate::{
+        cache::ZorkCache,
+        domain::{
+            commands::command_lines::SourceCommandLine, translation_unit::TranslationUnitStatus,
+        },
+        project_model::{
+            compiler::{CppCompiler, StdLibMode},
+            ZorkModel,
+        },
+    };
 
     use super::*;
 
@@ -263,19 +272,74 @@ pub mod clang_args {
         compiler: CppCompiler,
         out_dir: &Path,
         arguments: &mut Arguments,
+        clang_major_version: i32,
     ) {
         dependencies.iter().for_each(|ifc_dep| {
-            arguments.push(Argument::from(format!(
-                "-fmodule-file={}",
-                out_dir
-                    .join(compiler.as_ref())
-                    .join("modules")
-                    .join("interfaces")
-                    .join::<&str>(ifc_dep)
-                    .with_extension(compiler.get_typical_bmi_extension())
-                    .display()
-            )))
+            let module_file_path = out_dir
+                .join(compiler.as_ref())
+                .join("modules")
+                .join("interfaces")
+                .join::<&str>(ifc_dep)
+                .with_extension(compiler.get_typical_bmi_extension())
+                .display()
+                .to_string();
+
+            let argument = if clang_major_version > 15 {
+                format!("-fmodule-file={}={}", ifc_dep, module_file_path)
+            } else {
+                format!("-fmodule-file={}", module_file_path)
+            };
+
+            arguments.push(Argument::from(argument));
         });
+    }
+
+    pub(crate) fn generate_std_cmd<'a>(
+        cache: &mut ZorkCache<'a>,
+        model: &ZorkModel<'a>,
+        stdlib_mode: StdLibMode,
+    ) -> SourceCommandLine<'a> {
+        let compiler = model.compiler.cpp_compiler;
+        let out_dir = &model.build.output_dir;
+        let clang_metadata = &cache.compilers_metadata.clang;
+
+        let mut args = Arguments::default();
+        args.push("-Wno-reserved-module-identifier");
+        args.push("--precompile");
+        args.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
+
+        let (filename, byproduct) = match stdlib_mode {
+            StdLibMode::Cpp => (String::from("std.cppm"), &clang_metadata.stdlib_pcm),
+            StdLibMode::CCompat => {
+                // std.compat re-exports std, to it must be explicitly referenced
+                args.push(format!(
+                    "-fmodule-file=std={}",
+                    clang_metadata.stdlib_pcm.display()
+                ));
+                (String::from("std.compat.cppm"), &clang_metadata.ccompat_pcm)
+            }
+        };
+
+        let input_file = clang_metadata.libcpp_path.join(&filename);
+
+        // TODO: GENERAL TODO: chain for every SCL the scl.path() as the input file and byprduct as
+        // the output, so we can avoid to held them twice, in arguments and in their respective
+        // struct fields
+
+        // The input file
+        args.push(input_file);
+
+        // The output file
+        args.push("-o");
+        args.push(byproduct);
+
+        SourceCommandLine {
+            directory: clang_metadata.libcpp_path.clone(),
+            filename,
+            args,
+            status: TranslationUnitStatus::PendingToBuild,
+            byproduct: byproduct.into(),
+        }
     }
 }
 
@@ -301,6 +365,10 @@ pub mod msvc_args {
                 &msvc.stdlib_obj_path,
             )
         } else {
+            // std.compat re-exports std
+            arguments.push("/reference");
+            arguments.push(cache.compilers_metadata.msvc.stdlib_bmi_path.clone());
+
             (
                 &msvc.vs_ccompat_stdlib_path,
                 &msvc.ccompat_stdlib_bmi_path,

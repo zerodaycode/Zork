@@ -1,5 +1,5 @@
 use core::fmt;
-use std::borrow::Cow;
+use std::{borrow::Cow, path::Path};
 
 use crate::domain::commands::arguments::Argument;
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,7 @@ pub struct CompilerModel<'a> {
     pub driver_path: Cow<'a, str>,
     pub cpp_standard: LanguageLevel,
     pub std_lib: Option<StdLib>,
+    pub std_lib_installed_dir: Option<Cow<'a, Path>>,
     pub extra_args: Vec<Argument<'a>>,
 }
 

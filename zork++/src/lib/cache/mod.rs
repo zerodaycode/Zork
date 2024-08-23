@@ -55,7 +55,7 @@ pub fn load<'a>(
 
     let mut cache = if !cache_file_path.exists() {
         File::create(&cache_file_path).with_context(|| error_messages::FAILURE_LOADING_CACHE)?;
-        helpers::initialize_cache(cache_path, cache_file_path, compiler, &output_dir)?
+        helpers::initialize_cache(cache_path, cache_file_path, compiler)?
     } else if cache_path.exists() && cli_args.clear_cache {
         fs::remove_dir_all(&cache_path).with_context(|| error_messages::FAILURE_CLEANING_CACHE)?;
         fs::create_dir(&cache_path).with_context(|| {
@@ -71,7 +71,7 @@ pub fn load<'a>(
                 error_messages::FAILURE_LOADING_CACHE
             )
         })?;
-        helpers::initialize_cache(cache_path, cache_file_path, compiler, &output_dir)?
+        helpers::initialize_cache(cache_path, cache_file_path, compiler)?
     } else {
         log::trace!(
             "Loading Zork++ cache file for {compiler} at: {:?}",
@@ -203,9 +203,13 @@ impl<'a> ZorkCache<'a> {
     }
 
     /// The tasks associated with the cache after load it from the file system
-    pub fn run_tasks(&mut self, compiler: CppCompiler, output_dir: &Path) -> Result<()> {
+    pub fn process_compiler_metadata(&mut self, program_data: &'a ZorkModel<'_>) -> Result<()> {
+        let compiler = program_data.compiler.cpp_compiler;
+
         if cfg!(target_os = "windows") && compiler.eq(&CppCompiler::MSVC) {
-            msvc::load_metadata(self, compiler, output_dir)?
+            msvc::load_metadata(self, program_data)?
+        } else if compiler.eq(&CppCompiler::CLANG) {
+            clang::load_metadata(self, program_data)?
         }
 
         Ok(())
@@ -241,6 +245,8 @@ impl<'a> ZorkCache<'a> {
     }
 
     /// Returns a view of borrowed data over all the generated commands for a target
+    // TODO: guess that this method is not being used, due to the &self parameter, which provokes
+    // lots of lifetime issues on the codebase. Remove it.
     pub fn get_all_commands_iter(&self) -> impl Iterator<Item = &SourceCommandLine> + Debug + '_ {
         let generated_commands = &self.generated_commands;
 
@@ -293,6 +299,7 @@ pub type EnvVars = HashMap<String, String>;
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CompilersMetadata<'a> {
+    // TODO: shouldn't this be an Enum or a fat pointer?
     pub msvc: MsvcMetadata<'a>,
     pub clang: ClangMetadata,
     pub gcc: GccMetadata,
@@ -311,12 +318,21 @@ pub struct MsvcMetadata<'a> {
     pub ccompat_stdlib_bmi_path: PathBuf,
     pub ccompat_stdlib_obj_path: PathBuf,
     // The environmental variables that will be injected to the underlying invoking shell
-    pub env_vars: EnvVars,
+    pub env_vars: EnvVars, // TODO: also, the EnvVars can be held in the CompilersMetadata attr,
+                           // since every Cache entity is already unique per compilation process?
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct ClangMetadata {
     pub env_vars: EnvVars,
+    pub version: String,
+    pub major: i32,
+    pub minor: i32,
+    pub patch: i32,
+    pub installed_dir: String,
+    pub libcpp_path: PathBuf,
+    pub stdlib_pcm: PathBuf,
+    pub ccompat_pcm: PathBuf,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
@@ -325,10 +341,244 @@ pub struct GccMetadata {
 }
 
 /// Helper procedures to process cache data for Microsoft's MSVC
+mod clang {
+    use color_eyre::eyre::{self, Context, ContextCompat, Result};
+    use regex::Regex;
+    use std::{ffi::OsStr, path::Path, time::Instant};
+    use walkdir::WalkDir;
+
+    use super::{ClangMetadata, ZorkCache};
+    use crate::{project_model::ZorkModel, utils::constants::error_messages};
+
+    pub(crate) fn load_metadata(
+        cache: &mut ZorkCache,
+        program_data: &ZorkModel,
+    ) -> color_eyre::Result<()> {
+        if cache.compilers_metadata.clang.major != 0 {
+            log::debug!("Clang metadata already gathered on the cache");
+            return Ok(());
+        }
+
+        let compiler = program_data.compiler.cpp_compiler;
+        let driver = compiler.get_driver(&program_data.compiler);
+
+        // TODO: if the driver changes on the cfg, how do we know that we have to process this
+        // cached information again? Just because cache and model are rebuilt again? Can't recall it
+        let clang_cmd_info = std::process::Command::new(OsStr::new(driver.as_ref()))
+            .arg("-###")
+            .output()
+            .with_context(|| error_messages::clang::FAILURE_READING_CLANG_DRIVER_INFO)?;
+        // Combine stdout and stderr into a single output string
+        let combined_output = String::from_utf8_lossy(&clang_cmd_info.stdout).to_string()
+            + &String::from_utf8_lossy(&clang_cmd_info.stderr);
+        // Typically, the useful information will be in stderr for `clang++ -###` commands
+        cache.compilers_metadata.clang = process_frontend_driver_info(&combined_output)?;
+
+        if cache.compilers_metadata.clang.major > 17 {
+            discover_modular_stdlibs(program_data, cache)?;
+        }
+
+        Ok(())
+    }
+
+    fn discover_modular_stdlibs(program_data: &ZorkModel<'_>, cache: &mut ZorkCache) -> Result<()> {
+        let out_dir = &program_data.build.output_dir;
+
+        let user_declared_libcpp_location = &program_data.compiler.std_lib_installed_dir;
+        if let Some(user_libcpp_location) = user_declared_libcpp_location {
+            set_libcpp_installation_dir_by_declared_user_input(user_libcpp_location, cache)?;
+        } else {
+            try_find_libcpp_with_assumed_roots(cache)?;
+        }
+
+        // Byproducts
+        cache.compilers_metadata.clang.stdlib_pcm = out_dir
+            .join("clang")
+            .join("modules")
+            .join("std")
+            .join("std")
+            .with_extension("pcm");
+        let compat = String::from("compat.");
+        cache.compilers_metadata.clang.ccompat_pcm = out_dir
+            .join("clang")
+            .join("modules")
+            .join("std") // Folder
+            .join("std") // Partial filename
+            .with_extension(
+                compat.clone()
+                    + program_data
+                        .compiler
+                        .cpp_compiler
+                        .get_typical_bmi_extension(),
+            );
+
+        Ok(())
+    }
+
+    fn set_libcpp_installation_dir_by_declared_user_input(
+        user_libcpp_declared_location: &Path,
+        cache: &mut ZorkCache,
+    ) -> Result<()> {
+        let user_libcpp_path = Path::new(user_libcpp_declared_location.as_os_str());
+        if user_libcpp_path.exists() {
+            log::debug!(
+                "Found the declared LIBC++ installation at: {:?}",
+                user_libcpp_path
+            );
+            cache.compilers_metadata.clang.libcpp_path = user_libcpp_path.to_path_buf();
+            Ok(())
+        } else {
+            Err(eyre::eyre!(error_messages::clang::WRONG_LIBCPP_DIR))
+        }
+    }
+
+    fn try_find_libcpp_with_assumed_roots(cache: &mut ZorkCache) -> Result<()> {
+        log::info!(
+            "No libc++ installation path was provided. Trying to find one in the system with the standard modules..\
+            \nThis may take a while..."
+        );
+        let assumed_root = if cfg!(target_os = "windows") {
+            "C:" // TODO: should we return an Err and force the user to mandatory
+                 // provide an installation?
+        } else {
+            "/"
+        };
+
+        let start = Instant::now();
+        // TODO: maybe we could add some assumed default 'BIG paths' instead of just one
+        for entry in WalkDir::new(assumed_root)
+            .into_iter()
+            .filter_map(Result::ok)
+        {
+            let path = entry.path();
+
+            if path.is_dir() && path.file_name().map_or(false, |f| f == "libc++") {
+                let libcpp_path = path.join("v1");
+                if libcpp_path.is_dir() {
+                    let std_cppm_path = libcpp_path.join("std.cppm");
+
+                    if std_cppm_path.exists() {
+                        log::debug!(
+                            "Found a valid LIBC++ installation with std.cppm at: {:?}. Took: {:?}",
+                            libcpp_path,
+                            start.elapsed()
+                        );
+                        cache.compilers_metadata.clang.libcpp_path = libcpp_path;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+
+        Err(eyre::eyre!(
+            error_messages::clang::MISSING_LIBCPP_INSTALLATION
+        ))
+    }
+
+    fn process_frontend_driver_info(clang_cmd_info: &str) -> Result<ClangMetadata> {
+        let mut clang_metadata = ClangMetadata::default();
+
+        for line in clang_cmd_info.lines() {
+            if line.contains("clang version") {
+                let (version_str, major, minor, patch) = extract_clang_version(line)?;
+                clang_metadata.version = version_str;
+                clang_metadata.major = major;
+                clang_metadata.minor = minor;
+                clang_metadata.patch = patch;
+            } else if line.contains("InstalledDir:") {
+                clang_metadata.installed_dir = extract_installed_dir(line)?;
+            }
+        }
+
+        if clang_metadata.major != 0 {
+            Ok(clang_metadata)
+        } else {
+            Err(eyre::eyre!(error_messages::clang::METADATA_GATHER_FAILED))
+        }
+    }
+
+    /// Helper for extract metainformation about the declared version of the clang's invoked driver
+    fn extract_clang_version(output: &str) -> Result<(String, i32, i32, i32)> {
+        // Regex pattern to match the version number
+        let version_regex = Regex::new(r"clang version (\d+\.\d+\.\d+)").unwrap();
+
+        // Apply the regex to the output string
+        let captures = version_regex.captures(output);
+        // Return the captured version number
+        let matched = captures
+            .with_context(|| error_messages::clang::FAILURE_PARSING_CLANG_VERSION)?
+            .get(1)
+            .with_context(|| error_messages::clang::FAILURE_PARSING_CLANG_VERSION)?;
+
+        let str_v = matched.as_str().to_string();
+        let splitted = str_v.split('.').collect::<Vec<&str>>();
+        let major = splitted
+            .first()
+            .map(|major| major.parse::<i32>().unwrap())
+            .with_context(|| error_messages::clang::FAILURE_GETTING_VER_MAJOR)?;
+        let minor = splitted
+            .get(1)
+            .map(|minor| minor.parse::<i32>().unwrap())
+            .with_context(|| error_messages::clang::FAILURE_GETTING_VER_MINOR)?;
+        let patch = splitted
+            .get(2)
+            .map(|patch| patch.parse::<i32>().unwrap())
+            .with_context(|| error_messages::clang::FAILURE_GETTING_VER_PATCH)?;
+        Ok((str_v, major, minor, patch))
+    }
+
+    /// Helper for extract metainformation about the installed dir of the clang's invoked driver
+    fn extract_installed_dir(line: &str) -> Result<String> {
+        line.split(':')
+            .collect::<Vec<&str>>()
+            .get(1)
+            .map(|installed_dir| installed_dir.trim().to_string())
+            .with_context(|| error_messages::clang::INSTALLED_DIR)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        #[test]
+        fn test_clang_version_extractor() {
+            let mock_version: &'static str = "clang version 19.0.0git (git@github.com:llvm/llvm-project.git 60a904b2ad9842b93cc5fa0ad5bda5e22c550b7e)";
+            let expected = ("19.0.0".to_string(), 19, 0, 0);
+            assert_eq!(
+                expected,
+                super::extract_clang_version(mock_version).unwrap()
+            );
+
+            let mock_version_2: &'static str = "clang version 16.0.5";
+            let expected = ("16.0.5".to_string(), 16, 0, 5);
+            assert_eq!(
+                expected,
+                super::extract_clang_version(mock_version_2).unwrap()
+            );
+
+            let mock_version_3: &'static str = "Ubuntu clang version 16.0.5 (++20231112100510+7cbf1a259152-1~exp1~20231112100554.106)";
+            let expected = ("16.0.5".to_string(), 16, 0, 5);
+            assert_eq!(
+                expected,
+                super::extract_clang_version(mock_version_3).unwrap()
+            )
+        }
+
+        #[test]
+        fn test_clang_installed_dir_extractor() {
+            let mock_installed_dir: &'static str = "InstalledDir: /usr/bin";
+            let expected = "/usr/bin";
+            assert_eq!(
+                expected,
+                super::extract_installed_dir(mock_installed_dir).unwrap()
+            );
+        }
+    }
+}
+
+/// Helper procedures to process cache data for Microsoft's MSVC
 mod msvc {
     use crate::cache::ZorkCache;
-    use crate::project_model::compiler::CppCompiler;
     use crate::project_model::sourceset::SourceFile;
+    use crate::project_model::ZorkModel;
     use crate::utils;
     use crate::utils::constants::{self, dir_names};
     use crate::utils::constants::{env_vars, error_messages};
@@ -347,9 +597,11 @@ mod msvc {
     /// run this process once per new cache created (cache action 1)
     pub(crate) fn load_metadata(
         cache: &mut ZorkCache,
-        compiler: CppCompiler,
-        output_dir: &Path,
+        program_data: &ZorkModel,
     ) -> color_eyre::Result<()> {
+        let compiler = program_data.compiler.cpp_compiler;
+        let output_dir = &program_data.build.output_dir;
+
         let msvc = &mut cache.compilers_metadata.msvc;
 
         if msvc.dev_commands_prompt.is_none() {
@@ -398,7 +650,7 @@ mod msvc {
                 file_stem: Cow::Borrowed("std.compat"),
                 extension: compiler.default_module_extension(),
             };
-            let modular_stdlib_byproducts_path = Path::new(output_dir)
+            let modular_stdlib_byproducts_path = Path::new(&output_dir)
                 .join(compiler.as_ref())
                 .join(dir_names::MODULES)
                 .join(dir_names::STD) // folder
@@ -459,13 +711,12 @@ pub(crate) mod helpers {
         cache_path: PathBuf,
         cache_file_path: PathBuf,
         compiler: CppCompiler,
-        output_dir: &Path,
     ) -> Result<ZorkCache<'a>> {
         let project_model_file_path = cache_path
             .join(format!("{}_pm", compiler.as_ref()))
             .with_extension(constants::CACHE_FILE_EXT);
 
-        let mut cache = ZorkCache {
+        let cache = ZorkCache {
             metadata: CacheMetadata {
                 cache_file_path,
                 project_model_file_path,
@@ -473,10 +724,6 @@ pub(crate) mod helpers {
             },
             ..Default::default()
         };
-
-        cache
-            .run_tasks(compiler, output_dir)
-            .with_context(|| error_messages::FAILURE_LOADING_INITIAL_CACHE_DATA)?;
 
         Ok(cache)
     }

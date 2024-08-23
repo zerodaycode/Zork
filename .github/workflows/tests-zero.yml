@@ -1,4 +1,5 @@
-name: Clang Tests For Linux builds
+
+name: The 'Zero' library compiles and passes the tests 
 
 on:
   push:
@@ -13,14 +14,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        clang_version: [15, 16, 17, 18, 19, 20]
+        clang_version: [16, 17, 18, 19]
     steps:
       - uses: actions/checkout@v3
       - name: Caching project dependencies
         id: project-cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Install Clang ${{ matrix.clang_version }}
+      - name: Clone Zork++
+        uses: GuillaumeFalourd/clone-github-repo-action@v2.3
+        with:
+          owner: 'ZeroDayCode'
+          repository: 'Zero'
+          branch: 'development'
+
+      - name: Installing LLVM ${{ matrix.clang_version }}
         run: |
           # Exit on error
           set -e
@@ -38,13 +46,15 @@ jobs:
           sudo rm -f /usr/bin/clang++
           sudo ln -s /usr/bin/clang++-${{ matrix.clang_version }} /usr/bin/clang++
 
-          # Display the installation directory and version of the installed Clang
-          echo "-----> Clang-${{ matrix.clang_version }} was installed on:"
-          which clang-${{ matrix.clang_version }}
-          echo "-----> Clang++ was installed on:"
-          which clang++-${{ matrix.clang_version }}
-
-      - name: Running the tests for the project
+      - name: Generate a Zork++ release build
         run: |
           cd zork++
-          RUST_LOG=trace cargo test 2>&1 clang --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1
+          cargo build --release
+          mv ./target/release/zork ./target/release/zork++
+          cp ./target/release/zork++ ../Zero
+          cd ..
+
+      - name: Running the tests for ${{ matrix.os }} with Zork++
+        run: |
+          cd Zero
+          ./zork++ -vv --match-files gh_linux test

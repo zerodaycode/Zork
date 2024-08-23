@@ -1,5 +1,5 @@
-use crate::compiler::data_factory::{CommonArgs, CompilerCommonArguments};
 use crate::domain::commands::arguments::{Argument, Arguments};
+use crate::domain::flyweight_data::FlyweightData;
 use crate::domain::target::{Target, TargetIdentifier};
 use crate::domain::translation_unit::{TranslationUnit, TranslationUnitStatus};
 use crate::project_model::compiler::CppCompiler;
@@ -11,8 +11,7 @@ use std::path::{Path, PathBuf};
 /// Holds the generated command line arguments for a concrete compiler
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct Commands<'a> {
-    pub general_args: Option<CommonArgs<'a>>,
-    pub compiler_common_args: Option<Box<dyn CompilerCommonArguments>>,
+    pub flyweight_data: Option<FlyweightData<'a>>,
     pub modules: ModulesCommands<'a>,
     pub targets: IndexMap<TargetIdentifier<'a>, Target<'a>>,
 }
@@ -74,6 +73,7 @@ impl<'a> SourceCommandLine<'a> {
 #[derive(Debug, Default, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct LinkerCommandLine<'a> {
     pub target: Argument<'a>,
+    pub args: Arguments<'a>,
     pub extra_args: Arguments<'a>,
     pub execution_result: TranslationUnitStatus,
 }
