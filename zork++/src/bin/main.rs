@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use clap::Parser;
 use color_eyre::eyre::Context;
 use color_eyre::Result;
@@ -17,10 +15,7 @@ fn main() -> Result<()> {
         .with_context(|| "Error configuring the logger")?;
 
     log::info!("Launching a new Zork++ program");
-    match run_zork(
-        &cli_args,
-        Path::new(&cli_args.root.as_ref().unwrap_or(&String::from("."))),
-    ) {
+    match run_zork(&cli_args) {
         Ok(_) => {
             log::info!(
                 "[SUCCESS] - The process ended successfully, taking a total time in complete of: {:?} ms",

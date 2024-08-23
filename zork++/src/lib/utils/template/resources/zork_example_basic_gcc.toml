@@ -5,9 +5,8 @@ authors = [ "Zero Day Code" ]  # Replace this for the real authors
 compilation_db = true
 
 [compiler]
-cpp_compiler = "clang"
-cpp_standard = "2b"
-std_lib = "LIBCPP"
+cpp_compiler = "gcc"
+cpp_standard = "23"
 
 [build]
 output_dir = "out"
@@ -23,10 +22,11 @@ sources = [ "*.cpp" ]
 [modules]
 base_ifcs_dir = "ifc"
 interfaces = [
-    { file = 'math.cppm'}
+    { file = 'math.cc'}
 ]
 base_impls_dir = "src"
 implementations = [
     { file = 'math.cpp', dependencies = ['math'] },
     { file = 'math2.cpp', dependencies = ['math'] }
 ]
+sys_modules = ['iostream']

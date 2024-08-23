@@ -1,67 +1,25 @@
 use core::fmt;
+use std::borrow::Cow;
 use std::path::PathBuf;
 
-use crate::bounds::TranslationUnit;
+use crate::domain::commands::arguments::Argument;
 use color_eyre::{eyre::Context, Result};
+use serde::{Deserialize, Serialize};
+use transient::Transient;
 
-use crate::cli::output::arguments::Argument;
+use crate::domain::translation_unit::TranslationUnit;
+use crate::impl_translation_unit_for;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Source {
-    File(PathBuf),
-    Glob(GlobPattern),
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct SourceFile {
+#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize, Transient)]
+pub struct SourceFile<'a> {
     pub path: PathBuf,
-    pub file_stem: String,
-    pub extension: String,
+    pub file_stem: Cow<'a, str>,
+    pub extension: Cow<'a, str>,
 }
 
-impl TranslationUnit for SourceFile {
-    fn file(&self) -> PathBuf {
-        let mut tmp = self.path.join(&self.file_stem).into_os_string();
-        tmp.push(".");
-        tmp.push(&self.extension);
-        PathBuf::from(tmp)
-    }
+impl_translation_unit_for!(SourceFile<'a>);
 
-    fn path(&self) -> PathBuf {
-        self.path.clone()
-    }
-
-    fn file_stem(&self) -> String {
-        self.file_stem.clone()
-    }
-
-    fn extension(&self) -> String {
-        self.extension.clone()
-    }
-}
-
-impl TranslationUnit for &SourceFile {
-    fn file(&self) -> PathBuf {
-        let mut tmp = self.path.join(&self.file_stem).into_os_string();
-        tmp.push(".");
-        tmp.push(&self.extension);
-        PathBuf::from(tmp)
-    }
-
-    fn path(&self) -> PathBuf {
-        self.path.clone()
-    }
-
-    fn file_stem(&self) -> String {
-        self.file_stem.clone()
-    }
-
-    fn extension(&self) -> String {
-        self.extension.clone()
-    }
-}
-
-impl fmt::Display for SourceFile {
+impl<'a> fmt::Display for SourceFile<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -69,6 +27,12 @@ impl fmt::Display for SourceFile {
             self.path, self.file_stem, self.extension
         )
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Source {
+    File(PathBuf),
+    Glob(GlobPattern),
 }
 
 impl Source {
@@ -93,14 +57,20 @@ impl GlobPattern {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct SourceSet {
-    pub sources: Vec<SourceFile>,
-}
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Default, Clone)]
+pub struct SourceSet<'a>(Vec<SourceFile<'a>>);
 
-impl SourceSet {
-    pub fn as_args_to(&self, dst: &mut Vec<Argument<'_>>) -> Result<()> {
-        let args = self.sources.iter().map(|sf| sf.file()).map(Argument::from);
+impl<'a> SourceSet<'a> {
+    pub fn new(sources: Vec<SourceFile<'a>>) -> Self {
+        Self(sources)
+    }
+
+    pub fn as_slice(&self) -> &[SourceFile<'a>] {
+        self.0.as_slice()
+    }
+
+    pub fn as_args_to(&self, dst: &mut Vec<Argument>) -> Result<()> {
+        let args = self.0.iter().map(|sf| sf.path()).map(Argument::from);
 
         dst.extend(args);
 

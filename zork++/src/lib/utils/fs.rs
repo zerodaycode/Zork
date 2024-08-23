@@ -6,8 +6,9 @@ use std::{
     io::{BufReader, Write},
     path::{Path, PathBuf},
 };
+use walkdir::WalkDir;
 
-use super::constants;
+use super::constants::error_messages;
 
 /// Creates a new file in the filesystem if the given does not exists yet at the specified location
 pub fn create_file<'a>(path: &Path, filename: &'a str, buff_write: &'a [u8]) -> Result<()> {
@@ -21,6 +22,26 @@ pub fn create_file<'a>(path: &Path, filename: &'a str, buff_write: &'a [u8]) -> 
     } else {
         Ok(())
     }
+}
+
+/// Tries fo find a file from a given root path by its filename
+pub fn find_file(search_root: &Path, target_filename: &str) -> Option<walkdir::DirEntry> {
+    WalkDir::new(search_root)
+        .into_iter()
+        .filter_map(Result::ok)
+        .find(|file| {
+            file.file_name()
+                .to_str()
+                .map(|filename| filename.contains(target_filename))
+                .unwrap_or(false)
+        })
+}
+
+pub fn delete_file(path: &Path) -> Result<()> {
+    if path.exists() {
+        return std::fs::remove_file(path).with_context(|| error_messages::REMOVE_FILE);
+    }
+    Ok(())
 }
 
 /// Recursively creates a new directory pointed at the value of target if not exists yet
@@ -71,12 +92,12 @@ pub fn get_file_details<P: AsRef<Path>>(p: P) -> Result<(PathBuf, String, String
     ))
 }
 
-pub fn serialize_object_to_file<T>(path: &Path, data: &T) -> Result<()>
+pub fn save_file<T>(path: &Path, data: &T) -> Result<()>
 where
-    T: Serialize,
+    T: Serialize + ?Sized,
 {
     serde_json::to_writer_pretty(
-        File::create(path).with_context(|| "Error creating the cache file")?,
+        File::create(path).with_context(|| format!("Error opening file: {:?}", path))?,
         data,
     )
     .with_context(|| "Error serializing data to the cache")
@@ -85,11 +106,11 @@ where
 pub fn load_and_deserialize<T, P>(path: &P) -> Result<T>
 where
     T: for<'a> Deserialize<'a> + Default,
-    P: AsRef<Path>,
+    P: AsRef<Path> + std::fmt::Debug,
 {
     let buffer = BufReader::new(
-        File::open(path.as_ref().join(constants::ZORK_CACHE_FILENAME))
-            .with_context(|| "Error opening the cache file")?,
+        File::open(path.as_ref()).with_context(|| format!("Error opening {:?}", path))?,
     );
+
     Ok(serde_json::from_reader(buffer).unwrap_or_default())
 }

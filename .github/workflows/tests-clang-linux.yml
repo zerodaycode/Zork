@@ -1,0 +1,50 @@
+name: Clang Tests For Linux builds
+
+on:
+  push:
+    branches: 'main'
+  pull_request:
+    branches: '*'
+
+jobs:
+  tests:
+    name: Run the tests - Clang
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        clang_version: [15, 16, 17, 18, 19, 20]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Caching project dependencies
+        id: project-cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Clang ${{ matrix.clang_version }}
+        run: |
+          # Exit on error
+          set -e
+          # Download and execute the LLVM installation script for the specified Clang version
+          echo "-----> Downloading and executing the LLVM installation script for Clang ${{ matrix.clang_version }}"
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{ matrix.clang_version }}
+
+          echo "-----> Installing libc++"
+          sudo apt-get install -y libc++-${{ matrix.clang_version }}-dev libc++abi-${{ matrix.clang_version }}-dev libunwind-${{ matrix.clang_version }} libunwind-${{ matrix.clang_version }}-dev libc6 libzstd1
+
+          # Update the symbolic link to point to the newly installed Clang version
+          echo "-----> Updating the symbolic link to point to Clang ${{ matrix.clang_version }}"
+          sudo rm -f /usr/bin/clang++
+          sudo ln -s /usr/bin/clang++-${{ matrix.clang_version }} /usr/bin/clang++
+
+          # Display the installation directory and version of the installed Clang
+          echo "-----> Clang-${{ matrix.clang_version }} was installed on:"
+          which clang-${{ matrix.clang_version }}
+          echo "-----> Clang++ was installed on:"
+          which clang++-${{ matrix.clang_version }}
+
+      - name: Running the tests for the project
+        run: |
+          cd zork++
+          RUST_LOG=trace cargo test 2>&1 clang --color=always --no-fail-fast -- --nocapture --show-output --test-threads=1
