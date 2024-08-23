@@ -34,7 +34,7 @@ pub fn generate_commands_arguments<'a>(
     cache: &mut ZorkCache<'a>,
 ) -> Result<()> {
     // Load the flyweight arguments (repeated args across all the source command lines)
-    if cache.generated_commands.flyweight_data.is_none() {
+    if cache.generated_commands.flyweight_data.is_none() || cache.metadata.cfg_modified {
         cache.generated_commands.flyweight_data =
             Some(FlyweightData::new(model, &cache.compilers_metadata));
     }

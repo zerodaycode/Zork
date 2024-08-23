@@ -403,7 +403,8 @@ CompilerAttribute {
     cpp_compiler: CppCompiler, // clang, msvc or gcc
     driver_path: Option<str>, // The invokable name for the compiler's binary
     cpp_standard: LanguageLevel, // but as a string, for ex: '20'
-    std_lib: Option<str>, // libc++ or stdlibc++
+    std_lib: Option<str>, // Only relevant for clang: libc++ or stdlibc++
+    std_lib_installed_dir: Option<str>, // the standard modules directory. If not present, Zork++ will try to find them anyway
     extra_args: Option<Vec<str>>
 }
 
@@ -585,10 +586,15 @@ But this is not available in every compiler using `C++20`, and at the time of wr
 
 In `Zork++`, you have this feature enabled if:
 
-- You're working with `Clang` because the `modulemap` feature of `Clang`. So, in your project, you're able to:
-
-  - `import std;` This our preferred way, in line with the C++23 feature. Under *Windows*, this is made automatically, because we manually generate a `module.modulemap` file that takes care to include the need system headers under the `import std;` statement. In *Unix* kind of operating systems, this is automatically passed as a requirement to `Clang` with a requirement. `libc++` must be installed in your machine. If there's no `libc++` or `libc++-dev` library installed in your computer, you will see some error like: `import std; --> Error, module not found`
-  So, make sure that you installed the `Clang's` implementation of the *standard library* to take advantage of this feature. On *Debian* based systems, you can just use `$ sudo apt install libc++-dev`. On *Arch* systems, just `$ sudo pacman -Sy libc++`.
+- `Clang`:
+    
+  - For `clang >= 18` => available by default. `Zork++` will try to discover and build the standard library modules
+  that are typically shipped with the `llvm`, `clang` and/or `libc++` for **llvm >= 18.1.2**. The user can provide manually
+  a path to the installed location on the filesystem by passing a path to the `std_lib_installed_dir` property under the
+  [compiler] attribute if needed (may be the case if you have different versions installed on your system).
+  - For `clang >= 15 and clang < 18` => clang modules via their *modulemap* feature will be used to get the `import std` feature. This is a
+  **llvm* and **clang** feature completely different from the standard modules, but can do the trick. Actually is broken
+  on *Windows* for some clang versions, and we're not sure if we plan to fix it, since we're discussing if we should even support it.
 
   > In any case, make sure that you enabled *libc++* as your standard library in your **zork.toml** configuration file.
 

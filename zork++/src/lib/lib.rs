@@ -227,7 +227,7 @@ pub mod worker {
         abs_project_root: &Path,
     ) -> Result<ZorkModel<'a>> {
         if meta_config_file.last_time_modified > cache.metadata.last_program_execution {
-            cache.metadata.save_project_model = true;
+            cache.metadata.cfg_modified = true;
             let project_model =
                 utils::reader::build_model(zork_config_file, cli_args, abs_project_root)?;
 

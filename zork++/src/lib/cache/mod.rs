@@ -217,7 +217,7 @@ impl<'a> ZorkCache<'a> {
 
     /// Runs the tasks just before end the program and save the cache
     fn run_final_tasks(&mut self, program_data: &ZorkModel<'_>) -> Result<()> {
-        if self.metadata.save_project_model {
+        if self.metadata.cfg_modified {
             project_model::save(program_data, self)?;
         }
 
@@ -288,10 +288,11 @@ pub struct CacheMetadata {
     pub last_program_execution: DateTime<Utc>,
     pub cache_file_path: PathBuf,
     pub project_model_file_path: PathBuf,
+    // Internal helpers
     #[serde(skip)]
     pub generate_compilation_database: bool,
     #[serde(skip)]
-    pub save_project_model: bool,
+    pub cfg_modified: bool,
 }
 
 /// Type alias for the underlying key-value based collection of environmental variables

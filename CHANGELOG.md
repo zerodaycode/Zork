@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2024 - 08 - 23
+
+### Features
+
+- Added support for `Clang >=18` to use the standard library modules (std and std.compat).
+- Added a new cfg property under the [[compiler]] attribute to manually set where the `libc++` installation lives
+- If the property above isn't present, `Zork++` will try to find a suitable candidate automatically. This can be hazardous
+if the user has different installations of `libc++`, but that's why exists the property describe in the previous point.
+- 'import std' feature is yet available for `clang < 18` via clang modules (instead of std modules) and modulemaps. Anyway,
+we recommend to use Clang version that uses `std modules` for better support. This feature is kind of broken on Windows, and
+we're not sure if we inteend to fix it (we may delete this feature in future releases)
+
+### Misc and or internal
+
+- Added live tests on GitHub's virtual machines to test that `Zork++` effectively builds more complex projects, like
+the [Zero library](https://github.com/zerodaycode/Zero). This is poiting towards a development branch, and when everything
+is stabilized will point towards the default branch (main)
+
+- The `flyweight` data factory (the one that creates the types that holds the more repeated arguments across the user build) has
+been redesigned to be more efficient and readable.
+
 ## [0.10.4] - 2024 - 08 - 17
 
 ### Fixes
