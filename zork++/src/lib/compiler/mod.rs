@@ -332,12 +332,12 @@ mod modules {
                 arguments.push("c++-module");
                 arguments.push("--precompile");
                 arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
-                clang_args::add_direct_module_interfaces_dependencies(
-                    &interface.dependencies,
-                    compiler,
-                    out_dir,
-                    &mut arguments,
-                    cache.compilers_metadata.clang.major,
+                arguments.extend(
+                    clang_args::add_direct_module_interfaces_dependencies(
+                        &interface.dependencies,
+                        out_dir,
+                        cache.compilers_metadata.clang.major,
+                    ),
                 );
 
                 // The generated BMI
@@ -404,12 +404,12 @@ mod modules {
                 arguments.push(&obj_file_path);
 
                 arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
-                clang_args::add_direct_module_interfaces_dependencies(
-                    &implementation.dependencies,
-                    compiler,
-                    out_dir,
-                    &mut arguments,
-                    cache.compilers_metadata.clang.major,
+                arguments.extend(
+                    clang_args::add_direct_module_interfaces_dependencies(
+                        &implementation.dependencies,
+                        out_dir,
+                        cache.compilers_metadata.clang.major,
+                    ),
                 );
             }
             CppCompiler::MSVC => {

@@ -267,30 +267,24 @@ pub mod clang_args {
         )
     }
 
-    pub(crate) fn add_direct_module_interfaces_dependencies(
+    pub(crate) fn add_direct_module_interfaces_dependencies<'a>(
         dependencies: &[Cow<str>],
-        compiler: CppCompiler,
         out_dir: &Path,
-        arguments: &mut Arguments,
         clang_major_version: i32,
-    ) {
+    ) -> Arguments<'a> {
+        let compiler = CppCompiler::CLANG;
+
+        let mut args = Arguments::default();
         dependencies.iter().for_each(|ifc_dep| {
-            let module_file_path = out_dir
+            let mut module_file_path = out_dir
                 .join(compiler.as_ref())
                 .join("modules")
                 .join("interfaces")
-                .join::<&str>(ifc_dep) // TODO: bug is here, isn't adding dots
-                .with_extension(compiler.get_typical_bmi_extension())
+                .join::<&str>(ifc_dep)
                 .display()
                 .to_string();
-
-            let mut out_dir_str = out_dir
-                .join("modules")
-                .join("interfaces")
-                .join::<&str>(ifc_dep) // TODO: bug is here, isn't adding dots
-                .display()
-                .to_string();
-            out_dir_str.push_str(compiler.get_typical_bmi_extension());
+            module_file_path.push('.');
+            module_file_path.push_str(compiler.get_typical_bmi_extension());
 
             let argument = if clang_major_version > 15 {
                 format!("-fmodule-file={}={}", ifc_dep, module_file_path)
@@ -298,8 +292,10 @@ pub mod clang_args {
                 format!("-fmodule-file={}", module_file_path)
             };
 
-            arguments.push(Argument::from(argument));
+            args.push(argument);
         });
+
+        args
     }
 
     pub(crate) fn generate_std_cmd<'a>(
@@ -352,20 +348,17 @@ pub mod clang_args {
 
     #[cfg(test)]
     mod clang_args_tests {
-        use crate::{domain::commands::arguments::Arguments, project_model::compiler::CppCompiler};
+        use crate::domain::commands::arguments::Arguments;
         use std::{borrow::Cow, path::Path};
 
         #[test]
         fn test_clang_add_direct_module_ifc_deps() {
-            let mut args = Arguments::default();
-
-            super::add_direct_module_interfaces_dependencies(
+            let args = super::add_direct_module_interfaces_dependencies(
                 &[Cow::Borrowed("math.numbers")],
-                CppCompiler::CLANG,
                 Path::new("out"),
-                &mut args,
                 19,
             );
+
             assert_eq!(
                 args,
                 Arguments::from_vec(vec![
@@ -374,13 +367,10 @@ pub mod clang_args {
             );
 
             // clearing the mut val
-            args.clear();
 
             super::add_direct_module_interfaces_dependencies(
                 &[Cow::Borrowed("math.numbers")],
-                CppCompiler::CLANG,
                 Path::new("out"),
-                &mut args,
                 15,
             );
             assert_eq!(
