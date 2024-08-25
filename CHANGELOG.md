@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.1] - 2024 - 08 - 25
+
+### Fixes
+
+- Clang's `-fmodule-file` was generating an incorrect path when the reference module had a dot (allowed by the standard)
+in its module name (or in the translation unit filename)
+
 ## [0.11.0] - 2024 - 08 - 23
 
 ### Features

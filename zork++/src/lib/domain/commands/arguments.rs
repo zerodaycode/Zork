@@ -279,10 +279,18 @@ pub mod clang_args {
                 .join(compiler.as_ref())
                 .join("modules")
                 .join("interfaces")
-                .join::<&str>(ifc_dep)
+                .join::<&str>(ifc_dep) // TODO: bug is here, isn't adding dots
                 .with_extension(compiler.get_typical_bmi_extension())
                 .display()
                 .to_string();
+
+            let mut out_dir_str = out_dir
+                .join("modules")
+                .join("interfaces")
+                .join::<&str>(ifc_dep) // TODO: bug is here, isn't adding dots
+                .display()
+                .to_string();
+            out_dir_str.push_str(compiler.get_typical_bmi_extension());
 
             let argument = if clang_major_version > 15 {
                 format!("-fmodule-file={}={}", ifc_dep, module_file_path)
@@ -339,6 +347,48 @@ pub mod clang_args {
             args,
             status: TranslationUnitStatus::PendingToBuild,
             byproduct: byproduct.into(),
+        }
+    }
+
+    #[cfg(test)]
+    mod clang_args_tests {
+        use crate::{domain::commands::arguments::Arguments, project_model::compiler::CppCompiler};
+        use std::{borrow::Cow, path::Path};
+
+        #[test]
+        fn test_clang_add_direct_module_ifc_deps() {
+            let mut args = Arguments::default();
+
+            super::add_direct_module_interfaces_dependencies(
+                &[Cow::Borrowed("math.numbers")],
+                CppCompiler::CLANG,
+                Path::new("out"),
+                &mut args,
+                19,
+            );
+            assert_eq!(
+                args,
+                Arguments::from_vec(vec![
+                    "-fmodule-file=math.numbers=out/clang/modules/interfaces/math.pcm".into()
+                ])
+            );
+
+            // clearing the mut val
+            args.clear();
+
+            super::add_direct_module_interfaces_dependencies(
+                &[Cow::Borrowed("math.numbers")],
+                CppCompiler::CLANG,
+                Path::new("out"),
+                &mut args,
+                15,
+            );
+            assert_eq!(
+                args,
+                Arguments::from_vec(vec![
+                    "-fmodule-file=out/clang/modules/interfaces/math.pcm".into()
+                ])
+            )
         }
     }
 }
