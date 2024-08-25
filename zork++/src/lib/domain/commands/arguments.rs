@@ -362,13 +362,11 @@ pub mod clang_args {
             assert_eq!(
                 args,
                 Arguments::from_vec(vec![
-                    "-fmodule-file=math.numbers=out/clang/modules/interfaces/math.pcm".into()
+                    "-fmodule-file=math.numbers=out/clang/modules/interfaces/math.numbers.pcm".into()
                 ])
             );
 
-            // clearing the mut val
-
-            super::add_direct_module_interfaces_dependencies(
+            let args = super::add_direct_module_interfaces_dependencies(
                 &[Cow::Borrowed("math.numbers")],
                 Path::new("out"),
                 15,
@@ -376,7 +374,7 @@ pub mod clang_args {
             assert_eq!(
                 args,
                 Arguments::from_vec(vec![
-                    "-fmodule-file=out/clang/modules/interfaces/math.pcm".into()
+                    "-fmodule-file=out/clang/modules/interfaces/math.numbers.pcm".into()
                 ])
             )
         }
