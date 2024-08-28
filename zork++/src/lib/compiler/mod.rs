@@ -513,12 +513,13 @@ mod sources {
         let mut arguments = Arguments::default();
 
         let obj_file = helpers::generate_obj_file(compiler, out_dir, source);
-        let fo = if compiler.eq(&CppCompiler::MSVC) {
-            "/Fo"
-        } else {
-            "-o"
-        };
-        arguments.push(format!("{fo}{}", obj_file.display()));
+        match compiler {
+            CppCompiler::CLANG | CppCompiler::GCC => {
+                arguments.push("-o");
+                arguments.push(&obj_file);
+            }
+            CppCompiler::MSVC => arguments.push(format!("/Fo{}", obj_file.display())),
+        }
         arguments.push(source.path());
 
         let command_line = SourceCommandLine::new(source, arguments, obj_file);
