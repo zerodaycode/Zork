@@ -43,6 +43,12 @@ pub mod error_messages {
     pub const FAILURE_LOADING_COMPILER_METADATA: &str =
         "Failed while gathering the current compiler's metadata";
     pub const FAILURE_CLEANING_CACHE: &str = "Error cleaning the Zork++ cache";
+    pub const FAILURE_CLEANING_TARGETS: &str =
+        "Error while cleaning the compilation products of the declared targets";
+    pub const FAILURE_CLEANING_MODULE_INTERFACES: &str =
+        "Error while cleaning the compilation products of the declared C++ module interfaces";
+    pub const FAILURE_CLEANING_MODULE_IMPLEMENTATIONS: &str =
+        "Error while cleaning the compilation products of the declared C++ module implementations";
     pub const FAILURE_LOADING_FLYWEIGHT_DATA: &str =
         "Failed while initializating the flyweight data of the shared command lines arguments";
     pub const FAILURE_SAVING_CACHE: &str = "Error saving data to the Zork++ cache";

@@ -3,6 +3,10 @@ use crate::domain::flyweight_data::FlyweightData;
 use crate::domain::target::{Target, TargetIdentifier};
 use crate::domain::translation_unit::{TranslationUnit, TranslationUnitStatus};
 use crate::project_model::compiler::CppCompiler;
+use crate::utils::constants::error_messages;
+use crate::utils::fs;
+use color_eyre::eyre::Context;
+use color_eyre::Result;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -16,6 +20,32 @@ pub struct Commands<'a> {
     pub targets: IndexMap<TargetIdentifier<'a>, Target<'a>>,
 }
 
+impl<'a> Commands<'a> {
+    /// Attempts to remove from the fs all the compilation products of any tracked
+    /// [`SourceCommandLine`] of the user declared modules and then,
+    /// removes its data from the cache
+    pub fn clean_user_modules(&mut self) -> Result<()> {
+        self.modules.clear()
+    }
+
+    /// Attempts to remove from the fs all the compilation products of any tracked
+    /// [`SourceCommandLine`] for all the user declared [`Target`](s) and then,
+    /// removes its data from the cache
+    pub fn clean_targets(&mut self) -> Result<()> {
+        self.targets
+            .values_mut()
+            .try_for_each(|target| {
+                target
+                    .sources
+                    .iter()
+                    .try_for_each(|scl| fs::delete_file(Path::new(&scl.byproduct)))
+            })
+            .with_context(|| error_messages::FAILURE_CLEANING_TARGETS)?;
+        self.targets.clear();
+        Ok(())
+    }
+}
+
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct ModulesCommands<'a> {
     pub cpp_stdlib: Option<SourceCommandLine<'a>>,
@@ -23,6 +53,26 @@ pub struct ModulesCommands<'a> {
     pub system_modules: Vec<SourceCommandLine<'a>>,
     pub interfaces: Vec<SourceCommandLine<'a>>,
     pub implementations: Vec<SourceCommandLine<'a>>,
+}
+
+impl<'a> ModulesCommands<'a> {
+    /// Deletes from the fs and then the [`SourceCommandLine`] from the [`ZorkCache`] all
+    /// the user [`ModuleInteface`] (and its variants) and [`ModuleImplementation`]
+    pub fn clear(&mut self) -> Result<()> {
+        self.interfaces
+            .iter()
+            .try_for_each(|mod_cmd| fs::delete_file(Path::new(&mod_cmd.byproduct)))
+            .with_context(|| error_messages::FAILURE_CLEANING_MODULE_INTERFACES)?;
+        self.interfaces.clear();
+
+        self.implementations
+            .iter()
+            .try_for_each(|mod_cmd| fs::delete_file(Path::new(&mod_cmd.byproduct)))
+            .with_context(|| error_messages::FAILURE_CLEANING_MODULE_IMPLEMENTATIONS)?;
+        self.implementations.clear();
+
+        Ok(())
+    }
 }
 
 /// Type for representing the command line that will be sent to the target compiler, and

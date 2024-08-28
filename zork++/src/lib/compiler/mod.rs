@@ -463,13 +463,12 @@ mod modules {
         cache: &mut ZorkCache<'a>,
         stdlib_mode: StdLibMode,
     ) {
-        let compiler = model.compiler.cpp_compiler;
-        let lpe = cache.metadata.last_program_execution;
-
-        if let Some(cpp_stdlib_cmd) = cache.get_cpp_stdlib_cmd_by_kind(stdlib_mode) {
-            cpp_stdlib_cmd.status =
-                helpers::determine_translation_unit_status(compiler, &lpe, cpp_stdlib_cmd);
-        } else {
+        let cached_stdlib_cmd = cache.get_cpp_stdlib_cmd_by_kind(stdlib_mode);
+        if cached_stdlib_cmd.is_none()
+            && cached_stdlib_cmd
+                .map(|scl| Path::new(&scl.byproduct).exists())
+                .is_none()
+        {
             let compiler = model.compiler.cpp_compiler;
             log::info!(
                 "Generating the command for build the {:?} {}",

@@ -15,9 +15,12 @@ use crate::project_model::compiler::LanguageLevel;
 pub struct Argument<'a>(Cow<'a, str>);
 
 impl<'a> Argument<'a> {
+    #[inline(always)]
     pub fn value(&self) -> &Cow<'a, str> {
         &self.0
     }
+
+    #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }

@@ -9,7 +9,6 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use std::{
-    fs,
     fs::File,
     path::{Path, PathBuf},
     time::Instant,
@@ -54,24 +53,9 @@ pub fn load<'a>(
         .with_extension(constants::CACHE_FILE_EXT);
 
     let mut cache = if !cache_file_path.exists() {
-        File::create(&cache_file_path).with_context(|| error_messages::FAILURE_LOADING_CACHE)?;
-        helpers::initialize_cache(cache_path, cache_file_path, compiler)?
+        helpers::create_cache(cache_path, cache_file_path, compiler)?
     } else if cache_path.exists() && cli_args.clear_cache {
-        fs::remove_dir_all(&cache_path).with_context(|| error_messages::FAILURE_CLEANING_CACHE)?;
-        fs::create_dir(&cache_path).with_context(|| {
-            format!(
-                "{} for: {}",
-                error_messages::FAILURE_CREATING_COMPILER_CACHE_DIR,
-                compiler
-            )
-        })?;
-        File::create(&cache_file_path).with_context(|| {
-            format!(
-                "{} after cleaning the cache",
-                error_messages::FAILURE_LOADING_CACHE
-            )
-        })?;
-        helpers::initialize_cache(cache_path, cache_file_path, compiler)?
+        helpers::clear_cache(&cache_file_path)?
     } else {
         log::trace!(
             "Loading Zork++ cache file for {compiler} at: {:?}",
@@ -284,7 +268,7 @@ impl<'a> ZorkCache<'a> {
 /// statuses
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 pub struct CacheMetadata {
-    pub process_no: i32,
+    pub process_no: u32,
     pub last_program_execution: DateTime<Utc>,
     pub cache_file_path: PathBuf,
     pub project_model_file_path: PathBuf,
@@ -708,7 +692,16 @@ pub(crate) mod helpers {
     use crate::domain::translation_unit::TranslationUnitStatus;
     use std::path::PathBuf;
 
-    pub(crate) fn initialize_cache<'a>(
+    pub(crate) fn create_cache<'a>(
+        cache_path: PathBuf,
+        cache_file_path: PathBuf,
+        compiler: CppCompiler,
+    ) -> Result<ZorkCache<'a>> {
+        File::create(&cache_file_path).with_context(|| error_messages::FAILURE_LOADING_CACHE)?;
+        helpers::initialize_cache(cache_path, cache_file_path, compiler)
+    }
+
+    fn initialize_cache<'a>(
         cache_path: PathBuf,
         cache_file_path: PathBuf,
         compiler: CppCompiler,
@@ -727,6 +720,21 @@ pub(crate) mod helpers {
         };
 
         Ok(cache)
+    }
+
+    pub(crate) fn clear_cache<'a>(cache_file_path: &Path) -> Result<ZorkCache<'a>> {
+        let mut zork_cache: ZorkCache<'_> = utils::fs::load_and_deserialize(&cache_file_path)
+            .with_context(|| error_messages::FAILURE_LOADING_CACHE)?;
+
+        // clean the user compilation products
+        zork_cache.generated_commands.clean_user_modules()?;
+        zork_cache.generated_commands.clean_targets()?;
+
+        // restore to default some of the metadata properties
+        zork_cache.metadata.process_no = u32::default();
+        zork_cache.metadata.last_program_execution = DateTime::default();
+
+        Ok(zork_cache)
     }
 
     /// Checks for those translation units that the process detected that must be deleted from the
