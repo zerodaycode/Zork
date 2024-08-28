@@ -110,7 +110,14 @@ pub struct Arguments<'a>(Vec<Argument<'a>>);
 
 impl<'a> core::fmt::Display for Arguments<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.iter().try_for_each(|arg| write!(f, "{} ", arg))
+        let len = self.0.len();
+        self.0.iter().enumerate().try_for_each(|(i, arg)| {
+            if i == len - 1 {
+                write!(f, "{}", arg)
+            } else {
+                write!(f, "{} ", arg)
+            }
+        })
     }
 }
 
