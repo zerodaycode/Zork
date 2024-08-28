@@ -228,15 +228,13 @@ pub mod clang_args {
         domain::{
             commands::command_lines::SourceCommandLine, translation_unit::TranslationUnitStatus,
         },
-        project_model::{
-            compiler::{CppCompiler, StdLibMode},
-            ZorkModel,
-        },
+        project_model::compiler::{CppCompiler, StdLibMode},
+        utils::constants,
     };
 
     use super::*;
 
-    /// Generates the correct module mapping command line argument for Clang.
+    /// Generates a module mapping command line argument for Clang.
     ///
     // The Windows variant is a Zork++ feature to allow the users to write `import std;`
     // under -std=c++20 with clang linking against GCC with
@@ -246,8 +244,8 @@ pub mod clang_args {
             Cow::Owned(format!(
                 "-fmodule-map-file={}",
                 out_dir
-                    .join("zork")
-                    .join("intrinsics")
+                    .join(constants::ZORK)
+                    .join(constants::dir_names::INTRINSICS)
                     .join("zork.modulemap")
                     .display()
             ))
@@ -256,13 +254,13 @@ pub mod clang_args {
         }
     }
 
-    pub(crate) fn add_prebuilt_module_path(compiler: CppCompiler, out_dir: &Path) -> String {
+    pub(crate) fn add_prebuilt_module_path(out_dir: &Path) -> String {
         format!(
             "-fprebuilt-module-path={}",
             out_dir
-                .join(compiler.as_ref())
-                .join("modules")
-                .join("interfaces")
+                .join(constants::compilers::CLANG)
+                .join(constants::dir_names::MODULES)
+                .join(constants::dir_names::INTERFACES)
                 .display()
         )
     }
@@ -278,8 +276,8 @@ pub mod clang_args {
         dependencies.iter().for_each(|ifc_dep| {
             let mut module_file_path = out_dir
                 .join(compiler.as_ref())
-                .join("modules")
-                .join("interfaces")
+                .join(constants::dir_names::MODULES)
+                .join(constants::dir_names::INTERFACES)
                 .join::<&str>(ifc_dep)
                 .display()
                 .to_string();
@@ -300,17 +298,13 @@ pub mod clang_args {
 
     pub(crate) fn generate_std_cmd<'a>(
         cache: &mut ZorkCache<'a>,
-        model: &ZorkModel<'a>,
         stdlib_mode: StdLibMode,
     ) -> SourceCommandLine<'a> {
-        let compiler = model.compiler.cpp_compiler;
-        let out_dir = &model.build.output_dir;
         let clang_metadata = &cache.compilers_metadata.clang;
 
         let mut args = Arguments::default();
         args.push("-Wno-reserved-module-identifier");
         args.push("--precompile");
-        args.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
 
         let (filename, byproduct) = match stdlib_mode {
             StdLibMode::Cpp => (String::from("std.cppm"), &clang_metadata.stdlib_pcm),
@@ -362,7 +356,8 @@ pub mod clang_args {
             assert_eq!(
                 args,
                 Arguments::from_vec(vec![
-                    "-fmodule-file=math.numbers=out/clang/modules/interfaces/math.numbers.pcm".into()
+                    "-fmodule-file=math.numbers=out/clang/modules/interfaces/math.numbers.pcm"
+                        .into()
                 ])
             );
 

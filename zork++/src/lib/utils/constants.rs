@@ -2,6 +2,10 @@
 
 pub const ZORK: &str = "zork";
 
+pub mod compilers {
+    pub const CLANG: &str = "clang";
+}
+
 /// The names of the `Zork++`specific directories, not their paths
 pub mod dir_names {
     pub const DEFAULT_OUTPUT_DIR: &str = "out";

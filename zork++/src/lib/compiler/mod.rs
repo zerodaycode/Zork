@@ -8,7 +8,7 @@ use std::path::Path;
 
 use color_eyre::Result;
 
-use crate::domain::commands::arguments::{clang_args, Argument};
+use crate::domain::commands::arguments::Argument;
 use crate::domain::flyweight_data::FlyweightData;
 use crate::domain::target::TargetIdentifier;
 use crate::domain::translation_unit::TranslationUnitStatus;
@@ -202,12 +202,6 @@ fn generate_linkage_targets_commands<'a>(
         };
     }
 
-    if compiler.eq(&CppCompiler::CLANG) {
-        linker
-            .args
-            .push(clang_args::add_prebuilt_module_path(*compiler, out_dir));
-    }
-
     // Check if the extra args passed by the user to the linker has changed from previous
     // iterations
     if Iterator::ne(linker.extra_args.iter(), target_details.extra_args.iter()) {
@@ -331,14 +325,11 @@ mod modules {
                 arguments.push("-x");
                 arguments.push("c++-module");
                 arguments.push("--precompile");
-                arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
-                arguments.extend(
-                    clang_args::add_direct_module_interfaces_dependencies(
-                        &interface.dependencies,
-                        out_dir,
-                        cache.compilers_metadata.clang.major,
-                    ),
-                );
+                arguments.extend(clang_args::add_direct_module_interfaces_dependencies(
+                    &interface.dependencies,
+                    out_dir,
+                    cache.compilers_metadata.clang.major,
+                ));
 
                 // The generated BMI
                 arguments.push("-o");
@@ -403,14 +394,11 @@ mod modules {
                 arguments.push("-o");
                 arguments.push(&obj_file_path);
 
-                arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
-                arguments.extend(
-                    clang_args::add_direct_module_interfaces_dependencies(
-                        &implementation.dependencies,
-                        out_dir,
-                        cache.compilers_metadata.clang.major,
-                    ),
-                );
+                arguments.extend(clang_args::add_direct_module_interfaces_dependencies(
+                    &implementation.dependencies,
+                    out_dir,
+                    cache.compilers_metadata.clang.major,
+                ));
             }
             CppCompiler::MSVC => {
                 // The output .obj file
@@ -490,7 +478,7 @@ mod modules {
             );
 
             let scl = match compiler {
-                CppCompiler::CLANG => clang_args::generate_std_cmd(cache, model, stdlib_mode),
+                CppCompiler::CLANG => clang_args::generate_std_cmd(cache, stdlib_mode),
                 CppCompiler::MSVC => msvc_args::generate_std_cmd(cache, stdlib_mode),
                 CppCompiler::GCC => todo!(),
             };
@@ -502,7 +490,7 @@ mod modules {
 /// Specific operations over source files
 mod sources {
     use crate::cache::ZorkCache;
-    use crate::domain::commands::arguments::{clang_args, Arguments};
+    use crate::domain::commands::arguments::Arguments;
     use crate::domain::commands::command_lines::SourceCommandLine;
     use crate::domain::target::TargetIdentifier;
     use crate::domain::translation_unit::TranslationUnit;
@@ -524,10 +512,6 @@ mod sources {
         let out_dir = model.build.output_dir.as_ref();
 
         let mut arguments = Arguments::default();
-
-        if compiler.eq(&CppCompiler::CLANG) {
-            arguments.push(clang_args::add_prebuilt_module_path(compiler, out_dir));
-        }
 
         let obj_file = helpers::generate_obj_file(compiler, out_dir, source);
         let fo = if compiler.eq(&CppCompiler::MSVC) {
@@ -674,6 +658,9 @@ pub(crate) mod helpers {
     /// Inspects the status field of a given [`SourceCommandLine`] of a [`TranslationUnit`] among
     /// some other criteria to determine if the translation unit must be built (ex: the first iteration)
     /// or rebuilt again (ex: the file is yet unprocessed because another translation unit failed before it)
+    ///
+    /// TODO: waiting for implement our custom clang-scan-deps, so we can sent to rebuild all the
+    /// dependants of the module and avoid clang modules cache issues
     pub(crate) fn particular_checks_for_sent_to_build(
         compiler: CppCompiler,
         cached_source_cmd: &SourceCommandLine,
