@@ -423,8 +423,8 @@ mod clang {
             \nThis may take a while..."
         );
         let assumed_root = if cfg!(target_os = "windows") {
-            "C:" // TODO: should we return an Err and force the user to mandatory
-                 // provide an installation?
+            "C:/" // TODO: should we return an Err and force the user to mandatory
+                  // provide an installation?
         } else {
             "/"
         };

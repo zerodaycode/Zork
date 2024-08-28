@@ -318,7 +318,8 @@ mod modules {
         let out_dir: &Path = model.build.output_dir.as_ref();
 
         // The Path of the generated binary module interface
-        let binary_module_ifc = helpers::generate_prebuilt_miu(compiler, out_dir, interface);
+        let binary_module_ifc =
+            helpers::generate_module_output_filename(compiler, out_dir, interface);
 
         match compiler {
             CppCompiler::CLANG => {
@@ -556,39 +557,25 @@ pub(crate) mod helpers {
 
     /// Creates the path for a prebuilt module interface, based on the default expected
     /// extension for BMI's given a compiler
-    ///
-    /// We use join for the extension instead `with_extension` because modules are allowed to contain
-    /// dots in their module identifier declaration. So, for example, a module with a declaration of:
-    /// `export module dotted.module`, in Clang, due to the expected `.pcm` extension, the final path
-    /// will be generated as `dotted.pcm`, instead `dotted.module.pcm`.
-    ///
-    /// For MSVC, we are relying on the auto generation feature of the BMI automatically by the compiler,
-    /// so the output file that we need is an obj file (.obj), and not the
-    /// binary module interface (.ifc)
-    pub(crate) fn generate_prebuilt_miu(
+    pub(crate) fn generate_module_output_filename(
         compiler: CppCompiler,
         out_dir: &Path,
         interface: &ModuleInterfaceModel,
     ) -> PathBuf {
-        let mod_unit = if compiler.eq(&CppCompiler::CLANG) {
-            let mut temp = String::new();
-            if let Some(partition) = &interface.partition {
-                temp.push_str(&partition.module);
-                temp.push('-');
-                if !partition.partition_name.is_empty() {
-                    temp.push_str(&partition.partition_name)
-                } else {
-                    temp.push_str(interface.file_stem())
-                }
+        let mut module_filename = String::new();
+        if let Some(partition) = &interface.partition {
+            module_filename.push_str(&partition.module);
+            module_filename.push('-');
+            if !partition.partition_name.is_empty() {
+                module_filename.push_str(&partition.partition_name)
             } else {
-                temp.push_str(&interface.module_name)
+                module_filename.push_str(interface.file_stem())
             }
-            temp
         } else {
-            interface.module_name.to_string()
-        };
+            module_filename.push_str(&interface.module_name)
+        }
 
-        generate_bmi_file_path(out_dir, compiler, &mod_unit)
+        generate_bmi_file_path(out_dir, compiler, &module_filename)
     }
 
     /// Generates the [`PathBuf`] of the resultant binary module interface file of a C++ module interface
