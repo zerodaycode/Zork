@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.2] - 2024 - 09 - 11
+
+### Updates
+
+- Removed trailing whitespace when the executed commands are printed to stdout on trace level
+
+- std libs aren't rebuilt when the `-c` switch is present on the program's cmd args, nor other general
+cached data. Only the one that is related to the user defined translation units
+
+- All modules aren't automatically rebuilt when using Clang on Windows when at least one suffered
+changes. Now the user must manually use the `-c` flag to regenerate them if some module, which others
+may depend on suffered changes and Clang complains about it. This is a kind of downgrade while we don't
+finish our own 'scan-deps', so we can send to build the dependant modules of some module when this
+is modified
+
 ## [0.11.1] - 2024 - 08 - 25
 
 ### Fixes

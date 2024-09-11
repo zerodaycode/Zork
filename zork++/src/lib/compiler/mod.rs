@@ -240,13 +240,12 @@ fn process_kind_translation_unit<'a, T: TranslationUnit<'a>>(
     translation_unit: &'a T,
     for_kind: &TranslationUnitKind<'a>,
 ) -> Result<()> {
-    let compiler = model.compiler.cpp_compiler;
     let lpe = cache.metadata.last_program_execution;
 
     if let Some(generated_cmd) = cache.get_cmd_for_translation_unit_kind(translation_unit, for_kind)
     {
         let build_translation_unit =
-            helpers::determine_translation_unit_status(compiler, &lpe, generated_cmd);
+            helpers::determine_translation_unit_status(&lpe, generated_cmd);
 
         if build_translation_unit.ne(&TranslationUnitStatus::PendingToBuild) {
             log::trace!("Source file: {:?} was not modified since the last iteration. No need to rebuilt it again.", &translation_unit.path());
@@ -621,7 +620,6 @@ pub(crate) mod helpers {
     /// *returns: <[`TranslationUnitStatus`]>* - The state that should be set to the current
     /// [`SourceCommandLine`] in order to be handled
     pub(crate) fn determine_translation_unit_status(
-        compiler: CppCompiler,
         last_process_execution: &DateTime<Utc>,
         cached_source_cmd: &SourceCommandLine,
     ) -> TranslationUnitStatus {
@@ -632,8 +630,8 @@ pub(crate) mod helpers {
         }
 
         // In case the file suffered changes
-        let need_to_build = particular_checks_for_sent_to_build(compiler, cached_source_cmd)
-            || translation_unit_has_changes_on_fs(last_process_execution, cached_source_cmd);
+        let need_to_build =
+            translation_unit_has_changes_on_fs(last_process_execution, cached_source_cmd);
 
         if need_to_build {
             TranslationUnitStatus::PendingToBuild
@@ -641,26 +639,6 @@ pub(crate) mod helpers {
             compute_translation_unit_status(cached_source_cmd)
         }
     }
-
-    /// Inspects the status field of a given [`SourceCommandLine`] of a [`TranslationUnit`] among
-    /// some other criteria to determine if the translation unit must be built (ex: the first iteration)
-    /// or rebuilt again (ex: the file is yet unprocessed because another translation unit failed before it)
-    ///
-    /// TODO: waiting for implement our custom clang-scan-deps, so we can sent to rebuild all the
-    /// dependants of the module and avoid clang modules cache issues
-    pub(crate) fn particular_checks_for_sent_to_build(
-        compiler: CppCompiler,
-        cached_source_cmd: &SourceCommandLine,
-    ) -> bool {
-        if compiler.eq(&CppCompiler::CLANG) && cfg!(target_os = "windows") {
-            log::trace!("Module unit {:?} will be rebuilt since we've detected that you are using Clang in Windows", cached_source_cmd.path());
-            return true;
-        }
-        false
-    }
-
-    // template factory function to set the real status of a translation unit (ScheduledToDelete) on the final tasks
-    // on the cache, and set states maybe? And what more?
 
     /// Checks whenever a [`TranslationUnit`] has been modified on the filesystem and its changes
     /// was made *after* the last time that `Zork++` made a run.

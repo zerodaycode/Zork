@@ -355,7 +355,7 @@ pub mod clang_args {
         use crate::domain::commands::arguments::Arguments;
         use std::{borrow::Cow, path::Path};
 
-        #[test] // fixed since v0.11.1
+        #[test] // fixed since v0.11.2
         fn test_clang_add_direct_module_ifc_deps() {
             let args = super::add_direct_module_interfaces_dependencies(
                 &[Cow::Borrowed("math.numbers")],
